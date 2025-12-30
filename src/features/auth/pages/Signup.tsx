@@ -6,6 +6,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { BarChart3, Mail, Lock, User, ArrowRight, Eye, EyeOff, Check } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { signupService } from "../services";
+import { userStorage } from "@/shared/lib/storage";
+import { APP_CONFIG } from "@/core/config/app.config";
+import "../styles/index.scss";
 
 const Signup = () => {
   const [name, setName] = useState("");
@@ -20,15 +24,34 @@ const Signup = () => {
     e.preventDefault();
     setIsLoading(true);
 
-    // Simulate signup - will be replaced with Supabase auth
-    setTimeout(() => {
-      setIsLoading(false);
-      toast({
-        title: "Cadastro simulado",
-        description: "Conecte o Lovable Cloud para autenticação real.",
+    try {
+      const result = await signupService({
+        nome: name,
+        email: email,
+        senha: password,
       });
-      navigate("/dashboard");
-    }, 1000);
+
+      if (result.success && result.user) {
+        userStorage.set(result.user);
+        
+        toast({
+          title: "Conta criada com sucesso!",
+          description: `Bem-vindo, ${result.user.nome}!`,
+        });
+        
+        navigate(APP_CONFIG.ROUTES.DASHBOARD);
+      } else {
+        throw new Error(result.error || "Erro ao criar conta");
+      }
+    } catch (error) {
+      toast({
+        title: "Erro ao criar conta",
+        description: error instanceof Error ? error.message : "Ocorreu um erro inesperado. Tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const features = [
@@ -39,52 +62,52 @@ const Signup = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-background flex">
+    <div className="auth-container">
       {/* Left Side - Decorative */}
-      <div className="hidden lg:flex flex-1 bg-primary relative overflow-hidden items-center justify-center">
-        <div className="absolute inset-0 bg-[var(--gradient-primary)]" />
-        <div className="absolute top-20 left-20 w-72 h-72 bg-accent/20 rounded-full blur-3xl" />
-        <div className="absolute bottom-20 right-20 w-96 h-96 bg-accent/10 rounded-full blur-3xl" />
+      <div className="auth-decorative-side">
+        <div className="auth-decorative-gradient" />
+        <div className="auth-decorative-blob auth-decorative-blob--large auth-decorative-blob--top-left" />
+        <div className="auth-decorative-blob auth-decorative-blob--small auth-decorative-blob--bottom-right" />
         
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.8, delay: 0.2 }}
-          className="relative z-10 px-12 max-w-lg"
+          className="auth-decorative-content"
         >
-          <div className="w-20 h-20 rounded-2xl bg-accent/20 flex items-center justify-center mb-6 backdrop-blur-sm">
+          <div className="auth-decorative-icon">
             <BarChart3 className="w-10 h-10 text-accent" />
           </div>
-          <h2 className="font-display text-3xl font-bold text-primary-foreground mb-4">
+          <h2 className="auth-decorative-title">
             Comece sua jornada de dados
           </h2>
-          <p className="text-primary-foreground/70 mb-8">
+          <p className="auth-decorative-text">
             Junte-se a vendedores digitais que já transformam seus dados em resultados.
           </p>
 
-          <div className="space-y-4">
+          <div className="auth-features">
             {features.map((feature, index) => (
               <motion.div
                 key={feature}
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.5, delay: 0.4 + index * 0.1 }}
-                className="flex items-center gap-3"
+                className="auth-feature-item"
               >
-                <div className="w-6 h-6 rounded-full bg-accent/20 flex items-center justify-center">
+                <div className="auth-feature-icon">
                   <Check className="w-3 h-3 text-accent" />
                 </div>
-                <span className="text-primary-foreground/80">{feature}</span>
+                <span className="auth-feature-text">{feature}</span>
               </motion.div>
             ))}
           </div>
 
-          <div className="mt-12 p-4 rounded-xl bg-accent/10 backdrop-blur-sm border border-accent/20">
-            <div className="flex items-baseline gap-2">
-              <span className="font-display text-3xl font-bold text-primary-foreground">R$ 67</span>
-              <span className="text-primary-foreground/60">/mês</span>
+          <div className="auth-pricing-card">
+            <div className="auth-pricing-amount">
+              <span>R$ 67</span>
+              <span className="auth-pricing-period">/mês</span>
             </div>
-            <p className="text-primary-foreground/70 text-sm mt-1">
+            <p className="auth-pricing-description">
               Acesso completo a todas as funcionalidades
             </p>
           </div>
@@ -92,16 +115,16 @@ const Signup = () => {
       </div>
 
       {/* Right Side - Form */}
-      <div className="flex-1 flex items-center justify-center p-8">
+      <div className="auth-form-side">
         <motion.div
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.5 }}
-          className="w-full max-w-md"
+          className="auth-form-wrapper"
         >
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-2 mb-8">
-            <div className="w-10 h-10 rounded-xl bg-accent flex items-center justify-center shadow-glow">
+          <Link to={APP_CONFIG.ROUTES.HOME} className="auth-logo">
+            <div className="auth-logo-icon">
               <BarChart3 className="w-5 h-5 text-accent-foreground" />
             </div>
             <span className="font-display font-bold text-xl text-foreground">
@@ -109,64 +132,64 @@ const Signup = () => {
             </span>
           </Link>
 
-          <h1 className="font-display text-3xl font-bold text-foreground mb-2">
+          <h1 className="auth-title">
             Criar sua conta
           </h1>
-          <p className="text-muted-foreground mb-8">
+          <p className="auth-subtitle">
             Preencha os dados abaixo para começar
           </p>
 
-          <form onSubmit={handleSubmit} className="space-y-5">
-            <div className="space-y-2">
+          <form onSubmit={handleSubmit} className="auth-form">
+            <div className="auth-form-group">
               <Label htmlFor="name">Nome completo</Label>
-              <div className="relative">
-                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+              <div className="auth-input-wrapper">
+                <User className="auth-input-icon" />
                 <Input
                   id="name"
                   type="text"
                   placeholder="Seu nome"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="pl-10"
+                  className="auth-input"
                   required
                 />
               </div>
             </div>
 
-            <div className="space-y-2">
+            <div className="auth-form-group">
               <Label htmlFor="email">Email</Label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+              <div className="auth-input-wrapper">
+                <Mail className="auth-input-icon" />
                 <Input
                   id="email"
                   type="email"
                   placeholder="seu@email.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="pl-10"
+                  className="auth-input"
                   required
                 />
               </div>
             </div>
 
-            <div className="space-y-2">
+            <div className="auth-form-group">
               <Label htmlFor="password">Senha</Label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+              <div className="auth-input-wrapper">
+                <Lock className="auth-input-icon" />
                 <Input
                   id="password"
                   type={showPassword ? "text" : "password"}
                   placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="pl-10 pr-10"
+                  className="auth-input auth-input--with-toggle"
                   required
                   minLength={8}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  className="auth-toggle-password"
                 >
                   {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
@@ -178,9 +201,9 @@ const Signup = () => {
               <input type="checkbox" id="terms" className="mt-1 rounded border-border" required />
               <label htmlFor="terms" className="text-sm text-muted-foreground">
                 Eu concordo com os{" "}
-                <Link to="/terms" className="text-accent hover:underline">Termos de Uso</Link>
+                <Link to="/terms" className="auth-link">Termos de Uso</Link>
                 {" "}e{" "}
-                <Link to="/privacy" className="text-accent hover:underline">Política de Privacidade</Link>
+                <Link to="/privacy" className="auth-link">Política de Privacidade</Link>
               </label>
             </div>
 
@@ -190,9 +213,9 @@ const Signup = () => {
             </Button>
           </form>
 
-          <div className="mt-6 text-center text-sm text-muted-foreground">
+          <div className="auth-footer">
             Já tem uma conta?{" "}
-            <Link to="/login" className="text-accent hover:underline font-medium">
+            <Link to={APP_CONFIG.ROUTES.LOGIN} className="auth-link auth-link--medium">
               Fazer login
             </Link>
           </div>
@@ -203,3 +226,4 @@ const Signup = () => {
 };
 
 export default Signup;
+

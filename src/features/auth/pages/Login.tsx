@@ -6,6 +6,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { BarChart3, Mail, Lock, ArrowRight, Eye, EyeOff } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { loginService } from "../services";
+import { userStorage, tokenStorage } from "@/shared/lib/storage";
+import { APP_CONFIG } from "@/core/config/app.config";
+import "../styles/index.scss";
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -19,30 +23,52 @@ const Login = () => {
     e.preventDefault();
     setIsLoading(true);
 
-    // Simulate login - will be replaced with Supabase auth
-    setTimeout(() => {
-      setIsLoading(false);
-      toast({
-        title: "Login simulado",
-        description: "Conecte o Lovable Cloud para autenticação real.",
+    try {
+      const result = await loginService({
+        email: email,
+        senha: password,
       });
-      navigate("/dashboard");
-    }, 1000);
+
+      if (result.success && result.user) {
+        userStorage.set(result.user);
+        
+        if (result.token) {
+          tokenStorage.set(result.token);
+        }
+        
+        toast({
+          title: "Login realizado com sucesso!",
+          description: `Bem-vindo de volta, ${result.user.nome}!`,
+        });
+        
+        navigate(APP_CONFIG.ROUTES.DASHBOARD);
+      } else {
+        throw new Error(result.error || "Erro ao fazer login");
+      }
+    } catch (error) {
+      toast({
+        title: "Erro ao fazer login",
+        description: error instanceof Error ? error.message : "Email ou senha inválidos. Tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
-    <div className="min-h-screen bg-background flex">
+    <div className="auth-container">
       {/* Left Side - Form */}
-      <div className="flex-1 flex items-center justify-center p-8">
+      <div className="auth-form-side">
         <motion.div
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.5 }}
-          className="w-full max-w-md"
+          className="auth-form-wrapper"
         >
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-2 mb-8">
-            <div className="w-10 h-10 rounded-xl bg-accent flex items-center justify-center shadow-glow">
+          <Link to={APP_CONFIG.ROUTES.HOME} className="auth-logo">
+            <div className="auth-logo-icon">
               <BarChart3 className="w-5 h-5 text-accent-foreground" />
             </div>
             <span className="font-display font-bold text-xl text-foreground">
@@ -50,59 +76,59 @@ const Login = () => {
             </span>
           </Link>
 
-          <h1 className="font-display text-3xl font-bold text-foreground mb-2">
+          <h1 className="auth-title">
             Bem-vindo de volta
           </h1>
-          <p className="text-muted-foreground mb-8">
+          <p className="auth-subtitle">
             Entre na sua conta para acessar o dashboard
           </p>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="space-y-2">
+          <form onSubmit={handleSubmit} className="auth-form">
+            <div className="auth-form-group">
               <Label htmlFor="email">Email</Label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+              <div className="auth-input-wrapper">
+                <Mail className="auth-input-icon" />
                 <Input
                   id="email"
                   type="email"
                   placeholder="seu@email.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="pl-10"
+                  className="auth-input"
                   required
                 />
               </div>
             </div>
 
-            <div className="space-y-2">
+            <div className="auth-form-group">
               <Label htmlFor="password">Senha</Label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+              <div className="auth-input-wrapper">
+                <Lock className="auth-input-icon" />
                 <Input
                   id="password"
                   type={showPassword ? "text" : "password"}
                   placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="pl-10 pr-10"
+                  className="auth-input auth-input--with-toggle"
                   required
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  className="auth-toggle-password"
                 >
                   {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
               </div>
             </div>
 
-            <div className="flex items-center justify-between text-sm">
-              <label className="flex items-center gap-2 cursor-pointer">
+            <div className="auth-remember">
+              <label className="auth-remember-checkbox">
                 <input type="checkbox" className="rounded border-border" />
                 <span className="text-muted-foreground">Lembrar de mim</span>
               </label>
-              <Link to="/forgot-password" className="text-accent hover:underline">
+              <Link to="/forgot-password" className="auth-link">
                 Esqueceu a senha?
               </Link>
             </div>
@@ -113,9 +139,9 @@ const Login = () => {
             </Button>
           </form>
 
-          <div className="mt-6 text-center text-sm text-muted-foreground">
+          <div className="auth-footer">
             Não tem uma conta?{" "}
-            <Link to="/signup" className="text-accent hover:underline font-medium">
+            <Link to={APP_CONFIG.ROUTES.SIGNUP} className="auth-link auth-link--medium">
               Criar conta
             </Link>
           </div>
@@ -123,24 +149,24 @@ const Login = () => {
       </div>
 
       {/* Right Side - Decorative */}
-      <div className="hidden lg:flex flex-1 bg-primary relative overflow-hidden items-center justify-center">
-        <div className="absolute inset-0 bg-[var(--gradient-primary)]" />
-        <div className="absolute top-20 right-20 w-72 h-72 bg-accent/20 rounded-full blur-3xl" />
-        <div className="absolute bottom-20 left-20 w-96 h-96 bg-accent/10 rounded-full blur-3xl" />
+      <div className="auth-decorative-side">
+        <div className="auth-decorative-gradient" />
+        <div className="auth-decorative-blob auth-decorative-blob--large auth-decorative-blob--top-right" />
+        <div className="auth-decorative-blob auth-decorative-blob--small auth-decorative-blob--bottom-left" />
         
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.8, delay: 0.2 }}
-          className="relative z-10 text-center px-12"
+          className="auth-decorative-content"
         >
-          <div className="w-20 h-20 rounded-2xl bg-accent/20 flex items-center justify-center mx-auto mb-6 backdrop-blur-sm">
+          <div className="auth-decorative-icon">
             <BarChart3 className="w-10 h-10 text-accent" />
           </div>
-          <h2 className="font-display text-3xl font-bold text-primary-foreground mb-4">
+          <h2 className="auth-decorative-title">
             Transforme dados em decisões
           </h2>
-          <p className="text-primary-foreground/70 max-w-sm mx-auto">
+          <p className="auth-decorative-text">
             Acesse dashboards interativos, relatórios detalhados e filtros avançados para otimizar suas vendas.
           </p>
         </motion.div>
@@ -150,3 +176,4 @@ const Login = () => {
 };
 
 export default Login;
+

@@ -1,6 +1,6 @@
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { motion } from "framer-motion";
-import { FileText, Download, Calendar, Filter, TrendingUp, TrendingDown } from "lucide-react";
+import { FileText, Download, TrendingUp, TrendingDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -152,3 +152,4 @@ const ReportsPage = () => {
 };
 
 export default ReportsPage;
+

@@ -1,0 +1,283 @@
+/**
+ * Auth Feature Styles
+ * Estilos específicos para o módulo de autenticação (Login e Signup)
+ */
+
+@import '../../../shared/styles/variables';
+@import '../../../shared/styles/mixins';
+
+// Auth Layout
+.auth-container {
+  min-height: 100vh;
+  display: flex;
+  background: hsl(var(--background));
+}
+
+// Form Side
+.auth-form-side {
+  flex: 1;
+  @include flex-center;
+  padding: $spacing-xl;
+}
+
+.auth-form-wrapper {
+  width: 100%;
+  max-width: 28rem;
+}
+
+.auth-logo {
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm;
+  margin-bottom: $spacing-xl;
+}
+
+.auth-logo-icon {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: $radius-lg;
+  background: hsl(var(--accent));
+  @include flex-center;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.auth-title {
+  font-family: var(--font-display);
+  font-size: 1.875rem;
+  font-weight: 700;
+  color: hsl(var(--foreground));
+  margin-bottom: $spacing-sm;
+}
+
+.auth-subtitle {
+  color: hsl(var(--muted-foreground));
+  margin-bottom: $spacing-xl;
+}
+
+// Form Styles
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-lg;
+}
+
+.auth-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-sm;
+}
+
+.auth-input-wrapper {
+  position: relative;
+}
+
+.auth-input-icon {
+  position: absolute;
+  left: $spacing-md;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 1.25rem;
+  height: 1.25rem;
+  color: hsl(var(--muted-foreground));
+}
+
+.auth-input {
+  padding-left: 2.5rem;
+  
+  &--with-toggle {
+    padding-right: 2.5rem;
+  }
+}
+
+.auth-toggle-password {
+  position: absolute;
+  right: $spacing-md;
+  top: 50%;
+  transform: translateY(-50%);
+  color: hsl(var(--muted-foreground));
+  
+  &:hover {
+    color: hsl(var(--foreground));
+  }
+}
+
+.auth-remember {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.875rem;
+}
+
+.auth-remember-checkbox {
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm;
+  cursor: pointer;
+}
+
+.auth-link {
+  color: hsl(var(--accent));
+  text-decoration: none;
+  
+  &:hover {
+    text-decoration: underline;
+  }
+  
+  &--medium {
+    font-weight: 500;
+  }
+}
+
+.auth-footer {
+  margin-top: $spacing-xl;
+  text-align: center;
+  font-size: 0.875rem;
+  color: hsl(var(--muted-foreground));
+}
+
+// Decorative Side
+.auth-decorative-side {
+  display: none;
+  flex: 1;
+  background: hsl(var(--primary));
+  position: relative;
+  overflow: hidden;
+  @include flex-center;
+  
+  @include desktop {
+    display: flex;
+  }
+}
+
+.auth-decorative-gradient {
+  position: absolute;
+  inset: 0;
+  background: var(--gradient-primary);
+}
+
+.auth-decorative-blob {
+  position: absolute;
+  border-radius: $radius-full;
+  filter: blur(80px);
+  opacity: 0.3;
+  
+  &--large {
+    width: 24rem;
+    height: 24rem;
+    background: hsl(var(--accent) / 0.2);
+  }
+  
+  &--small {
+    width: 18rem;
+    height: 18rem;
+    background: hsl(var(--accent) / 0.1);
+  }
+  
+  &--top-left {
+    top: 5rem;
+    left: 5rem;
+  }
+  
+  &--top-right {
+    top: 5rem;
+    right: 5rem;
+  }
+  
+  &--bottom-left {
+    bottom: 5rem;
+    left: 5rem;
+  }
+  
+  &--bottom-right {
+    bottom: 5rem;
+    right: 5rem;
+  }
+}
+
+.auth-decorative-content {
+  position: relative;
+  z-index: $z-base;
+  text-align: center;
+  padding: 0 $spacing-xl;
+}
+
+.auth-decorative-icon {
+  width: 5rem;
+  height: 5rem;
+  border-radius: $radius-xl;
+  background: hsl(var(--accent) / 0.2);
+  @include flex-center;
+  margin: 0 auto $spacing-xl;
+  @include glass-effect;
+}
+
+.auth-decorative-title {
+  font-family: var(--font-display);
+  font-size: 1.875rem;
+  font-weight: 700;
+  color: hsl(var(--primary-foreground));
+  margin-bottom: $spacing-md;
+}
+
+.auth-decorative-text {
+  color: hsl(var(--primary-foreground) / 0.7);
+  max-width: 24rem;
+  margin: 0 auto;
+}
+
+// Features List (Signup)
+.auth-features {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-md;
+  margin-top: $spacing-xl;
+}
+
+.auth-feature-item {
+  display: flex;
+  align-items: center;
+  gap: $spacing-md;
+}
+
+.auth-feature-icon {
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: $radius-full;
+  background: hsl(var(--accent) / 0.2);
+  @include flex-center;
+}
+
+.auth-feature-text {
+  color: hsl(var(--primary-foreground) / 0.8);
+}
+
+// Pricing Card (Signup)
+.auth-pricing-card {
+  margin-top: $spacing-2xl;
+  padding: $spacing-md;
+  border-radius: $radius-xl;
+  background: hsl(var(--accent) / 0.1);
+  @include glass-effect;
+  border: 1px solid hsl(var(--accent) / 0.2);
+}
+
+.auth-pricing-amount {
+  display: flex;
+  align-items: baseline;
+  gap: $spacing-sm;
+  font-family: var(--font-display);
+  font-size: 1.875rem;
+  font-weight: 700;
+  color: hsl(var(--primary-foreground));
+}
+
+.auth-pricing-period {
+  color: hsl(var(--primary-foreground) / 0.6);
+}
+
+.auth-pricing-description {
+  color: hsl(var(--primary-foreground) / 0.7);
+  font-size: 0.875rem;
+  margin-top: $spacing-xs;
+}
+

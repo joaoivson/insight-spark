@@ -1,0 +1,64 @@
+/**
+ * Shared Styles
+ * Estilos compartilhados entre todas as features
+ */
+
+@import './variables';
+@import './mixins';
+
+// Global utility classes
+.container {
+  width: 100%;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 $spacing-md;
+}
+
+.section {
+  padding: $spacing-2xl 0;
+}
+
+// Animation utilities
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn $transition-base ease-in-out;
+}
+
+.animate-slide-up {
+  animation: slideUp $transition-base ease-in-out;
+}
+
+.animate-slide-down {
+  animation: slideDown $transition-base ease-in-out;
+}
+

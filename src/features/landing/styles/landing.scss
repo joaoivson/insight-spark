@@ -1,0 +1,309 @@
+/**
+ * Landing Feature Styles
+ * Estilos específicos para a landing page
+ */
+
+ @import '../../../shared/styles/variables';
+ @import '../../../shared/styles/mixins';
+
+// Landing Page
+.landing-container {
+  min-height: 100vh;
+  background: hsl(var(--background));
+}
+
+// Hero Section
+.landing-hero {
+  padding: $spacing-2xl 0;
+  text-align: center;
+}
+
+.landing-hero-title {
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 5vw, 3.5rem);
+  font-weight: 800;
+  color: hsl(var(--foreground));
+  margin-bottom: $spacing-lg;
+  line-height: 1.2;
+}
+
+.landing-hero-subtitle {
+  font-size: clamp(1rem, 2vw, 1.25rem);
+  color: hsl(var(--muted-foreground));
+  margin-bottom: $spacing-xl;
+  max-width: 42rem;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.landing-hero-cta {
+  display: flex;
+  gap: $spacing-md;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+// Features Section
+.landing-features {
+  padding: $spacing-2xl 0;
+  background: hsl(var(--muted) / 0.3);
+}
+
+.landing-features-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: $spacing-xl;
+  margin-top: $spacing-2xl;
+}
+
+.landing-feature-card {
+  background: hsl(var(--card));
+  border-radius: $radius-xl;
+  border: 1px solid hsl(var(--border));
+  padding: $spacing-xl;
+  @include hover-lift;
+}
+
+.landing-feature-icon {
+  width: 3rem;
+  height: 3rem;
+  border-radius: $radius-lg;
+  background: hsl(var(--accent) / 0.1);
+  @include flex-center;
+  margin-bottom: $spacing-lg;
+}
+
+.landing-feature-title {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: hsl(var(--foreground));
+  margin-bottom: $spacing-sm;
+}
+
+.landing-feature-description {
+  color: hsl(var(--muted-foreground));
+  line-height: 1.6;
+}
+
+// How It Works Section
+.landing-how-it-works {
+  padding: $spacing-2xl 0;
+}
+
+.landing-steps {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: $spacing-xl;
+  margin-top: $spacing-2xl;
+}
+
+.landing-step {
+  text-align: center;
+}
+
+.landing-step-number {
+  width: 3rem;
+  height: 3rem;
+  border-radius: $radius-full;
+  background: hsl(var(--accent));
+  color: hsl(var(--accent-foreground));
+  @include flex-center;
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 0 auto $spacing-lg;
+}
+
+.landing-step-title {
+  font-family: var(--font-display);
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: hsl(var(--foreground));
+  margin-bottom: $spacing-sm;
+}
+
+.landing-step-description {
+  color: hsl(var(--muted-foreground));
+  line-height: 1.6;
+}
+
+// Pricing Section
+.landing-pricing {
+  padding: $spacing-2xl 0;
+  background: hsl(var(--muted) / 0.3);
+}
+
+.landing-pricing-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: $spacing-xl;
+  margin-top: $spacing-2xl;
+}
+
+.landing-pricing-card {
+  background: hsl(var(--card));
+  border-radius: $radius-xl;
+  border: 1px solid hsl(var(--border));
+  padding: $spacing-xl;
+  position: relative;
+  @include hover-lift;
+  
+  &--featured {
+    border-color: hsl(var(--accent));
+    box-shadow: 0 10px 40px hsl(var(--accent) / 0.2);
+  }
+}
+
+.landing-pricing-badge {
+  position: absolute;
+  top: -$spacing-sm;
+  right: $spacing-lg;
+  background: hsl(var(--accent));
+  color: hsl(var(--accent-foreground));
+  padding: $spacing-xs $spacing-sm;
+  border-radius: $radius-sm;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.landing-pricing-title {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: hsl(var(--foreground));
+  margin-bottom: $spacing-sm;
+}
+
+.landing-pricing-price {
+  display: flex;
+  align-items: baseline;
+  gap: $spacing-sm;
+  margin-bottom: $spacing-lg;
+}
+
+.landing-pricing-amount {
+  font-family: var(--font-display);
+  font-size: 2.5rem;
+  font-weight: 800;
+  color: hsl(var(--foreground));
+}
+
+.landing-pricing-period {
+  color: hsl(var(--muted-foreground));
+}
+
+.landing-pricing-features {
+  list-style: none;
+  padding: 0;
+  margin: $spacing-lg 0;
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-md;
+}
+
+.landing-pricing-feature {
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm;
+  color: hsl(var(--muted-foreground));
+  
+  &::before {
+    content: '✓';
+    width: 1.25rem;
+    height: 1.25rem;
+    border-radius: $radius-full;
+    background: hsl(var(--success) / 0.1);
+    color: hsl(var(--success));
+    @include flex-center;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+}
+
+// Header & Footer
+.landing-header {
+  padding: $spacing-lg 0;
+  border-bottom: 1px solid hsl(var(--border));
+  background: hsl(var(--background));
+  position: sticky;
+  top: 0;
+  z-index: $z-sticky;
+}
+
+.landing-header-content {
+  @include flex-between;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 $spacing-md;
+}
+
+.landing-nav {
+  display: flex;
+  align-items: center;
+  gap: $spacing-xl;
+}
+
+.landing-nav-link {
+  color: hsl(var(--muted-foreground));
+  text-decoration: none;
+  font-weight: 500;
+  transition: color $transition-base;
+  
+  &:hover {
+    color: hsl(var(--foreground));
+  }
+}
+
+.landing-footer {
+  padding: $spacing-2xl 0;
+  background: hsl(var(--muted) / 0.3);
+  border-top: 1px solid hsl(var(--border));
+}
+
+.landing-footer-content {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 $spacing-md;
+}
+
+.landing-footer-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: $spacing-xl;
+  margin-bottom: $spacing-xl;
+}
+
+.landing-footer-title {
+  font-family: var(--font-display);
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: hsl(var(--foreground));
+  margin-bottom: $spacing-md;
+}
+
+.landing-footer-links {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-sm;
+}
+
+.landing-footer-link {
+  color: hsl(var(--muted-foreground));
+  text-decoration: none;
+  transition: color $transition-base;
+  
+  &:hover {
+    color: hsl(var(--foreground));
+  }
+}
+
+.landing-footer-bottom {
+  padding-top: $spacing-xl;
+  border-top: 1px solid hsl(var(--border));
+  text-align: center;
+  color: hsl(var(--muted-foreground));
+  font-size: 0.875rem;
+}
+

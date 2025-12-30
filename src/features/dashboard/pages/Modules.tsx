@@ -117,3 +117,4 @@ const ModulesPage = () => {
 };
 
 export default ModulesPage;
+
