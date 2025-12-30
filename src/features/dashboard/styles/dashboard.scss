@@ -3,8 +3,8 @@
  * Estilos específicos para o módulo do dashboard
  */
 
- @import '../../../shared/styles/variables';
- @import '../../../shared/styles/mixins';
+@use '../../../shared/styles/variables' as *;
+@use '../../../shared/styles/mixins' as *;
 // Dashboard Layout
 .dashboard-container {
   min-height: 100vh;

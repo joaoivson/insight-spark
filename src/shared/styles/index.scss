@@ -3,8 +3,8 @@
  * Estilos compartilhados entre todas as features
  */
 
-@import './variables';
-@import './mixins';
+@use './variables' as *;
+@use './mixins' as *;
 
 // Global utility classes
 .container {

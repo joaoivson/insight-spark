@@ -3,7 +3,7 @@
  * Mixins reutilizáveis para todas as features
  */
 
-@import './variables';
+@use './variables' as *;
 
 // Flexbox utilities
 @mixin flex-center {

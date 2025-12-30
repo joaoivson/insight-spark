@@ -3,8 +3,8 @@
  * Estilos específicos para o módulo de autenticação (Login e Signup)
  */
 
-@import '../../../shared/styles/variables';
-@import '../../../shared/styles/mixins';
+@use '../../../shared/styles/variables' as *;
+@use '../../../shared/styles/mixins' as *;
 
 // Auth Layout
 .auth-container {
