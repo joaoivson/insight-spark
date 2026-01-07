@@ -8,6 +8,7 @@ import { User } from "@/shared/types";
 export interface SignupData {
   nome: string;
   email: string;
+  cpfCnpj: string;
   senha: string;
 }
 
@@ -24,8 +25,9 @@ export interface SignupResponse {
 
 export interface LoginResponse {
   success: boolean;
-  user?: User;
   token?: string | null;
+  token_type?: string;
+  user?: User;
   error?: string;
 }
 

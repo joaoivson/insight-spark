@@ -8,8 +8,11 @@ import { BarChart3, Mail, Lock, ArrowRight, Eye, EyeOff } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { loginService } from "../services";
 import { userStorage, tokenStorage } from "@/shared/lib/storage";
+import { getApiUrl } from "@/core/config/api.config";
 import { APP_CONFIG } from "@/core/config/app.config";
 import "../styles/index.scss";
+import logoName from "@/assets/logo/logo_name.png";
+import logoIcon from "@/assets/logo/logo.png";
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -29,18 +32,47 @@ const Login = () => {
         senha: password,
       });
 
-      if (result.success && result.user) {
-        userStorage.set(result.user);
-        
-        if (result.token) {
+      if (result.success && result.token) {
+        // Se o backend retornou o usuário junto com o token, usamos diretamente.
+        if (result.user) {
           tokenStorage.set(result.token);
+          userStorage.set({
+            id: String(result.user.id ?? ""),
+            nome: (result.user as any).name ?? (result.user as any).nome ?? "",
+            name: (result.user as any).name ?? (result.user as any).nome ?? "",
+            cpf_cnpj: (result.user as any).cpf_cnpj,
+            email: result.user.email,
+            created_at: (result.user as any).created_at,
+            updated_at: (result.user as any).updated_at,
+          });
+        } else {
+          // Fallback: buscar perfil usando o token recém-recebido
+          const meResponse = await fetch(getApiUrl("/api/auth/me"), {
+            headers: {
+              Authorization: `Bearer ${result.token}`,
+            },
+          });
+          const me = await meResponse.json().catch(() => null);
+          if (!meResponse.ok || !me) {
+            throw new Error(me?.detail || me?.error || "Não foi possível obter o perfil");
+          }
+          tokenStorage.set(result.token);
+          userStorage.set({
+            id: String(me.id ?? ""),
+            nome: me.name ?? me.nome ?? "",
+            name: me.name ?? me.nome ?? "",
+            cpf_cnpj: me.cpf_cnpj,
+            email: me.email,
+            created_at: me.created_at,
+            updated_at: me.updated_at,
+          });
         }
-        
+
         toast({
           title: "Login realizado com sucesso!",
-          description: `Bem-vindo de volta, ${result.user.nome}!`,
+          description: `Bem-vindo de volta!`,
         });
-        
+
         navigate(APP_CONFIG.ROUTES.DASHBOARD);
       } else {
         throw new Error(result.error || "Erro ao fazer login");
@@ -68,12 +100,8 @@ const Login = () => {
         >
           {/* Logo */}
           <Link to={APP_CONFIG.ROUTES.HOME} className="auth-logo">
-            <div className="auth-logo-icon">
-              <BarChart3 className="w-5 h-5 text-accent-foreground" />
-            </div>
-            <span className="font-display font-bold text-xl text-foreground">
-              Dash<span className="text-accent">Ads</span>
-            </span>
+            <img src={logoIcon} alt="Logo MarketDash" className="auth-logo-icon brand-logo-mark" />
+            <img src={logoName} alt="MarketDash" className="auth-logo-name brand-logo-name" />
           </Link>
 
           <h1 className="auth-title">

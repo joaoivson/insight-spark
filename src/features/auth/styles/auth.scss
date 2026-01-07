@@ -33,12 +33,17 @@
 }
 
 .auth-logo-icon {
-  width: 2.5rem;
-  height: 2.5rem;
+  width: 2.75rem;
+  height: 2.75rem;
   border-radius: $radius-lg;
-  background: hsl(var(--accent));
-  @include flex-center;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  background: transparent;
+  padding: 0; // brand-logo-mark já cuida do padding/gradiente
+  object-fit: contain;
+}
+
+.auth-logo-name {
+  height: 2rem;
+  width: auto;
 }
 
 .auth-title {

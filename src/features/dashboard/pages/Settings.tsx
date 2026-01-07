@@ -6,8 +6,105 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
+import { userStorage, tokenStorage } from "@/shared/lib/storage";
+import type { User as StoredUser } from "@/shared/types";
+import { useState } from "react";
+import { useToast } from "@/hooks/use-toast";
+import { APP_CONFIG } from "@/core/config/app.config";
+import { useNavigate } from "react-router-dom";
+import { getApiUrl } from "@/core/config/api.config";
 
 const SettingsPage = () => {
+  const storedUser = userStorage.get<StoredUser>() || undefined;
+  const [name, setName] = useState(storedUser?.nome || storedUser?.name || "");
+  const [email, setEmail] = useState(storedUser?.email || "");
+  const [cpfCnpj] = useState(storedUser?.cpf_cnpj || "");
+  const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const { toast } = useToast();
+  const navigate = useNavigate();
+
+  const token = tokenStorage.get();
+  const userId = storedUser?.id;
+
+  const handleSave = async () => {
+    if (!userId || !token) {
+      toast({ title: "Sessão expirada", description: "Faça login novamente.", variant: "destructive" });
+      navigate(APP_CONFIG.ROUTES.LOGIN);
+      return;
+    }
+    setIsSaving(true);
+    try {
+      const response = await fetch(getApiUrl(`/api/auth/users/${userId}`), {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ name, email }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(result.detail || result.error || "Erro ao salvar");
+      }
+      // Atualiza storage local
+      userStorage.set({
+        id: String(result.id ?? userId),
+        nome: result.name ?? name,
+        name: result.name ?? name,
+        cpf_cnpj: result.cpf_cnpj ?? cpfCnpj,
+        email: result.email ?? email,
+        created_at: result.created_at,
+        updated_at: result.updated_at,
+      });
+      toast({ title: "Dados salvos", description: "Perfil atualizado com sucesso." });
+    } catch (err) {
+      toast({
+        title: "Erro ao salvar",
+        description: err instanceof Error ? err.message : "Tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!userId || !token) {
+      toast({ title: "Sessão expirada", description: "Faça login novamente.", variant: "destructive" });
+      navigate(APP_CONFIG.ROUTES.LOGIN);
+      return;
+    }
+    const confirmed = window.confirm("Tem certeza? Esta ação remove todos os dados da sua conta.");
+    if (!confirmed) return;
+    setIsDeleting(true);
+    try {
+      const response = await fetch(getApiUrl(`/api/auth/users/${userId}`), {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      if (!response.ok) {
+        const result = await response.json().catch(() => ({}));
+        throw new Error(result.detail || result.error || "Erro ao remover conta");
+      }
+      // Limpa sessão e vai para login
+      userStorage.remove();
+      tokenStorage.remove();
+      toast({ title: "Conta removida", description: "Seus dados foram excluídos." });
+      navigate(APP_CONFIG.ROUTES.LOGIN);
+    } catch (err) {
+      toast({
+        title: "Erro ao excluir conta",
+        description: err instanceof Error ? err.message : "Tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   return (
     <DashboardLayout title="Configurações" subtitle="Gerencie sua conta e preferências">
       <motion.div
@@ -31,16 +128,39 @@ const SettingsPage = () => {
           <div className="grid gap-4">
             <div className="grid gap-2">
               <Label htmlFor="name">Nome</Label>
-              <Input id="name" placeholder="Seu nome" defaultValue="Usuário Demo" />
+              <Input
+                id="name"
+                placeholder="Seu nome"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+              />
             </div>
             <div className="grid gap-2">
               <Label htmlFor="email">Email</Label>
-              <Input id="email" type="email" placeholder="seu@email.com" defaultValue="demo@dashads.com" />
+              <Input
+                id="email"
+                type="email"
+                placeholder="seu@email.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="cpfCnpj">CPF/CNPJ</Label>
+              <Input
+                id="cpfCnpj"
+                type="text"
+                placeholder="000.000.000-00"
+                value={cpfCnpj}
+                disabled
+              />
             </div>
           </div>
 
           <div className="mt-6">
-            <Button>Salvar Alterações</Button>
+            <Button onClick={handleSave} disabled={isSaving}>
+              {isSaving ? "Salvando..." : "Salvar Alterações"}
+            </Button>
           </div>
         </div>
 
@@ -126,7 +246,9 @@ const SettingsPage = () => {
             Ao excluir sua conta, todos os seus dados serão permanentemente removidos. Esta ação não pode ser desfeita.
           </p>
 
-          <Button variant="destructive">Excluir Conta</Button>
+          <Button variant="destructive" onClick={handleDelete} disabled={isDeleting}>
+            {isDeleting ? "Excluindo..." : "Excluir Conta"}
+          </Button>
         </div>
       </motion.div>
     </DashboardLayout>

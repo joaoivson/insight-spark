@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
-import { BarChart3 } from "lucide-react";
+import logoName from "@/assets/logo/logo_name.png";
+import logoIcon from "@/assets/logo/logo.png";
 
 const Footer = () => {
   return (
@@ -9,12 +10,16 @@ const Footer = () => {
           {/* Logo & Description */}
           <div className="md:col-span-2">
             <Link to="/" className="flex items-center gap-2 mb-4">
-              <div className="w-10 h-10 rounded-xl bg-accent flex items-center justify-center">
-                <BarChart3 className="w-5 h-5 text-accent-foreground" />
-              </div>
-              <span className="font-display font-bold text-xl">
-                Dash<span className="text-accent">Ads</span>
-              </span>
+              <img
+                src={logoIcon}
+                alt="Logo MarketDash"
+                className="w-10 h-10 rounded-xl object-contain brand-logo-mark"
+              />
+              <img
+                src={logoName}
+                alt="MarketDash"
+                className="h-8 w-auto brand-logo-name"
+              />
             </Link>
             <p className="text-primary-foreground/70 text-sm max-w-md">
               Plataforma de análise de dados para vendedores digitais. 
@@ -44,7 +49,7 @@ const Footer = () => {
 
         {/* Bottom */}
         <div className="pt-8 border-t border-primary-foreground/10 text-center text-sm text-primary-foreground/50">
-          <p>© {new Date().getFullYear()} DashAds. Todos os direitos reservados.</p>
+          <p>© {new Date().getFullYear()} MarketDash. Todos os direitos reservados.</p>
         </div>
       </div>
     </footer>

@@ -1,6 +1,5 @@
 import { NavLink, useLocation } from "react-router-dom";
 import { 
-  BarChart3, 
   Upload, 
   FileText, 
   Puzzle, 
@@ -13,6 +12,8 @@ import {
 import { cn } from "@/shared/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
+import logoIcon from "@/assets/logo/logo.png";
+import logoName from "@/assets/logo/logo_name.png";
 
 const menuItems = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
@@ -40,18 +41,24 @@ const DashboardSidebar = () => {
       )}>
         {!collapsed && (
           <div className="flex items-center gap-2">
-            <div className="w-9 h-9 rounded-lg bg-sidebar-primary flex items-center justify-center">
-              <BarChart3 className="w-5 h-5 text-sidebar-primary-foreground" />
-            </div>
-            <span className="font-display font-bold text-lg text-sidebar-foreground">
-              Dash<span className="text-sidebar-primary">Ads</span>
-            </span>
+            <img
+              src={logoIcon}
+              alt="Logo MarketDash"
+              className="w-9 h-9 rounded-lg object-contain p-1.5 brand-logo-mark"
+            />
+            <img
+              src={logoName}
+              alt="MarketDash"
+              className="h-7 w-auto brand-logo-name"
+            />
           </div>
         )}
         {collapsed && (
-          <div className="w-9 h-9 rounded-lg bg-sidebar-primary flex items-center justify-center">
-            <BarChart3 className="w-5 h-5 text-sidebar-primary-foreground" />
-          </div>
+          <img
+            src={logoIcon}
+            alt="Logo MarketDash"
+            className="w-9 h-9 rounded-lg object-contain p-1.5 brand-logo-mark"
+          />
         )}
       </div>
 

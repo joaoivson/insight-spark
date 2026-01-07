@@ -4,7 +4,7 @@
  */
 
 export const APP_CONFIG = {
-  NAME: 'DashAds',
+  NAME: 'MarketDash',
   VERSION: '1.0.0',
   ROUTES: {
     HOME: '/',

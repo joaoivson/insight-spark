@@ -3,15 +3,16 @@ import { getApiUrl } from '@/core/config/api.config';
 
 export const signupService = async (data: SignupData): Promise<SignupResponse> => {
   try {
-    const response = await fetch(getApiUrl('/api/users/signup'), {
+    const response = await fetch(getApiUrl('/api/auth/register'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        nome: data.nome,
+        name: data.nome,
+        cpf_cnpj: data.cpfCnpj,
         email: data.email,
-        senha: data.senha,
+        password: data.senha,
       }),
     });
 
@@ -21,7 +22,10 @@ export const signupService = async (data: SignupData): Promise<SignupResponse> =
       throw new Error(result.detail || result.error || 'Erro ao criar usuário');
     }
 
-    return result;
+    return {
+      success: true,
+      user: result,
+    };
   } catch (error) {
     if (error instanceof Error) {
       throw error;

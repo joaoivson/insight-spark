@@ -1,11 +1,12 @@
-import { Link, useLocation } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { BarChart3, Menu, X } from "lucide-react";
+import { Menu, X } from "lucide-react";
 import { useState } from "react";
+import logoName from "@/assets/logo/logo_name.png";
+import logoIcon from "@/assets/logo/logo.png";
 
 const Header = () => {
-  const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const navItems = [
@@ -25,12 +26,16 @@ const Header = () => {
         <div className="flex items-center justify-between h-16 lg:h-20">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2 group">
-            <div className="w-10 h-10 rounded-xl bg-accent flex items-center justify-center shadow-glow group-hover:scale-105 transition-transform">
-              <BarChart3 className="w-5 h-5 text-accent-foreground" />
-            </div>
-            <span className="font-display font-bold text-xl text-foreground">
-              Dash<span className="text-accent">Ads</span>
-            </span>
+            <img
+              src={logoIcon}
+              alt="Logo MarketDash"
+              className="w-11 h-11 rounded-xl group-hover:scale-105 transition-transform object-contain brand-logo-mark"
+            />
+            <img
+              src={logoName}
+              alt="MarketDash"
+              className="h-8 w-auto brand-logo-name"
+            />
           </Link>
 
           {/* Desktop Navigation */}

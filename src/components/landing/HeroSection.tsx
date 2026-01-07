@@ -114,7 +114,7 @@ const HeroSection = () => {
                 <div className="w-3 h-3 rounded-full bg-warning/60" />
                 <div className="w-3 h-3 rounded-full bg-success/60" />
                 <div className="flex-1 text-center text-sm text-muted-foreground">
-                  dashboard.dashads.com
+                  dashboard.marketdash.com
                 </div>
               </div>
               

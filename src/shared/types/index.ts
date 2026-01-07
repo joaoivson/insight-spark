@@ -6,9 +6,10 @@
 export interface User {
   id: string;
   nome: string;
+  cpf_cnpj?: string;
   email: string;
   created_at: string;
-  updated_at: string;
+  updated_at?: string;
 }
 
 export interface ApiError {

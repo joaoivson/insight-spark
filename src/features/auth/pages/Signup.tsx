@@ -4,16 +4,19 @@ import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { BarChart3, Mail, Lock, User, ArrowRight, Eye, EyeOff, Check } from "lucide-react";
+import { BarChart3, Mail, Lock, User, ArrowRight, Eye, EyeOff, Check, IdCard } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { signupService } from "../services";
-import { userStorage } from "@/shared/lib/storage";
+import { signupService, loginService } from "../services";
+import { userStorage, tokenStorage } from "@/shared/lib/storage";
 import { APP_CONFIG } from "@/core/config/app.config";
 import "../styles/index.scss";
+import logoName from "@/assets/logo/logo_name.png";
+import logoIcon from "@/assets/logo/logo.png";
 
 const Signup = () => {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [cpfCnpj, setCpfCnpj] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -28,17 +31,32 @@ const Signup = () => {
       const result = await signupService({
         nome: name,
         email: email,
+        cpfCnpj,
         senha: password,
       });
 
       if (result.success && result.user) {
-        userStorage.set(result.user);
-        
+        // Armazena usuário criado
+        userStorage.set({
+          id: String((result.user as any).id),
+          nome: (result.user as any).name || (result.user as any).nome || name,
+          cpf_cnpj: (result.user as any).cpf_cnpj,
+          email: result.user.email,
+          created_at: (result.user as any).created_at,
+          updated_at: (result.user as any).updated_at,
+        });
+
+        // Realiza login para obter token
+        const loginResult = await loginService({ email, senha: password });
+        if (loginResult.success && loginResult.token) {
+          tokenStorage.set(loginResult.token);
+        }
+
         toast({
           title: "Conta criada com sucesso!",
-          description: `Bem-vindo, ${result.user.nome}!`,
+          description: `Bem-vindo, ${name}!`,
         });
-        
+
         navigate(APP_CONFIG.ROUTES.DASHBOARD);
       } else {
         throw new Error(result.error || "Erro ao criar conta");
@@ -124,12 +142,8 @@ const Signup = () => {
         >
           {/* Logo */}
           <Link to={APP_CONFIG.ROUTES.HOME} className="auth-logo">
-            <div className="auth-logo-icon">
-              <BarChart3 className="w-5 h-5 text-accent-foreground" />
-            </div>
-            <span className="font-display font-bold text-xl text-foreground">
-              Dash<span className="text-accent">Ads</span>
-            </span>
+            <img src={logoIcon} alt="Logo MarketDash" className="auth-logo-icon brand-logo-mark" />
+            <img src={logoName} alt="MarketDash" className="auth-logo-name brand-logo-name" />
           </Link>
 
           <h1 className="auth-title">
@@ -166,6 +180,22 @@ const Signup = () => {
                   placeholder="seu@email.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  className="auth-input"
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="auth-form-group">
+              <Label htmlFor="cpfCnpj">CPF ou CNPJ</Label>
+              <div className="auth-input-wrapper">
+                <IdCard className="auth-input-icon" />
+                <Input
+                  id="cpfCnpj"
+                  type="text"
+                  placeholder="000.000.000-00"
+                  value={cpfCnpj}
+                  onChange={(e) => setCpfCnpj(e.target.value)}
                   className="auth-input"
                   required
                 />

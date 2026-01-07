@@ -3,15 +3,13 @@ import { getApiUrl } from '@/core/config/api.config';
 
 export const loginService = async (data: LoginData): Promise<LoginResponse> => {
   try {
-    const response = await fetch(getApiUrl('/api/users/login'), {
+    const formData = new FormData();
+    formData.append('email', data.email);
+    formData.append('password', data.senha);
+
+    const response = await fetch(getApiUrl('/api/auth/login'), {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        email: data.email,
-        senha: data.senha,
-      }),
+      body: formData,
     });
 
     const result = await response.json();
@@ -20,7 +18,12 @@ export const loginService = async (data: LoginData): Promise<LoginResponse> => {
       throw new Error(result.detail || result.error || 'Erro ao fazer login');
     }
 
-    return result;
+    return {
+      success: true,
+      token: result.access_token,
+      token_type: result.token_type,
+      user: result.user,
+    };
   } catch (error) {
     if (error instanceof Error) {
       throw error;

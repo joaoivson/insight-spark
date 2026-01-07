@@ -62,3 +62,21 @@
   animation: slideDown $transition-base ease-in-out;
 }
 
+// Brand treatment for logos
+.brand-logo-mark {
+  background: transparent;
+  border-radius: $radius-lg;
+  padding: 0.4rem;
+  box-shadow: var(--brand-glow);
+  filter: brightness(0) invert(1);
+  mix-blend-mode: screen;
+}
+
+.brand-logo-name {
+  filter:
+    brightness(0)
+    invert(1)
+    drop-shadow(0 6px 22px hsl(var(--brand-accent-end) / 0.45));
+  mix-blend-mode: screen;
+}
+

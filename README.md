@@ -1,4 +1,4 @@
-# DashAds - Insight Spark
+# MarketDash - Insight Spark
 
 Plataforma SaaS de análise de dados para vendedores digitais, afiliados e empreendedores.
 

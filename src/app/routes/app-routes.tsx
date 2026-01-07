@@ -3,8 +3,9 @@
  * Configuração centralizada de rotas
  */
 
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 import { lazy, Suspense } from "react";
+import { tokenStorage } from "@/shared/lib/storage";
 
 // Lazy loading para melhor performance
 const Index = lazy(() => import("@/features/landing/pages/Index"));
@@ -27,6 +28,14 @@ const LoadingFallback = () => (
   </div>
 );
 
+const ProtectedRoute = ({ element }: { element: JSX.Element }) => {
+  const token = tokenStorage.get();
+  if (!token) {
+    return <Navigate to="/login" replace />;
+  }
+  return element;
+};
+
 export const AppRoutes = () => {
   return (
     <Suspense fallback={<LoadingFallback />}>
@@ -37,11 +46,11 @@ export const AppRoutes = () => {
         <Route path="/signup" element={<Signup />} />
 
         {/* Protected Routes */}
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/dashboard/upload" element={<UploadCSV />} />
-        <Route path="/dashboard/reports" element={<Reports />} />
-        <Route path="/dashboard/modules" element={<Modules />} />
-        <Route path="/dashboard/settings" element={<Settings />} />
+        <Route path="/dashboard" element={<ProtectedRoute element={<Dashboard />} />} />
+        <Route path="/dashboard/upload" element={<ProtectedRoute element={<UploadCSV />} />} />
+        <Route path="/dashboard/reports" element={<ProtectedRoute element={<Reports />} />} />
+        <Route path="/dashboard/modules" element={<ProtectedRoute element={<Modules />} />} />
+        <Route path="/dashboard/settings" element={<ProtectedRoute element={<Settings />} />} />
 
         {/* Fallback */}
         <Route path="*" element={<NotFound />} />
