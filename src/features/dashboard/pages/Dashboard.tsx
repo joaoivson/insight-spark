@@ -43,14 +43,10 @@ type DrillDownFilter = {
 
 const Dashboard = () => {
   const { rows, adSpends, loading, refresh, currentRange } = useDatasetRows();
-  const [mesAno, setMesAno] = useState<string>("all"); // Radix Select não aceita valor vazio
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [categoryFilter, setCategoryFilter] = useState<string>("");
   const [subIdFilter, setSubIdFilter] = useState<string>("");
-  const today = new Date();
-  const defaultFrom = new Date();
-  defaultFrom.setDate(today.getDate() - 29);
-  const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({ from: defaultFrom, to: today });
+  const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({});
   
   // New State for Drill Down
   const [drillDown, setDrillDown] = useState<DrillDownFilter>(null);
@@ -63,13 +59,11 @@ const Dashboard = () => {
       const to = dateRange.to ? new Date(dateRange.to).toLocaleDateString("pt-BR") : "hoje";
       return `Período aplicado: ${from} a ${to}`;
     }
-    // sem seleção explícita, backend traz últimos 30 dias
-    return "Período aplicado: últimos 30 dias (padrão)";
+    return "Período aplicado: todo período";
   }, [dateRange]);
 
   const filteredRows = useMemo(() => {
     return rows.filter((r) => {
-      if (mesAno && mesAno !== "all" && r.mes_ano !== mesAno) return false;
       if (statusFilter && (r.status || "").toLowerCase() !== statusFilter.toLowerCase()) return false;
       if (categoryFilter && (r.category || "").toLowerCase() !== categoryFilter.toLowerCase()) return false;
       if (subIdFilter && (r.sub_id1 || "").toLowerCase() !== subIdFilter.toLowerCase()) return false;
@@ -86,7 +80,7 @@ const Dashboard = () => {
       }
       return true;
     });
-  }, [rows, mesAno, statusFilter, categoryFilter, subIdFilter, dateRange]);
+  }, [rows, statusFilter, categoryFilter, subIdFilter, dateRange]);
 
   // Table rows filtered by Drill Down
   const tableRows = useMemo(() => {
@@ -220,7 +214,6 @@ const Dashboard = () => {
     return baseKpis;
   }, [totals]);
 
-  const mesAnoOptions = useMemo(() => Array.from(new Set(rows.map((r) => r.mes_ano).filter(Boolean))).sort(), [rows]);
   const statusOptions = useMemo(() => Array.from(new Set(rows.map((r) => r.status).filter(Boolean))).sort(), [rows]);
   const categoryOptions = useMemo(() => Array.from(new Set(rows.map((r) => r.category).filter(Boolean))).sort(), [rows]);
   const subIdOptions = useMemo(() => Array.from(new Set(rows.map((r) => r.sub_id1).filter(Boolean))).sort(), [rows]);
@@ -254,30 +247,24 @@ const Dashboard = () => {
           <>
             <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground mb-3">
               <span>{rangeLabel}</span>
-              <span className="text-xs text-foreground/60">Limite máximo: 60 dias.</span>
             </div>
 
             {/* Insights automáticos */}
             <InsightsPanel rows={filteredRows} />
 
             <DashboardFilters
-              mesAnoOptions={mesAnoOptions}
-              mesAno={mesAno}
-              onMesAnoChange={setMesAno}
               dateRange={dateRange}
               onDateRangeApply={(range) => {
-                if (!range.from || !range.to) return;
                 setDateRange(range);
-                refresh({
-                  from: range.from,
-                  to: range.to,
-                });
               }}
               onClear={() => {
-                setMesAno("all");
-                setDateRange({ from: defaultFrom, to: today });
+                setStatusFilter("");
+                setCategoryFilter("");
+                setSubIdFilter("");
+                setDateRange({});
+                setDrillDown(null);
               }}
-              hasActive={(mesAno && mesAno !== "all") || !!dateRange.from || !!dateRange.to}
+              hasActive={!!dateRange.from || !!dateRange.to || !!statusFilter || !!categoryFilter || !!subIdFilter}
               loading={loading}
             />
 

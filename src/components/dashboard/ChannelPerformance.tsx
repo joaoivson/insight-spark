@@ -128,6 +128,8 @@ const ChannelPerformance = ({
 
   const MAX_ROWS = 50;
   const limitedChannels = metrics.slice(0, MAX_ROWS);
+  const [subPageSize, setSubPageSize] = useState<number>(5);
+  const [subPage, setSubPage] = useState<number>(0);
   const [dayPageSize, setDayPageSize] = useState<number>(5);
   const [dayPage, setDayPage] = useState<number>(0);
 
@@ -213,29 +215,79 @@ const ChannelPerformance = ({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {limitedChannels.map((m) => {
-                const isProfit = m.profit > 0;
-                const roasColor = m.roas >= 1 ? "text-green-500" : "text-red-500";
-                const RoasIcon = m.roas >= 1 ? TrendingUp : TrendingDown;
-                
+              {(() => {
+                const totalPages = Math.max(1, Math.ceil(limitedChannels.length / subPageSize));
+                const safePage = Math.min(subPage, totalPages - 1);
+                const start = safePage * subPageSize;
+                const pageRows = limitedChannels.slice(start, start + subPageSize);
+
                 return (
-                  <TableRow key={m.name}>
-                    <TableCell className="font-medium text-foreground">
-                      {m.name}
-                      <span className="block text-xs text-muted-foreground font-normal">{m.orders} pedidos • CPA {formatCurrency(m.cpa)}</span>
-                    </TableCell>
-                    <TableCell className="text-right text-muted-foreground">{formatCurrency(m.spend)}</TableCell>
-                    <TableCell className="text-right font-medium">{formatCurrency(m.revenue)}</TableCell>
-                    <TableCell className={cn("text-right font-bold", isProfit ? "text-green-500" : "text-red-500")}>
-                      {formatCurrency(m.profit)}
-                    </TableCell>
-                    <TableCell className={cn("text-center font-semibold flex items-center justify-center gap-2", roasColor)}>
-                      <RoasIcon className="w-4 h-4" />
-                      {m.spend > 0 ? `${m.roas.toFixed(2)}x` : "∞"}
-                    </TableCell>
-                  </TableRow>
+                  <>
+                    {pageRows.map((m) => {
+                      const isProfit = m.profit > 0;
+                      const roasColor = m.roas >= 1 ? "text-green-500" : "text-red-500";
+                      const RoasIcon = m.roas >= 1 ? TrendingUp : TrendingDown;
+                      
+                      return (
+                        <TableRow key={m.name}>
+                          <TableCell className="font-medium text-foreground">
+                            {m.name}
+                            <span className="block text-xs text-muted-foreground font-normal">{m.orders} pedidos • CPA {formatCurrency(m.cpa)}</span>
+                          </TableCell>
+                          <TableCell className="text-right text-muted-foreground">{formatCurrency(m.spend)}</TableCell>
+                          <TableCell className="text-right font-medium">{formatCurrency(m.revenue)}</TableCell>
+                          <TableCell className={cn("text-right font-bold", isProfit ? "text-green-500" : "text-red-500")}>
+                            {formatCurrency(m.profit)}
+                          </TableCell>
+                          <TableCell className={cn("text-center font-semibold flex items-center justify-center gap-2", roasColor)}>
+                            <RoasIcon className="w-4 h-4" />
+                            {m.spend > 0 ? `${m.roas.toFixed(2)}x` : "∞"}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                    <TableRow>
+                      <TableCell colSpan={5} className="p-3">
+                        <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground">
+                          <div className="flex items-center gap-2">
+                            <span>Linhas por página</span>
+                            <select
+                              className="bg-background border border-border rounded px-2 py-1"
+                              value={String(subPageSize)}
+                              onChange={(e) => {
+                                const size = Number(e.target.value);
+                                setSubPageSize(size);
+                                setSubPage(0);
+                              }}
+                            >
+                              {[5, 10, 25, 50, 100].map((n) => (
+                                <option key={n} value={n}>{n}</option>
+                              ))}
+                            </select>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <button
+                              className="px-2 py-1 rounded border border-border disabled:opacity-50"
+                              onClick={() => setSubPage((p) => Math.max(0, p - 1))}
+                              disabled={safePage === 0}
+                            >
+                              Anterior
+                            </button>
+                            <span>Página {safePage + 1} de {totalPages}</span>
+                            <button
+                              className="px-2 py-1 rounded border border-border disabled:opacity-50"
+                              onClick={() => setSubPage((p) => Math.min(totalPages - 1, p + 1))}
+                              disabled={safePage >= totalPages - 1}
+                            >
+                              Próxima
+                            </button>
+                          </div>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  </>
                 );
-              })}
+              })()}
             </TableBody>
           </Table>
         </div>

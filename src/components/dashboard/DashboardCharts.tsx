@@ -61,6 +61,13 @@ const getCommissionValue = (row: DatasetRow): number => {
   return parsed !== undefined ? parsed : 0;
 };
 
+const getAffiliateCommissionValue = (row: DatasetRow): number => {
+  const raw = (row as any).raw_data || {};
+  const parsed = cleanNumber(raw["Comissão líquida do afiliado(R$)"]);
+  if (parsed !== undefined) return parsed;
+  return getCommissionValue(row);
+};
+
 const groupByMesAno = (rows: DatasetRow[]) => {
   const map = new Map<string, number>();
   rows.forEach((r) => {
@@ -97,10 +104,12 @@ const groupRevenueProfitByMes = (rows: DatasetRow[]) => {
   rows.forEach((r) => {
     const key = r.mes_ano || "Sem Mês";
     const prev = map.get(key) || { revenue: 0, cost: 0, profit: 0 };
-    const faturamento = cleanNumber((r as any).raw_data?.["Valor de Compra(R$)"]) ?? 0;
-    const comissao = getCommissionValue(r);
-    const lucro = comissao; // comissão líquida como proxy
-    const custo = 0;
+    const raw = (r as any).raw_data || {};
+    const faturamento = cleanNumber(raw["Valor de Compra(R$)"]) ?? 0;
+    const comissao = getAffiliateCommissionValue(r);
+    const gasto = cleanNumber(raw["Valor gasto anuncios"]) ?? 0;
+    const lucro = comissao - gasto; // alinhado aos cards: lucro = comissão líquida - gasto anúncios
+    const custo = gasto; // exibir Gasto Anúncios
     map.set(key, {
       revenue: prev.revenue + faturamento,
       cost: prev.cost + custo,
@@ -294,12 +303,28 @@ const MesAnoChart = ({
   </div>
 );
 
-const RevenueProfitArea = ({ data, onDrillDown }: { data: any[]; onDrillDown?: (value: string) => void }) => (
-  <div className="bg-card rounded-xl border border-border p-6">
-    <div className="mb-4">
-      <h3 className="font-display font-semibold text-lg text-foreground">Comissão x Valor Gasto em Ads x Lucro</h3>
-      <p className="text-sm text-muted-foreground">Evolução mensal</p>
-    </div>
+const RevenueProfitArea = ({ data, onDrillDown }: { data: any[]; onDrillDown?: (value: string) => void }) => {
+  const periodLabel = useMemo(() => {
+    if (!data || !data.length) return "Período exibido";
+    const labels = data
+      .map((item: any) => item?.mes_ano || item?.label || "")
+      .filter((l: any) => typeof l === "string" && l.length >= 7);
+    if (!labels.length) return "Período exibido";
+    const toFmt = (l: string) => {
+      const [y, m] = l.split("-");
+      return y && m ? `${m}/${y}` : l;
+    };
+    const first = toFmt(labels[0]);
+    const last = toFmt(labels[labels.length - 1]);
+    return first === last ? first : `${first} a ${last}`;
+  }, [data]);
+
+  return (
+    <div className="bg-card rounded-xl border border-border p-6">
+      <div className="mb-4">
+        <h3 className="font-display font-semibold text-lg text-foreground">Comissão x Valor Gasto em Ads x Lucro</h3>
+        <p className="text-sm text-muted-foreground">{periodLabel}</p>
+      </div>
     <div className="h-72">
       <ResponsiveContainer width="100%" height="100%">
         <AreaChart
@@ -322,19 +347,33 @@ const RevenueProfitArea = ({ data, onDrillDown }: { data: any[]; onDrillDown?: (
             </linearGradient>
           </defs>
           <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-          <XAxis dataKey="mes_ano" stroke="hsl(var(--muted-foreground))" tickLine={false} />
-          <YAxis stroke="hsl(var(--muted-foreground))" tickFormatter={formatK} axisLine={false} tickLine={false} />
+          <XAxis dataKey="mes_ano" stroke="hsl(var(--muted-foreground))" tickLine={false} hide />
+          <YAxis stroke="hsl(var(--muted-foreground))" tickFormatter={formatK} axisLine={false} tickLine={false} hide />
           <Tooltip
-            formatter={(v: number, name: string) => [
-              formatCurrency(v),
-              name === "revenue" ? "Receita" : name === "profit" ? "Lucro" : "Custo",
-            ]}
+            contentStyle={{ backgroundColor: "hsl(var(--card))", borderColor: "hsl(var(--border))", color: "hsl(var(--foreground))" }}
+            formatter={(v: number, _name: string, ctx) => {
+              const key = ctx?.dataKey;
+              const label =
+                key === "revenue"
+                  ? "Faturamento"
+                  : key === "profit"
+                  ? "Lucro (Comissão - Gasto Anúncios)"
+                  : "Gasto Anúncios";
+              return [formatCurrency(v), label];
+            }}
+            labelFormatter={(label) => {
+              if (typeof label === "string" && label.length >= 7) {
+                const [year, month] = label.split("-");
+                if (year && month) return `${month}/${year}`;
+              }
+              return label;
+            }}
           />
           <Legend />
           <Area
             type="monotone"
             dataKey="revenue"
-            name="Receita"
+            name="Faturamento"
             stroke={BAR_COLOR}
             fillOpacity={1}
             fill="url(#rev)"
@@ -342,19 +381,28 @@ const RevenueProfitArea = ({ data, onDrillDown }: { data: any[]; onDrillDown?: (
           />
           <Area
             type="monotone"
+            dataKey="cost"
+            name="Gasto Anúncios"
+            stroke={COST_COLOR}
+            fillOpacity={0.25}
+            fill="url(#prof)"
+            cursor="pointer"
+          />
+          <Area
+            type="monotone"
             dataKey="profit"
-            name="Lucro"
+            name="Lucro (Comissão - Gasto Anúncios)"
             stroke={PROFIT_COLOR}
             fillOpacity={1}
             fill="url(#prof)"
             cursor="pointer"
           />
-          <Area type="monotone" dataKey="cost" name="Custo" stroke={COST_COLOR} fillOpacity={0.15} cursor="pointer" />
         </AreaChart>
       </ResponsiveContainer>
     </div>
-  </div>
-);
+    </div>
+  );
+};
 
 const DashboardCharts = ({ rows, onDrillDown, belowRevenueContent }: DashboardChartsProps) => {
   const [commissionMode, setCommissionMode] = useState<"month" | "day">("month");

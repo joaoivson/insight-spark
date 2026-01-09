@@ -12,7 +12,43 @@ export interface AdSpend {
 
 let cachedRows: DatasetRow[] | null = null;
 let cachedAdSpends: AdSpend[] | null = null;
+let cachedAt: number | null = null;
 let inflight: Promise<{ rows: DatasetRow[]; adSpends: AdSpend[] }> | null = null;
+let currentDatasetAbort: AbortController | null = null;
+let currentAdSpendAbort: AbortController | null = null;
+
+const getCacheKey = (userId?: string | null) => `dataset-cache:${userId || "anon"}`;
+
+const loadCache = (userId?: string | null) => {
+  try {
+    const raw = localStorage.getItem(getCacheKey(userId));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed.rows || !parsed.adSpends) return null;
+    return parsed as { rows: DatasetRow[]; adSpends: AdSpend[]; cachedAt?: number };
+  } catch {
+    return null;
+  }
+};
+
+const saveCache = (userId: string | null | undefined, rows: DatasetRow[], adSpends: AdSpend[]) => {
+  try {
+    localStorage.setItem(
+      getCacheKey(userId),
+      JSON.stringify({ rows, adSpends, cachedAt: Date.now() })
+    );
+  } catch {
+    // ignore quota errors
+  }
+};
+
+const clearCache = (userId?: string | null) => {
+  try {
+    localStorage.removeItem(getCacheKey(userId));
+  } catch {
+    // ignore
+  }
+};
 
 const cleanNumber = (value: any): number | null => {
   if (value === null || value === undefined) return null;
@@ -123,38 +159,39 @@ const parseDatasetRow = (r: any): DatasetRow => {
 export const invalidateDatasetRowsCache = () => {
   cachedRows = null;
   cachedAdSpends = null;
+  cachedAt = null;
   inflight = null;
+  const storedUser = (userStorage.get() as { id?: string } | null) || null;
+  clearCache(storedUser?.id ?? null);
 };
 
 type DateRangeParam = { from?: Date | string | null; to?: Date | string | null };
 
 const buildRangeQuery = (range?: DateRangeParam) => {
-  if (!range?.from && !range?.to) return "";
   const params = new URLSearchParams();
   if (range?.from) params.set("start_date", new Date(range.from).toISOString().slice(0, 10));
   if (range?.to) params.set("end_date", new Date(range.to).toISOString().slice(0, 10));
-  return `&${params.toString()}`;
-};
-
-const getDefaultRange = (): DateRangeParam => {
-  const today = new Date();
-  const from = new Date();
-  from.setDate(today.getDate() - 29);
-  return { from, to: today };
+  return params;
 };
 
 const ensureRange = (range?: DateRangeParam): DateRangeParam => {
-  const withDefault = range && range.from && range.to ? range : getDefaultRange();
-  return withDefault;
+  if (range) return range;
+  return {};
 };
 
 const fetchDatasetRows = async (range?: DateRangeParam): Promise<DatasetRow[]> => {
   const storedUser = (userStorage.get() as { id?: string } | null) || null;
-  const userIdParam = storedUser?.id ? `?user_id=${storedUser.id}` : "?";
   const effectiveRange = ensureRange(range);
-  const rangeParam = buildRangeQuery(effectiveRange);
+  const params = buildRangeQuery(effectiveRange);
+  params.set("include_raw_data", "true");
+  if (storedUser?.id) params.set("user_id", String(storedUser.id));
 
-  const res = await fetch(getApiUrl(`/api/datasets/all/rows${userIdParam}${rangeParam}`));
+  currentDatasetAbort?.abort();
+  currentDatasetAbort = new AbortController();
+
+  const res = await fetch(getApiUrl(`/api/datasets/all/rows?${params.toString()}`), {
+    signal: currentDatasetAbort.signal,
+  });
   const data = await res.json();
   if (!res.ok || !Array.isArray(data)) {
     return [];
@@ -164,11 +201,16 @@ const fetchDatasetRows = async (range?: DateRangeParam): Promise<DatasetRow[]> =
 
 const fetchAdSpends = async (range?: DateRangeParam): Promise<AdSpend[]> => {
   const storedUser = (userStorage.get() as { id?: string } | null) || null;
-  const userIdParam = storedUser?.id ? `?user_id=${storedUser.id}` : "?";
   const effectiveRange = ensureRange(range);
-  const rangeParam = buildRangeQuery(effectiveRange);
+  const params = buildRangeQuery(effectiveRange);
+  if (storedUser?.id) params.set("user_id", String(storedUser.id));
 
-  const res = await fetch(getApiUrl(`/api/ad_spends${userIdParam}${rangeParam}`));
+  currentAdSpendAbort?.abort();
+  currentAdSpendAbort = new AbortController();
+
+  const res = await fetch(getApiUrl(`/api/ad_spends?${params.toString()}`), {
+    signal: currentAdSpendAbort.signal,
+  });
   const data = await res.json();
   if (!res.ok || !Array.isArray(data)) {
     return [];
@@ -177,9 +219,21 @@ const fetchAdSpends = async (range?: DateRangeParam): Promise<AdSpend[]> => {
 };
 
 export const useDatasetRows = () => {
+  const storedUser = (userStorage.get() as { id?: string } | null) || null;
+
+  // Boot from localStorage if nothing in memory
+  if (!cachedRows || !cachedAdSpends) {
+    const local = loadCache(storedUser?.id ?? null);
+    if (local && local.rows && local.adSpends) {
+      cachedRows = local.rows;
+      cachedAdSpends = local.adSpends;
+      cachedAt = local.cachedAt ?? Date.now();
+    }
+  }
+
   const [rows, setRows] = useState<DatasetRow[]>(cachedRows ?? []);
   const [adSpends, setAdSpends] = useState<AdSpend[]>(cachedAdSpends ?? []);
-  const [loading, setLoading] = useState(!cachedRows);
+  const [loading, setLoading] = useState(cachedRows === null || cachedAdSpends === null);
   const [error, setError] = useState<string | null>(null);
   const [range, setRange] = useState<DateRangeParam | undefined>(undefined);
 
@@ -190,11 +244,29 @@ export const useDatasetRows = () => {
         setError(null);
         const effectiveRange = ensureRange(nextRange ?? range);
         
+        // 1) tenta cache em memória
         if (!force && cachedRows && cachedAdSpends) {
           setRows(cachedRows);
           setAdSpends(cachedAdSpends);
           setLoading(false);
+          // garante persistência no localStorage
+          const exists = loadCache(storedUser?.id ?? null);
+          if (!exists) saveCache(storedUser?.id ?? null, cachedRows, cachedAdSpends);
           return { rows: cachedRows, adSpends: cachedAdSpends };
+        }
+
+        // 2) tenta cache localStorage
+        if (!force && (!cachedRows || !cachedAdSpends)) {
+          const local = loadCache(storedUser?.id ?? null);
+          if (local && local.rows && local.adSpends) {
+            cachedRows = local.rows;
+            cachedAdSpends = local.adSpends;
+            cachedAt = local.cachedAt ?? Date.now();
+            setRows(cachedRows);
+            setAdSpends(cachedAdSpends);
+            setLoading(false);
+            return { rows: cachedRows, adSpends: cachedAdSpends };
+          }
         }
         
         if (!force && inflight) {
@@ -202,6 +274,10 @@ export const useDatasetRows = () => {
           setRows(data.rows);
           setAdSpends(data.adSpends);
           setLoading(false);
+          cachedRows = data.rows;
+          cachedAdSpends = data.adSpends;
+          cachedAt = Date.now();
+          saveCache(storedUser?.id ?? null, data.rows, data.adSpends);
           return data;
         }
 
@@ -215,6 +291,8 @@ export const useDatasetRows = () => {
         
         cachedRows = data.rows;
         cachedAdSpends = data.adSpends;
+        cachedAt = Date.now();
+        saveCache(storedUser?.id ?? null, data.rows, data.adSpends);
         
         setRows(data.rows);
         setAdSpends(data.adSpends);
@@ -231,14 +309,27 @@ export const useDatasetRows = () => {
         inflight = null;
       }
     },
-    []
+    [storedUser]
   );
 
   useEffect(() => {
-    if (!cachedRows) {
+    if (cachedRows === null || cachedAdSpends === null) {
       load();
+    } else {
+      // Se já temos cache em memória, garanta que o localStorage também tenha
+      const exists = loadCache(storedUser?.id ?? null);
+      if (!exists) {
+        saveCache(storedUser?.id ?? null, cachedRows, cachedAdSpends);
+      }
     }
   }, [load]);
+
+  // Persist every time rows/adSpends mudam após carregamento
+  useEffect(() => {
+    if (!loading && rows && adSpends) {
+      saveCache(storedUser?.id ?? null, rows, adSpends);
+    }
+  }, [loading, rows, adSpends, storedUser]);
 
   return {
     rows,
