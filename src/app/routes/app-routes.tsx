@@ -4,19 +4,19 @@
  */
 
 import { Routes, Route, Navigate } from "react-router-dom";
-import { lazy, Suspense } from "react";
+import { Suspense } from "react";
 import { tokenStorage } from "@/shared/lib/storage";
 
-// Lazy loading para melhor performance
-const Index = lazy(() => import("@/features/landing/pages/Index"));
-const Login = lazy(() => import("@/features/auth/pages/Login"));
-const Signup = lazy(() => import("@/features/auth/pages/Signup"));
-const Dashboard = lazy(() => import("@/features/dashboard/pages/Dashboard"));
-const UploadCSV = lazy(() => import("@/features/dashboard/pages/UploadCSV"));
-const Reports = lazy(() => import("@/features/dashboard/pages/Reports"));
-const Modules = lazy(() => import("@/features/dashboard/pages/Modules"));
-const Settings = lazy(() => import("@/features/dashboard/pages/Settings"));
-const NotFound = lazy(() => import("@/shared/pages/NotFound"));
+// Imports diretos para evitar falha de carregamento de chunks dinâmicos
+import Index from "@/features/landing/pages/Index";
+import Login from "@/features/auth/pages/Login";
+import Signup from "@/features/auth/pages/Signup";
+import Dashboard from "@/features/dashboard/pages/Dashboard";
+import UploadCSV from "@/features/dashboard/pages/UploadCSV";
+import Reports from "@/features/dashboard/pages/Reports";
+import Modules from "@/features/dashboard/pages/Modules";
+import Settings from "@/features/dashboard/pages/Settings";
+import NotFound from "@/shared/pages/NotFound";
 
 // Loading fallback component
 const LoadingFallback = () => (

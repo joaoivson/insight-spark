@@ -1,7 +1,5 @@
-import { useState } from "react";
-import { Calendar, Filter, Search, X } from "lucide-react";
+import { Calendar, Filter, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -17,91 +15,168 @@ import {
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { useState } from "react";
 
-const DashboardFilters = () => {
-  const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({});
-  const [product, setProduct] = useState("");
-  const [searchTerm, setSearchTerm] = useState("");
-  const [isFiltersOpen, setIsFiltersOpen] = useState(false);
+type DateRange = { from?: Date; to?: Date };
 
-  const clearFilters = () => {
-    setDateRange({});
-    setProduct("");
-    setSearchTerm("");
+interface DashboardFiltersProps {
+  mesAnoOptions: string[];
+  mesAno: string; // use a non-empty value (e.g., "all") to satisfy Radix
+  onMesAnoChange: (value: string) => void;
+  dateRange: DateRange;
+  onDateRangeApply: (range: DateRange) => void;
+  onClear: () => void;
+  hasActive: boolean;
+  loading?: boolean;
+}
+
+const DashboardFilters = ({
+  mesAnoOptions,
+  mesAno,
+  onMesAnoChange,
+  dateRange,
+  onDateRangeApply,
+  onClear,
+  hasActive,
+  loading = false,
+}: DashboardFiltersProps) => {
+  const safeMesAnoOptions = mesAnoOptions.filter(Boolean);
+  const [open, setOpen] = useState(false);
+  const [localRange, setLocalRange] = useState<DateRange>({ from: dateRange.from, to: dateRange.to });
+
+  const maxDays = 90;
+  const today = new Date();
+  const minDate = new Date(today);
+  minDate.setDate(today.getDate() - (maxDays - 1));
+
+  const applyPreset = (days: number) => {
+    const to = new Date();
+    const from = new Date();
+    from.setDate(to.getDate() - (days - 1));
+    setLocalRange({ from, to });
+    setOpen(false);
+    onDateRangeApply({ from, to });
   };
 
-  const hasActiveFilters = dateRange.from || dateRange.to || product || searchTerm;
+  const applyMonth = (offsetMonths: number) => {
+    const now = new Date();
+    const to = new Date(now.getFullYear(), now.getMonth() + offsetMonths + 1, 0);
+    const from = new Date(now.getFullYear(), now.getMonth() + offsetMonths, 1);
+    setLocalRange({ from, to });
+    setOpen(false);
+    onDateRangeApply({ from, to });
+  };
+
+  const handleApply = () => {
+    if (!isValidRange || !localRange.from || !localRange.to) return;
+    setOpen(false);
+    onDateRangeApply(localRange);
+  };
+
+  const isValidRange = (() => {
+    const { from, to } = localRange;
+    if (from && to) {
+      const diff = Math.abs(to.getTime() - from.getTime());
+      return diff <= maxDays * 24 * 60 * 60 * 1000 && from >= minDate && to <= today;
+    }
+    return false;
+  })();
 
   return (
-    <div className="bg-card rounded-xl border border-border p-4 mb-6">
-      <div className="flex flex-wrap items-center gap-4">
-        {/* Search */}
-        <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input
-            placeholder="Buscar nos dados..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-9"
-          />
-        </div>
+    <div className="bg-card rounded-xl border border-border p-4 mb-6 flex flex-wrap items-center gap-4">
+      {/* MesAno */}
+      <Select value={mesAno} onValueChange={onMesAnoChange}>
+        <SelectTrigger className="w-[160px]">
+          <SelectValue placeholder="MesAno" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">Todos</SelectItem>
+          {safeMesAnoOptions.map((m) => (
+            <SelectItem key={m} value={m}>
+              {m}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
 
-        {/* Date Range */}
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button variant="outline" className="min-w-[200px] justify-start">
-              <Calendar className="w-4 h-4 mr-2" />
-              {dateRange.from ? (
-                dateRange.to ? (
-                  <>
-                    {format(dateRange.from, "dd/MM/yy", { locale: ptBR })} - {format(dateRange.to, "dd/MM/yy", { locale: ptBR })}
-                  </>
-                ) : (
-                  format(dateRange.from, "dd/MM/yyyy", { locale: ptBR })
-                )
+      {/* Date Range */}
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button variant="outline" className="min-w-[220px] justify-start">
+            <Calendar className="w-4 h-4 mr-2" />
+            {dateRange.from ? (
+              dateRange.to ? (
+                <>
+                  {format(dateRange.from, "dd/MM/yy", { locale: ptBR })} -{" "}
+                  {format(dateRange.to, "dd/MM/yy", { locale: ptBR })}
+                </>
               ) : (
-                "Selecionar período"
-              )}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="start">
-            <CalendarComponent
-              mode="range"
-              selected={{ from: dateRange.from, to: dateRange.to }}
-              onSelect={(range) => setDateRange({ from: range?.from, to: range?.to })}
-              locale={ptBR}
-              numberOfMonths={2}
-            />
-          </PopoverContent>
-        </Popover>
-
-        {/* Product Filter */}
-        <Select value={product} onValueChange={setProduct}>
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Produto" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos os produtos</SelectItem>
-            <SelectItem value="produto-a">Produto A</SelectItem>
-            <SelectItem value="produto-b">Produto B</SelectItem>
-            <SelectItem value="produto-c">Produto C</SelectItem>
-            <SelectItem value="produto-d">Produto D</SelectItem>
-          </SelectContent>
-        </Select>
-
-        {/* Clear Filters */}
-        {hasActiveFilters && (
-          <Button variant="ghost" size="sm" onClick={clearFilters}>
-            <X className="w-4 h-4 mr-1" />
-            Limpar filtros
+                format(dateRange.from, "dd/MM/yyyy", { locale: ptBR })
+              )
+            ) : (
+              "Selecionar período"
+            )}
           </Button>
-        )}
+        </PopoverTrigger>
+        <PopoverContent className="w-auto p-0" align="start">
+          <CalendarComponent
+            mode="range"
+            selected={{ from: localRange.from, to: localRange.to }}
+            onSelect={(range) => {
+              let from = range?.from;
+              let to = range?.to;
+              if (from && from < minDate) from = minDate;
+              if (to && to < minDate) to = minDate;
+              if (from && to) {
+                const diff = Math.abs(to.getTime() - from.getTime());
+                if (diff > maxDays * 24 * 60 * 60 * 1000) return;
+              }
+              setLocalRange({ from, to });
+            }}
+            locale={ptBR}
+            numberOfMonths={2}
+            fromDate={minDate}
+            toDate={today}
+          />
+          <div className="p-3 border-t border-border space-y-2">
+            <div className="text-xs text-muted-foreground">Atalhos</div>
+            <div className="flex flex-wrap gap-2">
+              <Button size="sm" variant="secondary" onClick={() => applyPreset(30)}>
+                Últimos 30 dias
+              </Button>
+              <Button size="sm" variant="secondary" onClick={() => applyPreset(60)}>
+                Últimos 60 dias
+              </Button>
+              <Button size="sm" variant="secondary" onClick={() => applyPreset(90)}>
+                Últimos 90 dias
+              </Button>
+              <Button size="sm" variant="secondary" onClick={() => applyMonth(0)}>
+                Mês atual
+              </Button>
+              <Button size="sm" variant="secondary" onClick={() => applyMonth(-1)}>
+                Mês anterior
+              </Button>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button size="sm" onClick={handleApply} disabled={!isValidRange || loading}>
+                {loading ? "Aplicando..." : "Aplicar"}
+              </Button>
+            </div>
+          </div>
+        </PopoverContent>
+      </Popover>
 
-        {/* Filter Button */}
-        <Button variant="outline" size="icon">
-          <Filter className="w-4 h-4" />
+      {/* Clear */}
+      {hasActive && (
+        <Button variant="ghost" size="sm" onClick={onClear}>
+          <X className="w-4 h-4 mr-1" />
+          Limpar filtros
         </Button>
-      </div>
+      )}
+
+      <Button variant="outline" size="icon">
+        <Filter className="w-4 h-4" />
+      </Button>
     </div>
   );
 };

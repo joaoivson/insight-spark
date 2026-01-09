@@ -1,7 +1,7 @@
 import { useState, useCallback } from "react";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
-import { motion } from "framer-motion";
-import { Upload, FileText, Check, AlertCircle, X, Eye } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Upload, FileText, Check, AlertCircle, X, Eye, FileSpreadsheet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import Papa from "papaparse";
@@ -13,6 +13,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { getApiUrl } from "@/core/config/api.config";
+import { userStorage } from "@/shared/lib/storage";
+import { invalidateDatasetRowsCache, useDatasetRows } from "@/shared/hooks/useDatasetRows";
+import { Progress } from "@/components/ui/progress";
 
 interface CSVData {
   headers: string[];
@@ -24,8 +28,10 @@ const UploadCSV = () => {
   const [file, setFile] = useState<File | null>(null);
   const [csvData, setCsvData] = useState<CSVData | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
+  const { refresh } = useDatasetRows();
 
   const handleDrag = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -40,6 +46,7 @@ const UploadCSV = () => {
   const processFile = (file: File) => {
     setError(null);
     setIsProcessing(true);
+    setUploadProgress(10); // Start progress
     setFile(file);
 
     Papa.parse(file, {
@@ -48,18 +55,20 @@ const UploadCSV = () => {
         if (data.length > 0) {
           setCsvData({
             headers: data[0],
-            rows: data.slice(1, 11), // Show first 10 rows as preview
+            rows: data.slice(1, 11),
           });
+          setUploadProgress(100);
           toast({
-            title: "Arquivo carregado",
-            description: `${data.length - 1} linhas encontradas.`,
+            title: "Arquivo analisado",
+            description: `${data.length - 1} linhas identificadas. Pronto para upload.`,
           });
         }
         setIsProcessing(false);
       },
       error: (error) => {
-        setError(`Erro ao processar arquivo: ${error.message}`);
+        setError(`Erro ao ler arquivo: ${error.message}`);
         setIsProcessing(false);
+        setUploadProgress(0);
       },
     });
   };
@@ -74,7 +83,7 @@ const UploadCSV = () => {
       if (droppedFile.type === "text/csv" || droppedFile.name.endsWith(".csv")) {
         processFile(droppedFile);
       } else {
-        setError("Por favor, envie apenas arquivos CSV.");
+        setError("Formato inválido. Por favor, envie apenas arquivos .csv");
       }
     }
   }, []);
@@ -87,169 +96,259 @@ const UploadCSV = () => {
   };
 
   const handleUpload = async () => {
-    if (!file || !csvData) return;
-    
+    if (!file) return;
     setIsProcessing(true);
-    
-    // Simulate upload - will be replaced with actual Supabase storage
-    setTimeout(() => {
-      setIsProcessing(false);
-      toast({
-        title: "Upload concluído!",
-        description: "Seus dados foram processados e estão disponíveis no dashboard.",
+    setUploadProgress(20); // Fake progress start
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const storedUser = userStorage.get();
+      const userIdParam = storedUser?.id ? `?user_id=${storedUser.id}` : "";
+
+      // Simulate progress for UX
+      const interval = setInterval(() => {
+        setUploadProgress((prev) => Math.min(prev + 10, 90));
+      }, 500);
+
+      const res = await fetch(getApiUrl(`/api/datasets/upload${userIdParam}`), {
+        method: "POST",
+        body: formData,
       });
-    }, 2000);
+
+      clearInterval(interval);
+      setUploadProgress(100);
+
+      const result = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(result.detail || result.error || "Falha no servidor");
+      }
+
+      toast({
+        title: "Processamento concluído!",
+        description: "Seus dados foram importados com sucesso.",
+        duration: 5000,
+      });
+
+      invalidateDatasetRowsCache();
+      await refresh(true);
+      clearFile();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erro desconhecido no upload.");
+      setUploadProgress(0);
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const clearFile = () => {
     setFile(null);
     setCsvData(null);
     setError(null);
+    setUploadProgress(0);
   };
 
   return (
-    <DashboardLayout title="Upload CSV" subtitle="Importe seus dados de vendas">
+    <DashboardLayout title="Importar Dados" subtitle="Carregue seus relatórios de vendas">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
+        className="max-w-4xl mx-auto"
       >
-        {/* Upload Zone */}
-        <div
-          className={`relative border-2 border-dashed rounded-2xl p-12 text-center transition-all duration-300 ${
-            dragActive
-              ? "border-accent bg-accent/5"
-              : "border-border hover:border-accent/50 hover:bg-accent/5"
-          }`}
-          onDragEnter={handleDrag}
-          onDragLeave={handleDrag}
-          onDragOver={handleDrag}
-          onDrop={handleDrop}
-        >
-          <input
-            type="file"
-            accept=".csv"
-            onChange={handleChange}
-            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-          />
-          
-          <div className="w-16 h-16 rounded-2xl bg-accent/10 flex items-center justify-center mx-auto mb-6">
-            <Upload className="w-8 h-8 text-accent" />
-          </div>
-          
-          <h3 className="font-display font-semibold text-xl text-foreground mb-2">
-            Arraste seu arquivo CSV aqui
-          </h3>
-          <p className="text-muted-foreground mb-4">
-            ou clique para selecionar do seu computador
-          </p>
-          <p className="text-sm text-muted-foreground">
-            Formato aceito: .csv • Tamanho máximo: 10MB
-          </p>
-        </div>
+        <AnimatePresence mode="wait">
+          {!file ? (
+            <motion.div
+              key="upload-zone"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+            >
+              <div
+                className={`relative group cursor-pointer border-2 border-dashed rounded-3xl p-16 text-center transition-all duration-300 ease-out ${
+                  dragActive
+                    ? "border-primary bg-primary/5 scale-[1.02]"
+                    : "border-border hover:border-primary/50 hover:bg-secondary/30"
+                }`}
+                onDragEnter={handleDrag}
+                onDragLeave={handleDrag}
+                onDragOver={handleDrag}
+                onDrop={handleDrop}
+              >
+                <input
+                  type="file"
+                  accept=".csv"
+                  onChange={handleChange}
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                />
+                
+                <div className="relative z-0 pointer-events-none">
+                  <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center mx-auto mb-8 shadow-inner group-hover:scale-110 transition-transform duration-300">
+                    <CloudUploadIcon className="w-10 h-10 text-primary" />
+                  </div>
+                  
+                  <h3 className="font-display font-bold text-2xl text-foreground mb-3 group-hover:text-primary transition-colors">
+                    Solte seu arquivo CSV aqui
+                  </h3>
+                  <p className="text-muted-foreground mb-8 max-w-md mx-auto leading-relaxed">
+                    Arraste e solte seu arquivo ou clique em qualquer lugar desta área para selecionar do computador.
+                  </p>
+                  
+                  <div className="inline-flex items-center gap-2 px-4 py-2 bg-background/50 rounded-full border border-border text-xs font-medium text-muted-foreground">
+                    <FileSpreadsheet className="w-4 h-4" />
+                    <span>Suporta Shopee, Amazon, e-commerce padrão</span>
+                  </div>
+                </div>
+              </div>
 
-        {/* Error Message */}
+              {/* Instructions Grid */}
+              <div className="mt-12 grid md:grid-cols-3 gap-6">
+                {[
+                  { title: "Prepare", desc: "Exporte seus dados em CSV UTF-8" },
+                  { title: "Carregue", desc: "Arraste o arquivo para a área acima" },
+                  { title: "Analise", desc: "Visualize insights instantâneos" },
+                ].map((step, i) => (
+                  <div key={i} className="flex flex-col items-center text-center p-4">
+                    <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center text-sm font-bold text-muted-foreground mb-3">
+                      {i + 1}
+                    </div>
+                    <h4 className="font-semibold text-foreground">{step.title}</h4>
+                    <p className="text-sm text-muted-foreground">{step.desc}</p>
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+          ) : (
+            <motion.div
+              key="file-preview"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="space-y-6"
+            >
+              {/* File Status Card */}
+              <div className="bg-card border border-border rounded-2xl p-6 shadow-lg shadow-black/5">
+                <div className="flex items-start justify-between mb-6">
+                  <div className="flex items-center gap-4">
+                    <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center">
+                      <FileText className="w-7 h-7 text-primary" />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-lg text-foreground">{file.name}</h3>
+                      <p className="text-sm text-muted-foreground">
+                        {(file.size / 1024).toFixed(1)} KB • Pronto para processamento
+                      </p>
+                    </div>
+                  </div>
+                  <Button variant="ghost" size="icon" onClick={clearFile} disabled={isProcessing}>
+                    <X className="w-5 h-5 text-muted-foreground hover:text-destructive" />
+                  </Button>
+                </div>
+
+                {isProcessing && (
+                  <div className="space-y-2 mb-6">
+                    <div className="flex justify-between text-xs font-medium">
+                      <span className="text-primary">Processando...</span>
+                      <span className="text-muted-foreground">{uploadProgress}%</span>
+                    </div>
+                    <Progress value={uploadProgress} className="h-2" />
+                  </div>
+                )}
+
+                {!isProcessing && csvData && (
+                  <div className="flex gap-3 justify-end">
+                    <Button variant="outline" onClick={clearFile}>Cancelar</Button>
+                    <Button onClick={handleUpload} className="bg-primary hover:bg-primary/90 min-w-[140px]">
+                      Confirmar Upload
+                    </Button>
+                  </div>
+                )}
+              </div>
+
+              {/* Data Preview */}
+              {csvData && (
+                <div className="bg-card border border-border rounded-2xl overflow-hidden">
+                  <div className="p-4 border-b border-border bg-secondary/5 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Eye className="w-4 h-4 text-muted-foreground" />
+                      <span className="font-semibold text-sm">Visualização (10 primeiras linhas)</span>
+                    </div>
+                    <span className="text-xs text-muted-foreground px-2 py-1 bg-background rounded-md border border-border">
+                      {csvData.headers.length} colunas detectadas
+                    </span>
+                  </div>
+                  <div className="overflow-x-auto max-h-[400px]">
+                    <Table>
+                      <TableHeader className="sticky top-0 bg-card z-10 shadow-sm">
+                        <TableRow>
+                          {csvData.headers.map((h, i) => (
+                            <TableHead key={i} className="whitespace-nowrap font-bold text-xs uppercase tracking-wider">
+                              {h}
+                            </TableHead>
+                          ))}
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {csvData.rows.map((row, i) => (
+                          <TableRow key={i} className="hover:bg-secondary/30">
+                            {row.map((cell, j) => (
+                              <TableCell key={j} className="whitespace-nowrap text-sm text-muted-foreground">
+                                {cell}
+                              </TableCell>
+                            ))}
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Error Toast Wrapper */}
         {error && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mt-6 p-4 bg-destructive/10 border border-destructive/20 rounded-xl flex items-center gap-3"
-          >
-            <AlertCircle className="w-5 h-5 text-destructive" />
-            <span className="text-destructive text-sm">{error}</span>
-            <button onClick={() => setError(null)} className="ml-auto">
-              <X className="w-4 h-4 text-destructive" />
-            </button>
-          </motion.div>
-        )}
-
-        {/* File Info & Preview */}
-        {file && csvData && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="mt-8"
+            className="fixed bottom-8 right-8 z-50 bg-destructive text-destructive-foreground px-6 py-4 rounded-xl shadow-2xl flex items-center gap-4 max-w-md"
           >
-            {/* File Card */}
-            <div className="bg-card rounded-xl border border-border p-4 flex items-center gap-4 mb-6">
-              <div className="w-12 h-12 rounded-xl bg-success/10 flex items-center justify-center">
-                <FileText className="w-6 h-6 text-success" />
-              </div>
-              <div className="flex-1">
-                <div className="flex items-center gap-2">
-                  <span className="font-medium text-foreground">{file.name}</span>
-                  <Check className="w-4 h-4 text-success" />
-                </div>
-                <span className="text-sm text-muted-foreground">
-                  {(file.size / 1024).toFixed(2)} KB • {csvData.rows.length} linhas (preview)
-                </span>
-              </div>
-              <Button variant="ghost" size="sm" onClick={clearFile}>
-                <X className="w-4 h-4" />
-              </Button>
+            <AlertCircle className="w-6 h-6 flex-shrink-0" />
+            <div>
+              <h4 className="font-bold">Falha no processamento</h4>
+              <p className="text-sm opacity-90">{error}</p>
             </div>
-
-            {/* Preview Table */}
-            <div className="bg-card rounded-xl border border-border overflow-hidden">
-              <div className="p-4 border-b border-border flex items-center gap-2">
-                <Eye className="w-4 h-4 text-muted-foreground" />
-                <span className="font-medium text-foreground">Preview dos dados</span>
-                <span className="text-sm text-muted-foreground">(primeiras 10 linhas)</span>
-              </div>
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="bg-muted/50">
-                      {csvData.headers.map((header, index) => (
-                        <TableHead key={index}>{header}</TableHead>
-                      ))}
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {csvData.rows.map((row, rowIndex) => (
-                      <TableRow key={rowIndex}>
-                        {row.map((cell, cellIndex) => (
-                          <TableCell key={cellIndex}>{cell}</TableCell>
-                        ))}
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            </div>
-
-            {/* Upload Button */}
-            <div className="mt-6 flex justify-end">
-              <Button variant="hero" size="lg" onClick={handleUpload} disabled={isProcessing}>
-                {isProcessing ? "Processando..." : "Processar Dados"}
-              </Button>
-            </div>
+            <button onClick={() => setError(null)} className="ml-auto">
+              <X className="w-5 h-5" />
+            </button>
           </motion.div>
         )}
-
-        {/* Instructions */}
-        <div className="mt-8 p-6 bg-muted/30 rounded-xl">
-          <h4 className="font-display font-semibold text-foreground mb-4">
-            Formato esperado do CSV
-          </h4>
-          <p className="text-sm text-muted-foreground mb-4">
-            Seu arquivo CSV deve conter as seguintes colunas:
-          </p>
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-            {["Data", "Produto", "Receita", "Custo", "Comissão"].map((col) => (
-              <div
-                key={col}
-                className="bg-card rounded-lg px-3 py-2 text-sm text-foreground border border-border"
-              >
-                {col}
-              </div>
-            ))}
-          </div>
-        </div>
       </motion.div>
     </DashboardLayout>
   );
 };
 
-export default UploadCSV;
+// Helper Icon
+function CloudUploadIcon(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg
+      {...props}
+      xmlns="http://www.w3.org/2000/svg"
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242" />
+      <path d="M12 12v9" />
+      <path d="m16 16-4-4-4 4" />
+    </svg>
+  );
+}
 
+export default UploadCSV;

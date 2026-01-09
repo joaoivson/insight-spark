@@ -1,6 +1,6 @@
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { motion } from "framer-motion";
-import { User, Bell, CreditCard, Shield, Trash2 } from "lucide-react";
+import { User, Bell, CreditCard, Shield, Trash2, CheckCircle2, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,6 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { APP_CONFIG } from "@/core/config/app.config";
 import { useNavigate } from "react-router-dom";
 import { getApiUrl } from "@/core/config/api.config";
+import { Badge } from "@/components/ui/badge";
 
 const SettingsPage = () => {
   const storedUser = userStorage.get<StoredUser>() || undefined;
@@ -47,7 +48,6 @@ const SettingsPage = () => {
       if (!response.ok) {
         throw new Error(result.detail || result.error || "Erro ao salvar");
       }
-      // Atualiza storage local
       userStorage.set({
         id: String(result.id ?? userId),
         nome: result.name ?? name,
@@ -70,36 +70,22 @@ const SettingsPage = () => {
   };
 
   const handleDelete = async () => {
-    if (!userId || !token) {
-      toast({ title: "Sessão expirada", description: "Faça login novamente.", variant: "destructive" });
-      navigate(APP_CONFIG.ROUTES.LOGIN);
-      return;
-    }
+    if (!userId || !token) return;
     const confirmed = window.confirm("Tem certeza? Esta ação remove todos os dados da sua conta.");
     if (!confirmed) return;
     setIsDeleting(true);
     try {
       const response = await fetch(getApiUrl(`/api/auth/users/${userId}`), {
         method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
       });
-      if (!response.ok) {
-        const result = await response.json().catch(() => ({}));
-        throw new Error(result.detail || result.error || "Erro ao remover conta");
-      }
-      // Limpa sessão e vai para login
+      if (!response.ok) throw new Error("Erro ao remover conta");
       userStorage.remove();
       tokenStorage.remove();
       toast({ title: "Conta removida", description: "Seus dados foram excluídos." });
       navigate(APP_CONFIG.ROUTES.LOGIN);
     } catch (err) {
-      toast({
-        title: "Erro ao excluir conta",
-        description: err instanceof Error ? err.message : "Tente novamente.",
-        variant: "destructive",
-      });
+      toast({ title: "Erro ao excluir conta", variant: "destructive" });
     } finally {
       setIsDeleting(false);
     }
@@ -111,144 +97,151 @@ const SettingsPage = () => {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="max-w-3xl"
+        className="max-w-5xl mx-auto space-y-8"
       >
-        {/* Profile Section */}
-        <div className="bg-card rounded-xl border border-border p-6 mb-6">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center">
-              <User className="w-5 h-5 text-accent" />
-            </div>
-            <div>
-              <h3 className="font-display font-semibold text-foreground">Perfil</h3>
-              <p className="text-sm text-muted-foreground">Informações da sua conta</p>
-            </div>
-          </div>
-
-          <div className="grid gap-4">
-            <div className="grid gap-2">
-              <Label htmlFor="name">Nome</Label>
-              <Input
-                id="name"
-                placeholder="Seu nome"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="seu@email.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="cpfCnpj">CPF/CNPJ</Label>
-              <Input
-                id="cpfCnpj"
-                type="text"
-                placeholder="000.000.000-00"
-                value={cpfCnpj}
-                disabled
-              />
-            </div>
-          </div>
-
-          <div className="mt-6">
-            <Button onClick={handleSave} disabled={isSaving}>
-              {isSaving ? "Salvando..." : "Salvar Alterações"}
-            </Button>
-          </div>
-        </div>
-
-        {/* Notifications Section */}
-        <div className="bg-card rounded-xl border border-border p-6 mb-6">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center">
-              <Bell className="w-5 h-5 text-accent" />
-            </div>
-            <div>
-              <h3 className="font-display font-semibold text-foreground">Notificações</h3>
-              <p className="text-sm text-muted-foreground">Configure suas preferências de notificação</p>
-            </div>
-          </div>
-
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="font-medium text-foreground">Relatórios semanais</div>
-                <div className="text-sm text-muted-foreground">Receba um resumo semanal por email</div>
+        
+        {/* Grid Layout */}
+        <div className="grid lg:grid-cols-3 gap-8">
+          
+          {/* Coluna Principal (Perfil) */}
+          <div className="lg:col-span-2 space-y-8">
+            
+            {/* Card de Perfil */}
+            <div className="bg-card border border-border rounded-2xl p-8 shadow-sm">
+              <div className="flex items-center gap-4 mb-8">
+                <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary border border-primary/20">
+                  <User className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-foreground">Perfil Pessoal</h3>
+                  <p className="text-sm text-muted-foreground">Atualize suas informações básicas</p>
+                </div>
               </div>
-              <Switch defaultChecked />
-            </div>
-            <Separator />
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="font-medium text-foreground">Alertas de performance</div>
-                <div className="text-sm text-muted-foreground">Notificações sobre mudanças significativas</div>
-              </div>
-              <Switch defaultChecked />
-            </div>
-            <Separator />
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="font-medium text-foreground">Novidades do produto</div>
-                <div className="text-sm text-muted-foreground">Atualizações sobre novos recursos</div>
-              </div>
-              <Switch />
-            </div>
-          </div>
-        </div>
 
-        {/* Subscription Section */}
-        <div className="bg-card rounded-xl border border-border p-6 mb-6">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center">
-              <CreditCard className="w-5 h-5 text-accent" />
-            </div>
-            <div>
-              <h3 className="font-display font-semibold text-foreground">Assinatura</h3>
-              <p className="text-sm text-muted-foreground">Gerencie seu plano</p>
-            </div>
-          </div>
+              <div className="space-y-6">
+                <div className="grid md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <Label htmlFor="name">Nome Completo</Label>
+                    <Input
+                      id="name"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      className="bg-background"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="cpfCnpj">CPF/CNPJ</Label>
+                    <div className="relative">
+                      <Input
+                        id="cpfCnpj"
+                        value={cpfCnpj}
+                        disabled
+                        className="bg-secondary/20 pr-10"
+                      />
+                      <Shield className="absolute right-3 top-2.5 w-4 h-4 text-muted-foreground" />
+                    </div>
+                  </div>
+                </div>
 
-          <div className="p-4 bg-accent/5 border border-accent/20 rounded-xl mb-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="font-display font-semibold text-foreground">Plano Básico</div>
-                <div className="text-sm text-muted-foreground">R$ 67,00/mês</div>
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email de Acesso</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="bg-background"
+                  />
+                </div>
+
+                <div className="pt-4 flex justify-end">
+                  <Button onClick={handleSave} disabled={isSaving} size="lg" className="min-w-[140px]">
+                    {isSaving ? "Salvando..." : "Salvar Alterações"}
+                  </Button>
+                </div>
               </div>
-              <div className="px-3 py-1 bg-success/10 text-success rounded-full text-sm font-medium">
-                Ativo
+            </div>
+
+            {/* Notificações */}
+            <div className="bg-card border border-border rounded-2xl p-8 shadow-sm">
+              <div className="flex items-center gap-4 mb-6">
+                <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center text-accent">
+                  <Bell className="w-5 h-5" />
+                </div>
+                <h3 className="text-lg font-bold text-foreground">Preferências de Notificação</h3>
+              </div>
+
+              <div className="space-y-6">
+                {[
+                  { title: "Resumo Semanal", desc: "Receba estatísticas consolidadas toda segunda-feira" },
+                  { title: "Alertas de Performance", desc: "Notifique-me quando o ROAS cair abaixo da meta" },
+                  { title: "Atualizações do Sistema", desc: "Novidades e melhorias na plataforma" },
+                ].map((item, i) => (
+                  <div key={i} className="flex items-start justify-between">
+                    <div>
+                      <p className="font-medium text-foreground">{item.title}</p>
+                      <p className="text-sm text-muted-foreground">{item.desc}</p>
+                    </div>
+                    <Switch defaultChecked={i < 2} />
+                  </div>
+                ))}
               </div>
             </div>
           </div>
 
-          <Button variant="outline">Gerenciar Assinatura</Button>
-        </div>
+          {/* Coluna Lateral (Assinatura e Danger Zone) */}
+          <div className="space-y-8">
+            
+            {/* Card de Assinatura */}
+            <div className="bg-gradient-to-br from-card to-secondary/10 border border-border rounded-2xl p-6 shadow-sm relative overflow-hidden">
+              <div className="absolute top-0 right-0 p-4 opacity-10">
+                <CreditCard className="w-24 h-24" />
+              </div>
+              
+              <div className="relative z-10">
+                <h3 className="font-bold text-lg mb-1">Seu Plano</h3>
+                <div className="flex items-center gap-2 mb-6">
+                  <Badge className="bg-primary/10 text-primary hover:bg-primary/20 border-primary/20">PRO</Badge>
+                  <span className="text-sm text-muted-foreground">Renova em 15 dias</span>
+                </div>
 
-        {/* Danger Zone */}
-        <div className="bg-card rounded-xl border border-destructive/20 p-6">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="w-10 h-10 rounded-xl bg-destructive/10 flex items-center justify-center">
-              <Trash2 className="w-5 h-5 text-destructive" />
+                <div className="space-y-4 mb-6">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Uploads Mensais</span>
+                    <span className="font-medium">Ilimitado</span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Usuários</span>
+                    <span className="font-medium">1 Admin</span>
+                  </div>
+                </div>
+
+                <Button variant="outline" className="w-full">
+                  Gerenciar Fatura
+                </Button>
+              </div>
             </div>
-            <div>
-              <h3 className="font-display font-semibold text-foreground">Zona de Perigo</h3>
-              <p className="text-sm text-muted-foreground">Ações irreversíveis</p>
+
+            {/* Danger Zone */}
+            <div className="bg-destructive/5 border border-destructive/20 rounded-2xl p-6">
+              <div className="flex items-center gap-3 mb-4 text-destructive">
+                <AlertTriangle className="w-5 h-5" />
+                <h3 className="font-bold">Zona de Perigo</h3>
+              </div>
+              <p className="text-sm text-muted-foreground mb-6">
+                A exclusão da conta é permanente e remove todos os históricos de dados.
+              </p>
+              <Button 
+                variant="destructive" 
+                onClick={handleDelete} 
+                disabled={isDeleting} 
+                className="w-full"
+              >
+                {isDeleting ? "Processando..." : "Excluir minha conta"}
+              </Button>
             </div>
+
           </div>
-
-          <p className="text-sm text-muted-foreground mb-4">
-            Ao excluir sua conta, todos os seus dados serão permanentemente removidos. Esta ação não pode ser desfeita.
-          </p>
-
-          <Button variant="destructive" onClick={handleDelete} disabled={isDeleting}>
-            {isDeleting ? "Excluindo..." : "Excluir Conta"}
-          </Button>
         </div>
       </motion.div>
     </DashboardLayout>
@@ -256,4 +249,3 @@ const SettingsPage = () => {
 };
 
 export default SettingsPage;
-

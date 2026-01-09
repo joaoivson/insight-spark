@@ -1,3 +1,4 @@
+import { ReactNode } from "react";
 import { Bell, RefreshCw, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,9 +14,10 @@ import { useToast } from "@/hooks/use-toast";
 interface DashboardHeaderProps {
   title: string;
   subtitle?: string;
+  action?: ReactNode;
 }
 
-const DashboardHeader = ({ title, subtitle }: DashboardHeaderProps) => {
+const DashboardHeader = ({ title, subtitle, action }: DashboardHeaderProps) => {
   const { toast } = useToast();
 
   const handleRefresh = () => {
@@ -33,6 +35,13 @@ const DashboardHeader = ({ title, subtitle }: DashboardHeaderProps) => {
       </div>
 
       <div className="flex items-center gap-3">
+        {action && (
+          <>
+            {action}
+            <div className="h-6 w-px bg-border mx-2" />
+          </>
+        )}
+        
         <Button variant="outline" size="sm" onClick={handleRefresh}>
           <RefreshCw className="w-4 h-4 mr-2" />
           Atualizar Dados
