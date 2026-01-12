@@ -7,7 +7,8 @@ import {
   LogOut,
   LayoutDashboard,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Wallet
 } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -17,6 +18,7 @@ import logoName from "@/assets/logo/logo_name.png";
 
 const menuItems = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
+  { icon: Wallet, label: "Investimentos Ads", path: "/dashboard/investimentos" },
   { icon: Upload, label: "Upload CSV", path: "/dashboard/upload" },
   { icon: FileText, label: "Relatórios", path: "/dashboard/reports" },
   { icon: Puzzle, label: "Módulos", path: "/dashboard/modules" },

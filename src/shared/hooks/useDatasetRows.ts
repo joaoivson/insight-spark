@@ -289,6 +289,15 @@ export const useDatasetRows = () => {
         inflight = promise;
         const data = await promise;
         
+        // Se a API retornar vazio mas já temos cache, preservamos o cache e não sobrescrevemos.
+        const isEmptyResponse = (data.rows?.length ?? 0) === 0 && (data.adSpends?.length ?? 0) === 0;
+        if (isEmptyResponse && cachedRows && cachedAdSpends) {
+          setRows(cachedRows);
+          setAdSpends(cachedAdSpends);
+          setLoading(false);
+          return { rows: cachedRows, adSpends: cachedAdSpends };
+        }
+
         cachedRows = data.rows;
         cachedAdSpends = data.adSpends;
         cachedAt = Date.now();
@@ -301,6 +310,13 @@ export const useDatasetRows = () => {
         return data;
       } catch (err) {
         setError(err instanceof Error ? err.message : "Erro ao carregar dados");
+        // Se já havia cache, mantenha-o; não apague o localStorage
+        if (cachedRows && cachedAdSpends) {
+          setRows(cachedRows);
+          setAdSpends(cachedAdSpends);
+          setLoading(false);
+          return { rows: cachedRows, adSpends: cachedAdSpends };
+        }
         setRows([]);
         setAdSpends([]);
         return { rows: [], adSpends: [] };

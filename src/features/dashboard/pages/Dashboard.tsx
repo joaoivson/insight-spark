@@ -4,7 +4,6 @@ import DashboardCharts, { DrillDownType } from "@/components/dashboard/Dashboard
 import DashboardFilters from "@/components/dashboard/DashboardFilters";
 import DataTable, { DatasetRow } from "@/components/dashboard/DataTable";
 import ChannelPerformance from "@/components/dashboard/ChannelPerformance";
-import { AdSpendDialog } from "@/components/dashboard/AdSpendDialog";
 import { motion } from "framer-motion";
 import { useMemo, useState } from "react";
 import {
@@ -21,7 +20,7 @@ import { useDatasetRows } from "@/shared/hooks/useDatasetRows";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
-import { invalidateDatasetRowsCache } from "@/shared/hooks/useDatasetRows";
+import { Link } from "react-router-dom";
 
 const formatCurrency = (value: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value || 0);
@@ -107,10 +106,14 @@ const Dashboard = () => {
         ? "Plataforma"
         : "Produto"}: ${value}`,
     });
-    // Smooth scroll to table
+    // Smooth scroll to table with offset
     setTimeout(() => {
-      document.getElementById("detail-table")?.scrollIntoView({ behavior: "smooth" });
-    }, 100);
+      const target = document.getElementById("detail-table");
+      if (target) {
+        const y = target.getBoundingClientRect().top + window.scrollY - 100;
+        window.scrollTo({ top: y, behavior: "smooth" });
+      }
+    }, 120);
   };
 
   const handleCardClick = (kpi: KPIData) => {
@@ -120,8 +123,12 @@ const Dashboard = () => {
       label: `Detalhes de: ${kpi.title}`,
     });
     setTimeout(() => {
-      document.getElementById("detail-table")?.scrollIntoView({ behavior: "smooth" });
-    }, 100);
+      const target = document.getElementById("detail-table");
+      if (target) {
+        const y = target.getBoundingClientRect().top + window.scrollY - 100;
+        window.scrollTo({ top: y, behavior: "smooth" });
+      }
+    }, 120);
   };
 
   const cleanNumber = (value: any): number => {
@@ -224,15 +231,9 @@ const Dashboard = () => {
       subtitle="Visão geral dos seus dados"
       action={
         !loading && (
-          <AdSpendDialog 
-            rows={rows} 
-            adSpends={adSpends}
-            onSuccess={() => {
-              invalidateDatasetRowsCache();
-              refresh({ from: dateRange.from, to: dateRange.to });
-            }}
-            dateRange={dateRange}
-          />
+          <Button asChild>
+            <Link to="/dashboard/investimentos">Gerenciar Investimentos</Link>
+          </Button>
         )
       }
     >

@@ -16,6 +16,7 @@ import UploadCSV from "@/features/dashboard/pages/UploadCSV";
 import Reports from "@/features/dashboard/pages/Reports";
 import Modules from "@/features/dashboard/pages/Modules";
 import Settings from "@/features/dashboard/pages/Settings";
+import AdSpends from "@/features/dashboard/pages/AdSpends";
 import NotFound from "@/shared/pages/NotFound";
 
 // Loading fallback component
@@ -51,6 +52,7 @@ export const AppRoutes = () => {
         <Route path="/dashboard/reports" element={<ProtectedRoute element={<Reports />} />} />
         <Route path="/dashboard/modules" element={<ProtectedRoute element={<Modules />} />} />
         <Route path="/dashboard/settings" element={<ProtectedRoute element={<Settings />} />} />
+        <Route path="/dashboard/investimentos" element={<ProtectedRoute element={<AdSpends />} />} />
 
         {/* Fallback */}
         <Route path="*" element={<NotFound />} />
