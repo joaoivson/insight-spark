@@ -112,7 +112,7 @@ const UploadCSV = () => {
         setUploadProgress((prev) => Math.min(prev + 10, 90));
       }, 500);
 
-      const res = await fetch(getApiUrl(`/api/datasets/upload${userIdParam}`), {
+      const res = await fetch(getApiUrl(`/api/v1/datasets/upload${userIdParam}`), {
         method: "POST",
         body: formData,
       });

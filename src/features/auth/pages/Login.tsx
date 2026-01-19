@@ -47,7 +47,7 @@ const Login = () => {
           });
         } else {
           // Fallback: buscar perfil usando o token recém-recebido
-          const meResponse = await fetch(getApiUrl("/api/auth/me"), {
+          const meResponse = await fetch(getApiUrl("/api/v1/auth/me"), {
             headers: {
               Authorization: `Bearer ${result.token}`,
             },

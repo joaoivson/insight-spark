@@ -9,7 +9,7 @@ export type AdSpendPayload = {
 
 export const bulkCreateAdSpends = async (items: AdSpendPayload[], userId?: string | number | null): Promise<AdSpend[]> => {
   const params = userId ? `?user_id=${userId}` : "";
-  const url = getApiUrl(`/api/ad_spends/bulk${params}`);
+  const url = getApiUrl(`/api/v1/ad_spends/bulk${params}`);
   const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -28,7 +28,7 @@ export const listAdSpends = async (opts: { userId?: string | number | null; star
   if (opts.startDate) params.set("start_date", opts.startDate);
   if (opts.endDate) params.set("end_date", opts.endDate);
 
-  const url = getApiUrl(`/api/ad_spends?${params.toString()}`);
+  const url = getApiUrl(`/api/v1/ad_spends?${params.toString()}`);
   const res = await fetch(url);
   if (!res.ok) {
     const text = await res.text();
@@ -39,7 +39,7 @@ export const listAdSpends = async (opts: { userId?: string | number | null; star
 
 export const createAdSpend = async (payload: AdSpendPayload, userId?: string | number | null): Promise<AdSpend> => {
   const params = userId ? `?user_id=${userId}` : "";
-  const url = getApiUrl(`/api/ad_spends${params}`);
+  const url = getApiUrl(`/api/v1/ad_spends${params}`);
   const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -54,7 +54,7 @@ export const createAdSpend = async (payload: AdSpendPayload, userId?: string | n
 
 export const updateAdSpend = async (id: number, payload: Partial<AdSpendPayload>, userId?: string | number | null): Promise<AdSpend> => {
   const params = userId ? `?user_id=${userId}` : "";
-  const url = getApiUrl(`/api/ad_spends/${id}${params}`);
+  const url = getApiUrl(`/api/v1/ad_spends/${id}${params}`);
   const res = await fetch(url, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
@@ -69,7 +69,7 @@ export const updateAdSpend = async (id: number, payload: Partial<AdSpendPayload>
 
 export const deleteAdSpend = async (id: number, userId?: string | number | null): Promise<void> => {
   const params = userId ? `?user_id=${userId}` : "";
-  const url = getApiUrl(`/api/ad_spends/${id}${params}`);
+  const url = getApiUrl(`/api/v1/ad_spends/${id}${params}`);
   const res = await fetch(url, { method: "DELETE" });
   if (!res.ok) {
     const text = await res.text();

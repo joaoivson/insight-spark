@@ -36,7 +36,7 @@ const SettingsPage = () => {
     }
     setIsSaving(true);
     try {
-      const response = await fetch(getApiUrl(`/api/auth/users/${userId}`), {
+      const response = await fetch(getApiUrl(`/api/v1/auth/users/${userId}`), {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -75,7 +75,7 @@ const SettingsPage = () => {
     if (!confirmed) return;
     setIsDeleting(true);
     try {
-      const response = await fetch(getApiUrl(`/api/auth/users/${userId}`), {
+      const response = await fetch(getApiUrl(`/api/v1/auth/users/${userId}`), {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });

@@ -7,7 +7,7 @@ export const loginService = async (data: LoginData): Promise<LoginResponse> => {
     formData.append('email', data.email);
     formData.append('password', data.senha);
 
-    const response = await fetch(getApiUrl('/api/auth/login'), {
+    const response = await fetch(getApiUrl('/api/v1/auth/login'), {
       method: 'POST',
       body: formData,
     });

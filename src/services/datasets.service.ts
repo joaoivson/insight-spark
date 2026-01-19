@@ -19,7 +19,7 @@ export const fetchDatasetRows = async (query: DatasetQuery = {}): Promise<Datase
   if (query.limit !== undefined) params.set("limit", String(query.limit));
   if (query.offset !== undefined) params.set("offset", String(query.offset));
 
-  const url = getApiUrl(`/api/datasets/all/rows?${params.toString()}`);
+  const url = getApiUrl(`/api/v1/datasets/all/rows?${params.toString()}`);
   const res = await fetch(url);
   if (!res.ok) {
     const text = await res.text();
