@@ -44,6 +44,21 @@ const applyBranding = () => {
   upsertMeta("meta[name='twitter:image']", { name: "twitter:image", content: ogImage });
 };
 
+const applyThemePreference = () => {
+  try {
+    const stored = window.localStorage.getItem("marketdash-theme");
+    if (stored === "light" || stored === "dark") {
+      document.documentElement.classList.remove("dark", "light");
+      document.documentElement.classList.add(stored);
+    } else {
+      document.documentElement.classList.add("dark");
+    }
+  } catch {
+    document.documentElement.classList.add("dark");
+  }
+};
+
 applyBranding();
+applyThemePreference();
 
 createRoot(document.getElementById("root")!).render(<App />);

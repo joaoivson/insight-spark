@@ -5,7 +5,7 @@ import DashboardFilters from "@/components/dashboard/DashboardFilters";
 import DataTable, { DatasetRow } from "@/components/dashboard/DataTable";
 import ChannelPerformance from "@/components/dashboard/ChannelPerformance";
 import { motion } from "framer-motion";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   DollarSign,
   ShoppingCart,
@@ -16,11 +16,11 @@ import {
   X,
   TrendingUp,
 } from "lucide-react";
-import { useDatasetRows } from "@/shared/hooks/useDatasetRows";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
+import { useDatasetStore } from "@/stores/datasetStore";
+import { useAdSpendsStore } from "@/stores/adSpendsStore";
 
 const formatCurrency = (value: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value || 0);
@@ -41,7 +41,8 @@ type DrillDownFilter = {
 } | null;
 
 const Dashboard = () => {
-  const { rows, adSpends, loading, refresh, currentRange } = useDatasetRows();
+  const { rows, loading: rowsLoading, fetchRows } = useDatasetStore();
+  const { adSpends, loading: spendsLoading, fetchAdSpends } = useAdSpendsStore();
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [categoryFilter, setCategoryFilter] = useState<string>("");
   const [subIdFilter, setSubIdFilter] = useState<string>("");
@@ -50,7 +51,13 @@ const Dashboard = () => {
   // New State for Drill Down
   const [drillDown, setDrillDown] = useState<DrillDownFilter>(null);
 
-  const { toast } = useToast();
+  const loading = rowsLoading || spendsLoading;
+
+  useEffect(() => {
+    // hydrate from cache or API on first load
+    fetchRows({ range: dateRange });
+    fetchAdSpends({ range: dateRange });
+  }, []);
 
   const rangeLabel = useMemo(() => {
     if (dateRange.from || dateRange.to) {
@@ -257,6 +264,9 @@ const Dashboard = () => {
               dateRange={dateRange}
               onDateRangeApply={(range) => {
                 setDateRange(range);
+                // usa cache local + filtro em memória; sem chamadas extras
+                fetchRows({ range });
+                fetchAdSpends({ range });
               }}
               onClear={() => {
                 setStatusFilter("");
@@ -264,6 +274,8 @@ const Dashboard = () => {
                 setSubIdFilter("");
                 setDateRange({});
                 setDrillDown(null);
+                fetchRows({ range: {} });
+                fetchAdSpends({ range: {} });
               }}
               hasActive={!!dateRange.from || !!dateRange.to || !!statusFilter || !!categoryFilter || !!subIdFilter}
               loading={loading}

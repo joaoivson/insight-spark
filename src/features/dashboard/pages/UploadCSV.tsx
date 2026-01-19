@@ -15,8 +15,8 @@ import {
 } from "@/components/ui/table";
 import { getApiUrl } from "@/core/config/api.config";
 import { userStorage } from "@/shared/lib/storage";
-import { invalidateDatasetRowsCache, useDatasetRows } from "@/shared/hooks/useDatasetRows";
 import { Progress } from "@/components/ui/progress";
+import { useDatasetStore } from "@/stores/datasetStore";
 
 interface CSVData {
   headers: string[];
@@ -31,7 +31,7 @@ const UploadCSV = () => {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
-  const { refresh } = useDatasetRows();
+  const { fetchRows, persist } = useDatasetStore();
 
   const handleDrag = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -131,8 +131,11 @@ const UploadCSV = () => {
         duration: 5000,
       });
 
-      invalidateDatasetRowsCache();
-      await refresh(true);
+      const updated = await fetchRows({ force: true, includeRawData: true });
+      // reforça persistência em cache/localStorage
+      if (Array.isArray(updated)) {
+        persist(updated);
+      }
       clearFile();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro desconhecido no upload.");

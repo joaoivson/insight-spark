@@ -39,6 +39,13 @@ const formatK = (value: number) => {
 const formatCurrency = (value: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value || 0);
 
+const tooltipStyle = {
+  backgroundColor: "hsl(var(--card))",
+  borderColor: "hsl(var(--border))",
+  color: "hsl(var(--foreground))",
+};
+const tooltipCursor = { fill: "transparent" };
+
 const cleanNumber = (value: unknown): number | undefined => {
   if (value === null || value === undefined) return undefined;
   if (typeof value === "number" && Number.isFinite(value)) return value;
@@ -177,14 +184,19 @@ const ChannelPieChart = ({
               onClick={(d) => onDrillDown?.(d.name)}
             >
               {pieData.map((entry, index) => (
-                <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
+                <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} stroke="transparent" />
               ))}
             </Pie>
             <Tooltip
+              contentStyle={tooltipStyle}
+              cursor={tooltipCursor}
+              itemStyle={{ color: "hsl(var(--foreground))" }}
+              labelStyle={{ color: "hsl(var(--foreground))" }}
               formatter={(value: number) => {
                 const percent = total ? (value / total) * 100 : 0;
-                return [`${percent.toFixed(2)}%`, ""];
+                return [`${formatCurrency(value)} (${percent.toFixed(2)}%)`, "Valor"];
               }}
+              labelFormatter={(label) => (label ? String(label) : "Canal")}
             />
           </PieChart>
         </ResponsiveContainer>
@@ -227,7 +239,7 @@ const CategoryBarChart = ({
           margin={{ top: 24, right: 20, left: 100, bottom: 16 }}
         >
           <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-          <XAxis type="number" stroke="hsl(var(--muted-foreground))" tickFormatter={formatK} tickLine={false} axisLine={false} />
+          <XAxis type="number" stroke="hsl(var(--muted-foreground))" tick={false} tickLine={false} axisLine={false} />
           <YAxis
             dataKey="name"
             type="category"
@@ -237,7 +249,7 @@ const CategoryBarChart = ({
             axisLine={false}
             tickLine={false}
           />
-          <Tooltip formatter={(v: number) => formatK(v)} />
+          <Tooltip contentStyle={tooltipStyle} cursor={tooltipCursor} formatter={(v: number) => [formatK(v), "Valor"]} />
           <Bar
             dataKey="value"
             fill={BAR_COLOR}
@@ -285,9 +297,14 @@ const MesAnoChart = ({
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={data} margin={{ top: 10, right: 10, left: 10, bottom: 10 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-          <XAxis dataKey="label" stroke="hsl(var(--muted-foreground))" tickLine={false} />
-          <YAxis stroke="hsl(var(--muted-foreground))" tickFormatter={formatK} axisLine={false} tickLine={false} />
-          <Tooltip formatter={(v: number) => formatK(v)} labelFormatter={(l) => `Período ${l}`} />
+          <XAxis dataKey="label" stroke="hsl(var(--muted-foreground))" tick={false} tickLine={false} />
+          <YAxis stroke="hsl(var(--muted-foreground))" tick={false} axisLine={false} tickLine={false} />
+          <Tooltip
+            contentStyle={tooltipStyle}
+            cursor={tooltipCursor}
+            formatter={(v: number) => [formatK(v), "Valor"]}
+            labelFormatter={(l) => `Período ${l}`}
+          />
           <Bar
             dataKey="value"
             fill={BAR_COLOR}
@@ -295,7 +312,7 @@ const MesAnoChart = ({
             cursor="pointer"
             onClick={(d) => onDrillDown?.(d.key)}
           >
-            <LabelList dataKey="value" position="top" formatter={(v: number) => formatK(v)} />
+            <LabelList dataKey="value" position="top" formatter={(v: number) => formatK(v)} fill="hsl(var(--foreground))" />
           </Bar>
         </BarChart>
       </ResponsiveContainer>
@@ -350,7 +367,8 @@ const RevenueProfitArea = ({ data, onDrillDown }: { data: any[]; onDrillDown?: (
           <XAxis dataKey="mes_ano" stroke="hsl(var(--muted-foreground))" tickLine={false} hide />
           <YAxis stroke="hsl(var(--muted-foreground))" tickFormatter={formatK} axisLine={false} tickLine={false} hide />
           <Tooltip
-            contentStyle={{ backgroundColor: "hsl(var(--card))", borderColor: "hsl(var(--border))", color: "hsl(var(--foreground))" }}
+            contentStyle={tooltipStyle}
+            cursor={tooltipCursor}
             formatter={(v: number, _name: string, ctx) => {
               const key = ctx?.dataKey;
               const label =

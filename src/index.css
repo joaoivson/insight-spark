@@ -91,6 +91,75 @@
     --sidebar-ring: 215 82% 56%;
   }
 
+  .light {
+    --background: 0 0% 100%;
+    --foreground: 222 47% 11%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+
+    --primary: 215 82% 56%;
+    --primary-foreground: 210 40% 98%;
+
+    --secondary: 210 40% 96%;
+    --secondary-foreground: 222 47% 11%;
+
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 16% 46%;
+
+    --accent: 174 82% 48%;
+    --accent-foreground: 222 47% 11%;
+
+    --success: 153 72% 42%;
+    --success-foreground: 210 40% 98%;
+
+    --warning: 38 92% 55%;
+    --warning-foreground: 222 47% 11%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --ring: 215 82% 56%;
+
+    --chart-1: 215 82% 56%;
+    --chart-2: 174 82% 48%;
+    --chart-3: 280 65% 60%;
+    --chart-4: 38 92% 55%;
+    --chart-5: 153 72% 42%;
+
+    --brand-accent-start: 173 80% 45%;
+    --brand-accent-end: 205 82% 60%;
+    --brand-contrast: 222 47% 11%;
+    --brand-gradient: linear-gradient(135deg, hsl(var(--brand-accent-start)) 0%, hsl(var(--brand-accent-end)) 100%);
+    --brand-glow: 0 12px 40px hsl(var(--brand-accent-end) / 0.2);
+
+    --gradient-primary: linear-gradient(135deg, hsl(210 40% 98%) 0%, hsl(210 40% 94%) 100%);
+    --gradient-accent: linear-gradient(135deg, hsl(var(--brand-accent-start)) 0%, hsl(var(--brand-accent-end)) 100%);
+    --gradient-hero: linear-gradient(180deg, hsl(0 0% 100%) 0%, hsl(210 40% 96%) 100%);
+    --gradient-glass: linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.7) 100%);
+    --gradient-card-hover: linear-gradient(135deg, hsl(var(--brand-accent-start) / 0.08) 0%, hsl(215 82% 56% / 0.08) 100%);
+
+    --shadow-sm: 0 1px 2px 0 hsl(215 25% 60% / 0.2);
+    --shadow-md: 0 4px 10px -1px hsl(215 25% 60% / 0.25), 0 2px 6px -2px hsl(215 25% 60% / 0.2);
+    --shadow-lg: 0 12px 20px -4px hsl(215 25% 60% / 0.25), 0 6px 12px -6px hsl(215 25% 60% / 0.2);
+    --shadow-xl: 0 20px 40px -8px hsl(215 25% 60% / 0.3), 0 10px 24px -10px hsl(215 25% 60% / 0.25);
+    --shadow-glow: 0 0 40px hsl(var(--brand-accent-end) / 0.2);
+
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 222 47% 11%;
+    --sidebar-primary: 215 82% 56%;
+    --sidebar-primary-foreground: 210 40% 98%;
+    --sidebar-accent: 210 40% 96%;
+    --sidebar-accent-foreground: 222 47% 11%;
+    --sidebar-border: 214 32% 91%;
+    --sidebar-ring: 215 82% 56%;
+  }
+
   .dark {
     --background: 222 45% 6%;
     --foreground: 210 40% 96%;

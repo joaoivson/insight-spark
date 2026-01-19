@@ -1,5 +1,5 @@
 import { ReactNode } from "react";
-import { Bell, RefreshCw, User } from "lucide-react";
+import { Bell, RefreshCw, User, Sun, Moon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -10,6 +10,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
+import { useTheme } from "@/shared/hooks/useTheme";
 
 interface DashboardHeaderProps {
   title: string;
@@ -19,6 +20,7 @@ interface DashboardHeaderProps {
 
 const DashboardHeader = ({ title, subtitle, action }: DashboardHeaderProps) => {
   const { toast } = useToast();
+  const { theme, toggleTheme } = useTheme();
 
   const handleRefresh = () => {
     toast({
@@ -45,6 +47,10 @@ const DashboardHeader = ({ title, subtitle, action }: DashboardHeaderProps) => {
         <Button variant="outline" size="sm" onClick={handleRefresh}>
           <RefreshCw className="w-4 h-4 mr-2" />
           Atualizar Dados
+        </Button>
+
+        <Button variant="ghost" size="icon" onClick={toggleTheme} aria-label="Alternar tema">
+          {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
         </Button>
 
         <Button variant="ghost" size="icon" className="relative">

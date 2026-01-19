@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { DatasetRow } from "./DataTable";
-import { AdSpend } from "@/shared/hooks/useDatasetRows";
+import { AdSpend } from "@/shared/types/adspend";
 import {
   TrendingUp,
   TrendingDown,
@@ -124,14 +124,13 @@ const ChannelPerformance = ({
     return data.sort((a, b) => b.revenue - a.revenue); // Ordenar por receita padrão
   }, [rows, adSpends]);
 
-  if (!metrics.length) return null;
-
   const MAX_ROWS = 50;
   const limitedChannels = metrics.slice(0, MAX_ROWS);
   const [subPageSize, setSubPageSize] = useState<number>(5);
   const [subPage, setSubPage] = useState<number>(0);
   const [dayPageSize, setDayPageSize] = useState<number>(5);
   const [dayPage, setDayPage] = useState<number>(0);
+  if (!metrics.length) return null;
 
   // Encontrar destaques
   const starChannel = metrics.reduce((prev, current) => (current.roas > prev.roas && current.spend > 0) ? current : prev, metrics[0]);
@@ -353,7 +352,14 @@ const ChannelPerformance = ({
                       return (
                         <TableRow key={d.day}>
                           <TableCell className="font-medium text-foreground">
-                            {new Date(d.day).toLocaleDateString("pt-BR")}
+                            {(() => {
+                              const m = d.day.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+                              if (!m) return new Date(d.day).toLocaleDateString("pt-BR");
+                              const local = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+                              return isNaN(local.getTime())
+                                ? new Date(d.day).toLocaleDateString("pt-BR")
+                                : local.toLocaleDateString("pt-BR");
+                            })()}
                             <span className="block text-xs text-muted-foreground font-normal">{d.orders} pedidos</span>
                           </TableCell>
                           <TableCell className="text-right text-muted-foreground">{formatCurrency(d.spend)}</TableCell>

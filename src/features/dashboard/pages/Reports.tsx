@@ -1,6 +1,18 @@
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
+import KPICards, { KPIData } from "@/components/dashboard/KPICards";
 import { motion } from "framer-motion";
-import { FileText, Download, TrendingUp, Sparkles, ArrowUpRight, CalendarRange } from "lucide-react";
+import {
+  FileText,
+  Download,
+  TrendingUp,
+  Sparkles,
+  ArrowUpRight,
+  CalendarRange,
+  DollarSign,
+  ShoppingCart,
+  Target,
+  BarChart2,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -19,10 +31,11 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import DashboardFilters from "@/components/dashboard/DashboardFilters";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { DatasetRow } from "@/components/dashboard/DataTable";
-import { useDatasetRows } from "@/shared/hooks/useDatasetRows";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useDatasetStore } from "@/stores/datasetStore";
+import { useAdSpendsStore } from "@/stores/adSpendsStore";
 
 const formatCurrency = (value: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value || 0);
@@ -32,30 +45,42 @@ const parseDate = (value: string) => {
   return isNaN(d.getTime()) ? null : d;
 };
 
+const toDateKey = (value?: string | Date | null) => {
+  if (!value) return "";
+  const d = value instanceof Date ? value : new Date(value);
+  if (isNaN(d.getTime())) return "";
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+};
+
 const formatPercent = (value: number) =>
   new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 1, minimumFractionDigits: 1 }).format(value || 0) + "%";
 
 const ReportsPage = () => {
-  const { rows, loading, refresh } = useDatasetRows();
+  const { rows, loading, fetchRows } = useDatasetStore();
+  const { adSpends, loading: spendsLoading, fetchAdSpends } = useAdSpendsStore();
   const [yearFilter, setYearFilter] = useState<string>("all");
   const [mesAno, setMesAno] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [subIdFilter, setSubIdFilter] = useState<string>("all");
-  const today = new Date();
-  const defaultFrom = new Date();
-  defaultFrom.setDate(today.getDate() - 29);
-  const [startDate, setStartDate] = useState<string>(defaultFrom.toISOString().slice(0, 10));
-  const [endDate, setEndDate] = useState<string>(today.toISOString().slice(0, 10));
+  const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({});
+
+  useEffect(() => {
+    fetchRows({});
+    fetchAdSpends({});
+  }, []);
 
   const rangeLabel = useMemo(() => {
-    if (startDate || endDate) {
-      const from = startDate ? new Date(startDate).toLocaleDateString("pt-BR") : "início";
-      const to = endDate ? new Date(endDate).toLocaleDateString("pt-BR") : "hoje";
+    if (dateRange.from || dateRange.to) {
+      const from = dateRange.from ? new Date(dateRange.from).toLocaleDateString("pt-BR") : "início";
+      const to = dateRange.to ? new Date(dateRange.to).toLocaleDateString("pt-BR") : "hoje";
       return `Período: ${from} a ${to}`;
     }
-    return "Período: últimos 30 dias";
-  }, [startDate, endDate]);
+    return "Período: todo período";
+  }, [dateRange]);
 
   const filteredRows = useMemo(() => {
     return rows.filter((r) => {
@@ -63,19 +88,19 @@ const ReportsPage = () => {
       if (statusFilter !== "all" && (r.status || "").toLowerCase() !== statusFilter.toLowerCase()) return false;
       if (categoryFilter !== "all" && (r.category || "").toLowerCase() !== categoryFilter.toLowerCase()) return false;
       if (subIdFilter !== "all" && (r.sub_id1 || "").toLowerCase() !== subIdFilter.toLowerCase()) return false;
-      if (startDate) {
-        const sd = parseDate(startDate);
+      if (dateRange.from) {
+        const sd = parseDate(dateRange.from.toISOString().slice(0, 10));
         const rd = parseDate(r.date);
         if (sd && rd && rd < sd) return false;
       }
-      if (endDate) {
-        const ed = parseDate(endDate);
+      if (dateRange.to) {
+        const ed = parseDate(dateRange.to.toISOString().slice(0, 10));
         const rd = parseDate(r.date);
         if (ed && rd && rd > ed) return false;
       }
       return true;
     });
-  }, [rows, mesAno, statusFilter, categoryFilter, subIdFilter, startDate, endDate]);
+  }, [rows, mesAno, statusFilter, categoryFilter, subIdFilter, dateRange]);
 
   const cleanNumber = (value: any): number => {
     if (value === null || value === undefined) return 0;
@@ -100,7 +125,7 @@ const ReportsPage = () => {
 
   const getComissao = (row: DatasetRow) => {
     const raw = (row as any).raw_data || {};
-    return cleanNumber(raw["Comissão do Item da Shopee(R$)"]);
+  return cleanNumber(raw["Comissão líquida do afiliado(R$)"]);
   };
 
   const years = useMemo(() => {
@@ -115,12 +140,22 @@ const ReportsPage = () => {
   const subIdOptions = useMemo(() => Array.from(new Set(rows.map((r) => r.sub_id1).filter(Boolean))).sort(), [rows]);
 
   const monthly = useMemo(() => {
+    const spendByMonth = new Map<string, number>();
+    adSpends.forEach((spend) => {
+      if (subIdFilter !== "all" && spend.sub_id && spend.sub_id !== subIdFilter) return;
+      const spendDateKey = toDateKey(spend.date);
+      if (dateRange.from && spendDateKey && spendDateKey < dateRange.from.toISOString().slice(0, 10)) return;
+      if (dateRange.to && spendDateKey && spendDateKey > dateRange.to.toISOString().slice(0, 10)) return;
+      const monthKey = spendDateKey ? spendDateKey.slice(0, 7) : "";
+      if (!monthKey) return;
+      spendByMonth.set(monthKey, (spendByMonth.get(monthKey) || 0) + (spend.amount || 0));
+    });
+
     const map = new Map<
       string,
       {
         revenue: number;
         commission: number;
-        profit: number;
         monthDate: Date;
       }
     >();
@@ -130,33 +165,82 @@ const ReportsPage = () => {
       const year = d.getFullYear().toString();
       if (yearFilter !== "all" && year !== yearFilter) return;
       const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-      const prev = map.get(monthKey) || { revenue: 0, commission: 0, profit: 0, monthDate: d };
+      const prev = map.get(monthKey) || { revenue: 0, commission: 0, monthDate: d };
       const faturamento = getFaturamento(r);
       const comissao = getComissao(r);
-      const lucro = faturamento - comissao;
       map.set(monthKey, {
         revenue: prev.revenue + faturamento,
         commission: prev.commission + comissao,
-        profit: prev.profit + lucro,
         monthDate: d,
       });
-      // store label on the map via monthDate locale later
     });
 
     return Array.from(map.entries())
-      .map(([monthKey, vals]) => ({
-        monthKey,
-        month: vals.monthDate.toLocaleDateString("pt-BR", { month: "long", year: "numeric" }),
-        revenue: vals.revenue,
-        commission: vals.commission,
-        profit: vals.profit,
-      }))
+      .map(([monthKey, vals]) => {
+        const spend = spendByMonth.get(monthKey) || 0;
+        const profit = vals.commission - spend;
+        return {
+          monthKey,
+          month: vals.monthDate.toLocaleDateString("pt-BR", { month: "long", year: "numeric" }),
+          revenue: vals.revenue,
+          commission: vals.commission,
+          spend,
+          profit,
+        };
+      })
       .sort((a, b) => a.monthKey.localeCompare(b.monthKey));
-  }, [filteredRows, yearFilter]);
+  }, [filteredRows, yearFilter, adSpends, dateRange, subIdFilter]);
 
-  const totalRevenue = monthly.reduce((acc, row) => acc + row.revenue, 0);
-  const totalProfit = monthly.reduce((acc, row) => acc + row.profit, 0);
+  const totalRevenue = filteredRows.reduce((acc, r) => acc + getFaturamento(r), 0);
+  const totalCommission = filteredRows.reduce((acc, r) => acc + getComissao(r), 0);
+  const totalSpend = adSpends.reduce((acc, spend) => {
+    if (subIdFilter !== "all" && spend.sub_id !== subIdFilter) return acc;
+    const spendDate = new Date(spend.date).toISOString().slice(0, 10);
+    if (dateRange.from && spendDate < dateRange.from.toISOString().slice(0, 10)) return acc;
+    if (dateRange.to && spendDate > dateRange.to.toISOString().slice(0, 10)) return acc;
+    return acc + (spend.amount || 0);
+  }, 0);
+  const totalProfit = totalCommission - totalSpend;
   const ticketMedio = filteredRows.length ? totalRevenue / filteredRows.length : 0;
+  const totalRoas = totalSpend > 0 ? totalRevenue / totalSpend : 0;
+
+  const kpis: KPIData[] = useMemo(() => {
+    const baseKpis = [
+      {
+        title: "Faturamento (Pend. + Concl.)",
+        value: formatCurrency(totalRevenue),
+        icon: DollarSign,
+        iconColor: "text-success",
+      },
+      {
+        title: "Comissão (Pend. + Concl.)",
+        value: formatCurrency(totalCommission),
+        icon: BarChart2,
+        iconColor: "text-primary",
+      },
+      {
+        title: "Valor Gasto Anúncios",
+        value: formatCurrency(totalSpend),
+        icon: ShoppingCart,
+        iconColor: "text-warning",
+      },
+      {
+        title: "Lucro",
+        value: formatCurrency(totalProfit),
+        icon: Target,
+        iconColor: "text-accent",
+      },
+    ];
+
+    baseKpis.push({
+      title: "ROAS (Retorno)",
+      value: `${totalRoas.toFixed(2)}x`,
+      icon: TrendingUp,
+      iconColor: "text-success",
+    });
+
+    return baseKpis;
+  }, [totalRevenue, totalCommission, totalSpend, totalProfit, totalRoas]);
 
   const insights = useMemo(() => {
     if (!monthly.length) return null;
@@ -174,10 +258,12 @@ const ReportsPage = () => {
     if (statusFilter !== "all") filters.push({ label: "Status", value: statusFilter });
     if (categoryFilter !== "all") filters.push({ label: "Categoria", value: categoryFilter });
     if (subIdFilter !== "all") filters.push({ label: "Canal", value: subIdFilter });
-    if (startDate || endDate) filters.push({ label: "Período", value: rangeLabel.replace("Período: ", "") });
+    if (dateRange.from || dateRange.to) filters.push({ label: "Período", value: rangeLabel.replace("Período: ", "") });
     if (yearFilter !== "all") filters.push({ label: "Ano", value: yearFilter });
     return filters;
-  }, [mesAno, statusFilter, categoryFilter, subIdFilter, startDate, endDate, rangeLabel, yearFilter]);
+  }, [mesAno, statusFilter, categoryFilter, subIdFilter, dateRange, rangeLabel, yearFilter]);
+
+  const isLoading = loading || spendsLoading;
 
   return (
     <DashboardLayout title="Relatórios" subtitle="Análise detalhada dos seus dados">
@@ -186,7 +272,7 @@ const ReportsPage = () => {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
       >
-        {loading && !rows.length ? (
+        {isLoading && !rows.length ? (
           <ReportsSkeleton />
         ) : (
           <>
@@ -231,31 +317,23 @@ const ReportsPage = () => {
                 mesAnoOptions={mesAnoOptions}
                 mesAno={mesAno}
                 onMesAnoChange={setMesAno}
-                dateRange={{ from: startDate ? new Date(startDate) : undefined, to: endDate ? new Date(endDate) : undefined }}
+                dateRange={dateRange}
                 onDateRangeApply={(range) => {
-                  if (!range.from || !range.to) return;
-                  const fromVal = new Date(range.from).toISOString().slice(0, 10);
-                  const toVal = new Date(range.to).toISOString().slice(0, 10);
-                  setStartDate(fromVal);
-                  setEndDate(toVal);
-                  refresh({ from: fromVal, to: toVal });
+                  setDateRange(range);
+                  fetchRows({ range });
+                  fetchAdSpends({ range });
                 }}
                 onClear={() => {
                   setMesAno("all");
-                  const today = new Date();
-                  const df = new Date();
-                  df.setDate(today.getDate() - 29);
-                  const fromVal = df.toISOString().slice(0, 10);
-                  const toVal = today.toISOString().slice(0, 10);
-                  setStartDate(fromVal);
-                  setEndDate(toVal);
-                  refresh({ from: fromVal, to: toVal });
+                  setDateRange({});
+                  fetchRows({ range: {} });
+                  fetchAdSpends({ range: {} });
                 }}
                 hasActive={
-                  (mesAno !== "all") || !!startDate || !!endDate ||
+                  (mesAno !== "all") || !!dateRange.from || !!dateRange.to ||
                   statusFilter !== "all" || categoryFilter !== "all" || subIdFilter !== "all"
                 }
-                loading={loading}
+                loading={isLoading}
               />
 
               <div className="h-8 w-px bg-border mx-1 hidden md:block" />
@@ -309,61 +387,7 @@ const ReportsPage = () => {
               </Select>
             </div>
 
-            {/* Summary + Insights */}
-            <div className="grid md:grid-cols-4 gap-6 mb-8">
-              <div className="bg-gradient-to-br from-primary/10 via-primary/5 to-card rounded-xl border border-primary/10 p-6 shadow-sm">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-10 h-10 rounded-xl bg-primary/15 flex items-center justify-center border border-primary/20">
-                    <TrendingUp className="w-5 h-5 text-primary" />
-                  </div>
-                  <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Receita Total</span>
-                </div>
-                <div className="font-display text-3xl font-bold text-foreground">{formatCurrency(totalRevenue)}</div>
-                {insights && insights.growth !== null && (
-                  <div className="mt-2 flex items-center gap-2 text-xs text-emerald-600 dark:text-emerald-400">
-                    <ArrowUpRight className="w-4 h-4" />
-                    {formatPercent(insights.growth ?? 0)} vs mês anterior
-                  </div>
-                )}
-              </div>
-
-              <div className="bg-gradient-to-br from-accent/10 via-accent/5 to-card rounded-xl border border-accent/10 p-6 shadow-sm">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-10 h-10 rounded-xl bg-accent/15 flex items-center justify-center border border-accent/20">
-                    <TrendingUp className="w-5 h-5 text-accent" />
-                  </div>
-                  <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Lucro Total</span>
-                </div>
-                <div className="font-display text-3xl font-bold text-foreground">{formatCurrency(totalProfit)}</div>
-                <p className="mt-2 text-xs text-muted-foreground">Lucro = Receita - Comissão</p>
-              </div>
-
-              <div className="bg-gradient-to-br from-secondary/15 via-card to-card rounded-xl border border-border p-6 shadow-sm">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-10 h-10 rounded-xl bg-secondary/20 flex items-center justify-center border border-secondary/30">
-                    <FileText className="w-5 h-5 text-secondary-foreground" />
-                  </div>
-                  <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Melhor mês</span>
-                </div>
-                <div className="font-display text-xl font-semibold text-foreground">
-                  {insights?.best?.month ?? "—"}
-                </div>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {insights?.best ? formatCurrency(insights.best.profit) : "Sem dados suficientes"}
-                </p>
-              </div>
-
-              <div className="bg-gradient-to-br from-emerald-50/60 via-card to-card rounded-xl border border-emerald-100/40 p-6 shadow-sm">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-10 h-10 rounded-xl bg-emerald-100/70 flex items-center justify-center border border-emerald-200/60">
-                    <Sparkles className="w-5 h-5 text-emerald-700" />
-                  </div>
-                  <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Ticket médio</span>
-                </div>
-                <div className="font-display text-3xl font-bold text-foreground">{formatCurrency(ticketMedio)}</div>
-                <p className="mt-1 text-sm text-muted-foreground">Baseado em vendas filtradas</p>
-              </div>
-            </div>
+            <KPICards kpis={kpis} />
 
             {/* Insights text block */}
             <div className="bg-card rounded-xl border border-border p-4 mb-8 flex flex-wrap items-center gap-3 shadow-sm">
@@ -409,10 +433,11 @@ const ReportsPage = () => {
                   <TableHeader>
                     <TableRow className="bg-secondary/20 hover:bg-secondary/20">
                       <TableHead className="w-[200px]">Mês</TableHead>
-                      <TableHead className="text-right">Receita</TableHead>
+                      <TableHead className="text-right">Faturamento</TableHead>
                       <TableHead className="text-right">Comissão</TableHead>
-                      <TableHead className="text-right">Lucro</TableHead>
-                      <TableHead className="text-right">Margem</TableHead>
+                      <TableHead className="text-right">Gasto Anúncios</TableHead>
+                      <TableHead className="text-right">Lucro (Comissão - Gasto)</TableHead>
+                      <TableHead className="text-right">ROAS</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -421,16 +446,23 @@ const ReportsPage = () => {
                         <TableCell className="font-medium text-foreground">{row.month}</TableCell>
                         <TableCell className="text-right text-muted-foreground">{formatCurrency(row.revenue)}</TableCell>
                         <TableCell className="text-right text-muted-foreground">{formatCurrency(row.commission)}</TableCell>
-                        <TableCell className="text-right font-bold text-accent">{formatCurrency(row.profit)}</TableCell>
-                        <TableCell className="text-right text-emerald-600 dark:text-emerald-400 font-medium">
-                          {row.revenue > 0 ? formatPercent((row.profit / row.revenue) * 100) : "—"}
+                        <TableCell className="text-right text-muted-foreground">{formatCurrency(row.spend)}</TableCell>
+                        <TableCell
+                          className={`text-right font-bold ${row.profit < 0 ? "text-red-500" : "text-emerald-500"}`}
+                        >
+                          {formatCurrency(row.profit)}
+                        </TableCell>
+                        <TableCell
+                          className={`text-right font-medium ${row.spend > 0 && row.revenue / row.spend >= 1 ? "text-emerald-500" : "text-red-500"}`}
+                        >
+                          {`${(row.spend > 0 ? row.revenue / row.spend : 0).toFixed(2)}x`}
                         </TableCell>
                       </TableRow>
                     ))}
                     {!monthly.length && (
                       <TableRow>
-                        <TableCell colSpan={4} className="h-24 text-center text-muted-foreground">
-                          {loading ? "Carregando dados..." : "Nenhum dado encontrado para os filtros selecionados."}
+                        <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
+                        {isLoading ? "Carregando dados..." : "Nenhum dado encontrado para os filtros selecionados."}
                         </TableCell>
                       </TableRow>
                     )}

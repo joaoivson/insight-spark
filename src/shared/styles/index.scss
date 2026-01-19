@@ -68,15 +68,22 @@
   border-radius: $radius-lg;
   padding: 0.4rem;
   box-shadow: var(--brand-glow);
+}
+
+.brand-logo-name {
+  filter: drop-shadow(0 6px 22px hsl(var(--brand-accent-end) / 0.25));
+}
+
+.dark .brand-logo-mark,
+.dark .brand-logo-name {
   filter: brightness(0) invert(1);
   mix-blend-mode: screen;
 }
 
-.brand-logo-name {
+.dark .brand-logo-name {
   filter:
     brightness(0)
     invert(1)
     drop-shadow(0 6px 22px hsl(var(--brand-accent-end) / 0.45));
-  mix-blend-mode: screen;
 }
 

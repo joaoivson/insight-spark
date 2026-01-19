@@ -95,6 +95,13 @@ const DataTable = ({ rows }: DataTableProps) => {
     }).format(value || 0);
   };
 
+  const tooltipStyle = {
+    backgroundColor: "hsl(var(--card))",
+    borderColor: "hsl(var(--border))",
+    color: "hsl(var(--foreground))",
+  };
+  const tooltipCursor = { fill: "transparent" };
+
   const cleanNumber = (value: any): number | null => {
     if (value === null || value === undefined) return null;
     if (typeof value === "number" && Number.isFinite(value)) return value;
@@ -262,9 +269,14 @@ const DataTable = ({ rows }: DataTableProps) => {
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={commissionSeries} margin={{ top: 10, right: 10, left: 0, bottom: 10 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-              <XAxis dataKey="label" stroke="hsl(var(--muted-foreground))" />
-              <YAxis stroke="hsl(var(--muted-foreground))" tickFormatter={(v: number) => formatCurrency(v)} />
-              <Tooltip formatter={(v: number) => formatCurrency(v)} labelFormatter={(l: string) => `Período ${l}`} />
+              <XAxis dataKey="label" stroke="hsl(var(--muted-foreground))" tick={false} tickLine={false} axisLine={false} />
+              <YAxis stroke="hsl(var(--muted-foreground))" tick={false} tickLine={false} axisLine={false} />
+              <Tooltip
+                contentStyle={tooltipStyle}
+                cursor={tooltipCursor}
+                formatter={(v: number) => [formatCurrency(v), "Valor"]}
+                labelFormatter={(l: string) => `Período ${l}`}
+              />
               <Bar dataKey="value" fill="hsl(210, 80%, 55%)" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
