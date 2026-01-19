@@ -1,36 +1,36 @@
 import { motion } from "framer-motion";
-import { Upload, BarChart3, Filter, RefreshCw, Shield, Zap } from "lucide-react";
+import { Upload, BarChart3, Filter, RefreshCw, Target, ShoppingCart } from "lucide-react";
 
 const features = [
   {
     icon: Upload,
-    title: "Upload de CSV",
-    description: "Faça upload dos seus arquivos CSV e veja seus dados transformados em segundos.",
+    title: "Importação em segundos",
+    description: "Envie CSVs e visualize seus KPIs instantaneamente, sem depender de planilhas.",
   },
   {
     icon: BarChart3,
-    title: "Dashboards Automáticos",
-    description: "Visualize receitas, custos, lucros e comissões em gráficos interativos e intuitivos.",
+    title: "KPIs que importam",
+    description: "Faturamento, comissão, gasto em anúncios, lucro e ROAS na mesma tela.",
+  },
+  {
+    icon: Target,
+    title: "Decisões por canal",
+    description: "Veja a performance por Sub ID, plataforma e categoria com drill-down.",
+  },
+  {
+    icon: ShoppingCart,
+    title: "Controle de Ads",
+    description: "Registre gastos e compare retorno real por canal e por período.",
   },
   {
     icon: Filter,
-    title: "Filtros Avançados",
-    description: "Filtre por data, produto, valores e muito mais para análises precisas.",
+    title: "Filtros inteligentes",
+    description: "Aplique período, status, categoria e canal sem perder contexto do negócio.",
   },
   {
     icon: RefreshCw,
-    title: "Atualização de Dados",
-    description: "Atualize seus dados a qualquer momento com um simples clique.",
-  },
-  {
-    icon: Shield,
-    title: "Segurança Total",
-    description: "Seus dados são protegidos com criptografia e políticas de segurança avançadas.",
-  },
-  {
-    icon: Zap,
-    title: "Performance",
-    description: "Sistema otimizado para processar grandes volumes de dados rapidamente.",
+    title: "Cache & velocidade",
+    description: "Interface rápida com dados em cache e atualização controlada.",
   },
 ];
 

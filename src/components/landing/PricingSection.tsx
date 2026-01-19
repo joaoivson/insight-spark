@@ -1,17 +1,17 @@
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Check, ArrowRight } from "lucide-react";
-import { Link } from "react-router-dom";
+import { APP_CONFIG } from "@/core/config/app.config";
 
 const PricingSection = () => {
   const features = [
-    "Upload manual de CSV",
-    "Dashboards interativos",
-    "Filtros avançados",
-    "Relatórios detalhados",
-    "Atualização manual de dados",
-    "Suporte por email",
-    "Dados 100% seguros",
+    "KPIs essenciais (Faturamento, Comissão, Ads, Lucro, ROAS)",
+    "Painel por canal, plataforma e categoria",
+    "Importação de CSV ilimitada",
+    "Gestão de gastos em anúncios",
+    "Relatórios mensais e filtros avançados",
+    "Atualização rápida com cache local",
+    "Segurança e privacidade dos dados",
     "Acesso ilimitado",
   ];
 
@@ -30,7 +30,7 @@ const PricingSection = () => {
             Preços
           </span>
           <h2 className="font-display text-3xl md:text-4xl font-bold text-foreground mb-4">
-            Investimento acessível, resultados poderosos
+            Um plano para crescer com clareza
           </h2>
           <p className="text-muted-foreground text-lg">
             Um único plano com tudo que você precisa para começar.
@@ -56,10 +56,10 @@ const PricingSection = () => {
 
             <div className="relative z-10">
               <h3 className="font-display font-bold text-2xl text-foreground mb-2">
-                Plano Básico
+                Plano Growth
               </h3>
               <p className="text-muted-foreground text-sm mb-6">
-                Tudo para começar a analisar seus dados
+                Tudo para medir retorno, reduzir custos e escalar canais vencedores
               </p>
 
               <div className="flex items-baseline gap-2 mb-8">
@@ -67,12 +67,12 @@ const PricingSection = () => {
                 <span className="text-muted-foreground">/mês</span>
               </div>
 
-              <Link to="/signup" className="block mb-8">
+              <a href={APP_CONFIG.EXTERNALS.SUBSCRIBE_URL} target="_blank" rel="noreferrer" className="block mb-8">
                 <Button variant="hero" size="lg" className="w-full">
                   Assinar Agora
                   <ArrowRight className="w-5 h-5" />
                 </Button>
-              </Link>
+              </a>
 
               <div className="space-y-4">
                 {features.map((feature, index) => (

@@ -5,6 +5,7 @@ import { Menu, X } from "lucide-react";
 import { useState } from "react";
 import logoName from "@/assets/logo/logo_name.png";
 import logoIcon from "@/assets/logo/logo.png";
+import { APP_CONFIG } from "@/core/config/app.config";
 
 const Header = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -56,9 +57,9 @@ const Header = () => {
             <Link to="/login">
               <Button variant="ghost">Entrar</Button>
             </Link>
-            <Link to="/signup">
-              <Button variant="accent">Criar Conta</Button>
-            </Link>
+            <a href={APP_CONFIG.EXTERNALS.SUBSCRIBE_URL} target="_blank" rel="noreferrer">
+              <Button variant="accent">Assinar</Button>
+            </a>
           </div>
 
           {/* Mobile Menu Toggle */}
@@ -93,9 +94,14 @@ const Header = () => {
                 <Link to="/login" onClick={() => setMobileMenuOpen(false)}>
                   <Button variant="ghost" className="w-full">Entrar</Button>
                 </Link>
-                <Link to="/signup" onClick={() => setMobileMenuOpen(false)}>
-                  <Button variant="accent" className="w-full">Criar Conta</Button>
-                </Link>
+                <a
+                  href={APP_CONFIG.EXTERNALS.SUBSCRIBE_URL}
+                  target="_blank"
+                  rel="noreferrer"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  <Button variant="accent" className="w-full">Assinar</Button>
+                </a>
               </div>
             </nav>
           </motion.div>

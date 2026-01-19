@@ -71,7 +71,7 @@ const DashboardFilters = ({
       {/* Date Range */}
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
-          <Button variant="outline" className="min-w-[220px] justify-start">
+          <Button variant="outline" className="w-full sm:w-auto sm:min-w-[220px] justify-start">
             <Calendar className="w-4 h-4 mr-2" />
             {dateRange.from || dateRange.to ? (
               dateRange.from && dateRange.to ? (
@@ -105,7 +105,7 @@ const DashboardFilters = ({
               setLocalRange({ from, to });
             }}
             locale={ptBR}
-            numberOfMonths={2}
+            numberOfMonths={1}
             fromDate={minDate}
             toDate={today}
           />

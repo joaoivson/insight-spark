@@ -21,6 +21,8 @@ import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { useDatasetStore } from "@/stores/datasetStore";
 import { useAdSpendsStore } from "@/stores/adSpendsStore";
+import { parseDateOnly, isBeforeDateKey, isAfterDateKey } from "@/shared/lib/date";
+import { calcTotals } from "@/shared/lib/kpi";
 
 const formatCurrency = (value: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value || 0);
@@ -28,11 +30,7 @@ const formatCurrency = (value: number) =>
 const formatPercent = (value: number) =>
   `${(value * 100).toFixed(1).replace(".0", "")}%`;
 
-const parseDate = (value?: string | Date) => {
-  if (!value) return null;
-  const d = value instanceof Date ? value : new Date(value);
-  return isNaN(d.getTime()) ? null : d;
-};
+const parseDate = (value?: string | Date) => parseDateOnly(value);
 
 type DrillDownFilter = {
   type: DrillDownType | "all";
@@ -75,14 +73,10 @@ const Dashboard = () => {
       if (subIdFilter && (r.sub_id1 || "").toLowerCase() !== subIdFilter.toLowerCase()) return false;
 
       if (dateRange.from) {
-        const sd = parseDate(dateRange.from);
-        const rd = parseDate(r.date);
-        if (sd && rd && rd < sd) return false;
+        if (isBeforeDateKey(r.date, dateRange.from)) return false;
       }
       if (dateRange.to) {
-        const ed = parseDate(dateRange.to);
-        const rd = parseDate(r.date);
-        if (ed && rd && rd > ed) return false;
+        if (isAfterDateKey(r.date, dateRange.to)) return false;
       }
       return true;
     });
@@ -138,55 +132,13 @@ const Dashboard = () => {
     }, 120);
   };
 
-  const cleanNumber = (value: any): number => {
-    if (value === null || value === undefined) return 0;
-    if (typeof value === "number" && Number.isFinite(value)) return value;
-    if (typeof value === "string") {
-      let cleaned = value.replace(/R\$/gi, "").replace(/\s+/g, "");
-      const hasComma = cleaned.includes(",");
-      const hasDot = cleaned.includes(".");
-      if (hasComma && hasDot) cleaned = cleaned.replace(/\./g, "").replace(/,/g, ".");
-      else if (hasComma) cleaned = cleaned.replace(/\./g, "").replace(/,/g, ".");
-      const num = Number(cleaned);
-      return Number.isFinite(num) ? num : 0;
-    }
-    const num = Number(value);
-    return Number.isFinite(num) ? num : 0;
-  };
-
-  const getFaturamento = (row: DatasetRow) => {
-    const raw = (row as any).raw_data || {};
-    return cleanNumber(raw["Valor de Compra(R$)"]);
-  };
-
-  const getComissaoAfiliado = (row: DatasetRow) => {
-    const raw = (row as any).raw_data || {};
-    return cleanNumber(raw["Comissão líquida do afiliado(R$)"]);
-  };
-
   const totals = useMemo(() => {
-    const faturamento = filteredRows.reduce((acc, r) => acc + getFaturamento(r), 0);
-    const comissao = filteredRows.reduce((acc, r) => acc + getComissaoAfiliado(r), 0);
-
-    const gastoAnuncios = adSpends.reduce((acc, spend) => {
-      if (subIdFilter && spend.sub_id !== subIdFilter) return acc;
-      const spendDate = new Date(spend.date).toISOString().slice(0, 10);
-      if (dateRange.from) {
-        const fromDate = new Date(dateRange.from).toISOString().slice(0, 10);
-        if (spendDate < fromDate) return acc;
-      }
-      if (dateRange.to) {
-        const toDate = new Date(dateRange.to).toISOString().slice(0, 10);
-        if (spendDate > toDate) return acc;
-      }
-      return acc + (spend.amount || 0);
-    }, 0);
-
-    const lucro = comissao - gastoAnuncios;
+    const { faturamento, comissao, gastoAnuncios, lucro, roas } = calcTotals(filteredRows, adSpends, {
+      dateRange,
+      subIdFilter,
+    });
     const uniqueOrders = new Set(filteredRows.map((r) => (r as any).raw_data?.["ID do pedido"] || r.id)).size;
     const ticketMedio = uniqueOrders ? faturamento / uniqueOrders : 0;
-    const roas = gastoAnuncios > 0 ? faturamento / gastoAnuncios : 0;
-
     return { faturamento, comissao, gastoAnuncios, lucro, ticketMedio, roas };
   }, [filteredRows, adSpends, subIdFilter, dateRange]);
 
@@ -282,19 +234,19 @@ const Dashboard = () => {
             />
 
             <div className="bg-card border border-border rounded-xl p-4 mb-4 flex flex-wrap gap-3 items-center">
-              <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="bg-background border border-border rounded px-2 py-1 text-foreground">
+              <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="bg-background border border-border rounded px-2 py-1 text-foreground w-full sm:w-auto">
                 <option value="">Status do Pedido (todos)</option>
                 {statusOptions.map((s) => (
                   <option key={s} value={s || ""}>{s}</option>
                 ))}
               </select>
-              <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} className="bg-background border border-border rounded px-2 py-1 text-foreground">
+              <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} className="bg-background border border-border rounded px-2 py-1 text-foreground w-full sm:w-auto">
                 <option value="">Categoria Global L1 (todas)</option>
                 {categoryOptions.map((c) => (
                   <option key={c} value={c || ""}>{c}</option>
                 ))}
               </select>
-              <select value={subIdFilter} onChange={(e) => setSubIdFilter(e.target.value)} className="bg-background border border-border rounded px-2 py-1 text-foreground">
+              <select value={subIdFilter} onChange={(e) => setSubIdFilter(e.target.value)} className="bg-background border border-border rounded px-2 py-1 text-foreground w-full sm:w-auto">
                 <option value="">Sub_id1 (todos)</option>
                 {subIdOptions.map((s) => (
                   <option key={s} value={s || ""}>{s}</option>

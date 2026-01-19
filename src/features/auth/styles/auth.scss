@@ -84,13 +84,16 @@
   width: 1.25rem;
   height: 1.25rem;
   color: hsl(var(--muted-foreground));
+  pointer-events: none;
 }
 
-.auth-input {
-  padding-left: 2.5rem;
-  
-  &--with-toggle {
-    padding-right: 2.5rem;
+.auth-input-wrapper {
+  .auth-input {
+    padding-left: 2.75rem;
+  }
+
+  .auth-input--with-toggle {
+    padding-right: 2.75rem;
   }
 }
 

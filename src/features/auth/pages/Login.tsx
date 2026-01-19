@@ -168,10 +168,15 @@ const Login = () => {
           </form>
 
           <div className="auth-footer">
-            Não tem uma conta?{" "}
-            <Link to={APP_CONFIG.ROUTES.SIGNUP} className="auth-link auth-link--medium">
-              Criar conta
-            </Link>
+            Não tem assinatura?{" "}
+            <a
+              href={APP_CONFIG.EXTERNALS.SUBSCRIBE_URL}
+              target="_blank"
+              rel="noreferrer"
+              className="auth-link auth-link--medium"
+            >
+              Assinar agora
+            </a>
           </div>
         </motion.div>
       </div>

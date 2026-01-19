@@ -36,24 +36,11 @@ import type { DatasetRow } from "@/components/dashboard/DataTable";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useDatasetStore } from "@/stores/datasetStore";
 import { useAdSpendsStore } from "@/stores/adSpendsStore";
+import { toDateKey, isBeforeDateKey, isAfterDateKey } from "@/shared/lib/date";
+import { calcTotals, getFaturamento, getComissaoAfiliado } from "@/shared/lib/kpi";
 
 const formatCurrency = (value: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value || 0);
-
-const parseDate = (value: string) => {
-  const d = new Date(value);
-  return isNaN(d.getTime()) ? null : d;
-};
-
-const toDateKey = (value?: string | Date | null) => {
-  if (!value) return "";
-  const d = value instanceof Date ? value : new Date(value);
-  if (isNaN(d.getTime())) return "";
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-};
 
 const formatPercent = (value: number) =>
   new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 1, minimumFractionDigits: 1 }).format(value || 0) + "%";
@@ -89,44 +76,16 @@ const ReportsPage = () => {
       if (categoryFilter !== "all" && (r.category || "").toLowerCase() !== categoryFilter.toLowerCase()) return false;
       if (subIdFilter !== "all" && (r.sub_id1 || "").toLowerCase() !== subIdFilter.toLowerCase()) return false;
       if (dateRange.from) {
-        const sd = parseDate(dateRange.from.toISOString().slice(0, 10));
-        const rd = parseDate(r.date);
-        if (sd && rd && rd < sd) return false;
+        if (isBeforeDateKey(r.date, dateRange.from)) return false;
       }
       if (dateRange.to) {
-        const ed = parseDate(dateRange.to.toISOString().slice(0, 10));
-        const rd = parseDate(r.date);
-        if (ed && rd && rd > ed) return false;
+        if (isAfterDateKey(r.date, dateRange.to)) return false;
       }
       return true;
     });
   }, [rows, mesAno, statusFilter, categoryFilter, subIdFilter, dateRange]);
 
-  const cleanNumber = (value: any): number => {
-    if (value === null || value === undefined) return 0;
-    if (typeof value === "number" && Number.isFinite(value)) return value;
-    if (typeof value === "string") {
-      let cleaned = value.replace(/R\$/gi, "").replace(/\s+/g, "");
-      const hasComma = cleaned.includes(",");
-      const hasDot = cleaned.includes(".");
-      if (hasComma && hasDot) cleaned = cleaned.replace(/\./g, "").replace(/,/g, ".");
-      else if (hasComma) cleaned = cleaned.replace(/\./g, "").replace(/,/g, ".");
-      const num = Number(cleaned);
-      return Number.isFinite(num) ? num : 0;
-    }
-    const num = Number(value);
-    return Number.isFinite(num) ? num : 0;
-  };
-
-  const getFaturamento = (row: DatasetRow) => {
-    const raw = (row as any).raw_data || {};
-    return cleanNumber(raw["Valor de Compra(R$)"]);
-  };
-
-  const getComissao = (row: DatasetRow) => {
-    const raw = (row as any).raw_data || {};
-  return cleanNumber(raw["Comissão líquida do afiliado(R$)"]);
-  };
+  const getComissao = (row: DatasetRow) => getComissaoAfiliado(row);
 
   const years = useMemo(() => {
     const set = new Set<string>();
@@ -144,8 +103,8 @@ const ReportsPage = () => {
     adSpends.forEach((spend) => {
       if (subIdFilter !== "all" && spend.sub_id && spend.sub_id !== subIdFilter) return;
       const spendDateKey = toDateKey(spend.date);
-      if (dateRange.from && spendDateKey && spendDateKey < dateRange.from.toISOString().slice(0, 10)) return;
-      if (dateRange.to && spendDateKey && spendDateKey > dateRange.to.toISOString().slice(0, 10)) return;
+      if (dateRange.from && spendDateKey && spendDateKey < toDateKey(dateRange.from)) return;
+      if (dateRange.to && spendDateKey && spendDateKey > toDateKey(dateRange.to)) return;
       const monthKey = spendDateKey ? spendDateKey.slice(0, 7) : "";
       if (!monthKey) return;
       spendByMonth.set(monthKey, (spendByMonth.get(monthKey) || 0) + (spend.amount || 0));
@@ -191,42 +150,40 @@ const ReportsPage = () => {
       .sort((a, b) => a.monthKey.localeCompare(b.monthKey));
   }, [filteredRows, yearFilter, adSpends, dateRange, subIdFilter]);
 
-  const totalRevenue = filteredRows.reduce((acc, r) => acc + getFaturamento(r), 0);
-  const totalCommission = filteredRows.reduce((acc, r) => acc + getComissao(r), 0);
-  const totalSpend = adSpends.reduce((acc, spend) => {
-    if (subIdFilter !== "all" && spend.sub_id !== subIdFilter) return acc;
-    const spendDate = new Date(spend.date).toISOString().slice(0, 10);
-    if (dateRange.from && spendDate < dateRange.from.toISOString().slice(0, 10)) return acc;
-    if (dateRange.to && spendDate > dateRange.to.toISOString().slice(0, 10)) return acc;
-    return acc + (spend.amount || 0);
-  }, 0);
-  const totalProfit = totalCommission - totalSpend;
-  const ticketMedio = filteredRows.length ? totalRevenue / filteredRows.length : 0;
-  const totalRoas = totalSpend > 0 ? totalRevenue / totalSpend : 0;
+  const totals = useMemo(
+    () =>
+      calcTotals(filteredRows, adSpends, {
+        dateRange,
+        subIdFilter: subIdFilter !== "all" ? subIdFilter : "",
+      }),
+    [filteredRows, adSpends, dateRange, subIdFilter]
+  );
+  const ticketMedio = filteredRows.length ? totals.faturamento / filteredRows.length : 0;
+
 
   const kpis: KPIData[] = useMemo(() => {
     const baseKpis = [
       {
         title: "Faturamento (Pend. + Concl.)",
-        value: formatCurrency(totalRevenue),
+        value: formatCurrency(totals.faturamento),
         icon: DollarSign,
         iconColor: "text-success",
       },
       {
         title: "Comissão (Pend. + Concl.)",
-        value: formatCurrency(totalCommission),
+        value: formatCurrency(totals.comissao),
         icon: BarChart2,
         iconColor: "text-primary",
       },
       {
         title: "Valor Gasto Anúncios",
-        value: formatCurrency(totalSpend),
+        value: formatCurrency(totals.gastoAnuncios),
         icon: ShoppingCart,
         iconColor: "text-warning",
       },
       {
         title: "Lucro",
-        value: formatCurrency(totalProfit),
+        value: formatCurrency(totals.lucro),
         icon: Target,
         iconColor: "text-accent",
       },
@@ -234,13 +191,13 @@ const ReportsPage = () => {
 
     baseKpis.push({
       title: "ROAS (Retorno)",
-      value: `${totalRoas.toFixed(2)}x`,
+      value: `${totals.roas.toFixed(2)}x`,
       icon: TrendingUp,
       iconColor: "text-success",
     });
 
     return baseKpis;
-  }, [totalRevenue, totalCommission, totalSpend, totalProfit, totalRoas]);
+  }, [totals]);
 
   const insights = useMemo(() => {
     if (!monthly.length) return null;
@@ -403,7 +360,7 @@ const ReportsPage = () => {
             </div>
 
             {/* Evidência de dados vazios */}
-            {(!monthly.length || totalRevenue === 0) && (
+            {(!monthly.length || totals.faturamento === 0) && (
               <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 rounded-xl p-4 mb-8 flex items-start gap-3">
                 <div className="mt-0.5 text-amber-700 dark:text-amber-200">
                   <FileText className="w-5 h-5" />

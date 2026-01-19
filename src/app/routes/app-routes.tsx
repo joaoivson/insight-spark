@@ -9,8 +9,8 @@ import { tokenStorage } from "@/shared/lib/storage";
 
 // Imports diretos para evitar falha de carregamento de chunks dinâmicos
 import Index from "@/features/landing/pages/Index";
+import Demo from "@/features/landing/pages/Demo";
 import Login from "@/features/auth/pages/Login";
-import Signup from "@/features/auth/pages/Signup";
 import Dashboard from "@/features/dashboard/pages/Dashboard";
 import UploadCSV from "@/features/dashboard/pages/UploadCSV";
 import Reports from "@/features/dashboard/pages/Reports";
@@ -43,8 +43,8 @@ export const AppRoutes = () => {
       <Routes>
         {/* Public Routes */}
         <Route path="/" element={<Index />} />
+        <Route path="/demo" element={<Demo />} />
         <Route path="/login" element={<Login />} />
-        <Route path="/signup" element={<Signup />} />
 
         {/* Protected Routes */}
         <Route path="/dashboard" element={<ProtectedRoute element={<Dashboard />} />} />

@@ -9,12 +9,14 @@ export const APP_CONFIG = {
   ROUTES: {
     HOME: '/',
     LOGIN: '/login',
-    SIGNUP: '/signup',
     DASHBOARD: '/dashboard',
     DASHBOARD_UPLOAD: '/dashboard/upload',
     DASHBOARD_REPORTS: '/dashboard/reports',
     DASHBOARD_MODULES: '/dashboard/modules',
     DASHBOARD_SETTINGS: '/dashboard/settings',
+  },
+  EXTERNALS: {
+    SUBSCRIBE_URL: 'https://www.cakto.com.br/#integracoes',
   },
   STORAGE_KEYS: {
     USER: 'user',

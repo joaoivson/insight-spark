@@ -1,24 +1,24 @@
 import { motion } from "framer-motion";
-import { Upload, BarChart3, TrendingUp } from "lucide-react";
+import { Upload, BarChart3, TrendingUp, ShoppingCart } from "lucide-react";
 
 const steps = [
   {
     number: "01",
     icon: Upload,
-    title: "Faça Upload",
-    description: "Carregue seu arquivo CSV com dados de vendas, custos e comissões.",
+    title: "Importe seus dados",
+    description: "Envie o CSV e normalize automaticamente faturamento e comissão.",
   },
   {
     number: "02",
-    icon: BarChart3,
-    title: "Visualize",
-    description: "Dashboards são gerados automaticamente com seus dados.",
+    icon: ShoppingCart,
+    title: "Registre os investimentos",
+    description: "Cadastre gastos de anúncios por data e canal para medir ROAS real.",
   },
   {
     number: "03",
     icon: TrendingUp,
-    title: "Analise",
-    description: "Use filtros e relatórios para tomar decisões estratégicas.",
+    title: "Otimize o crescimento",
+    description: "Compare canais, filtros e relatórios para cortar desperdícios.",
   },
 ];
 
