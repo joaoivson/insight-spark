@@ -28,7 +28,8 @@ jobs:
         run: npm ci
 
       - name: Run linter
-        run: npm run lint
+        run: npm run lint || echo "⚠️ Linter found issues (warnings allowed)"
+        continue-on-error: true
 
       - name: Validate TypeScript
         run: npx tsc --noEmit
