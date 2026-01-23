@@ -63,27 +63,39 @@ export const fetchWithAuth = async (
   // Adicionar token se existir e não for vazio
   if (token && token.trim()) {
     // Remover possíveis aspas ou espaços extras
-    const cleanToken = token.trim().replace(/^["']|["']$/g, '');
+    let cleanToken = token.trim().replace(/^["']|["']$/g, '');
+    
+    // Remover "Bearer " se o token já contiver
+    if (cleanToken.startsWith('Bearer ')) {
+      cleanToken = cleanToken.substring(7).trim();
+    }
+    
     if (cleanToken) {
       headers.set('Authorization', `Bearer ${cleanToken}`);
       
-      // Log detalhado para debug (apenas em desenvolvimento)
-      if (import.meta.env.DEV) {
-        const tokenPreview = cleanToken.length > 20 
-          ? `${cleanToken.substring(0, 10)}...${cleanToken.substring(cleanToken.length - 10)}`
-          : cleanToken;
-        console.log(`[fetchWithAuth] Enviando token para ${url}:`, {
-          tokenLength: cleanToken.length,
-          tokenPreview,
-          hasBearer: headers.get('Authorization')?.startsWith('Bearer ')
-        });
-      }
+      // Log detalhado para debug (sempre, não apenas em desenvolvimento)
+      const tokenPreview = cleanToken.length > 20 
+        ? `${cleanToken.substring(0, 10)}...${cleanToken.substring(cleanToken.length - 10)}`
+        : cleanToken;
+      console.log(`[fetchWithAuth] Enviando token para ${url}:`, {
+        tokenLength: cleanToken.length,
+        tokenPreview,
+        hasBearer: headers.get('Authorization')?.startsWith('Bearer '),
+        authorizationHeader: headers.get('Authorization')?.substring(0, 20) + '...'
+      });
+    } else {
+      console.warn('[fetchWithAuth] Token limpo está vazio após processamento:', {
+        originalToken: token?.substring(0, 20) + '...',
+        tokenLength: token?.length
+      });
     }
   } else {
-    // Log apenas em desenvolvimento para debug
-    if (import.meta.env.DEV) {
-      console.warn('[fetchWithAuth] Token não encontrado para requisição:', url);
-    }
+    // Log sempre para debug
+    console.warn('[fetchWithAuth] Token não encontrado para requisição:', {
+      url,
+      tokenExists: !!token,
+      tokenValue: token ? token.substring(0, 20) + '...' : null
+    });
   }
 
   // Adicionar Content-Type se não estiver definido e houver body
