@@ -1,3 +1,5 @@
+import { tokenStorage } from '@/shared/lib/storage';
+
 /**
  * API Configuration
  * Centraliza todas as configurações relacionadas à API
@@ -45,3 +47,34 @@ export const getApiUrl = (endpoint: string): string => {
   return `${API_CONFIG.BASE_URL}${endpoint}`;
 };
 
+/**
+ * Função helper para fazer requisições autenticadas
+ * Adiciona automaticamente o token JWT no header Authorization
+ */
+export const fetchWithAuth = (
+  url: string,
+  options: RequestInit = {}
+): Promise<Response> => {
+  const token = tokenStorage.get();
+
+  const headers = new Headers(options.headers);
+  
+  // Adicionar token se existir
+  if (token) {
+    headers.set('Authorization', `Bearer ${token}`);
+  }
+
+  // Adicionar Content-Type se não estiver definido e houver body
+  if (options.body && !headers.has('Content-Type')) {
+    if (options.body instanceof FormData) {
+      // FormData define seu próprio Content-Type com boundary
+    } else if (typeof options.body === 'string') {
+      headers.set('Content-Type', 'application/json');
+    }
+  }
+
+  return fetch(url, {
+    ...options,
+    headers,
+  });
+};
