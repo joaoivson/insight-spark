@@ -18,24 +18,24 @@ export const storage = {
   set: <T>(key: string, value: T): void => {
     try {
       localStorage.setItem(key, JSON.stringify(value));
-    } catch (error) {
-      console.error(`Error saving to localStorage:`, error);
+    } catch {
+      // Erro silencioso ao salvar no localStorage
     }
   },
 
   remove: (key: string): void => {
     try {
       localStorage.removeItem(key);
-    } catch (error) {
-      console.error(`Error removing from localStorage:`, error);
+    } catch {
+      // Erro silencioso ao remover do localStorage
     }
   },
 
   clear: (): void => {
     try {
       localStorage.clear();
-    } catch (error) {
-      console.error(`Error clearing localStorage:`, error);
+    } catch {
+      // Erro silencioso ao limpar localStorage
     }
   },
 };

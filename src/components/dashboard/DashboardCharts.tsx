@@ -17,6 +17,7 @@ import {
 import type { DatasetRow } from "./DataTable";
 import { useMemo, useState, ReactNode } from "react";
 import { Button } from "@/components/ui/button";
+import { motion, AnimatePresence } from "framer-motion";
 
 const PIE_COLORS = ["hsl(210, 80%, 55%)", "hsl(222, 47%, 25%)", "hsl(24, 90%, 55%)", "hsl(273, 65%, 60%)"];
 const BAR_COLOR = "hsl(210, 80%, 55%)";
@@ -151,6 +152,30 @@ const groupByCategory = (rows: DatasetRow[]) => {
     .slice(0, 12);
 };
 
+const chartContainerVariants = {
+  hidden: { opacity: 0, y: 20 },
+  show: {
+    opacity: 1,
+    y: 0,
+    transition: {
+      duration: 0.5,
+      ease: "easeOut",
+    },
+  },
+};
+
+const chartItemVariants = {
+  hidden: { opacity: 0, scale: 0.95 },
+  show: {
+    opacity: 1,
+    scale: 1,
+    transition: {
+      duration: 0.4,
+      ease: "easeOut",
+    },
+  },
+};
+
 const ChannelPieChart = ({
   data,
   onDrillDown,
@@ -162,16 +187,25 @@ const ChannelPieChart = ({
   const pieData = data.slice(0, 6);
 
   return (
-    <div className="bg-card rounded-xl border border-border p-6">
+    <motion.div
+      variants={chartItemVariants}
+      initial="hidden"
+      animate="show"
+      whileHover={{ scale: 1.01 }}
+      transition={{ type: "spring", stiffness: 300, damping: 20 }}
+      className="bg-card rounded-xl border border-border p-6"
+      role="region"
+      aria-label="Gráfico de comissão por canal"
+    >
       <div className="mb-4">
         <h3 className="font-display font-semibold text-lg text-foreground">
           Comissão Pendente + Concluída por Canal
         </h3>
         <p className="text-sm text-muted-foreground">Distribuição percentual</p>
       </div>
-      <div className="h-72 flex items-center justify-center">
-        <ResponsiveContainer width="100%" height="100%">
-          <PieChart>
+    <div className="h-72 sm:h-80 flex items-center justify-center overflow-x-auto -mx-2 sm:mx-0 px-2 sm:px-0">
+      <ResponsiveContainer width="100%" height="100%" minWidth={280}>
+        <PieChart>
             <Pie
               data={pieData}
               cx="50%"
@@ -184,11 +218,31 @@ const ChannelPieChart = ({
               onClick={(d) => onDrillDown?.(d.name)}
             >
               {pieData.map((entry, index) => (
-                <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} stroke="transparent" />
+                <Cell
+                  key={`cell-${index}`}
+                  fill={PIE_COLORS[index % PIE_COLORS.length]}
+                  stroke="transparent"
+                  style={{
+                    transition: "opacity 0.3s ease, transform 0.2s ease",
+                    cursor: "pointer",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.opacity = "0.8";
+                    e.currentTarget.style.transform = "scale(1.05)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.opacity = "1";
+                    e.currentTarget.style.transform = "scale(1)";
+                  }}
+                />
               ))}
             </Pie>
             <Tooltip
-              contentStyle={tooltipStyle}
+              contentStyle={{
+                ...tooltipStyle,
+                transition: "opacity 0.2s ease, transform 0.2s ease",
+                animation: "fade-in 0.2s ease-out",
+              }}
               cursor={tooltipCursor}
               itemStyle={{ color: "hsl(var(--foreground))" }}
               labelStyle={{ color: "hsl(var(--foreground))" }}
@@ -201,19 +255,19 @@ const ChannelPieChart = ({
           </PieChart>
         </ResponsiveContainer>
       </div>
-      <div className="grid grid-cols-2 gap-2 mt-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-3">
         {pieData.map((item, index) => {
           const percent = total ? (item.value / total) * 100 : 0;
           return (
             <div key={item.name} className="flex items-center gap-2 text-sm">
-              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: PIE_COLORS[index % PIE_COLORS.length] }} />
-              <span className="text-muted-foreground">{item.name}</span>
-              <span className="font-medium text-foreground ml-auto">{percent.toFixed(1)}%</span>
+              <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: PIE_COLORS[index % PIE_COLORS.length] }} />
+              <span className="text-muted-foreground truncate">{item.name}</span>
+              <span className="font-medium text-foreground ml-auto flex-shrink-0">{percent.toFixed(1)}%</span>
             </div>
           );
         })}
       </div>
-    </div>
+    </motion.div>
   );
 };
 
@@ -224,43 +278,73 @@ const CategoryBarChart = ({
   data: any[];
   onDrillDown?: (value: string) => void;
 }) => (
-  <div className="bg-card rounded-xl border border-border p-6">
+  <motion.div
+    variants={chartItemVariants}
+    initial="hidden"
+    animate="show"
+    whileHover={{ scale: 1.01 }}
+    transition={{ type: "spring", stiffness: 300, damping: 20 }}
+    className="bg-card rounded-xl border border-border p-6"
+    role="region"
+    aria-label="Gráfico de comissão por categoria"
+  >
     <div className="mb-4">
       <h3 className="font-display font-semibold text-lg text-foreground">
         Comissão Pendente + Concluída por Categoria
       </h3>
       <p className="text-sm text-muted-foreground">Top 12 categorias</p>
     </div>
-    <div className="h-96">
-      <ResponsiveContainer width="100%" height="100%">
+    <div className="h-96 overflow-x-auto -mx-2 sm:mx-0 px-2 sm:px-0">
+      <ResponsiveContainer width="100%" height="100%" minWidth={320}>
         <BarChart
           data={data}
           layout="vertical"
-          margin={{ top: 24, right: 20, left: 100, bottom: 16 }}
+          margin={{ top: 24, right: 20, left: 80, bottom: 16 }}
         >
           <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
           <XAxis type="number" stroke="hsl(var(--muted-foreground))" tick={false} tickLine={false} axisLine={false} />
           <YAxis
             dataKey="name"
             type="category"
-            width={130}
+            width={80}
             stroke="hsl(var(--muted-foreground))"
-            tick={{ fill: "hsl(var(--foreground))", fontSize: 12 }}
+            tick={{ fill: "hsl(var(--foreground))", fontSize: 11 }}
             axisLine={false}
             tickLine={false}
           />
-          <Tooltip contentStyle={tooltipStyle} cursor={tooltipCursor} formatter={(v: number) => [formatK(v), "Valor"]} />
+          <Tooltip
+            contentStyle={{
+              ...tooltipStyle,
+              transition: "opacity 0.2s ease, transform 0.2s ease",
+              animation: "fade-in 0.2s ease-out",
+            }}
+            cursor={tooltipCursor}
+            formatter={(v: number) => [formatK(v), "Valor"]}
+          />
           <Bar
             dataKey="value"
             fill={BAR_COLOR}
             radius={[0, 8, 8, 0]}
             cursor="pointer"
             onClick={(d) => onDrillDown?.(d.name)}
+            style={{
+              transition: "opacity 0.3s ease",
+            }}
+            onMouseEnter={(e) => {
+              if (e?.target) {
+                (e.target as SVGElement).style.opacity = "0.8";
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (e?.target) {
+                (e.target as SVGElement).style.opacity = "1";
+              }
+            }}
           />
         </BarChart>
       </ResponsiveContainer>
     </div>
-  </div>
+  </motion.div>
 );
 
 const MesAnoChart = ({
@@ -274,8 +358,17 @@ const MesAnoChart = ({
   onModeChange: (mode: "month" | "day") => void;
   onDrillDown?: (value: string) => void;
 }) => (
-  <div className="bg-card rounded-xl border border-border p-6">
-    <div className="mb-4 flex items-center justify-between gap-3 flex-wrap">
+  <motion.div
+    variants={chartItemVariants}
+    initial="hidden"
+    animate="show"
+    whileHover={{ scale: 1.01 }}
+    transition={{ type: "spring", stiffness: 300, damping: 20 }}
+    className="bg-card rounded-xl border border-border p-6"
+    role="region"
+    aria-label="Gráfico de comissão por período"
+  >
+      <div className="mb-4 flex items-center justify-between gap-3 flex-wrap">
       <div>
         <h3 className="font-display font-semibold text-lg text-foreground">
           Comissão Pendente + Concluída
@@ -284,23 +377,48 @@ const MesAnoChart = ({
           {mode === "month" ? "Soma das comissões por mês" : "Soma das comissões por dia"}
         </p>
       </div>
-      <div className="flex items-center gap-2">
-        <Button size="sm" variant={mode === "month" ? "default" : "outline"} onClick={() => onModeChange("month")}>
-          Mês
-        </Button>
-        <Button size="sm" variant={mode === "day" ? "default" : "outline"} onClick={() => onModeChange("day")}>
-          Dia
-        </Button>
-      </div>
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={mode}
+          initial={{ opacity: 0, x: -10 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: 10 }}
+          transition={{ duration: 0.2 }}
+          className="flex items-center gap-2"
+        >
+          <Button
+            size="sm"
+            variant={mode === "month" ? "default" : "outline"}
+            onClick={() => onModeChange("month")}
+            aria-pressed={mode === "month"}
+            aria-label="Visualizar por mês"
+          >
+            Mês
+          </Button>
+          <Button
+            size="sm"
+            variant={mode === "day" ? "default" : "outline"}
+            onClick={() => onModeChange("day")}
+            aria-pressed={mode === "day"}
+            aria-label="Visualizar por dia"
+          >
+            Dia
+          </Button>
+        </motion.div>
+      </AnimatePresence>
     </div>
-    <div className="h-64">
-      <ResponsiveContainer width="100%" height="100%">
+    <div className="h-64 sm:h-72 overflow-x-auto -mx-2 sm:mx-0 px-2 sm:px-0">
+      <ResponsiveContainer width="100%" height="100%" minWidth={280}>
         <BarChart data={data} margin={{ top: 10, right: 10, left: 10, bottom: 10 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
           <XAxis dataKey="label" stroke="hsl(var(--muted-foreground))" tick={false} tickLine={false} />
           <YAxis stroke="hsl(var(--muted-foreground))" tick={false} axisLine={false} tickLine={false} />
           <Tooltip
-            contentStyle={tooltipStyle}
+            contentStyle={{
+              ...tooltipStyle,
+              transition: "opacity 0.2s ease, transform 0.2s ease",
+              animation: "fade-in 0.2s ease-out",
+            }}
             cursor={tooltipCursor}
             formatter={(v: number) => [formatK(v), "Valor"]}
             labelFormatter={(l) => `Período ${l}`}
@@ -311,13 +429,26 @@ const MesAnoChart = ({
             radius={[8, 8, 0, 0]}
             cursor="pointer"
             onClick={(d) => onDrillDown?.(d.key)}
+            style={{
+              transition: "opacity 0.3s ease",
+            }}
+            onMouseEnter={(e) => {
+              if (e?.target) {
+                (e.target as SVGElement).style.opacity = "0.8";
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (e?.target) {
+                (e.target as SVGElement).style.opacity = "1";
+              }
+            }}
           >
             <LabelList dataKey="value" position="top" formatter={(v: number) => formatK(v)} fill="hsl(var(--foreground))" />
           </Bar>
         </BarChart>
       </ResponsiveContainer>
     </div>
-  </div>
+  </motion.div>
 );
 
 const RevenueProfitArea = ({ data, onDrillDown }: { data: any[]; onDrillDown?: (value: string) => void }) => {
@@ -337,13 +468,22 @@ const RevenueProfitArea = ({ data, onDrillDown }: { data: any[]; onDrillDown?: (
   }, [data]);
 
   return (
-    <div className="bg-card rounded-xl border border-border p-6">
+    <motion.div
+      variants={chartItemVariants}
+      initial="hidden"
+      animate="show"
+      whileHover={{ scale: 1.01 }}
+      transition={{ type: "spring", stiffness: 300, damping: 20 }}
+      className="bg-card rounded-xl border border-border p-6"
+      role="region"
+      aria-label="Gráfico de comissão, gastos e lucro"
+    >
       <div className="mb-4">
         <h3 className="font-display font-semibold text-lg text-foreground">Comissão x Valor Gasto em Ads x Lucro</h3>
         <p className="text-sm text-muted-foreground">{periodLabel}</p>
       </div>
-    <div className="h-72">
-      <ResponsiveContainer width="100%" height="100%">
+    <div className="h-72 sm:h-80 overflow-x-auto -mx-2 sm:mx-0 px-2 sm:px-0">
+      <ResponsiveContainer width="100%" height="100%" minWidth={320}>
         <AreaChart
           data={data}
           margin={{ top: 10, right: 20, left: 0, bottom: 0 }}
@@ -367,7 +507,11 @@ const RevenueProfitArea = ({ data, onDrillDown }: { data: any[]; onDrillDown?: (
           <XAxis dataKey="mes_ano" stroke="hsl(var(--muted-foreground))" tickLine={false} hide />
           <YAxis stroke="hsl(var(--muted-foreground))" tickFormatter={formatK} axisLine={false} tickLine={false} hide />
           <Tooltip
-            contentStyle={tooltipStyle}
+            contentStyle={{
+              ...tooltipStyle,
+              transition: "opacity 0.2s ease, transform 0.2s ease",
+              animation: "fade-in 0.2s ease-out",
+            }}
             cursor={tooltipCursor}
             formatter={(v: number, _name: string, ctx) => {
               const key = ctx?.dataKey;
@@ -418,7 +562,7 @@ const RevenueProfitArea = ({ data, onDrillDown }: { data: any[]; onDrillDown?: (
         </AreaChart>
       </ResponsiveContainer>
     </div>
-    </div>
+    </motion.div>
   );
 };
 
@@ -427,9 +571,21 @@ const DashboardCharts = ({ rows, onDrillDown, belowRevenueContent }: DashboardCh
 
   if (!rows.length) {
     return (
-      <div className="mt-6 text-muted-foreground text-sm">
-        Nenhum dado disponível. Faça o upload de um CSV para visualizar gráficos.
-      </div>
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3 }}
+        className="mt-6"
+        role="status"
+        aria-live="polite"
+      >
+        <div className="bg-card rounded-xl border border-border p-8 text-center">
+          <p className="text-muted-foreground text-sm mb-2">Nenhum dado disponível</p>
+          <p className="text-xs text-muted-foreground/70">
+            Faça o upload de um CSV para visualizar gráficos e análises.
+          </p>
+        </div>
+      </motion.div>
     );
   }
 
@@ -439,8 +595,24 @@ const DashboardCharts = ({ rows, onDrillDown, belowRevenueContent }: DashboardCh
   const channelData = groupByPlatform(rows);
   const categoryData = groupByCategory(rows);
 
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    show: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.15,
+        delayChildren: 0.1,
+      },
+    },
+  };
+
   return (
-    <div className="grid grid-cols-1 gap-6 mt-6">
+    <motion.div
+      variants={containerVariants}
+      initial="hidden"
+      animate="show"
+      className="grid grid-cols-1 gap-6 mt-6"
+    >
       <MesAnoChart
         data={commissionMode === "month" ? mesAnoData : commissionDayData}
         mode={commissionMode}
@@ -453,7 +625,7 @@ const DashboardCharts = ({ rows, onDrillDown, belowRevenueContent }: DashboardCh
         <ChannelPieChart data={channelData} onDrillDown={(v) => onDrillDown?.("platform", v)} />
         <CategoryBarChart data={categoryData} onDrillDown={(v) => onDrillDown?.("category", v)} />
       </div>
-    </div>
+    </motion.div>
   );
 };
 

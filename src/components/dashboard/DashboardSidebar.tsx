@@ -20,8 +20,8 @@ import logoName from "@/assets/logo/logo_name.png";
 
 const menuItems = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
-  { icon: Wallet, label: "Investimentos Ads", path: "/dashboard/investimentos" },
   { icon: Upload, label: "Upload CSV", path: "/dashboard/upload" },
+  { icon: Wallet, label: "Investimentos Ads", path: "/dashboard/investimentos" },
   { icon: FileText, label: "Relatórios", path: "/dashboard/reports" },
   { icon: Puzzle, label: "Módulos", path: "/dashboard/modules" },
   { icon: Settings, label: "Configurações", path: "/dashboard/settings" },
@@ -78,8 +78,8 @@ const DashboardSidebar = () => {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 py-4 md:py-6 px-3">
-        <ul className="flex md:flex-col gap-2 md:gap-1 overflow-x-auto md:overflow-visible">
+      <nav className="flex-1 py-4 md:py-6 px-3" aria-label="Navegação principal">
+        <ul className="flex md:flex-col gap-2 md:gap-1 overflow-x-auto md:overflow-visible" role="list">
           {menuItems.map((item) => {
             const isActive = location.pathname === item.path && !isDemo;
             const classes = cn(
@@ -96,13 +96,20 @@ const DashboardSidebar = () => {
                     type="button"
                     className={classes}
                     onClick={(e) => e.preventDefault()}
+                    aria-label={item.label}
+                    aria-current={isActive ? "page" : undefined}
                   >
-                    <item.icon className="w-5 h-5 flex-shrink-0" />
+                    <item.icon className="w-5 h-5 flex-shrink-0" aria-hidden="true" />
                     {!collapsed && <span className="font-medium">{item.label}</span>}
                   </button>
                 ) : (
-                  <NavLink to={item.path} className={classes}>
-                    <item.icon className="w-5 h-5 flex-shrink-0" />
+                  <NavLink 
+                    to={item.path} 
+                    className={classes}
+                    aria-label={item.label}
+                    aria-current={isActive ? "page" : undefined}
+                  >
+                    <item.icon className="w-5 h-5 flex-shrink-0" aria-hidden="true" />
                     {!collapsed && <span className="font-medium">{item.label}</span>}
                   </NavLink>
                 )}
@@ -122,6 +129,8 @@ const DashboardSidebar = () => {
             "w-full text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent",
             collapsed && "px-0 justify-center"
           )}
+          aria-label={collapsed ? "Expandir menu" : "Recolher menu"}
+          aria-expanded={!collapsed}
         >
           {collapsed ? (
             <ChevronRight className="w-5 h-5" />
@@ -158,8 +167,9 @@ const DashboardSidebar = () => {
               "text-sidebar-foreground/70 hover:text-destructive hover:bg-destructive/10",
               collapsed && "justify-center px-0"
             )}
+            aria-label="Sair da conta"
           >
-            <LogOut className="w-5 h-5 flex-shrink-0" />
+            <LogOut className="w-5 h-5 flex-shrink-0" aria-hidden="true" />
             {!collapsed && <span className="font-medium">Sair</span>}
           </button>
         )}

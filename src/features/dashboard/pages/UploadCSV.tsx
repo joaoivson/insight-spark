@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { motion, AnimatePresence } from "framer-motion";
 import { Upload, FileText, Check, AlertCircle, X, Eye, FileSpreadsheet } from "lucide-react";
@@ -24,6 +24,7 @@ interface CSVData {
 }
 
 const UploadCSV = () => {
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [dragActive, setDragActive] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [csvData, setCsvData] = useState<CSVData | null>(null);
@@ -177,18 +178,15 @@ const UploadCSV = () => {
                 onDragLeave={handleDrag}
                 onDragOver={handleDrag}
                 onDrop={handleDrop}
-                onClick={() => {
-                  // Trigger file input click when clicking on the drop zone
-                  const input = document.querySelector('input[type="file"]') as HTMLInputElement;
-                  if (input) input.click();
-                }}
               >
                 <input
+                  ref={fileInputRef}
                   type="file"
                   accept=".csv"
                   onChange={handleChange}
-                  className="hidden"
+                  style={{ display: 'none' }}
                   id="csv-upload-input"
+                  aria-label="Selecionar arquivo CSV"
                 />
                 
                 <div className="relative z-0">
@@ -197,13 +195,27 @@ const UploadCSV = () => {
                   </div>
                   
                   <h3 className="font-display font-bold text-2xl text-foreground mb-3 group-hover:text-primary transition-colors">
-                    Solte seu arquivo CSV aqui
+                    Arraste e solte seu arquivo CSV aqui
                   </h3>
-                  <p className="text-muted-foreground mb-8 max-w-md mx-auto leading-relaxed">
-                    Arraste e solte seu arquivo ou clique em qualquer lugar desta área para selecionar do computador.
+                  <p className="text-muted-foreground mb-6 max-w-md mx-auto leading-relaxed">
+                    Solte o arquivo CSV nesta área para fazer o upload. Suporta Shopee, Amazon e e-commerce padrão.
                   </p>
                   
-                  <div className="inline-flex items-center gap-2 px-4 py-2 bg-background/50 rounded-full border border-border text-xs font-medium text-muted-foreground">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      fileInputRef.current?.click();
+                    }}
+                    className="mt-4"
+                  >
+                    <Upload className="w-4 h-4 mr-2" />
+                    Selecionar arquivo CSV
+                  </Button>
+                  
+                  <div className="inline-flex items-center gap-2 px-4 py-2 bg-background/50 rounded-full border border-border text-xs font-medium text-muted-foreground mt-4">
                     <FileSpreadsheet className="w-4 h-4" />
                     <span>Suporta Shopee, Amazon, e-commerce padrão</span>
                   </div>
@@ -265,8 +277,26 @@ const UploadCSV = () => {
 
                 {!isProcessing && csvData && (
                   <div className="flex gap-3 justify-end">
-                    <Button variant="outline" onClick={clearFile}>Cancelar</Button>
-                    <Button onClick={handleUpload} className="bg-primary hover:bg-primary/90 min-w-[140px]">
+                    <Button 
+                      variant="outline" 
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        clearFile();
+                      }}
+                      type="button"
+                    >
+                      Cancelar
+                    </Button>
+                    <Button 
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleUpload();
+                      }}
+                      className="bg-primary hover:bg-primary/90 min-w-[140px]"
+                      type="button"
+                    >
                       Confirmar Upload
                     </Button>
                   </div>

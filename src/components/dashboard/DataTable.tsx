@@ -7,8 +7,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { useIsMobile } from "@/shared/hooks/use-mobile";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ArrowUpDown } from "lucide-react";
@@ -254,6 +256,8 @@ const DataTable = ({ rows }: DataTableProps) => {
       .sort((a, b) => a.key.localeCompare(b.key));
   }, [rows]);
 
+  const isMobile = useIsMobile();
+
   return (
     <div className="bg-card rounded-xl border border-border mt-6 overflow-hidden">
       <div className="p-6 border-b border-border">
@@ -338,69 +342,165 @@ const DataTable = ({ rows }: DataTableProps) => {
           </Popover>
         </div>
       </div>
-      <div className="overflow-x-auto">
-        <Table>
-          <TableHeader>
-            <TableRow className="bg-muted/50">
-              {visibleColumns.map((colId) => {
-                const col = ALL_COLUMNS.find((c) => c.id === colId);
-                if (!col) return null;
-                return (
-                  <TableHead
-                    key={col.id}
-                    className={col.numeric ? "text-right cursor-pointer select-none" : "cursor-pointer select-none"}
-                    onClick={() => onChangeSort(col.id)}
-                  >
-                    <span className="inline-flex items-center gap-1">
-                      {col.label}
-                      <ArrowUpDown className="h-3 w-3 text-muted-foreground" />
-                    </span>
-                  </TableHead>
-                );
-              })}
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {pagedRows.map((row) => (
-              <TableRow key={row.id} className="hover:bg-muted/30 transition-colors">
+      {isMobile ? (
+        <div className="p-4 space-y-4">
+          {pagedRows.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <p className="text-sm font-medium mb-1">Nenhum dado encontrado</p>
+              <p className="text-xs">Ajuste os filtros para ver mais resultados</p>
+            </div>
+          ) : (
+            pagedRows.map((row) => {
+            const getValue = (colId: ColumnId) => {
+              const col = ALL_COLUMNS.find((c) => c.id === colId);
+              if (!col) return null;
+              const value = (row as any)[col.id];
+              let content: any = value ?? "-";
+              if (col.id === "date" && value) content = formatDate(value);
+              if (col.id === "product") content = <Badge variant="secondary">{value}</Badge>;
+              if (col.numeric) {
+                if (["revenue", "commission", "profit", "gross_value", "net_value"].includes(col.id)) {
+                  if (col.id === "commission") {
+                    content = formatCurrency(getCommissionDisplay(row));
+                  } else if (col.id === "profit") {
+                    const lucro = getAffiliateCommission(row) - getAdSpend(row);
+                    content = formatCurrency(lucro);
+                  } else {
+                    content = formatCurrency(value || 0);
+                  }
+                } else if (col.id === "ad_spend") {
+                  content = formatCurrency(getAdSpend(row));
+                } else {
+                  content = value ?? "-";
+                }
+              }
+              return { label: col.label, content };
+            };
+
+            const mainCols = visibleColumns.slice(0, 3);
+            const otherCols = visibleColumns.slice(3);
+
+            return (
+              <Card key={row.id} className="border-border">
+                <CardContent className="p-4 space-y-3">
+                  <div className="grid grid-cols-2 gap-2">
+                    {mainCols.map((colId) => {
+                      const { label, content } = getValue(colId) || {};
+                      if (!label) return null;
+                      return (
+                        <div key={colId} className="space-y-1">
+                          <div className="text-xs text-muted-foreground">{label}</div>
+                          <div className="text-sm font-medium">{content}</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {otherCols.length > 0 && (
+                    <div className="pt-2 border-t border-border grid grid-cols-2 gap-2">
+                      {otherCols.map((colId) => {
+                        const { label, content } = getValue(colId) || {};
+                        if (!label) return null;
+                        return (
+                          <div key={colId} className="space-y-1">
+                            <div className="text-xs text-muted-foreground">{label}</div>
+                            <div className="text-sm">{content}</div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            );
+          })
+          )}
+        </div>
+      ) : (
+        <div className="overflow-x-auto">
+          <Table role="table" aria-label="Tabela de dados">
+            <TableHeader>
+              <TableRow className="bg-muted/50">
                 {visibleColumns.map((colId) => {
                   const col = ALL_COLUMNS.find((c) => c.id === colId);
                   if (!col) return null;
-                  const value = (row as any)[col.id];
-                  let content: any = value ?? "-";
-                  if (col.id === "date" && value) content = formatDate(value);
-                  if (col.id === "product")
-                    content = <Badge variant="secondary">{value}</Badge>;
-                  if (col.numeric) {
-                    if (["revenue", "commission", "profit", "gross_value", "net_value"].includes(col.id)) {
-                      if (col.id === "commission") {
-                        content = formatCurrency(getCommissionDisplay(row));
-                      } else if (col.id === "profit") {
-                        const lucro = getAffiliateCommission(row) - getAdSpend(row);
-                        content = formatCurrency(lucro);
-                      } else {
-                        content = formatCurrency(value || 0);
-                      }
-                    } else if (col.id === "ad_spend") {
-                      content = formatCurrency(getAdSpend(row));
-                    } else {
-                      content = value ?? "-";
-                    }
-                  }
                   return (
-                    <TableCell
+                    <TableHead
                       key={col.id}
-                      className={col.numeric ? "text-right" : ""}
+                      className={col.numeric ? "text-right cursor-pointer select-none" : "cursor-pointer select-none"}
+                      onClick={() => onChangeSort(col.id)}
+                      role="columnheader"
+                      aria-sort={sortBy === col.id ? (sortDir === "asc" ? "ascending" : "descending") : "none"}
+                      tabIndex={0}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          onChangeSort(col.id);
+                        }
+                      }}
                     >
-                      {content}
-                    </TableCell>
+                      <span className="inline-flex items-center gap-1">
+                        {col.label}
+                        <ArrowUpDown className="h-3 w-3 text-muted-foreground" aria-hidden="true" />
+                      </span>
+                    </TableHead>
                   );
                 })}
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
+            </TableHeader>
+            <TableBody>
+              {pagedRows.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={visibleColumns.length} className="text-center py-8">
+                    <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                      <p className="text-sm font-medium">Nenhum dado encontrado</p>
+                      <p className="text-xs">Ajuste os filtros para ver mais resultados</p>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ) : (
+                pagedRows.map((row) => (
+                  <TableRow key={row.id} className="hover:bg-muted/30 transition-colors">
+                    {visibleColumns.map((colId) => {
+                      const col = ALL_COLUMNS.find((c) => c.id === colId);
+                      if (!col) return null;
+                      const value = (row as any)[col.id];
+                      let content: any = value ?? "-";
+                      if (col.id === "date" && value) content = formatDate(value);
+                      if (col.id === "product")
+                        content = <Badge variant="secondary">{value}</Badge>;
+                      if (col.numeric) {
+                        if (["revenue", "commission", "profit", "gross_value", "net_value"].includes(col.id)) {
+                          if (col.id === "commission") {
+                            content = formatCurrency(getCommissionDisplay(row));
+                          } else if (col.id === "profit") {
+                            const lucro = getAffiliateCommission(row) - getAdSpend(row);
+                            content = formatCurrency(lucro);
+                          } else {
+                            content = formatCurrency(value || 0);
+                          }
+                        } else if (col.id === "ad_spend") {
+                          content = formatCurrency(getAdSpend(row));
+                        } else {
+                          content = value ?? "-";
+                        }
+                      }
+                      return (
+                        <TableCell
+                          key={col.id}
+                          className={col.numeric ? "text-right" : ""}
+                          role="cell"
+                        >
+                          {content}
+                        </TableCell>
+                      );
+                    })}
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      )}
       <div className="p-4 border-t border-border flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-2">
           <span className="text-sm text-muted-foreground">Linhas por página</span>
@@ -425,13 +525,25 @@ const DataTable = ({ rows }: DataTableProps) => {
           </Select>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={page === 0}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setPage((p) => Math.max(0, p - 1))}
+            disabled={page === 0}
+            aria-label="Página anterior"
+          >
             Anterior
           </Button>
-          <span className="text-sm text-muted-foreground">
+          <span className="text-sm text-muted-foreground" aria-live="polite">
             Página {page + 1} de {totalPages}
           </span>
-          <Button variant="outline" size="sm" onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))} disabled={page >= totalPages - 1}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+            disabled={page >= totalPages - 1}
+            aria-label="Próxima página"
+          >
             Próxima
           </Button>
         </div>
