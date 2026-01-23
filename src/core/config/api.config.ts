@@ -94,12 +94,16 @@ export const fetchWithAuth = async (
   // MAS não fazer isso para rotas de autenticação (login/register) ou durante o processo de login
   const isAuthRoute = url.includes('/auth/login') || url.includes('/auth/register');
   const isOnLoginPage = typeof window !== 'undefined' && window.location.pathname.includes('/login');
+  const isMeRoute = url.includes('/auth/me'); // Rota de perfil pode ser chamada durante login
   
   // Só tratar 401 se:
   // 1. Não for rota de autenticação
-  // 2. Não estiver na página de login (evita interferir no processo de login)
-  // 3. Já havia um token (não é uma primeira requisição sem token)
-  if (response.status === 401 && !isAuthRoute && !isOnLoginPage && token) {
+  // 2. Não for rota /me (pode ser chamada durante login)
+  // 3. Não estiver na página de login (evita interferir no processo de login)
+  // 4. Já havia um token (não é uma primeira requisição sem token)
+  // 
+  // IMPORTANTE: Não tratar 401 durante login para evitar remover token recém-criado
+  if (response.status === 401 && !isAuthRoute && !isMeRoute && !isOnLoginPage && token) {
     // Remover token e dados do usuário
     tokenStorage.remove();
     const { userStorage } = await import('@/shared/lib/storage');
