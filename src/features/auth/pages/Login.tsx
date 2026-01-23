@@ -8,7 +8,7 @@ import { BarChart3, Mail, Lock, ArrowRight, Eye, EyeOff } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { loginService } from "../services";
 import { userStorage, tokenStorage } from "@/shared/lib/storage";
-import { getApiUrl } from "@/core/config/api.config";
+import { getApiUrl, fetchWithAuth } from "@/core/config/api.config";
 import { APP_CONFIG } from "@/core/config/app.config";
 import "../styles/index.scss";
 import logoName from "@/assets/logo/logo_name.png";
@@ -47,11 +47,9 @@ const Login = () => {
           });
         } else {
           // Fallback: buscar perfil usando o token recém-recebido
-          const meResponse = await fetch(getApiUrl("/api/v1/auth/me"), {
-            headers: {
-              Authorization: `Bearer ${result.token}`,
-            },
-          });
+          // Temporariamente definir o token no storage para fetchWithAuth funcionar
+          tokenStorage.set(result.token);
+          const meResponse = await fetchWithAuth(getApiUrl("/api/v1/auth/me"));
           const me = await meResponse.json().catch(() => null);
           if (!meResponse.ok || !me) {
             throw new Error(me?.detail || me?.error || "Não foi possível obter o perfil");

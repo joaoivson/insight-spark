@@ -13,7 +13,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { getApiUrl } from "@/core/config/api.config";
+import { getApiUrl, fetchWithAuth } from "@/core/config/api.config";
 import { userStorage } from "@/shared/lib/storage";
 import { Progress } from "@/components/ui/progress";
 import { useDatasetStore } from "@/stores/datasetStore";
@@ -104,15 +104,14 @@ const UploadCSV = () => {
       const formData = new FormData();
       formData.append("file", file);
 
-      const storedUser = userStorage.get();
-      const userIdParam = storedUser?.id ? `?user_id=${storedUser.id}` : "";
+      // Removido user_id - agora vem do token JWT
 
       // Simulate progress for UX
       const interval = setInterval(() => {
         setUploadProgress((prev) => Math.min(prev + 10, 90));
       }, 500);
 
-      const res = await fetch(getApiUrl(`/api/v1/datasets/upload${userIdParam}`), {
+      const res = await fetchWithAuth(getApiUrl(`/api/v1/datasets/upload`), {
         method: "POST",
         body: formData,
       });

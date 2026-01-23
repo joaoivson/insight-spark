@@ -1,4 +1,4 @@
-import { getApiUrl } from "@/core/config/api.config";
+import { getApiUrl, fetchWithAuth } from "@/core/config/api.config";
 import type { AdSpend } from "@/shared/types/adspend";
 
 export type AdSpendPayload = {
@@ -7,10 +7,9 @@ export type AdSpendPayload = {
   sub_id?: string | null;
 };
 
-export const bulkCreateAdSpends = async (items: AdSpendPayload[], userId?: string | number | null): Promise<AdSpend[]> => {
-  const params = userId ? `?user_id=${userId}` : "";
-  const url = getApiUrl(`/api/v1/ad_spends/bulk${params}`);
-  const res = await fetch(url, {
+export const bulkCreateAdSpends = async (items: AdSpendPayload[]): Promise<AdSpend[]> => {
+  const url = getApiUrl(`/api/v1/ad_spends/bulk`);
+  const res = await fetchWithAuth(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ items }),
@@ -22,14 +21,14 @@ export const bulkCreateAdSpends = async (items: AdSpendPayload[], userId?: strin
   return (await res.json()) as AdSpend[];
 };
 
-export const listAdSpends = async (opts: { userId?: string | number | null; startDate?: string; endDate?: string } = {}): Promise<AdSpend[]> => {
+export const listAdSpends = async (opts: { startDate?: string; endDate?: string } = {}): Promise<AdSpend[]> => {
   const params = new URLSearchParams();
-  if (opts.userId) params.set("user_id", String(opts.userId));
+  // Removido user_id da query - agora vem do token
   if (opts.startDate) params.set("start_date", opts.startDate);
   if (opts.endDate) params.set("end_date", opts.endDate);
 
   const url = getApiUrl(`/api/v1/ad_spends?${params.toString()}`);
-  const res = await fetch(url);
+  const res = await fetchWithAuth(url);
   if (!res.ok) {
     const text = await res.text();
     throw new Error(text || "Falha ao carregar investimentos");
@@ -37,10 +36,9 @@ export const listAdSpends = async (opts: { userId?: string | number | null; star
   return (await res.json()) as AdSpend[];
 };
 
-export const createAdSpend = async (payload: AdSpendPayload, userId?: string | number | null): Promise<AdSpend> => {
-  const params = userId ? `?user_id=${userId}` : "";
-  const url = getApiUrl(`/api/v1/ad_spends${params}`);
-  const res = await fetch(url, {
+export const createAdSpend = async (payload: AdSpendPayload): Promise<AdSpend> => {
+  const url = getApiUrl(`/api/v1/ad_spends`);
+  const res = await fetchWithAuth(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
@@ -52,10 +50,9 @@ export const createAdSpend = async (payload: AdSpendPayload, userId?: string | n
   return (await res.json()) as AdSpend;
 };
 
-export const updateAdSpend = async (id: number, payload: Partial<AdSpendPayload>, userId?: string | number | null): Promise<AdSpend> => {
-  const params = userId ? `?user_id=${userId}` : "";
-  const url = getApiUrl(`/api/v1/ad_spends/${id}${params}`);
-  const res = await fetch(url, {
+export const updateAdSpend = async (id: number, payload: Partial<AdSpendPayload>): Promise<AdSpend> => {
+  const url = getApiUrl(`/api/v1/ad_spends/${id}`);
+  const res = await fetchWithAuth(url, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
@@ -67,10 +64,9 @@ export const updateAdSpend = async (id: number, payload: Partial<AdSpendPayload>
   return (await res.json()) as AdSpend;
 };
 
-export const deleteAdSpend = async (id: number, userId?: string | number | null): Promise<void> => {
-  const params = userId ? `?user_id=${userId}` : "";
-  const url = getApiUrl(`/api/v1/ad_spends/${id}${params}`);
-  const res = await fetch(url, { method: "DELETE" });
+export const deleteAdSpend = async (id: number): Promise<void> => {
+  const url = getApiUrl(`/api/v1/ad_spends/${id}`);
+  const res = await fetchWithAuth(url, { method: "DELETE" });
   if (!res.ok) {
     const text = await res.text();
     throw new Error(text || "Falha ao remover investimento");
