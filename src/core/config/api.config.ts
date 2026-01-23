@@ -66,14 +66,24 @@ export const fetchWithAuth = async (
     const cleanToken = token.trim().replace(/^["']|["']$/g, '');
     if (cleanToken) {
       headers.set('Authorization', `Bearer ${cleanToken}`);
+      
+      // Log detalhado para debug (apenas em desenvolvimento)
+      if (import.meta.env.DEV) {
+        const tokenPreview = cleanToken.length > 20 
+          ? `${cleanToken.substring(0, 10)}...${cleanToken.substring(cleanToken.length - 10)}`
+          : cleanToken;
+        console.log(`[fetchWithAuth] Enviando token para ${url}:`, {
+          tokenLength: cleanToken.length,
+          tokenPreview,
+          hasBearer: headers.get('Authorization')?.startsWith('Bearer ')
+        });
+      }
     }
-  }
-  
-  // Se não houver token, a requisição ainda será feita
-  // mas o backend retornará 401, que será tratado abaixo
-  // Log apenas em desenvolvimento para debug
-  if (import.meta.env.DEV && !token) {
-    console.warn('[fetchWithAuth] Token não encontrado para requisição:', url);
+  } else {
+    // Log apenas em desenvolvimento para debug
+    if (import.meta.env.DEV) {
+      console.warn('[fetchWithAuth] Token não encontrado para requisição:', url);
+    }
   }
 
   // Adicionar Content-Type se não estiver definido e houver body
@@ -90,6 +100,15 @@ export const fetchWithAuth = async (
     headers,
   });
 
+  // Log de resposta para debug
+  if (import.meta.env.DEV) {
+    console.log(`[fetchWithAuth] Resposta de ${url}:`, {
+      status: response.status,
+      statusText: response.statusText,
+      ok: response.ok
+    });
+  }
+
   // Se receber 401, token está inválido ou expirado - limpar e redirecionar
   // MAS não fazer isso para rotas de autenticação (login/register) ou durante o processo de login
   const isAuthRoute = url.includes('/auth/login') || url.includes('/auth/register');
@@ -104,6 +123,15 @@ export const fetchWithAuth = async (
   // 
   // IMPORTANTE: Não tratar 401 durante login para evitar remover token recém-criado
   if (response.status === 401 && !isAuthRoute && !isMeRoute && !isOnLoginPage && token) {
+    // Log detalhado do erro
+    const errorBody = await response.clone().json().catch(() => ({}));
+    console.error('[fetchWithAuth] Erro 401 detectado:', {
+      url,
+      errorDetail: errorBody.detail || errorBody.error || 'Token inválido',
+      hadToken: !!token,
+      tokenLength: token?.length
+    });
+    
     // Remover token e dados do usuário
     tokenStorage.remove();
     const { userStorage } = await import('@/shared/lib/storage');
