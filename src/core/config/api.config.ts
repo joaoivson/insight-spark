@@ -50,8 +50,9 @@ export const getApiUrl = (endpoint: string): string => {
 /**
  * Função helper para fazer requisições autenticadas
  * Adiciona automaticamente o token JWT no header Authorization
+ * Trata erros 401 removendo token e redirecionando para login
  */
-export const fetchWithAuth = (
+export const fetchWithAuth = async (
   url: string,
   options: RequestInit = {}
 ): Promise<Response> => {
@@ -69,7 +70,7 @@ export const fetchWithAuth = (
   }
   
   // Se não houver token, a requisição ainda será feita
-  // mas o backend retornará 401, que será tratado pelo código que chama
+  // mas o backend retornará 401, que será tratado abaixo
   // Log apenas em desenvolvimento para debug
   if (import.meta.env.DEV && !token) {
     console.warn('[fetchWithAuth] Token não encontrado para requisição:', url);
@@ -84,8 +85,24 @@ export const fetchWithAuth = (
     }
   }
 
-  return fetch(url, {
+  const response = await fetch(url, {
     ...options,
     headers,
   });
+
+  // Se receber 401, token está inválido ou expirado - limpar e redirecionar
+  if (response.status === 401) {
+    // Remover token e dados do usuário
+    tokenStorage.remove();
+    const { userStorage } = await import('@/shared/lib/storage');
+    userStorage.remove();
+    
+    // Redirecionar para login apenas se não estiver já na página de login
+    if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
+      const { APP_CONFIG } = await import('@/core/config/app.config');
+      window.location.href = APP_CONFIG.ROUTES.LOGIN;
+    }
+  }
+
+  return response;
 };
