@@ -91,16 +91,21 @@ export const fetchWithAuth = async (
   });
 
   // Se receber 401, token está inválido ou expirado - limpar e redirecionar
-  if (response.status === 401) {
-    // Remover token e dados do usuário
-    tokenStorage.remove();
-    const { userStorage } = await import('@/shared/lib/storage');
-    userStorage.remove();
-    
-    // Redirecionar para login apenas se não estiver já na página de login
-    if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
-      const { APP_CONFIG } = await import('@/core/config/app.config');
-      window.location.href = APP_CONFIG.ROUTES.LOGIN;
+  // MAS não fazer isso para rotas de autenticação (login/register)
+  const isAuthRoute = url.includes('/auth/login') || url.includes('/auth/register');
+  
+  if (response.status === 401 && !isAuthRoute) {
+    // Remover token e dados do usuário apenas se já havia um token
+    if (token) {
+      tokenStorage.remove();
+      const { userStorage } = await import('@/shared/lib/storage');
+      userStorage.remove();
+      
+      // Redirecionar para login apenas se não estiver já na página de login
+      if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
+        const { APP_CONFIG } = await import('@/core/config/app.config');
+        window.location.href = APP_CONFIG.ROUTES.LOGIN;
+      }
     }
   }
 
