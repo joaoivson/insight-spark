@@ -59,9 +59,18 @@ export const fetchWithAuth = (
 
   const headers = new Headers(options.headers);
   
-  // Adicionar token se existir
-  if (token) {
-    headers.set('Authorization', `Bearer ${token}`);
+  // Adicionar token se existir e não for vazio
+  if (token && token.trim()) {
+    // Remover possíveis aspas ou espaços extras
+    const cleanToken = token.trim().replace(/^["']|["']$/g, '');
+    headers.set('Authorization', `Bearer ${cleanToken}`);
+  } else {
+    // Se não houver token, a requisição ainda será feita
+    // mas o backend retornará 401, que será tratado pelo código que chama
+    // Log apenas em desenvolvimento
+    if (import.meta.env.DEV) {
+      console.warn('[fetchWithAuth] Token não encontrado para requisição:', url);
+    }
   }
 
   // Adicionar Content-Type se não estiver definido e houver body
