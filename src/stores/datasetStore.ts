@@ -86,8 +86,8 @@ export const useDatasetStore = create<DatasetState>((set, get) => {
     set({ loading: true, error: null });
     try {
       const { startDate, endDate } = rangeToParams(opts.range);
+      // userId removido - agora vem do token JWT
       const apiRows = await fetchDatasetRows({
-        userId,
         startDate,
         endDate,
         includeRawData: opts.includeRawData,
