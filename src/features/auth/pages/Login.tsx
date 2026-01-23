@@ -48,6 +48,10 @@ const Login = () => {
         // Se o backend retornou o usuário junto com o token, usamos diretamente.
         if (result.user) {
           tokenStorage.set(result.token);
+          // Marcar quando o token foi criado para evitar remoção prematura
+          if (typeof window !== 'undefined') {
+            sessionStorage.setItem('token_created_at', Date.now().toString());
+          }
           const savedToken = tokenStorage.get();
           if (import.meta.env.DEV) {
             console.log('[Login] Token salvo no storage:', {
@@ -69,6 +73,10 @@ const Login = () => {
           // Fallback: buscar perfil usando o token recém-recebido
           // Temporariamente definir o token no storage para fetchWithAuth funcionar
           tokenStorage.set(result.token);
+          // Marcar quando o token foi criado para evitar remoção prematura
+          if (typeof window !== 'undefined') {
+            sessionStorage.setItem('token_created_at', Date.now().toString());
+          }
           const savedToken = tokenStorage.get();
           if (import.meta.env.DEV) {
             console.log('[Login] Token salvo antes de buscar perfil:', {

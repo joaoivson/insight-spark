@@ -115,31 +115,55 @@ export const fetchWithAuth = async (
   const isOnLoginPage = typeof window !== 'undefined' && window.location.pathname.includes('/login');
   const isMeRoute = url.includes('/auth/me'); // Rota de perfil pode ser chamada durante login
   
+  // Verificar se o token foi criado recentemente (últimos 5 segundos)
+  // Isso evita remover o token logo após o login
+  const tokenCreatedAt = typeof window !== 'undefined' 
+    ? sessionStorage.getItem('token_created_at')
+    : null;
+  const isRecentToken = tokenCreatedAt 
+    ? (Date.now() - parseInt(tokenCreatedAt, 10)) < 5000 // 5 segundos
+    : false;
+  
   // Só tratar 401 se:
   // 1. Não for rota de autenticação
   // 2. Não for rota /me (pode ser chamada durante login)
   // 3. Não estiver na página de login (evita interferir no processo de login)
   // 4. Já havia um token (não é uma primeira requisição sem token)
+  // 5. O token não foi criado recentemente (evita remover token logo após login)
   // 
-  // IMPORTANTE: Não tratar 401 durante login para evitar remover token recém-criado
-  if (response.status === 401 && !isAuthRoute && !isMeRoute && !isOnLoginPage && token) {
+  // IMPORTANTE: Não tratar 401 durante login ou logo após login para evitar remover token recém-criado
+  if (response.status === 401 && !isAuthRoute && !isMeRoute && !isOnLoginPage && token && !isRecentToken) {
     // Log detalhado do erro
     const errorBody = await response.clone().json().catch(() => ({}));
     console.error('[fetchWithAuth] Erro 401 detectado:', {
       url,
       errorDetail: errorBody.detail || errorBody.error || 'Token inválido',
       hadToken: !!token,
-      tokenLength: token?.length
+      tokenLength: token?.length,
+      isRecentToken,
+      tokenCreatedAt
     });
     
     // Remover token e dados do usuário
     tokenStorage.remove();
     const { userStorage } = await import('@/shared/lib/storage');
     userStorage.remove();
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem('token_created_at');
+    }
     
     // Redirecionar para login
     const { APP_CONFIG } = await import('@/core/config/app.config');
     window.location.href = APP_CONFIG.ROUTES.LOGIN;
+  } else if (response.status === 401 && isRecentToken) {
+    // Log apenas para debug - não remover token se foi criado recentemente
+    if (import.meta.env.DEV) {
+      console.warn('[fetchWithAuth] Erro 401 ignorado - token criado recentemente:', {
+        url,
+        tokenCreatedAt,
+        timeSinceCreation: tokenCreatedAt ? Date.now() - parseInt(tokenCreatedAt, 10) : null
+      });
+    }
   }
 
   return response;
