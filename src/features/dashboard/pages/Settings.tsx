@@ -12,7 +12,7 @@ import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { APP_CONFIG } from "@/core/config/app.config";
 import { useNavigate } from "react-router-dom";
-import { getApiUrl } from "@/core/config/api.config";
+import { getApiUrl, fetchWithAuth } from "@/core/config/api.config";
 import { Badge } from "@/components/ui/badge";
 
 const SettingsPage = () => {
@@ -36,11 +36,10 @@ const SettingsPage = () => {
     }
     setIsSaving(true);
     try {
-      const response = await fetch(getApiUrl(`/api/v1/auth/users/${userId}`), {
+      const response = await fetchWithAuth(getApiUrl(`/api/v1/auth/users/${userId}`), {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({ name, email }),
       });
@@ -75,7 +74,7 @@ const SettingsPage = () => {
     if (!confirmed) return;
     setIsDeleting(true);
     try {
-      const response = await fetch(getApiUrl(`/api/v1/auth/users/${userId}`), {
+      const response = await fetchWithAuth(getApiUrl(`/api/v1/auth/users/${userId}`), {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });

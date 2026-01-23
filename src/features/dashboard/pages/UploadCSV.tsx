@@ -13,7 +13,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { getApiUrl } from "@/core/config/api.config";
+import { getApiUrl, fetchWithAuth } from "@/core/config/api.config";
 import { userStorage } from "@/shared/lib/storage";
 import { Progress } from "@/components/ui/progress";
 import { useDatasetStore } from "@/stores/datasetStore";
@@ -104,15 +104,14 @@ const UploadCSV = () => {
       const formData = new FormData();
       formData.append("file", file);
 
-      const storedUser = userStorage.get();
-      const userIdParam = storedUser?.id ? `?user_id=${storedUser.id}` : "";
+      // Removido user_id - agora vem do token JWT
 
       // Simulate progress for UX
       const interval = setInterval(() => {
         setUploadProgress((prev) => Math.min(prev + 10, 90));
       }, 500);
 
-      const res = await fetch(getApiUrl(`/api/v1/datasets/upload${userIdParam}`), {
+      const res = await fetchWithAuth(getApiUrl(`/api/v1/datasets/upload`), {
         method: "POST",
         body: formData,
       });
@@ -178,15 +177,21 @@ const UploadCSV = () => {
                 onDragLeave={handleDrag}
                 onDragOver={handleDrag}
                 onDrop={handleDrop}
+                onClick={() => {
+                  // Trigger file input click when clicking on the drop zone
+                  const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+                  if (input) input.click();
+                }}
               >
                 <input
                   type="file"
                   accept=".csv"
                   onChange={handleChange}
-                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                  className="hidden"
+                  id="csv-upload-input"
                 />
                 
-                <div className="relative z-0 pointer-events-none">
+                <div className="relative z-0">
                   <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center mx-auto mb-8 shadow-inner group-hover:scale-110 transition-transform duration-300">
                     <CloudUploadIcon className="w-10 h-10 text-primary" />
                   </div>

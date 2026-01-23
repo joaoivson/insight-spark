@@ -8,7 +8,7 @@ import { BarChart3, Mail, Lock, ArrowRight, Eye, EyeOff } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { loginService } from "../services";
 import { userStorage, tokenStorage } from "@/shared/lib/storage";
-import { getApiUrl } from "@/core/config/api.config";
+import { getApiUrl, fetchWithAuth } from "@/core/config/api.config";
 import { APP_CONFIG } from "@/core/config/app.config";
 import "../styles/index.scss";
 import logoName from "@/assets/logo/logo_name.png";
@@ -33,9 +33,33 @@ const Login = () => {
       });
 
       if (result.success && result.token) {
+        // Log do token recebido (apenas em desenvolvimento)
+        if (import.meta.env.DEV) {
+          const tokenPreview = result.token.length > 20 
+            ? `${result.token.substring(0, 10)}...${result.token.substring(result.token.length - 10)}`
+            : result.token;
+          console.log('[Login] Token recebido:', {
+            tokenLength: result.token.length,
+            tokenPreview,
+            hasUser: !!result.user
+          });
+        }
+        
         // Se o backend retornou o usuário junto com o token, usamos diretamente.
         if (result.user) {
           tokenStorage.set(result.token);
+          // Marcar quando o token foi criado para evitar remoção prematura
+          if (typeof window !== 'undefined') {
+            sessionStorage.setItem('token_created_at', Date.now().toString());
+          }
+          const savedToken = tokenStorage.get();
+          if (import.meta.env.DEV) {
+            console.log('[Login] Token salvo no storage:', {
+              saved: !!savedToken,
+              savedLength: savedToken?.length,
+              matches: savedToken === result.token
+            });
+          }
           userStorage.set({
             id: String(result.user.id ?? ""),
             nome: (result.user as any).name ?? (result.user as any).nome ?? "",
@@ -47,13 +71,28 @@ const Login = () => {
           });
         } else {
           // Fallback: buscar perfil usando o token recém-recebido
-          const meResponse = await fetch(getApiUrl("/api/v1/auth/me"), {
-            headers: {
-              Authorization: `Bearer ${result.token}`,
-            },
-          });
+          // Temporariamente definir o token no storage para fetchWithAuth funcionar
+          tokenStorage.set(result.token);
+          // Marcar quando o token foi criado para evitar remoção prematura
+          if (typeof window !== 'undefined') {
+            sessionStorage.setItem('token_created_at', Date.now().toString());
+          }
+          const savedToken = tokenStorage.get();
+          if (import.meta.env.DEV) {
+            console.log('[Login] Token salvo antes de buscar perfil:', {
+              saved: !!savedToken,
+              savedLength: savedToken?.length,
+              matches: savedToken === result.token
+            });
+          }
+          const meResponse = await fetchWithAuth(getApiUrl("/api/v1/auth/me"));
           const me = await meResponse.json().catch(() => null);
           if (!meResponse.ok || !me) {
+            console.error('[Login] Erro ao buscar perfil:', {
+              status: meResponse.status,
+              statusText: meResponse.statusText,
+              error: me?.detail || me?.error
+            });
             throw new Error(me?.detail || me?.error || "Não foi possível obter o perfil");
           }
           tokenStorage.set(result.token);

@@ -60,7 +60,8 @@ export const useAdSpendsStore = create<AdSpendsState>((set, get) => ({
     set({ loading: true, error: null });
     try {
       const { startDate, endDate } = rangeToParams(opts.range);
-      const apiData = await listAdSpends({ userId, startDate, endDate });
+      // userId removido - agora vem do token JWT
+      const apiData = await listAdSpends({ startDate, endDate });
       const next = apiData.length === 0 && adSpends.length ? adSpends : apiData;
       set({ adSpends: next, hydrated: true, lastUpdated: Date.now() });
       safeSetJSON(cacheKey, { adSpends: next, lastUpdated: Date.now() });
@@ -74,20 +75,20 @@ export const useAdSpendsStore = create<AdSpendsState>((set, get) => ({
   },
 
   create: async (payload) => {
-    const userId = (userStorage.get() as { id?: string } | null)?.id ?? null;
-    await createAdSpend(payload, userId);
+    // userId removido - agora vem do token JWT
+    await createAdSpend(payload);
     await get().fetchAdSpends({ force: true });
   },
 
   update: async (id, payload) => {
-    const userId = (userStorage.get() as { id?: string } | null)?.id ?? null;
-    await updateAdSpend(id, payload, userId);
+    // userId removido - agora vem do token JWT
+    await updateAdSpend(id, payload);
     await get().fetchAdSpends({ force: true });
   },
 
   remove: async (id) => {
-    const userId = (userStorage.get() as { id?: string } | null)?.id ?? null;
-    await deleteAdSpend(id, userId);
+    // userId removido - agora vem do token JWT
+    await deleteAdSpend(id);
     await get().fetchAdSpends({ force: true });
   },
 }));

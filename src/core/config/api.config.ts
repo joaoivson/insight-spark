@@ -1,10 +1,40 @@
+import { tokenStorage, userStorage } from '@/shared/lib/storage';
+import { APP_CONFIG } from '@/core/config/app.config';
+
 /**
  * API Configuration
  * Centraliza todas as configurações relacionadas à API
  */
 
+// Função para detectar e corrigir URL da API
+const getBaseUrl = (): string => {
+  const envUrl = import.meta.env.VITE_API_URL;
+  
+  // Se não houver URL configurada, usar localhost
+  if (!envUrl) {
+    return 'http://localhost:8000';
+  }
+  
+  // Se a URL começar com https mas estivermos em um ambiente que pode ter problemas de SSL,
+  // tentar usar HTTP como fallback
+  if (envUrl.startsWith('https://')) {
+    // Verificar se estamos em homologação (hml.marketdash.com.br)
+    if (typeof window !== 'undefined' && window.location.hostname.includes('hml.marketdash.com.br')) {
+      // Usar HTTP para homologação se o certificado SSL não estiver funcionando
+      return envUrl.replace('https://api.hml.marketdash.com.br', 'http://api.hml.marketdash.com.br');
+    }
+    // Verificar se estamos em produção e também pode ter problemas de SSL
+    if (typeof window !== 'undefined' && window.location.hostname.includes('marketdash.com.br') && !window.location.hostname.includes('hml')) {
+      // Manter HTTPS para produção, mas podemos adicionar fallback se necessário
+      return envUrl;
+    }
+  }
+  
+  return envUrl;
+};
+
 export const API_CONFIG = {
-  BASE_URL: import.meta.env.VITE_API_URL || 'http://localhost:8000',
+  BASE_URL: getBaseUrl(),
   ENDPOINTS: {
     AUTH: {
       SIGNUP: '/api/v1/auth/register',
@@ -18,3 +48,134 @@ export const getApiUrl = (endpoint: string): string => {
   return `${API_CONFIG.BASE_URL}${endpoint}`;
 };
 
+/**
+ * Função helper para fazer requisições autenticadas
+ * Adiciona automaticamente o token JWT no header Authorization
+ * Trata erros 401 removendo token e redirecionando para login
+ */
+export const fetchWithAuth = async (
+  url: string,
+  options: RequestInit = {}
+): Promise<Response> => {
+  const token = tokenStorage.get();
+
+  const headers = new Headers(options.headers);
+  
+  // Adicionar token se existir e não for vazio
+  if (token && token.trim()) {
+    // Remover possíveis aspas ou espaços extras
+    let cleanToken = token.trim().replace(/^["']|["']$/g, '');
+    
+    // Remover "Bearer " se o token já contiver
+    if (cleanToken.startsWith('Bearer ')) {
+      cleanToken = cleanToken.substring(7).trim();
+    }
+    
+    if (cleanToken) {
+      headers.set('Authorization', `Bearer ${cleanToken}`);
+      
+      // Log detalhado para debug (sempre, não apenas em desenvolvimento)
+      const tokenPreview = cleanToken.length > 20 
+        ? `${cleanToken.substring(0, 10)}...${cleanToken.substring(cleanToken.length - 10)}`
+        : cleanToken;
+      console.log(`[fetchWithAuth] Enviando token para ${url}:`, {
+        tokenLength: cleanToken.length,
+        tokenPreview,
+        hasBearer: headers.get('Authorization')?.startsWith('Bearer '),
+        authorizationHeader: headers.get('Authorization')?.substring(0, 20) + '...'
+      });
+    } else {
+      console.warn('[fetchWithAuth] Token limpo está vazio após processamento:', {
+        originalToken: token?.substring(0, 20) + '...',
+        tokenLength: token?.length
+      });
+    }
+  } else {
+    // Log sempre para debug
+    console.warn('[fetchWithAuth] Token não encontrado para requisição:', {
+      url,
+      tokenExists: !!token,
+      tokenValue: token ? token.substring(0, 20) + '...' : null
+    });
+  }
+
+  // Adicionar Content-Type se não estiver definido e houver body
+  if (options.body && !headers.has('Content-Type')) {
+    if (options.body instanceof FormData) {
+      // FormData define seu próprio Content-Type com boundary
+    } else if (typeof options.body === 'string') {
+      headers.set('Content-Type', 'application/json');
+    }
+  }
+
+  const response = await fetch(url, {
+    ...options,
+    headers,
+  });
+
+  // Log de resposta para debug
+  if (import.meta.env.DEV) {
+    console.log(`[fetchWithAuth] Resposta de ${url}:`, {
+      status: response.status,
+      statusText: response.statusText,
+      ok: response.ok
+    });
+  }
+
+  // Se receber 401, token está inválido ou expirado - limpar e redirecionar
+  // MAS não fazer isso para rotas de autenticação (login/register) ou durante o processo de login
+  const isAuthRoute = url.includes('/auth/login') || url.includes('/auth/register');
+  const isOnLoginPage = typeof window !== 'undefined' && window.location.pathname.includes('/login');
+  const isMeRoute = url.includes('/auth/me'); // Rota de perfil pode ser chamada durante login
+  
+  // Verificar se o token foi criado recentemente (últimos 5 segundos)
+  // Isso evita remover o token logo após o login
+  const tokenCreatedAt = typeof window !== 'undefined' 
+    ? sessionStorage.getItem('token_created_at')
+    : null;
+  const isRecentToken = tokenCreatedAt 
+    ? (Date.now() - parseInt(tokenCreatedAt, 10)) < 5000 // 5 segundos
+    : false;
+  
+  // Só tratar 401 se:
+  // 1. Não for rota de autenticação
+  // 2. Não for rota /me (pode ser chamada durante login)
+  // 3. Não estiver na página de login (evita interferir no processo de login)
+  // 4. Já havia um token (não é uma primeira requisição sem token)
+  // 5. O token não foi criado recentemente (evita remover token logo após login)
+  // 
+  // IMPORTANTE: Não tratar 401 durante login ou logo após login para evitar remover token recém-criado
+  if (response.status === 401 && !isAuthRoute && !isMeRoute && !isOnLoginPage && token && !isRecentToken) {
+    // Log detalhado do erro
+    const errorBody = await response.clone().json().catch(() => ({}));
+    console.error('[fetchWithAuth] Erro 401 detectado:', {
+      url,
+      errorDetail: errorBody.detail || errorBody.error || 'Token inválido',
+      hadToken: !!token,
+      tokenLength: token?.length,
+      isRecentToken,
+      tokenCreatedAt
+    });
+    
+    // Remover token e dados do usuário
+    tokenStorage.remove();
+    userStorage.remove();
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem('token_created_at');
+    }
+    
+    // Redirecionar para login
+    window.location.href = APP_CONFIG.ROUTES.LOGIN;
+  } else if (response.status === 401 && isRecentToken) {
+    // Log apenas para debug - não remover token se foi criado recentemente
+    if (import.meta.env.DEV) {
+      console.warn('[fetchWithAuth] Erro 401 ignorado - token criado recentemente:', {
+        url,
+        tokenCreatedAt,
+        timeSinceCreation: tokenCreatedAt ? Date.now() - parseInt(tokenCreatedAt, 10) : null
+      });
+    }
+  }
+
+  return response;
+};

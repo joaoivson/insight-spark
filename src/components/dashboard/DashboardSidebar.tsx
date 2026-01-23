@@ -1,4 +1,4 @@
-import { NavLink, useLocation } from "react-router-dom";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { 
   Upload, 
   FileText, 
@@ -13,6 +13,8 @@ import {
 import { cn } from "@/shared/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
+import { tokenStorage, userStorage } from "@/shared/lib/storage";
+import { APP_CONFIG } from "@/core/config/app.config";
 import logoIcon from "@/assets/logo/logo.png";
 import logoName from "@/assets/logo/logo_name.png";
 
@@ -27,8 +29,17 @@ const menuItems = [
 
 const DashboardSidebar = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const isDemo = location.pathname.startsWith("/demo");
   const [collapsed, setCollapsed] = useState(false);
+
+  const handleLogout = () => {
+    // Remover token e dados do usuário
+    tokenStorage.remove();
+    userStorage.remove();
+    // Navegar para a página inicial
+    navigate(APP_CONFIG.ROUTES.HOME);
+  };
 
   return (
     <aside 
@@ -139,17 +150,18 @@ const DashboardSidebar = () => {
             {!collapsed && <span className="font-medium">Sair</span>}
           </button>
         ) : (
-          <NavLink
-            to="/"
+          <button
+            type="button"
+            onClick={handleLogout}
             className={cn(
-              "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200",
+              "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 w-full",
               "text-sidebar-foreground/70 hover:text-destructive hover:bg-destructive/10",
               collapsed && "justify-center px-0"
             )}
           >
             <LogOut className="w-5 h-5 flex-shrink-0" />
             {!collapsed && <span className="font-medium">Sair</span>}
-          </NavLink>
+          </button>
         )}
       </div>
     </aside>

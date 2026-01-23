@@ -250,26 +250,41 @@ const AdSpends = () => {
   };
 
   const handleDownloadTemplate = () => {
-    const today = new Date().toISOString().slice(0, 10);
-    // Estrutura: Data, SubId, ValorGasto (vírgula para decimais)
-    const data = [
-      ["Data", "SubId", "ValorGasto"],
-      [today, "ASPRADOR02", "120,50"],
-      [today, "", "300,00"],
-    ];
-    const ws = XLSX.utils.aoa_to_sheet(data);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Modelo");
-    const wbout = XLSX.write(wb, { bookType: "xlsx", type: "array" });
-    const blob = new Blob([wbout], {
-      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = "modelo-investimentos.xlsx";
-    link.click();
-    URL.revokeObjectURL(url);
+    try {
+      const today = new Date().toISOString().slice(0, 10);
+      // Estrutura: Data, SubId, ValorGasto (vírgula para decimais)
+      const data = [
+        ["Data", "SubId", "ValorGasto"],
+        [today, "ASPRADOR02", "120,50"],
+        [today, "", "300,00"],
+      ];
+      const ws = XLSX.utils.aoa_to_sheet(data);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Modelo");
+      const wbout = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+      const blob = new Blob([wbout], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "modelo-investimentos.xlsx";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      toast({
+        title: "Download iniciado",
+        description: "Modelo de investimentos baixado com sucesso.",
+      });
+    } catch (error) {
+      console.error("Erro ao baixar modelo:", error);
+      toast({
+        title: "Erro ao baixar modelo",
+        description: "Não foi possível gerar o arquivo. Tente novamente.",
+        variant: "destructive",
+      });
+    }
   };
 
   const parseCsvFile = (file: File) =>
@@ -428,12 +443,9 @@ const AdSpends = () => {
       }
 
       let success = 0;
-      const storedUser = userStorage.get() as { id?: string } | null;
-      const userId = storedUser?.id ?? null;
       try {
         const result = await bulkCreateAdSpends(
-          payloads.map((p) => ({ ...p, sub_id: p.sub_id || "" })),
-          userId
+          payloads.map((p) => ({ ...p, sub_id: p.sub_id || "" }))
         );
         success = result?.length || payloads.length;
         console.log("Bulk create result:", result);
@@ -442,14 +454,11 @@ const AdSpends = () => {
         // fallback: tentar individual sem forçar refresh a cada item
         for (const payload of payloads) {
           try {
-            await createAdSpend(
-              {
-                amount: payload.amount,
-                date: payload.date,
-                sub_id: payload.sub_id || "",
-              },
-              userId
-            );
+            await createAdSpend({
+              amount: payload.amount,
+              date: payload.date,
+              sub_id: payload.sub_id || "",
+            });
             success += 1;
           } catch (e) {
             console.error("Erro ao criar item individual:", e, payload);
@@ -578,18 +587,43 @@ const AdSpends = () => {
           <Card className="p-5">
             <p className="text-sm text-muted-foreground mb-1">Opção 2</p>
             <h3 className="text-lg font-semibold text-foreground mb-3">Importar planilha</h3>
-            <div className="border border-dashed border-border rounded-xl p-4 text-center bg-secondary/30">
+            <div 
+              className="border border-dashed border-border rounded-xl p-4 text-center bg-secondary/30 cursor-pointer hover:bg-secondary/50 transition-colors"
+              onClick={() => {
+                const input = document.getElementById('adspends-file-input') as HTMLInputElement;
+                if (input && !blocking) input.click();
+              }}
+            >
               <UploadCloud className="w-10 h-10 mx-auto text-muted-foreground mb-3" />
               <p className="text-sm text-muted-foreground mb-4">
                 Use o modelo para garantir as colunas corretas: <strong>Data</strong>, <strong>SubId</strong>,{" "}
                 <strong>ValorGasto</strong> (R$). Suporta Excel (.xlsx/.xls) ou CSV.
               </p>
-              <Input
+              <input
+                id="adspends-file-input"
                 type="file"
                 accept=".csv,.xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
-                onChange={(e) => e.target.files && e.target.files[0] && handleImport(e.target.files[0])}
+                onChange={(e) => {
+                  if (e.target.files && e.target.files[0] && !blocking) {
+                    handleImport(e.target.files[0]);
+                  }
+                }}
                 disabled={blocking}
+                className="hidden"
               />
+              <Button
+                variant="outline"
+                disabled={blocking}
+                className="mt-2"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const input = document.getElementById('adspends-file-input') as HTMLInputElement;
+                  if (input) input.click();
+                }}
+              >
+                <UploadCloud className="w-4 h-4 mr-2" />
+                Selecionar arquivo
+              </Button>
               <p className="text-xs text-muted-foreground mt-2">
                 Datas em yyyy-mm-dd ou dd/mm/aaaa. Valores com vírgula ou ponto.
               </p>
