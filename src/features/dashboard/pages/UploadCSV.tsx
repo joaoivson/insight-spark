@@ -182,7 +182,8 @@ const UploadCSV = () => {
                   type="file"
                   accept=".csv"
                   onChange={handleChange}
-                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-50"
+                  style={{ pointerEvents: 'auto' }}
                 />
                 
                 <div className="relative z-0 pointer-events-none">
