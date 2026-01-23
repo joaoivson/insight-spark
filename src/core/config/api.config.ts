@@ -6,27 +6,44 @@ import { APP_CONFIG } from '@/core/config/app.config';
  * Centraliza todas as configurações relacionadas à API
  */
 
-// Função para detectar e corrigir URL da API
+/**
+ * Função para obter a URL base da API
+ * 
+ * Prioridade:
+ * 1. Variável de ambiente VITE_API_URL
+ * 2. Fallback para localhost em desenvolvimento
+ * 
+ * Em produção/homologação, VITE_API_URL deve sempre usar HTTPS.
+ * Para emergências, pode-se usar FORCE_HTTP_FALLBACK=true (não recomendado).
+ */
 const getBaseUrl = (): string => {
   const envUrl = import.meta.env.VITE_API_URL;
+  const forceHttp = import.meta.env.VITE_FORCE_HTTP_FALLBACK === 'true';
   
-  // Se não houver URL configurada, usar localhost
+  // Se não houver URL configurada, usar localhost (desenvolvimento)
   if (!envUrl) {
     return 'http://localhost:8000';
   }
   
-  // Se a URL começar com https mas estivermos em um ambiente que pode ter problemas de SSL,
-  // tentar usar HTTP como fallback
-  if (envUrl.startsWith('https://')) {
-    // Verificar se estamos em homologação (hml.marketdash.com.br)
-    if (typeof window !== 'undefined' && window.location.hostname.includes('hml.marketdash.com.br')) {
-      // Usar HTTP para homologação se o certificado SSL não estiver funcionando
-      return envUrl.replace('https://api.hml.marketdash.com.br', 'http://api.hml.marketdash.com.br');
-    }
-    // Verificar se estamos em produção e também pode ter problemas de SSL
-    if (typeof window !== 'undefined' && window.location.hostname.includes('marketdash.com.br') && !window.location.hostname.includes('hml')) {
-      // Manter HTTPS para produção, mas podemos adicionar fallback se necessário
-      return envUrl;
+  // Mecanismo de rollback de emergência (apenas se explicitamente habilitado)
+  // ATENÇÃO: Use apenas em emergências críticas. Deve ser removido assim que SSL for corrigido.
+  if (forceHttp && envUrl.startsWith('https://')) {
+    console.warn(
+      '⚠️ FORCE_HTTP_FALLBACK está ativo! Isso é temporário e deve ser removido assim que SSL for corrigido.'
+    );
+    return envUrl.replace('https://', 'http://');
+  }
+  
+  // Validar que URLs de produção/homologação usam HTTPS
+  if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
+    const isProduction = window.location.hostname.includes('marketdash.com.br');
+    const isStaging = window.location.hostname.includes('hml') || window.location.hostname.includes('staging');
+    
+    if ((isProduction || isStaging) && envUrl.startsWith('http://')) {
+      console.error(
+        '❌ Erro: URL da API deve usar HTTPS em produção/homologação. ' +
+        'Configure VITE_API_URL com https:// no ambiente de build.'
+      );
     }
   }
   
