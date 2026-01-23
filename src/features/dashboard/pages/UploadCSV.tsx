@@ -177,16 +177,21 @@ const UploadCSV = () => {
                 onDragLeave={handleDrag}
                 onDragOver={handleDrag}
                 onDrop={handleDrop}
+                onClick={() => {
+                  // Trigger file input click when clicking on the drop zone
+                  const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+                  if (input) input.click();
+                }}
               >
                 <input
                   type="file"
                   accept=".csv"
                   onChange={handleChange}
-                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-50"
-                  style={{ pointerEvents: 'auto' }}
+                  className="hidden"
+                  id="csv-upload-input"
                 />
                 
-                <div className="relative z-0 pointer-events-none">
+                <div className="relative z-0">
                   <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center mx-auto mb-8 shadow-inner group-hover:scale-110 transition-transform duration-300">
                     <CloudUploadIcon className="w-10 h-10 text-primary" />
                   </div>
