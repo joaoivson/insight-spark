@@ -1,4 +1,5 @@
-import { tokenStorage } from '@/shared/lib/storage';
+import { tokenStorage, userStorage } from '@/shared/lib/storage';
+import { APP_CONFIG } from '@/core/config/app.config';
 
 /**
  * API Configuration
@@ -158,14 +159,12 @@ export const fetchWithAuth = async (
     
     // Remover token e dados do usuário
     tokenStorage.remove();
-    const { userStorage } = await import('@/shared/lib/storage');
     userStorage.remove();
     if (typeof window !== 'undefined') {
       sessionStorage.removeItem('token_created_at');
     }
     
     // Redirecionar para login
-    const { APP_CONFIG } = await import('@/core/config/app.config');
     window.location.href = APP_CONFIG.ROUTES.LOGIN;
   } else if (response.status === 401 && isRecentToken) {
     // Log apenas para debug - não remover token se foi criado recentemente
