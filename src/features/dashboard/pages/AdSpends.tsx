@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { Link } from "react-router-dom";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { Button } from "@/components/ui/button";
@@ -144,6 +144,7 @@ const normalizeDate = (value: string | Date | number | null | undefined) => {
 };
 
 const AdSpends = () => {
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { rows, fetchRows } = useDatasetStore();
   const { adSpends, loading: adLoading, fetchAdSpends, create, update, remove } = useAdSpendsStore();
   const { toast } = useToast();
@@ -249,7 +250,12 @@ const AdSpends = () => {
     }
   };
 
-  const handleDownloadTemplate = () => {
+  const handleDownloadTemplate = (e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    
     try {
       const today = new Date().toISOString().slice(0, 10);
       // Estrutura: Data, SubId, ValorGasto (vírgula para decimais)
@@ -258,30 +264,31 @@ const AdSpends = () => {
         [today, "ASPRADOR02", "120,50"],
         [today, "", "300,00"],
       ];
+      
       const ws = XLSX.utils.aoa_to_sheet(data);
+      
+      // Ajustar largura das colunas para melhor visualização
+      ws['!cols'] = [
+        { wch: 12 }, // Data
+        { wch: 15 }, // SubId
+        { wch: 12 }, // ValorGasto
+      ];
+      
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, "Modelo");
-      const wbout = XLSX.write(wb, { bookType: "xlsx", type: "array" });
-      const blob = new Blob([wbout], {
-        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = "modelo-investimentos.xlsx";
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+      
+      // Usar XLSX.writeFile diretamente - método nativo da biblioteca
+      const fileName = "modelo-investimentos.xlsx";
+      XLSX.writeFile(wb, fileName);
+      
       toast({
         title: "Download iniciado",
         description: "Modelo de investimentos baixado com sucesso.",
       });
     } catch (error) {
-      console.error("Erro ao baixar modelo:", error);
       toast({
         title: "Erro ao baixar modelo",
-        description: "Não foi possível gerar o arquivo. Tente novamente.",
+        description: error instanceof Error ? error.message : "Não foi possível gerar o arquivo. Tente novamente.",
         variant: "destructive",
       });
     }
@@ -369,11 +376,6 @@ const AdSpends = () => {
         rowsData = Array.isArray(result.data) ? result.data : [];
       }
 
-      console.log("Total de linhas lidas do arquivo:", rowsData.length);
-      if (rowsData.length > 0) {
-        console.log("Chaves da primeira linha:", Object.keys(rowsData[0]));
-        console.log("Primeiras 3 linhas raw:", rowsData.slice(0, 3));
-      }
 
       // Detectar nomes das colunas automaticamente (case-insensitive)
       const findColumn = (row: any, patterns: string[]): any => {
@@ -418,24 +420,11 @@ const AdSpends = () => {
 
           if (!amt || !dt) {
             invalidCount++;
-            if (invalidCount <= 5) {
-              console.warn(`Linha ${idx + 1} inválida - amt: ${amt}, dt: ${dt}`, {
-                rowKeys: Object.keys(row),
-                rawDate,
-                rawAmount,
-                rowSample: row,
-              });
-            }
             return null;
           }
           return { amount: amt, date: dt, sub_id: sid || "" };
         })
         .filter(Boolean) as { amount: number; date: string; sub_id: string }[];
-
-      console.log(`Linhas inválidas: ${invalidCount} de ${rowsData.length}`);
-
-      console.log(`Total de linhas processadas: ${rowsData.length}, payloads válidos: ${payloads.length}`);
-      console.log("Payloads:", payloads);
 
       if (!payloads.length) {
         toast({ title: "Planilha vazia ou inválida", variant: "destructive" });
@@ -448,9 +437,7 @@ const AdSpends = () => {
           payloads.map((p) => ({ ...p, sub_id: p.sub_id || "" }))
         );
         success = result?.length || payloads.length;
-        console.log("Bulk create result:", result);
       } catch (err: any) {
-        console.error("Erro no bulk create:", err);
         // fallback: tentar individual sem forçar refresh a cada item
         for (const payload of payloads) {
           try {
@@ -461,7 +448,7 @@ const AdSpends = () => {
             });
             success += 1;
           } catch (e) {
-            console.error("Erro ao criar item individual:", e, payload);
+            // Erro silencioso ao criar item individual
           }
         }
       }
@@ -588,43 +575,86 @@ const AdSpends = () => {
             <p className="text-sm text-muted-foreground mb-1">Opção 2</p>
             <h3 className="text-lg font-semibold text-foreground mb-3">Importar planilha</h3>
             <div 
-              className="border border-dashed border-border rounded-xl p-4 text-center bg-secondary/30 cursor-pointer hover:bg-secondary/50 transition-colors"
-              onClick={() => {
-                const input = document.getElementById('adspends-file-input') as HTMLInputElement;
-                if (input && !blocking) input.click();
+              className="border border-dashed border-border rounded-xl p-6 text-center bg-secondary/30 transition-colors min-h-[200px] flex flex-col items-center justify-center"
+              onDragEnter={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (!blocking) {
+                  e.currentTarget.classList.add('border-primary', 'bg-primary/5');
+                }
+              }}
+              onDragLeave={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                e.currentTarget.classList.remove('border-primary', 'bg-primary/5');
+              }}
+              onDragOver={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+              }}
+              onDrop={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                e.currentTarget.classList.remove('border-primary', 'bg-primary/5');
+                if (!blocking && e.dataTransfer.files && e.dataTransfer.files[0]) {
+                  const file = e.dataTransfer.files[0];
+                  const ext = file.name.toLowerCase();
+                  if (ext.endsWith('.csv') || ext.endsWith('.xlsx') || ext.endsWith('.xls')) {
+                    handleImport(file);
+                  } else {
+                    toast({
+                      title: "Formato inválido",
+                      description: "Por favor, use arquivos .csv, .xlsx ou .xls",
+                      variant: "destructive",
+                    });
+                  }
+                }
               }}
             >
-              <UploadCloud className="w-10 h-10 mx-auto text-muted-foreground mb-3" />
-              <p className="text-sm text-muted-foreground mb-4">
+              <UploadCloud className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+              <p className="text-sm font-medium text-foreground mb-2">
+                Arraste e solte sua planilha aqui
+              </p>
+              <p className="text-xs text-muted-foreground mb-4 max-w-xs">
                 Use o modelo para garantir as colunas corretas: <strong>Data</strong>, <strong>SubId</strong>,{" "}
                 <strong>ValorGasto</strong> (R$). Suporta Excel (.xlsx/.xls) ou CSV.
               </p>
+              
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  if (!blocking) {
+                    fileInputRef.current?.click();
+                  }
+                }}
+                disabled={blocking}
+                className="mt-2 mb-4"
+              >
+                <UploadCloud className="w-4 h-4 mr-2" />
+                Selecionar arquivo
+              </Button>
+              
               <input
+                ref={fileInputRef}
                 id="adspends-file-input"
                 type="file"
                 accept=".csv,.xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
                 onChange={(e) => {
                   if (e.target.files && e.target.files[0] && !blocking) {
                     handleImport(e.target.files[0]);
+                    // Reset input para permitir selecionar o mesmo arquivo novamente
+                    e.target.value = '';
                   }
                 }}
                 disabled={blocking}
-                className="hidden"
+                style={{ display: 'none' }}
+                aria-label="Selecionar arquivo de investimentos"
               />
-              <Button
-                variant="outline"
-                disabled={blocking}
-                className="mt-2"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  const input = document.getElementById('adspends-file-input') as HTMLInputElement;
-                  if (input) input.click();
-                }}
-              >
-                <UploadCloud className="w-4 h-4 mr-2" />
-                Selecionar arquivo
-              </Button>
-              <p className="text-xs text-muted-foreground mt-2">
+              <p className="text-xs text-muted-foreground">
                 Datas em yyyy-mm-dd ou dd/mm/aaaa. Valores com vírgula ou ponto.
               </p>
             </div>

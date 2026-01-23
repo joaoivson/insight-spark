@@ -50,7 +50,7 @@ const DashboardHeader = ({ title, subtitle, action }: DashboardHeaderProps) => {
   };
 
   return (
-    <header className="bg-card border-b border-border px-4 md:px-6 py-3 flex flex-col md:flex-row md:items-center md:justify-between gap-3 flex-shrink-0">
+    <header className="bg-card border-b border-border px-4 md:px-6 py-3 flex flex-col md:flex-row md:items-center md:justify-between gap-3 flex-shrink-0" role="banner">
       <div>
         <h1 className="font-display font-bold text-xl text-foreground">{title}</h1>
         {subtitle && <p className="text-sm text-muted-foreground">{subtitle}</p>}
@@ -64,25 +64,41 @@ const DashboardHeader = ({ title, subtitle, action }: DashboardHeaderProps) => {
           </>
         )}
         
-        <Button variant="outline" size="sm" onClick={handleRefresh} disabled={refreshing}>
-          <RefreshCw className={`w-4 h-4 mr-2 ${refreshing ? "animate-spin" : ""}`} />
-          {refreshing ? "Atualizando..." : "Atualizar Dados"}
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={handleRefresh} 
+          loading={refreshing}
+          loadingText="Atualizando..."
+          aria-label="Atualizar dados do dashboard"
+        >
+          Atualizar Dados
         </Button>
 
         <Button variant="ghost" size="icon" onClick={toggleTheme} aria-label="Alternar tema">
           {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
         </Button>
 
-        <Button variant="ghost" size="icon" className="relative">
-          <Bell className="w-5 h-5" />
-          <span className="absolute top-1 right-1 w-2 h-2 bg-accent rounded-full" />
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          className="relative"
+          aria-label="Notificações"
+          aria-describedby="notification-badge"
+        >
+          <Bell className="w-5 h-5" aria-hidden="true" />
+          <span 
+            id="notification-badge"
+            className="absolute top-1 right-1 w-2 h-2 bg-accent rounded-full" 
+            aria-label="Você tem notificações"
+          />
         </Button>
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon">
+            <Button variant="ghost" size="icon" aria-label="Menu do usuário">
               <div className="w-8 h-8 rounded-full bg-accent/20 flex items-center justify-center">
-                <User className="w-4 h-4 text-accent" />
+                <User className="w-4 h-4 text-accent" aria-hidden="true" />
               </div>
             </Button>
           </DropdownMenuTrigger>

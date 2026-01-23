@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
   DollarSign,
@@ -255,6 +255,11 @@ const Demo = () => {
   const [subIdFilter, setSubIdFilter] = useState<string>("");
   const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({});
   const [drillDown, setDrillDown] = useState<DrillDownFilter>(null);
+
+  // Scroll to top when component mounts
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, []);
 
   const rangeLabel = useMemo(() => {
     if (dateRange.from || dateRange.to) {
