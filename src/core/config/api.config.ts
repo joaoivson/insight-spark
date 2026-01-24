@@ -7,46 +7,64 @@ import { APP_CONFIG } from '@/core/config/app.config';
  */
 
 /**
+ * URLs da API por ambiente (runtime).
+ * Garante que HML e produção usem a API correta mesmo se VITE_API_URL estiver incorreto no build.
+ */
+const API_BY_HOST: Record<string, string> = {
+  'marketdash.com.br': 'https://api.marketdash.com.br',
+  'www.marketdash.com.br': 'https://api.marketdash.com.br',
+  'hml.marketdash.com.br': 'https://api.hml.marketdash.com.br',
+  'marketdash.hml.com.br': 'https://api.marketdash.hml.com.br',
+};
+
+/**
  * Função para obter a URL base da API
- * 
+ *
  * Prioridade:
- * 1. Variável de ambiente VITE_API_URL
- * 2. Fallback para localhost em desenvolvimento
- * 
- * Em produção/homologação, VITE_API_URL deve sempre usar HTTPS.
- * Para emergências, pode-se usar FORCE_HTTP_FALLBACK=true (não recomendado).
+ * 1. Runtime: hostname conhecido (marketdash.com.br, hml.marketdash.com.br) → API correspondente
+ * 2. Variável de ambiente VITE_API_URL (build-time)
+ * 3. Fallback para localhost em desenvolvimento
+ *
+ * Para emergências (SSL quebrado): FORCE_HTTP_FALLBACK=true usa API em HTTP.
  */
 const getBaseUrl = (): string => {
   const envUrl = import.meta.env.VITE_API_URL;
   const forceHttp = import.meta.env.VITE_FORCE_HTTP_FALLBACK === 'true';
-  
+
+  // Runtime: detectar hostname e usar API do ambiente (corrige conexão HML e produção)
+  if (typeof window !== 'undefined') {
+    const host = window.location.hostname;
+    const apiByHost = API_BY_HOST[host];
+    if (apiByHost) {
+      if (forceHttp && apiByHost.startsWith('https://')) {
+        return apiByHost.replace('https://', 'http://');
+      }
+      return apiByHost;
+    }
+  }
+
   // Se não houver URL configurada, usar localhost (desenvolvimento)
   if (!envUrl) {
     return 'http://localhost:8000';
   }
-  
+
   // Mecanismo de rollback de emergência (apenas se explicitamente habilitado)
-  // ATENÇÃO: Use apenas em emergências críticas. Deve ser removido assim que SSL for corrigido.
   if (forceHttp && envUrl.startsWith('https://')) {
-    console.warn(
-      '⚠️ FORCE_HTTP_FALLBACK está ativo! Isso é temporário e deve ser removido assim que SSL for corrigido.'
-    );
     return envUrl.replace('https://', 'http://');
   }
-  
+
   // Validar que URLs de produção/homologação usam HTTPS
   if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
     const isProduction = window.location.hostname.includes('marketdash.com.br');
     const isStaging = window.location.hostname.includes('hml') || window.location.hostname.includes('staging');
-    
     if ((isProduction || isStaging) && envUrl.startsWith('http://')) {
       console.error(
         '❌ Erro: URL da API deve usar HTTPS em produção/homologação. ' +
-        'Configure VITE_API_URL com https:// no ambiente de build.'
+          'Configure VITE_API_URL com https:// no ambiente de build.'
       );
     }
   }
-  
+
   return envUrl;
 };
 
