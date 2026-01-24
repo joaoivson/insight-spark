@@ -48,6 +48,16 @@ Cada feature é auto-contida com seus próprios:
 - **shared/**: Código reutilizável entre features
 - **core/**: Configurações fundamentais
 
+### 3. Stores e Services
+- **services/**: chamadas de API centralizadas por dominio
+- **stores/**: Zustand stores por dominio (dataset, ad spends)
+- Componentes nao chamam API diretamente; usam stores
+
+### 4. Cache Local
+- Zustand persiste dados em `localStorage` por usuario
+- Chaves de cache: `dataset-cache:{userId}` e `adspends-cache:{userId}`
+- Em erro de rede, o cache atual e preservado
+
 ### 3. Shared Resources
 Componentes, hooks, utils e tipos compartilhados ficam em `shared/` para evitar duplicação.
 
@@ -73,6 +83,11 @@ Localizado em `core/config/api.config.ts`:
 - Base URL da API
 - Endpoints
 - Timeouts
+
+### Services e Stores
+Localizados em:
+- `services/` (ex: `datasets.service.ts`, `adspends.service.ts`)
+- `stores/` (ex: `datasetStore.ts`, `adSpendsStore.ts`)
 
 ### App Configuration
 Localizado em `core/config/app.config.ts`:

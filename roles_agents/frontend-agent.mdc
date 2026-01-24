@@ -1,0 +1,495 @@
+---
+applyIntelligently: true
+---
+
+# Frontend Agent - MarketDash
+
+## Overview
+
+Agente especializado para desenvolvimento do frontend MarketDash. O frontend é construído com React 18 + TypeScript, utiliza Vite como build tool, Tailwind CSS para estilização, e Shadcn/ui para componentes.
+
+## Arquitetura
+
+### Estrutura de Pastas
+
+```
+marketDash_frontend/
+├── src/
+│   ├── app/                    # Configuração da aplicação
+│   │   ├── providers/         # Providers globais (QueryClient, Theme)
+│   │   │   └── app-providers.tsx
+│   │   └── routes/            # Configuração de rotas
+│   │       └── app-routes.tsx
+│   ├── features/               # Features organizadas por domínio
+│   │   ├── auth/             # Módulo de autenticação
+│   │   │   ├── pages/        # Login, Signup
+│   │   │   ├── services/     # login.service.ts, signup.service.ts
+│   │   │   ├── types/        # Tipos específicos
+│   │   │   └── styles/       # Estilos do módulo
+│   │   ├── dashboard/        # Módulo do dashboard
+│   │   │   ├── pages/        # Dashboard, UploadCSV, Reports, etc
+│   │   │   └── styles/       # Estilos do dashboard
+│   │   └── landing/          # Landing page
+│   │       ├── pages/        # Index, Demo
+│   │       └── styles/       # Estilos da landing
+│   ├── shared/                # Código compartilhado
+│   │   ├── components/       # Componentes UI reutilizáveis
+│   │   │   ├── dashboard/   # Componentes específicos do dashboard
+│   │   │   ├── landing/     # Componentes específicos da landing
+│   │   │   └── ui/          # Componentes Shadcn/ui
+│   │   ├── hooks/           # Hooks customizados
+│   │   │   ├── use-mobile.tsx
+│   │   │   └── useTheme.ts
+│   │   ├── lib/             # Utilitários
+│   │   │   ├── date.ts      # Utilitários de data
+│   │   │   ├── kpi.ts       # Cálculos de KPI
+│   │   │   ├── storage.ts   # Storage utilities
+│   │   │   └── utils.ts     # Utilitários gerais
+│   │   ├── constants/       # Constantes
+│   │   ├── types/           # Tipos compartilhados
+│   │   ├── pages/           # Páginas compartilhadas (404, etc)
+│   │   └── styles/          # Estilos SCSS compartilhados
+│   │       ├── _variables.scss
+│   │       ├── _mixins.scss
+│   │       └── index.scss
+│   ├── core/                  # Configurações core
+│   │   └── config/           # Configurações
+│   │       ├── api.config.ts # Configuração da API
+│   │       └── app.config.ts # Configuração da aplicação
+│   ├── services/              # Serviços de API
+│   │   ├── datasets.service.ts
+│   │   └── adspends.service.ts
+│   ├── stores/                # Estado global (Zustand)
+│   │   ├── datasetStore.ts
+│   │   └── adSpendsStore.ts
+│   ├── hooks/                 # Hooks globais
+│   │   └── use-toast.ts
+│   ├── utils/                 # Utilitários
+│   │   └── storage.ts
+│   ├── App.tsx                # Componente raiz
+│   ├── main.tsx               # Entry point
+│   └── ARCHITECTURE.md        # Documentação da arquitetura
+```
+
+### Princípios da Arquitetura
+
+1. **Feature-Based Organization**: Cada feature é auto-contida com seus próprios:
+   - Páginas
+   - Componentes específicos
+   - Serviços/API
+   - Tipos
+   - Estilos
+
+2. **Separação de Responsabilidades**:
+   - `app/`: Configuração e setup da aplicação
+   - `features/`: Lógica de negócio por domínio
+   - `shared/`: Código reutilizável entre features
+   - `core/`: Configurações fundamentais
+
+3. **Shared Resources**: Componentes, hooks, utils e tipos compartilhados ficam em `shared/` para evitar duplicação
+
+## Tech Stack
+
+- **React 18** - Biblioteca UI
+- **TypeScript** - Tipagem estática
+- **Vite** - Build tool rápido
+- **React Router** - Roteamento
+- **React Query** - Data fetching e cache
+- **Zustand** - Estado global leve
+- **Tailwind CSS** - Estilização utility-first
+- **Shadcn/ui** - Componentes UI acessíveis
+- **Recharts** - Gráficos
+- **SASS** - Pré-processador CSS
+- **Framer Motion** - Animações
+
+## Features
+
+### 1. Auth Feature (`src/features/auth/`)
+
+**Páginas:**
+- `Login.tsx` - Página de login
+- `Signup.tsx` - Página de registro
+
+**Serviços:**
+- `login.service.ts` - Serviço de login
+- `signup.service.ts` - Serviço de registro
+
+**Padrão de Serviço:**
+
+```typescript
+// features/auth/services/login.service.ts
+import { getApiUrl } from '@/core/config/api.config';
+import type { LoginData, LoginResponse } from '../types';
+
+export const loginService = async (data: LoginData): Promise<LoginResponse> => {
+  const formData = new FormData();
+  formData.append('email', data.email);
+  formData.append('password', data.senha);
+
+  const response = await fetch(getApiUrl('/api/v1/auth/login'), {
+    method: 'POST',
+    body: formData,
+  });
+
+  const result = await response.json();
+
+  if (!response.ok) {
+    throw new Error(result.detail || 'Erro ao fazer login');
+  }
+
+  return {
+    success: true,
+    token: result.access_token,
+    token_type: result.token_type,
+    user: result.user,
+  };
+};
+```
+
+### 2. Dashboard Feature (`src/features/dashboard/`)
+
+**Páginas:**
+- `Dashboard.tsx` - Dashboard principal com KPIs e gráficos
+- `UploadCSV.tsx` - Upload e processamento de CSV
+- `Reports.tsx` - Relatórios detalhados
+- `AdSpends.tsx` - Gerenciamento de gastos com anúncios
+- `Modules.tsx` - Módulos disponíveis
+- `Settings.tsx` - Configurações do usuário
+
+**Componentes Específicos:**
+- `DashboardHeader.tsx` - Header do dashboard
+- `KPICards.tsx` - Cards de KPI
+- `DashboardCharts.tsx` - Gráficos
+- `DashboardFilters.tsx` - Filtros
+- `DataTable.tsx` - Tabela de dados
+- `ChannelPerformance.tsx` - Performance por canal
+
+### 3. Landing Feature (`src/features/landing/`)
+
+**Páginas:**
+- `Index.tsx` - Landing page principal
+- `Demo.tsx` - Página de demonstração
+
+**Componentes:**
+- `HeroSection.tsx` - Seção hero
+- `FeaturesSection.tsx` - Seção de features
+- `PricingSection.tsx` - Seção de preços
+- `SocialProofSection.tsx` - Prova social
+- `Footer.tsx` - Rodapé
+
+## Componentes Compartilhados
+
+### Shadcn/ui Components (`src/components/ui/`)
+
+Componentes baseados em Radix UI, customizáveis com Tailwind:
+
+- Button, Input, Card, Dialog, Dropdown, Select, Tabs, Toast, etc
+- Todos os componentes são customizáveis via Tailwind
+- Acessibilidade built-in
+
+### Dashboard Components (`src/components/dashboard/`)
+
+Componentes específicos do dashboard reutilizáveis:
+
+- `KPICards` - Exibe KPIs principais
+- `DashboardCharts` - Gráficos com Recharts
+- `DataTable` - Tabela de dados com paginação
+- `DashboardFilters` - Filtros de data e produto
+
+## Estado Global (Zustand)
+
+### Dataset Store (`src/stores/datasetStore.ts`)
+
+Gerencia estado dos datasets:
+
+```typescript
+type DatasetState = {
+  rows: DatasetRow[];
+  loading: boolean;
+  error: string | null;
+  hydrated: boolean;
+  lastUpdated: number | null;
+  fetchRows: (opts?: FetchOptions) => Promise<DatasetRow[]>;
+  invalidate: () => void;
+  persist: (rows: DatasetRow[]) => void;
+};
+
+export const useDatasetStore = create<DatasetState>((set, get) => ({
+  // Estado inicial
+  rows: [],
+  loading: false,
+  error: null,
+  hydrated: false,
+  lastUpdated: null,
+
+  // Métodos
+  fetchRows: async (opts) => {
+    // Lógica de fetch com cache
+  },
+  
+  invalidate: () => {
+    // Limpa cache e estado
+  },
+  
+  persist: (rows) => {
+    // Salva no estado e localStorage
+  },
+}));
+```
+
+**Características:**
+- Cache local em `localStorage`
+- Hydration automático do cache
+- Prevenção de chamadas paralelas
+- Estado de loading e error
+
+### Ad Spends Store (`src/stores/adSpendsStore.ts`)
+
+Gerencia estado de gastos com anúncios.
+
+## Serviços de API
+
+### Datasets Service (`src/services/datasets.service.ts`)
+
+```typescript
+export type DatasetQuery = {
+  userId?: string | number | null;
+  startDate?: string;
+  endDate?: string;
+  includeRawData?: boolean;
+  limit?: number;
+  offset?: number;
+};
+
+export const fetchDatasetRows = async (query: DatasetQuery = {}): Promise<DatasetRow[]> => {
+  const params = new URLSearchParams();
+  // Construir query params...
+  
+  const url = getApiUrl(`/api/v1/datasets/all/rows?${params.toString()}`);
+  const res = await fetch(url);
+  
+  if (!res.ok) {
+    throw new Error('Falha ao carregar dados');
+  }
+  
+  return await res.json();
+};
+```
+
+### Ad Spends Service (`src/services/adspends.service.ts`)
+
+Serviços para gerenciar gastos com anúncios.
+
+## Configurações
+
+### API Config (`src/core/config/api.config.ts`)
+
+```typescript
+export const API_CONFIG = {
+  BASE_URL: import.meta.env.VITE_API_URL || 'http://localhost:8000',
+  ENDPOINTS: {
+    AUTH: {
+      SIGNUP: '/api/v1/auth/register',
+      LOGIN: '/api/v1/auth/login',
+    },
+  },
+  TIMEOUT: 30000, // 30 segundos
+} as const;
+
+export const getApiUrl = (endpoint: string): string => {
+  return `${API_CONFIG.BASE_URL}${endpoint}`;
+};
+```
+
+### App Config (`src/core/config/app.config.ts`)
+
+```typescript
+export const APP_CONFIG = {
+  NAME: 'MarketDash',
+  VERSION: '1.0.0',
+  ROUTES: {
+    HOME: '/',
+    LOGIN: '/login',
+    DASHBOARD: '/dashboard',
+    DASHBOARD_UPLOAD: '/dashboard/upload',
+    // ...
+  },
+  STORAGE_KEYS: {
+    USER: 'user',
+    TOKEN: 'token',
+    THEME: 'theme',
+  },
+} as const;
+```
+
+## Rotas (`src/app/routes/app-routes.tsx`)
+
+### Rotas Públicas
+- `/` - Landing page
+- `/demo` - Demo
+- `/login` - Login
+
+### Rotas Protegidas
+- `/dashboard` - Dashboard principal
+- `/dashboard/upload` - Upload CSV
+- `/dashboard/reports` - Relatórios
+- `/dashboard/investimentos` - Gastos com anúncios
+- `/dashboard/modules` - Módulos
+- `/dashboard/settings` - Configurações
+
+### Protected Route
+
+```typescript
+const ProtectedRoute = ({ element }: { element: JSX.Element }) => {
+  const token = tokenStorage.get();
+  if (!token) {
+    return <Navigate to="/login" replace />;
+  }
+  return element;
+};
+```
+
+## Padrões de Código
+
+### Nomenclatura
+
+- **Componentes**: `PascalCase.tsx` (ex: `DashboardHeader.tsx`)
+- **Hooks**: `camelCase.tsx` com prefixo `use` (ex: `useIsMobile.tsx`)
+- **Services**: `camelCase.service.ts` (ex: `login.service.ts`)
+- **Types/Interfaces**: `PascalCase` (ex: `User`, `SignupData`)
+- **Constantes**: `UPPER_SNAKE_CASE` (ex: `API_CONFIG`)
+
+### TypeScript
+
+- Use TypeScript strict mode
+- Sempre tipar props de componentes
+- Usar interfaces para tipos complexos
+- Tipar retornos de funções assíncronas
+
+```typescript
+// Exemplo de componente tipado
+interface DashboardHeaderProps {
+  title: string;
+  onFilterChange?: (filters: FilterType) => void;
+}
+
+export const DashboardHeader: React.FC<DashboardHeaderProps> = ({ 
+  title, 
+  onFilterChange 
+}) => {
+  // Implementação...
+};
+```
+
+### Hooks Customizados
+
+```typescript
+// shared/hooks/use-mobile.tsx
+import { useState, useEffect } from 'react';
+
+export const useIsMobile = () => {
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  return isMobile;
+};
+```
+
+### Imports
+
+- Use path aliases (`@/`) para imports absolutos
+- Organize imports: externos → internos → relativos
+- Use barrel exports (`index.ts`) quando apropriado
+
+```typescript
+// Exemplo de imports organizados
+import { useState, useEffect } from 'react'; // Externos
+import { getApiUrl } from '@/core/config/api.config'; // Internos (aliases)
+import { Button } from '@/components/ui/button'; // Componentes
+import './styles.scss'; // Relativos
+```
+
+## Storage
+
+### Storage Utilities (`src/shared/lib/storage.ts`)
+
+```typescript
+export const userStorage = {
+  get: () => safeGetJSON<User | null>(APP_CONFIG.STORAGE_KEYS.USER),
+  set: (user: User | null) => safeSetJSON(APP_CONFIG.STORAGE_KEYS.USER, user),
+  remove: () => safeRemove(APP_CONFIG.STORAGE_KEYS.USER),
+};
+
+export const tokenStorage = {
+  get: () => localStorage.getItem(APP_CONFIG.STORAGE_KEYS.TOKEN),
+  set: (token: string) => localStorage.setItem(APP_CONFIG.STORAGE_KEYS.TOKEN, token),
+  remove: () => localStorage.removeItem(APP_CONFIG.STORAGE_KEYS.TOKEN),
+};
+```
+
+## Estilização
+
+### Tailwind CSS
+
+- Utility-first CSS
+- Configuração em `tailwind.config.ts`
+- Design system baseado em tokens
+- Dark mode suportado
+
+### SASS
+
+- Variáveis compartilhadas em `shared/styles/_variables.scss`
+- Mixins em `shared/styles/_mixins.scss`
+- Estilos específicos por feature em `features/[feature]/styles/`
+
+## React Query
+
+Para data fetching assíncrono (quando usado):
+
+```typescript
+import { useQuery } from '@tanstack/react-query';
+
+const { data, isLoading, error } = useQuery({
+  queryKey: ['datasets', userId],
+  queryFn: () => fetchDatasetRows({ userId }),
+});
+```
+
+## Boas Práticas
+
+1. **Componentes funcionais** com hooks
+2. **Separe lógica de apresentação**
+3. **Use TypeScript strict mode**
+4. **Zustand apenas para estado global necessário**
+5. **Cache em localStorage** para melhor UX
+6. **Loading e error states** sempre
+7. **Acessibilidade** (aria labels, semantic HTML)
+8. **Responsive design** com Tailwind
+
+## Variáveis de Ambiente
+
+Crie `.env` na raiz:
+
+```env
+VITE_API_URL=http://localhost:8000
+```
+
+## Referências
+
+- React: https://react.dev/
+- TypeScript: https://www.typescriptlang.org/
+- Vite: https://vitejs.dev/
+- Tailwind CSS: https://tailwindcss.com/
+- Shadcn/ui: https://ui.shadcn.com/
+- Zustand: https://zustand-demo.pmnd.rs/
+- React Router: https://reactrouter.com/
+- React Query: https://tanstack.com/query
