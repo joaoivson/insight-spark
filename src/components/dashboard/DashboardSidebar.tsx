@@ -8,7 +8,8 @@ import {
   LayoutDashboard,
   ChevronLeft,
   ChevronRight,
-  Wallet
+  Wallet,
+  X
 } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -66,21 +67,28 @@ const DashboardSidebar = ({ mobileMenuOpen = false, onMobileMenuClose }: Dashboa
     <>
       {/* Header */}
       <div className={cn(
-        "h-16 flex items-center border-b border-sidebar-border px-4",
+        "h-16 flex items-center border-b border-sidebar-border px-4 flex-shrink-0",
         collapsed && !isMobile ? "justify-center" : "justify-between"
       )}>
         {(!collapsed || isMobile) && (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-1 min-w-0">
             <img
               src={logoIcon}
               alt="Logo MarketDash"
-              className="w-9 h-9 rounded-lg object-contain p-1.5 brand-logo-mark"
+              className="w-9 h-9 rounded-lg object-contain p-1.5 brand-logo-mark flex-shrink-0"
             />
             {!isMobile && (
               <img
                 src={logoName}
                 alt="MarketDash"
-                className="h-7 w-auto brand-logo-name"
+                className="h-7 w-auto brand-logo-name flex-shrink-0"
+              />
+            )}
+            {isMobile && (
+              <img
+                src={logoName}
+                alt="MarketDash"
+                className="h-6 w-auto brand-logo-name flex-shrink-0"
               />
             )}
           </div>
@@ -89,14 +97,25 @@ const DashboardSidebar = ({ mobileMenuOpen = false, onMobileMenuClose }: Dashboa
           <img
             src={logoIcon}
             alt="Logo MarketDash"
-            className="w-9 h-9 rounded-lg object-contain p-1.5 brand-logo-mark"
+            className="w-9 h-9 rounded-lg object-contain p-1.5 brand-logo-mark flex-shrink-0"
           />
+        )}
+        {isMobile && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => onMobileMenuClose?.()}
+            className="flex-shrink-0"
+            aria-label="Fechar menu"
+          >
+            <X className="w-5 h-5" />
+          </Button>
         )}
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 py-4 md:py-6 px-3" aria-label="Navegação principal">
-        <ul className="flex md:flex-col gap-2 md:gap-1 overflow-x-auto md:overflow-visible" role="list">
+      <nav className="flex-1 py-4 md:py-6 px-3 overflow-y-auto" aria-label="Navegação principal">
+        <ul className="flex flex-col gap-1" role="list">
           {menuItems.map((item) => {
             const isActive = location.pathname === item.path && !isDemo;
             const classes = cn(
@@ -104,10 +123,10 @@ const DashboardSidebar = ({ mobileMenuOpen = false, onMobileMenuClose }: Dashboa
               "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent",
               isActive && "bg-sidebar-primary text-sidebar-primary-foreground hover:bg-sidebar-primary",
               collapsed && !isMobile && "justify-center px-0",
-              "min-w-max"
+              "w-full"
             );
             return (
-              <li key={item.path}>
+              <li key={item.path} className="w-full">
                 {isDemo ? (
                   <button
                     type="button"
@@ -117,7 +136,7 @@ const DashboardSidebar = ({ mobileMenuOpen = false, onMobileMenuClose }: Dashboa
                     aria-current={isActive ? "page" : undefined}
                   >
                     <item.icon className="w-5 h-5 flex-shrink-0" aria-hidden="true" />
-                    {(!collapsed || isMobile) && <span className="font-medium">{item.label}</span>}
+                    {(!collapsed || isMobile) && <span className="font-medium truncate">{item.label}</span>}
                   </button>
                 ) : (
                   <NavLink 
@@ -128,7 +147,7 @@ const DashboardSidebar = ({ mobileMenuOpen = false, onMobileMenuClose }: Dashboa
                     onClick={handleNavClick}
                   >
                     <item.icon className="w-5 h-5 flex-shrink-0" aria-hidden="true" />
-                    {(!collapsed || isMobile) && <span className="font-medium">{item.label}</span>}
+                    {(!collapsed || isMobile) && <span className="font-medium truncate">{item.label}</span>}
                   </NavLink>
                 )}
               </li>
@@ -139,7 +158,7 @@ const DashboardSidebar = ({ mobileMenuOpen = false, onMobileMenuClose }: Dashboa
 
       {/* Collapse Toggle - Only on desktop */}
       {!isMobile && (
-        <div className="px-3 pb-2">
+        <div className="px-3 pb-2 flex-shrink-0">
           <Button
             variant="ghost"
             size="sm"
@@ -164,12 +183,12 @@ const DashboardSidebar = ({ mobileMenuOpen = false, onMobileMenuClose }: Dashboa
       )}
 
       {/* Logout */}
-      <div className="border-t border-sidebar-border p-3">
+      <div className="border-t border-sidebar-border p-3 flex-shrink-0">
         {isDemo ? (
           <button
             type="button"
             className={cn(
-              "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200",
+              "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 w-full",
               "text-sidebar-foreground/70 hover:text-destructive hover:bg-destructive/10",
               collapsed && !isMobile && "justify-center px-0"
             )}
@@ -201,8 +220,11 @@ const DashboardSidebar = ({ mobileMenuOpen = false, onMobileMenuClose }: Dashboa
   if (isMobile) {
     return (
       <Sheet open={mobileMenuOpen} onOpenChange={(open) => !open && onMobileMenuClose?.()}>
-        <SheetContent side="left" className="w-64 p-0 bg-sidebar border-sidebar-border">
-          <aside className="bg-sidebar flex flex-col h-full">
+        <SheetContent 
+          side="left" 
+          className="w-full sm:w-80 p-0 bg-sidebar border-sidebar-border [&>button]:hidden"
+        >
+          <aside className="bg-sidebar flex flex-col h-full w-full overflow-hidden">
             {sidebarContent}
           </aside>
         </SheetContent>
