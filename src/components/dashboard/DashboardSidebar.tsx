@@ -17,21 +17,35 @@ import { tokenStorage, userStorage } from "@/shared/lib/storage";
 import { APP_CONFIG } from "@/core/config/app.config";
 import logoIcon from "@/assets/logo/logo.png";
 import logoName from "@/assets/logo/logo_name.png";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import { useIsMobile } from "@/shared/hooks/use-mobile";
 
 const menuItems = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
   { icon: Upload, label: "Upload CSV", path: "/dashboard/upload" },
   { icon: Wallet, label: "Investimentos Ads", path: "/dashboard/investimentos" },
   { icon: FileText, label: "Relatórios", path: "/dashboard/reports" },
-  { icon: Puzzle, label: "Módulos", path: "/dashboard/modules" },
+  // { icon: Puzzle, label: "Módulos", path: "/dashboard/modules" }, // Temporarily hidden
   { icon: Settings, label: "Configurações", path: "/dashboard/settings" },
 ];
 
-const DashboardSidebar = () => {
+interface DashboardSidebarProps {
+  mobileMenuOpen?: boolean;
+  onMobileMenuClose?: () => void;
+}
+
+const DashboardSidebar = ({ mobileMenuOpen = false, onMobileMenuClose }: DashboardSidebarProps) => {
   const location = useLocation();
   const navigate = useNavigate();
   const isDemo = location.pathname.startsWith("/demo");
   const [collapsed, setCollapsed] = useState(false);
+  const isMobile = useIsMobile();
 
   const handleLogout = () => {
     // Remover token e dados do usuário
@@ -39,36 +53,39 @@ const DashboardSidebar = () => {
     userStorage.remove();
     // Navegar para a página inicial
     navigate(APP_CONFIG.ROUTES.HOME);
+    onMobileMenuClose?.();
   };
 
-  return (
-    <aside 
-      className={cn(
-        "bg-sidebar flex flex-col transition-all duration-300 border-sidebar-border",
-        "w-full md:h-screen md:border-r border-b md:border-b-0",
-        collapsed ? "md:w-20" : "md:w-64"
-      )}
-    >
+  const handleNavClick = () => {
+    if (isMobile) {
+      onMobileMenuClose?.();
+    }
+  };
+
+  const sidebarContent = (
+    <>
       {/* Header */}
       <div className={cn(
         "h-16 flex items-center border-b border-sidebar-border px-4",
-        collapsed ? "justify-center" : "justify-between"
+        collapsed && !isMobile ? "justify-center" : "justify-between"
       )}>
-        {!collapsed && (
+        {(!collapsed || isMobile) && (
           <div className="flex items-center gap-2">
             <img
               src={logoIcon}
               alt="Logo MarketDash"
               className="w-9 h-9 rounded-lg object-contain p-1.5 brand-logo-mark"
             />
-            <img
-              src={logoName}
-              alt="MarketDash"
-              className="h-7 w-auto brand-logo-name"
-            />
+            {!isMobile && (
+              <img
+                src={logoName}
+                alt="MarketDash"
+                className="h-7 w-auto brand-logo-name"
+              />
+            )}
           </div>
         )}
-        {collapsed && (
+        {collapsed && !isMobile && (
           <img
             src={logoIcon}
             alt="Logo MarketDash"
@@ -86,7 +103,7 @@ const DashboardSidebar = () => {
               "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200",
               "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent",
               isActive && "bg-sidebar-primary text-sidebar-primary-foreground hover:bg-sidebar-primary",
-              collapsed && "justify-center px-0",
+              collapsed && !isMobile && "justify-center px-0",
               "min-w-max"
             );
             return (
@@ -100,7 +117,7 @@ const DashboardSidebar = () => {
                     aria-current={isActive ? "page" : undefined}
                   >
                     <item.icon className="w-5 h-5 flex-shrink-0" aria-hidden="true" />
-                    {!collapsed && <span className="font-medium">{item.label}</span>}
+                    {(!collapsed || isMobile) && <span className="font-medium">{item.label}</span>}
                   </button>
                 ) : (
                   <NavLink 
@@ -108,9 +125,10 @@ const DashboardSidebar = () => {
                     className={classes}
                     aria-label={item.label}
                     aria-current={isActive ? "page" : undefined}
+                    onClick={handleNavClick}
                   >
                     <item.icon className="w-5 h-5 flex-shrink-0" aria-hidden="true" />
-                    {!collapsed && <span className="font-medium">{item.label}</span>}
+                    {(!collapsed || isMobile) && <span className="font-medium">{item.label}</span>}
                   </NavLink>
                 )}
               </li>
@@ -119,29 +137,31 @@ const DashboardSidebar = () => {
         </ul>
       </nav>
 
-      {/* Collapse Toggle */}
-      <div className="px-3 pb-2">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => setCollapsed(!collapsed)}
-          className={cn(
-            "w-full text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent",
-            collapsed && "px-0 justify-center"
-          )}
-          aria-label={collapsed ? "Expandir menu" : "Recolher menu"}
-          aria-expanded={!collapsed}
-        >
-          {collapsed ? (
-            <ChevronRight className="w-5 h-5" />
-          ) : (
-            <>
-              <ChevronLeft className="w-5 h-5" />
-              <span>Recolher</span>
-            </>
-          )}
-        </Button>
-      </div>
+      {/* Collapse Toggle - Only on desktop */}
+      {!isMobile && (
+        <div className="px-3 pb-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setCollapsed(!collapsed)}
+            className={cn(
+              "w-full text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent",
+              collapsed && "px-0 justify-center"
+            )}
+            aria-label={collapsed ? "Expandir menu" : "Recolher menu"}
+            aria-expanded={!collapsed}
+          >
+            {collapsed ? (
+              <ChevronRight className="w-5 h-5" />
+            ) : (
+              <>
+                <ChevronLeft className="w-5 h-5" />
+                <span>Recolher</span>
+              </>
+            )}
+          </Button>
+        </div>
+      )}
 
       {/* Logout */}
       <div className="border-t border-sidebar-border p-3">
@@ -151,12 +171,12 @@ const DashboardSidebar = () => {
             className={cn(
               "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200",
               "text-sidebar-foreground/70 hover:text-destructive hover:bg-destructive/10",
-              collapsed && "justify-center px-0"
+              collapsed && !isMobile && "justify-center px-0"
             )}
             onClick={(e) => e.preventDefault()}
           >
             <LogOut className="w-5 h-5 flex-shrink-0" />
-            {!collapsed && <span className="font-medium">Sair</span>}
+            {(!collapsed || isMobile) && <span className="font-medium">Sair</span>}
           </button>
         ) : (
           <button
@@ -165,15 +185,43 @@ const DashboardSidebar = () => {
             className={cn(
               "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 w-full",
               "text-sidebar-foreground/70 hover:text-destructive hover:bg-destructive/10",
-              collapsed && "justify-center px-0"
+              collapsed && !isMobile && "justify-center px-0"
             )}
             aria-label="Sair da conta"
           >
             <LogOut className="w-5 h-5 flex-shrink-0" aria-hidden="true" />
-            {!collapsed && <span className="font-medium">Sair</span>}
+            {(!collapsed || isMobile) && <span className="font-medium">Sair</span>}
           </button>
         )}
       </div>
+    </>
+  );
+
+  // Mobile: Use Sheet overlay
+  if (isMobile) {
+    return (
+      <Sheet open={mobileMenuOpen} onOpenChange={(open) => !open && onMobileMenuClose?.()}>
+        <SheetContent side="left" className="w-64 p-0 bg-sidebar border-sidebar-border">
+          <aside className="bg-sidebar flex flex-col h-full">
+            {sidebarContent}
+          </aside>
+        </SheetContent>
+      </Sheet>
+    );
+  }
+
+  // Desktop: Regular sidebar
+  return (
+    <aside 
+      className={cn(
+        "bg-sidebar flex flex-col transition-all duration-300 border-sidebar-border",
+        "hidden md:flex md:sticky md:top-0 md:h-screen md:border-r",
+        collapsed ? "md:w-20" : "md:w-64"
+      )}
+      role="complementary"
+      aria-label="Menu lateral"
+    >
+      {sidebarContent}
     </aside>
   );
 };

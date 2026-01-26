@@ -189,13 +189,6 @@ const Dashboard = () => {
     <DashboardLayout 
       title="Dashboard" 
       subtitle="Visão geral dos seus dados"
-      action={
-        !loading && (
-          <Button asChild>
-            <Link to="/dashboard/investimentos">Gerenciar Investimentos</Link>
-          </Button>
-        )
-      }
     >
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -209,9 +202,6 @@ const Dashboard = () => {
             <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground mb-3">
               <span>{rangeLabel}</span>
             </div>
-
-            {/* Insights automáticos */}
-            <InsightsPanel rows={filteredRows} />
 
             <DashboardFilters
               dateRange={dateRange}
@@ -232,47 +222,18 @@ const Dashboard = () => {
               }}
               hasActive={!!dateRange.from || !!dateRange.to || !!statusFilter || !!categoryFilter || !!subIdFilter}
               loading={loading}
+              statusFilter={statusFilter}
+              categoryFilter={categoryFilter}
+              subIdFilter={subIdFilter}
+              onStatusFilterChange={setStatusFilter}
+              onCategoryFilterChange={setCategoryFilter}
+              onSubIdFilterChange={setSubIdFilter}
+              statusOptions={statusOptions}
+              categoryOptions={categoryOptions}
+              subIdOptions={subIdOptions}
+              rows={rows}
+              adSpends={adSpends}
             />
-
-            <div 
-              className="bg-card border border-border rounded-xl p-4 mb-4 flex flex-col sm:flex-row flex-wrap gap-3 items-stretch sm:items-center"
-              role="group"
-              aria-label="Filtros adicionais"
-            >
-              <Select value={statusFilter || "all"} onValueChange={(v) => setStatusFilter(v === "all" ? "" : v)}>
-                <SelectTrigger className="w-full sm:w-[200px]" aria-label="Filtrar por status do pedido">
-                  <SelectValue placeholder="Status do Pedido (todos)" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos</SelectItem>
-                  {statusOptions.map((s) => (
-                    <SelectItem key={s} value={s || "unknown"}>{s}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Select value={categoryFilter || "all"} onValueChange={(v) => setCategoryFilter(v === "all" ? "" : v)}>
-                <SelectTrigger className="w-full sm:w-[200px]" aria-label="Filtrar por categoria global">
-                  <SelectValue placeholder="Categoria Global L1 (todas)" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todas</SelectItem>
-                  {categoryOptions.map((c) => (
-                    <SelectItem key={c} value={c || "unknown"}>{c}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Select value={subIdFilter || "all"} onValueChange={(v) => setSubIdFilter(v === "all" ? "" : v)}>
-                <SelectTrigger className="w-full sm:w-[200px]" aria-label="Filtrar por canal ou sub ID">
-                  <SelectValue placeholder="Sub_id1 (todos)" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos</SelectItem>
-                  {subIdOptions.map((s) => (
-                    <SelectItem key={s} value={s || "unknown"}>{s}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
 
             {/* Aviso quando zerado */}
             {(!filteredRows.length || totals.faturamento === 0) && (
@@ -299,6 +260,9 @@ const Dashboard = () => {
               <>
             <DashboardCharts
               rows={filteredRows}
+              adSpends={adSpends}
+              dateRange={dateRange}
+              subIdFilter={subIdFilter}
               onDrillDown={handleDrillDown}
               belowRevenueContent={
                 <div className="mt-2">
@@ -306,6 +270,7 @@ const Dashboard = () => {
                   <ChannelPerformance
                     rows={filteredRows}
                     adSpends={adSpends}
+                    dateRange={dateRange}
                     showSubTable={false}
                     showDayTable
                     showHighlights={false}
@@ -316,7 +281,7 @@ const Dashboard = () => {
 
             {/* Tabela de Sub ID permanece na posição original (após os gráficos principais) */}
             <div className="mt-8">
-              <ChannelPerformance rows={filteredRows} adSpends={adSpends} showDayTable={false} showHighlights />
+              <ChannelPerformance rows={filteredRows} adSpends={adSpends} dateRange={dateRange} showDayTable={false} showHighlights />
             </div>
                 
                 {drillDown && (
@@ -381,120 +346,6 @@ const Dashboard = () => {
 };
 
 export default Dashboard;
-
-// ----------------------
-// Insights Panel
-// ----------------------
-
-interface InsightCard {
-  title: string;
-  description: string;
-  tone: "positive" | "warning" | "info";
-}
-
-const InsightsPanel = ({ rows }: { rows: DatasetRow[] }) => {
-  const insights = useMemo<InsightCard[]>(() => {
-    if (!rows.length) return [];
-
-    const totalRevenue = rows.reduce((s, r) => s + (r.revenue || 0), 0);
-    const totalProfit = rows.reduce((s, r) => s + (r.profit || 0), 0);
-    const margin = totalRevenue ? totalProfit / totalRevenue : 0;
-
-    // Top categoria vs anterior
-    const byCat = new Map<string, { revenue: number; count: number }>();
-    rows.forEach((r) => {
-      const cat = r.category || "Sem categoria";
-      const prev = byCat.get(cat) || { revenue: 0, count: 0 };
-      byCat.set(cat, { revenue: prev.revenue + (r.revenue || 0), count: prev.count + 1 });
-    });
-    const sortedCats = Array.from(byCat.entries()).sort((a, b) => b[1].revenue - a[1].revenue);
-    const topCat = sortedCats[0];
-    const secondCat = sortedCats[1];
-
-    const insightsList: InsightCard[] = [];
-
-    if (topCat) {
-      const diff = secondCat ? topCat[1].revenue - secondCat[1].revenue : topCat[1].revenue;
-      insightsList.push({
-        title: "Categoria líder",
-        description: `${topCat[0]} é a líder em receita. Diferença vs próxima: ${formatCurrency(diff)}.`,
-        tone: "info",
-      });
-    }
-
-    // Comparação por canal (sub_id1)
-    const byChannel = new Map<string, number>();
-    rows.forEach((r) => {
-      const ch = r.sub_id1 || "Outros";
-      byChannel.set(ch, (byChannel.get(ch) || 0) + (r.revenue || 0));
-    });
-    const channelsSorted = Array.from(byChannel.entries()).sort((a, b) => b[1] - a[1]);
-    if (channelsSorted.length >= 2) {
-      const [top, second] = channelsSorted;
-      const lift = second[1] ? (top[1] - second[1]) / second[1] : 1;
-      insightsList.push({
-        title: "Canal mais forte",
-        description: `${top[0]} supera ${second[0]} em receita por ${formatPercent(lift)}.`,
-        tone: "info",
-      });
-    }
-
-    // Margem baixa
-    if (margin < 0.1) {
-      insightsList.push({
-        title: "Alerta de margem",
-        description: `Margem sobre receita em ${formatPercent(margin)}. Revise custos ou precificação.`,
-        tone: "warning",
-      });
-    }
-
-    // Comissões altas
-    const totalCommission = rows.reduce((s, r) => s + (r.commission || 0), 0);
-    if (totalRevenue && totalCommission / totalRevenue > 0.25) {
-      insightsList.push({
-        title: "Comissão elevada",
-        description: `Comissões representam ${formatPercent(totalCommission / totalRevenue)} da receita.`,
-        tone: "warning",
-      });
-    }
-
-    return insightsList;
-  }, [rows]);
-
-  if (!insights.length) return null;
-
-  const iconByTone = {
-    positive: Bell,
-    warning: AlertTriangle,
-    info: Bell,
-  };
-
-  return (
-    <div className="mb-4 grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-      {insights.map((insight, idx) => {
-        const Icon = iconByTone[insight.tone];
-        const toneClasses =
-          insight.tone === "warning"
-            ? "border-warning/40 bg-warning/10 text-warning"
-            : "border-accent/30 bg-accent/5 text-foreground";
-        return (
-          <div
-            key={`${insight.title}-${idx}`}
-            className={`flex items-start gap-3 rounded-xl border p-4 ${toneClasses}`}
-          >
-            <div className="mt-1 rounded-lg bg-background/60 p-2">
-              <Icon className="w-4 h-4" />
-            </div>
-            <div>
-              <p className="font-semibold text-sm">{insight.title}</p>
-              <p className="text-sm text-foreground/80">{insight.description}</p>
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-};
 
 const DashboardSkeleton = () => {
   return (

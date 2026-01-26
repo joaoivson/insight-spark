@@ -45,7 +45,7 @@ export const calcTotals = (
     return acc + (spend.amount || 0);
   }, 0);
   const lucro = comissao - gastoAnuncios;
-  const roas = gastoAnuncios > 0 ? faturamento / gastoAnuncios : 0;
+  const roas = gastoAnuncios > 0 ? comissao / gastoAnuncios : 0;
 
   return { faturamento, comissao, gastoAnuncios, lucro, roas };
 };

@@ -528,6 +528,15 @@ const DataTable = ({ rows }: DataTableProps) => {
           <Button
             variant="outline"
             size="sm"
+            onClick={() => setPage(0)}
+            disabled={page === 0}
+            aria-label="Primeira página"
+          >
+            Primeira
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
             onClick={() => setPage((p) => Math.max(0, p - 1))}
             disabled={page === 0}
             aria-label="Página anterior"
@@ -545,6 +554,15 @@ const DataTable = ({ rows }: DataTableProps) => {
             aria-label="Próxima página"
           >
             Próxima
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setPage(totalPages - 1)}
+            disabled={page >= totalPages - 1}
+            aria-label="Última página"
+          >
+            Última
           </Button>
         </div>
       </div>

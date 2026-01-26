@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState, useRef } from "react";
-import { Link } from "react-router-dom";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,12 +23,25 @@ import {
   Edit3,
   Trash2,
   RefreshCw,
-  ArrowLeft,
   PlusCircle,
+  Eye,
+  X,
+  AlertTriangle,
 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { useDatasetStore } from "@/stores/datasetStore";
 import { useAdSpendsStore } from "@/stores/adSpendsStore";
-import { bulkCreateAdSpends, createAdSpend, type AdSpendPayload } from "@/services/adspends.service";
+import { bulkCreateAdSpends, createAdSpend, deleteAllAdSpends, type AdSpendPayload } from "@/services/adspends.service";
 import { userStorage } from "@/shared/lib/storage";
 import type { AdSpend } from "@/shared/types/adspend";
 
@@ -146,7 +158,7 @@ const normalizeDate = (value: string | Date | number | null | undefined) => {
 const AdSpends = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { rows, fetchRows } = useDatasetStore();
-  const { adSpends, loading: adLoading, fetchAdSpends, create, update, remove } = useAdSpendsStore();
+  const { adSpends, loading: adLoading, fetchAdSpends, create, update, remove, invalidate } = useAdSpendsStore();
   const { toast } = useToast();
 
   const [amount, setAmount] = useState("");
@@ -156,7 +168,10 @@ const AdSpends = () => {
   const [importing, setImporting] = useState(false);
   const [saving, setSaving] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const blocking = saving || importing || refreshing || adLoading;
+  const [previewData, setPreviewData] = useState<{ headers: string[]; rows: any[] } | null>(null);
+  const [previewFile, setPreviewFile] = useState<File | null>(null);
+  const [isDeletingAll, setIsDeletingAll] = useState(false);
+  const blocking = saving || importing || refreshing || adLoading || isDeletingAll;
 
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState(5);
@@ -185,6 +200,27 @@ const AdSpends = () => {
     setRefreshing(true);
     await Promise.all([fetchRows({ force: true }), fetchAdSpends({ force: true })]);
     setRefreshing(false);
+  };
+
+  const handleDeleteAll = async () => {
+    setIsDeletingAll(true);
+    try {
+      await deleteAllAdSpends();
+      invalidate(); // Limpar localStorage
+      await refreshData();
+      toast({
+        title: "Investimentos excluídos",
+        description: "Todos os investimentos foram removidos com sucesso.",
+      });
+    } catch (err) {
+      toast({
+        title: "Erro ao excluir",
+        description: err instanceof Error ? err.message : "Não foi possível excluir os investimentos.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeletingAll(false);
+    }
   };
 
   useEffect(() => {
@@ -363,8 +399,7 @@ const AdSpends = () => {
     return rows;
   };
 
-  const handleImport = async (file: File) => {
-    setImporting(true);
+  const handleFilePreview = async (file: File) => {
     try {
       const ext = file.name.toLowerCase();
       let rowsData: any[] = [];
@@ -373,6 +408,37 @@ const AdSpends = () => {
         rowsData = await parseXlsxFile(file);
       } else {
         const result = await parseCsvFile(file);
+        rowsData = Array.isArray(result.data) ? result.data : [];
+      }
+
+      if (rowsData.length > 0) {
+        const headers = Object.keys(rowsData[0]);
+        const previewRows = rowsData.slice(0, 10);
+        setPreviewData({ headers, rows: previewRows });
+        setPreviewFile(file);
+      }
+    } catch (err) {
+      toast({
+        title: "Erro ao processar arquivo",
+        description: "Não foi possível visualizar a prévia do arquivo.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleImport = async (file?: File) => {
+    const fileToImport = file || previewFile;
+    if (!fileToImport) return;
+    
+    setImporting(true);
+    try {
+      const ext = fileToImport.name.toLowerCase();
+      let rowsData: any[] = [];
+
+      if (ext.endsWith(".xlsx") || ext.endsWith(".xls")) {
+        rowsData = await parseXlsxFile(fileToImport);
+      } else {
+        const result = await parseCsvFile(fileToImport);
         rowsData = Array.isArray(result.data) ? result.data : [];
       }
 
@@ -414,15 +480,19 @@ const AdSpends = () => {
           const rawDate = findColumn(row, ["data", "date"]);
           const dt = normalizeDate(rawDate);
 
-          // Busca flexível por coluna de sub_id
+          // Busca flexível por coluna de sub_id (case-insensitive)
           const rawSubId = findColumn(row, ["subid", "sub_id", "sub id", "canal", "channel"]);
-          const sid = rawSubId || "";
+          const sid = rawSubId ? String(rawSubId).trim() : "";
+          
+          // Normalize sub_id to lowercase for comparison with existing sub_ids
+          const normalizedSubId = sid.toLowerCase();
 
           if (!amt || !dt) {
             invalidCount++;
             return null;
           }
-          return { amount: amt, date: dt, sub_id: sid || "" };
+          // Use normalized sub_id for storage, but keep original for display if needed
+          return { amount: amt, date: dt, sub_id: normalizedSubId || "" };
         })
         .filter(Boolean) as { amount: number; date: string; sub_id: string }[];
 
@@ -459,6 +529,8 @@ const AdSpends = () => {
         variant: success === payloads.length ? "default" : "destructive",
       });
       await refreshData();
+      setPreviewData(null);
+      setPreviewFile(null);
     } catch (err) {
       toast({ title: "Erro ao importar planilha", variant: "destructive" });
     } finally {
@@ -470,13 +542,35 @@ const AdSpends = () => {
     <DashboardLayout
       title="Investimentos em Ads"
       subtitle="Cadastre manualmente ou importe via planilha para alimentar os KPIs e ROAS."
+      subtitleSize="xs"
       action={
-        <Button variant="outline" asChild>
-          <Link to="/dashboard">
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Voltar ao Dashboard
-          </Link>
-        </Button>
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button variant="destructive" size="sm" disabled={blocking}>
+              <Trash2 className="w-4 h-4 mr-2" />
+              Excluir Todos
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
+              <AlertDialogDescription>
+                Esta ação irá excluir permanentemente todos os investimentos (todos os dados da tabela ad_spends vinculado ao user_id). 
+                Esta ação não pode ser desfeita.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleDeleteAll}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                disabled={isDeletingAll}
+              >
+                {isDeletingAll ? "Excluindo..." : "Confirmar Exclusão"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       }
     >
       <div className="grid gap-4">
@@ -600,7 +694,7 @@ const AdSpends = () => {
                   const file = e.dataTransfer.files[0];
                   const ext = file.name.toLowerCase();
                   if (ext.endsWith('.csv') || ext.endsWith('.xlsx') || ext.endsWith('.xls')) {
-                    handleImport(file);
+                    handleFilePreview(file);
                   } else {
                     toast({
                       title: "Formato inválido",
@@ -645,7 +739,7 @@ const AdSpends = () => {
                 accept=".csv,.xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
                 onChange={(e) => {
                   if (e.target.files && e.target.files[0] && !blocking) {
-                    handleImport(e.target.files[0]);
+                    handleFilePreview(e.target.files[0]);
                     // Reset input para permitir selecionar o mesmo arquivo novamente
                     e.target.value = '';
                   }
@@ -658,6 +752,77 @@ const AdSpends = () => {
                 Datas em yyyy-mm-dd ou dd/mm/aaaa. Valores com vírgula ou ponto.
               </p>
             </div>
+            
+            {/* Preview Section */}
+            {previewData && previewFile && (
+              <div className="mt-4 bg-card border border-border rounded-xl overflow-hidden">
+                <div className="p-4 border-b border-border bg-secondary/5 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Eye className="w-4 h-4 text-muted-foreground" />
+                    <span className="font-semibold text-sm">Visualização (10 primeiras linhas)</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground px-2 py-1 bg-background rounded-md border border-border">
+                      {previewData.headers.length} colunas detectadas
+                    </span>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={() => {
+                        setPreviewData(null);
+                        setPreviewFile(null);
+                      }}
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+                <div className="overflow-x-auto max-h-[400px]">
+                  <div className="min-w-full inline-block">
+                    <Table>
+                      <TableHeader className="sticky top-0 bg-card z-10 shadow-sm">
+                        <TableRow>
+                          {previewData.headers.map((h, i) => (
+                            <TableHead key={i} className="whitespace-nowrap font-bold text-xs uppercase tracking-wider bg-card">
+                              {h}
+                            </TableHead>
+                          ))}
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {previewData.rows.map((row, i) => (
+                          <TableRow key={i} className="hover:bg-secondary/30">
+                            {previewData.headers.map((header, j) => (
+                              <TableCell key={j} className="whitespace-nowrap text-sm text-muted-foreground">
+                                {row[header] ?? ""}
+                              </TableCell>
+                            ))}
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+                <div className="p-4 border-t border-border flex justify-end gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setPreviewData(null);
+                      setPreviewFile(null);
+                    }}
+                  >
+                    Cancelar
+                  </Button>
+                  <Button
+                    onClick={() => handleImport()}
+                    disabled={blocking}
+                  >
+                    Confirmar Importação
+                  </Button>
+                </div>
+              </div>
+            )}
           </Card>
         </div>
 
@@ -749,6 +914,14 @@ const AdSpends = () => {
               <Button
                 variant="outline"
                 size="sm"
+                onClick={() => setPage(0)}
+                disabled={currentPage === 0}
+              >
+                Primeira
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={() => setPage((p) => Math.max(0, p - 1))}
                 disabled={currentPage === 0}
               >
@@ -761,6 +934,14 @@ const AdSpends = () => {
                 disabled={currentPage >= totalPages - 1}
               >
                 Próxima
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPage(totalPages - 1)}
+                disabled={currentPage >= totalPages - 1}
+              >
+                Última
               </Button>
             </div>
           </div>

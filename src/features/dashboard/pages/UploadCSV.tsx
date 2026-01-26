@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef } from "react";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { motion, AnimatePresence } from "framer-motion";
-import { Upload, FileText, Check, AlertCircle, X, Eye, FileSpreadsheet } from "lucide-react";
+import { Upload, FileText, Check, AlertCircle, X, Eye, FileSpreadsheet, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import Papa from "papaparse";
@@ -13,10 +13,22 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { getApiUrl, fetchWithAuth } from "@/core/config/api.config";
 import { userStorage } from "@/shared/lib/storage";
 import { Progress } from "@/components/ui/progress";
 import { useDatasetStore } from "@/stores/datasetStore";
+import { deleteAllDatasets } from "@/services/datasets.service";
 
 interface CSVData {
   headers: string[];
@@ -31,8 +43,9 @@ const UploadCSV = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const { toast } = useToast();
-  const { fetchRows, persist } = useDatasetStore();
+  const { fetchRows, persist, invalidate } = useDatasetStore();
 
   const handleDrag = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -152,8 +165,60 @@ const UploadCSV = () => {
     setUploadProgress(0);
   };
 
+  const handleDeleteAll = async () => {
+    setIsDeleting(true);
+    try {
+      await deleteAllDatasets();
+      invalidate();
+      toast({
+        title: "Dados excluídos",
+        description: "Todos os dados de vendas foram removidos com sucesso.",
+      });
+    } catch (err) {
+      toast({
+        title: "Erro ao excluir",
+        description: err instanceof Error ? err.message : "Não foi possível excluir os dados.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   return (
-    <DashboardLayout title="Importar Dados" subtitle="Carregue seus relatórios de vendas">
+    <DashboardLayout 
+      title="Importar Dados" 
+      subtitle="Carregue seus relatórios de vendas"
+      action={
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button variant="destructive" size="sm" disabled={isDeleting}>
+              <Trash2 className="w-4 h-4 mr-2" />
+              Excluir Todas as Vendas
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
+              <AlertDialogDescription>
+                Esta ação irá excluir permanentemente todos os dados de vendas (todos os dados da tabela datasets vinculado ao user_id). 
+                Esta ação não pode ser desfeita.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleDeleteAll}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                disabled={isDeleting}
+              >
+                {isDeleting ? "Excluindo..." : "Confirmar Exclusão"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      }
+    >
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -316,28 +381,30 @@ const UploadCSV = () => {
                     </span>
                   </div>
                   <div className="overflow-x-auto max-h-[400px]">
-                    <Table>
-                      <TableHeader className="sticky top-0 bg-card z-10 shadow-sm">
-                        <TableRow>
-                          {csvData.headers.map((h, i) => (
-                            <TableHead key={i} className="whitespace-nowrap font-bold text-xs uppercase tracking-wider">
-                              {h}
-                            </TableHead>
-                          ))}
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {csvData.rows.map((row, i) => (
-                          <TableRow key={i} className="hover:bg-secondary/30">
-                            {row.map((cell, j) => (
-                              <TableCell key={j} className="whitespace-nowrap text-sm text-muted-foreground">
-                                {cell}
-                              </TableCell>
+                    <div className="min-w-full inline-block">
+                      <Table>
+                        <TableHeader className="sticky top-0 bg-card z-10 shadow-sm">
+                          <TableRow>
+                            {csvData.headers.map((h, i) => (
+                              <TableHead key={i} className="whitespace-nowrap font-bold text-xs uppercase tracking-wider bg-card">
+                                {h}
+                              </TableHead>
                             ))}
                           </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
+                        </TableHeader>
+                        <TableBody>
+                          {csvData.rows.map((row, i) => (
+                            <TableRow key={i} className="hover:bg-secondary/30">
+                              {row.map((cell, j) => (
+                                <TableCell key={j} className="whitespace-nowrap text-sm text-muted-foreground">
+                                  {cell}
+                                </TableCell>
+                              ))}
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
                   </div>
                 </div>
               )}

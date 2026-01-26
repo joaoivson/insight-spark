@@ -31,6 +31,17 @@ const modules = [
 const ModulesPage = () => {
   return (
     <DashboardLayout title="Módulos" subtitle="Expanda as funcionalidades da sua conta">
+      <div className="text-center py-12">
+        <p className="text-muted-foreground text-lg">Módulos em desenvolvimento</p>
+        <p className="text-muted-foreground/70 text-sm mt-2">Esta seção estará disponível em breve.</p>
+      </div>
+    </DashboardLayout>
+  );
+};
+
+const ModulesPageHidden = () => {
+  return (
+    <DashboardLayout title="Módulos" subtitle="Expanda as funcionalidades da sua conta">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}

@@ -28,3 +28,12 @@ export const fetchDatasetRows = async (query: DatasetQuery = {}): Promise<Datase
   const data = await res.json();
   return Array.isArray(data?.rows) ? (data.rows as DatasetRow[]) : (data as DatasetRow[]);
 };
+
+export const deleteAllDatasets = async (): Promise<void> => {
+  const url = getApiUrl(`/api/v1/datasets/all`);
+  const res = await fetchWithAuth(url, { method: "DELETE" });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(text || "Falha ao remover todos os dados de vendas");
+  }
+};

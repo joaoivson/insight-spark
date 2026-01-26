@@ -73,6 +73,15 @@ export const deleteAdSpend = async (id: number): Promise<void> => {
   }
 };
 
+export const deleteAllAdSpends = async (): Promise<void> => {
+  const url = getApiUrl(`/api/v1/ad_spends/all`);
+  const res = await fetchWithAuth(url, { method: "DELETE" });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(text || "Falha ao remover todos os investimentos");
+  }
+};
+
 export const downloadTemplate = async (): Promise<void> => {
   const url = getApiUrl(`/api/v1/ad_spends/template`);
   

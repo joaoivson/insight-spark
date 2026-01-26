@@ -1,5 +1,5 @@
 import { ReactNode, useState } from "react";
-import { Bell, RefreshCw, User, Sun, Moon } from "lucide-react";
+import { Bell, RefreshCw, User, Sun, Moon, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -13,14 +13,17 @@ import { useToast } from "@/hooks/use-toast";
 import { useTheme } from "@/shared/hooks/useTheme";
 import { useDatasetStore } from "@/stores/datasetStore";
 import { useAdSpendsStore } from "@/stores/adSpendsStore";
+import { useIsMobile } from "@/shared/hooks/use-mobile";
 
 interface DashboardHeaderProps {
   title: string;
   subtitle?: string;
+  subtitleSize?: "sm" | "xs";
   action?: ReactNode;
+  onMobileMenuToggle?: () => void;
 }
 
-const DashboardHeader = ({ title, subtitle, action }: DashboardHeaderProps) => {
+const DashboardHeader = ({ title, subtitle, subtitleSize = "sm", action, onMobileMenuToggle }: DashboardHeaderProps) => {
   const { toast } = useToast();
   const { theme, toggleTheme } = useTheme();
   const { fetchRows } = useDatasetStore();
@@ -49,11 +52,26 @@ const DashboardHeader = ({ title, subtitle, action }: DashboardHeaderProps) => {
     }
   };
 
+  const isMobile = useIsMobile();
+
   return (
     <header className="bg-card border-b border-border px-4 md:px-6 py-3 flex flex-col md:flex-row md:items-center md:justify-between gap-3 flex-shrink-0" role="banner">
-      <div>
-        <h1 className="font-display font-bold text-xl text-foreground">{title}</h1>
-        {subtitle && <p className="text-sm text-muted-foreground">{subtitle}</p>}
+      <div className="flex items-center gap-3">
+        {isMobile && onMobileMenuToggle && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onMobileMenuToggle}
+            className="md:hidden"
+            aria-label="Abrir menu"
+          >
+            <Menu className="w-5 h-5" />
+          </Button>
+        )}
+        <div>
+          <h1 className="font-display font-bold text-xl text-foreground">{title}</h1>
+          {subtitle && <p className={subtitleSize === "xs" ? "text-xs text-muted-foreground" : "text-sm text-muted-foreground"}>{subtitle}</p>}
+        </div>
       </div>
 
       <div className="flex flex-wrap items-center gap-3">

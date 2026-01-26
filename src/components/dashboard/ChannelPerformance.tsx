@@ -8,7 +8,9 @@ import {
   Trophy,
   DollarSign,
   BarChart3,
+  ArrowUpDown,
 } from "lucide-react";
+import { isBeforeDateKey, isAfterDateKey } from "@/shared/lib/date";
 import {
   Table,
   TableBody,
@@ -19,9 +21,12 @@ import {
 } from "@/components/ui/table";
 import { cn } from "@/shared/lib/utils";
 
+type DateRange = { from?: Date; to?: Date };
+
 interface ChannelPerformanceProps {
   rows: DatasetRow[];
   adSpends: AdSpend[];
+  dateRange?: DateRange;
   showSubTable?: boolean;
   showDayTable?: boolean;
   showHighlights?: boolean;
@@ -56,15 +61,37 @@ const getAffiliateCommission = (row: DatasetRow) => {
 const ChannelPerformance = ({
   rows,
   adSpends,
+  dateRange,
   showSubTable = true,
   showDayTable = true,
   showHighlights = true,
 }: ChannelPerformanceProps) => {
+  // Filter rows by dateRange
+  const filteredRows = useMemo(() => {
+    if (!dateRange?.from && !dateRange?.to) return rows;
+    return rows.filter((r) => {
+      if (dateRange.from && isBeforeDateKey(r.date, dateRange.from)) return false;
+      if (dateRange.to && isAfterDateKey(r.date, dateRange.to)) return false;
+      return true;
+    });
+  }, [rows, dateRange]);
+
+  // Filter adSpends by dateRange
+  const filteredAdSpends = useMemo(() => {
+    if (!dateRange?.from && !dateRange?.to) return adSpends;
+    return adSpends.filter((spend) => {
+      const spendDate = spend.date;
+      if (dateRange.from && isBeforeDateKey(spendDate, dateRange.from)) return false;
+      if (dateRange.to && isAfterDateKey(spendDate, dateRange.to)) return false;
+      return true;
+    });
+  }, [adSpends, dateRange]);
+
   const metrics = useMemo(() => {
     const channelMap = new Map<string, { commission: number; spend: number; orders: number }>();
 
     // 1. Processar Comissões por canal (Sub ID)
-    rows.forEach((row) => {
+    filteredRows.forEach((row) => {
       const channel = row.sub_id1 || "Orgânico/Outros";
       const current = channelMap.get(channel) || { commission: 0, spend: 0, orders: 0 };
       
@@ -80,7 +107,7 @@ const ChannelPerformance = ({
     // 2. Processar Gastos (Ads)
     let totalGeneralSpend = 0;
     
-    adSpends.forEach((spend) => {
+    filteredAdSpends.forEach((spend) => {
       if (!spend.sub_id || spend.sub_id === "Geral/Institucional") {
         totalGeneralSpend += (spend.amount || 0);
       } else {
@@ -122,7 +149,7 @@ const ChannelPerformance = ({
     });
 
     return data.sort((a, b) => b.revenue - a.revenue); // Ordenar por receita padrão
-  }, [rows, adSpends]);
+  }, [filteredRows, filteredAdSpends]);
 
   const MAX_ROWS = 50;
   const limitedChannels = metrics.slice(0, MAX_ROWS);
@@ -130,6 +157,9 @@ const ChannelPerformance = ({
   const [subPage, setSubPage] = useState<number>(0);
   const [dayPageSize, setDayPageSize] = useState<number>(5);
   const [dayPage, setDayPage] = useState<number>(0);
+  const [daySortColumn, setDaySortColumn] = useState<string | null>(null);
+  const [daySortDirection, setDaySortDirection] = useState<"asc" | "desc">("desc");
+  
   if (!metrics.length) return null;
 
   // Encontrar destaques
@@ -267,6 +297,13 @@ const ChannelPerformance = ({
                           <div className="flex items-center gap-2">
                             <button
                               className="px-2 py-1 rounded border border-border disabled:opacity-50"
+                              onClick={() => setSubPage(0)}
+                              disabled={safePage === 0}
+                            >
+                              Primeira
+                            </button>
+                            <button
+                              className="px-2 py-1 rounded border border-border disabled:opacity-50"
                               onClick={() => setSubPage((p) => Math.max(0, p - 1))}
                               disabled={safePage === 0}
                             >
@@ -279,6 +316,13 @@ const ChannelPerformance = ({
                               disabled={safePage >= totalPages - 1}
                             >
                               Próxima
+                            </button>
+                            <button
+                              className="px-2 py-1 rounded border border-border disabled:opacity-50"
+                              onClick={() => setSubPage(totalPages - 1)}
+                              disabled={safePage >= totalPages - 1}
+                            >
+                              Última
                             </button>
                           </div>
                         </div>
@@ -302,17 +346,92 @@ const ChannelPerformance = ({
           <Table>
             <TableHeader className="bg-muted/50">
               <TableRow>
-                <TableHead>Dia</TableHead>
-                <TableHead className="text-right">Investimento (Gasto Anúncio)</TableHead>
-                <TableHead className="text-right">Receita (Comissão)</TableHead>
-                <TableHead className="text-right">Lucro (Comissão - Gasto)</TableHead>
-                <TableHead className="text-center">ROAS</TableHead>
+                <TableHead>
+                  <button
+                    className="flex items-center gap-1 hover:text-foreground transition-colors"
+                    onClick={() => {
+                      if (daySortColumn === "day") {
+                        setDaySortDirection(daySortDirection === "asc" ? "desc" : "asc");
+                      } else {
+                        setDaySortColumn("day");
+                        setDaySortDirection("desc");
+                      }
+                    }}
+                  >
+                    Dia
+                    <ArrowUpDown className="w-3 h-3" />
+                  </button>
+                </TableHead>
+                <TableHead className="text-right">
+                  <button
+                    className="flex items-center gap-1 hover:text-foreground transition-colors ml-auto"
+                    onClick={() => {
+                      if (daySortColumn === "spend") {
+                        setDaySortDirection(daySortDirection === "asc" ? "desc" : "asc");
+                      } else {
+                        setDaySortColumn("spend");
+                        setDaySortDirection("desc");
+                      }
+                    }}
+                  >
+                    Investimento (Gasto Anúncio)
+                    <ArrowUpDown className="w-3 h-3" />
+                  </button>
+                </TableHead>
+                <TableHead className="text-right">
+                  <button
+                    className="flex items-center gap-1 hover:text-foreground transition-colors ml-auto"
+                    onClick={() => {
+                      if (daySortColumn === "commission") {
+                        setDaySortDirection(daySortDirection === "asc" ? "desc" : "asc");
+                      } else {
+                        setDaySortColumn("commission");
+                        setDaySortDirection("desc");
+                      }
+                    }}
+                  >
+                    Receita (Comissão)
+                    <ArrowUpDown className="w-3 h-3" />
+                  </button>
+                </TableHead>
+                <TableHead className="text-right">
+                  <button
+                    className="flex items-center gap-1 hover:text-foreground transition-colors ml-auto"
+                    onClick={() => {
+                      if (daySortColumn === "profit") {
+                        setDaySortDirection(daySortDirection === "asc" ? "desc" : "asc");
+                      } else {
+                        setDaySortColumn("profit");
+                        setDaySortDirection("desc");
+                      }
+                    }}
+                  >
+                    Lucro (Comissão - Gasto)
+                    <ArrowUpDown className="w-3 h-3" />
+                  </button>
+                </TableHead>
+                <TableHead className="text-center">
+                  <button
+                    className="flex items-center gap-1 hover:text-foreground transition-colors mx-auto"
+                    onClick={() => {
+                      if (daySortColumn === "roas") {
+                        setDaySortDirection(daySortDirection === "asc" ? "desc" : "asc");
+                      } else {
+                        setDaySortColumn("roas");
+                        setDaySortDirection("desc");
+                      }
+                    }}
+                  >
+                    ROAS
+                    <ArrowUpDown className="w-3 h-3" />
+                  </button>
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {(() => {
                 const dayMap = new Map<string, { commission: number; spend: number; orders: number }>();
-                rows.forEach((row) => {
+                filteredRows.forEach((row) => {
                   const day = row.date || "Sem data";
                   const commission = getAffiliateCommission(row);
                   const cur = dayMap.get(day) || { commission: 0, spend: 0, orders: 0 };
@@ -322,7 +441,7 @@ const ChannelPerformance = ({
                     orders: cur.orders + 1,
                   });
                 });
-                adSpends.forEach((spend) => {
+                filteredAdSpends.forEach((spend) => {
                   const day = spend.date ? new Date(spend.date).toISOString().slice(0, 10) : "Sem data";
                   const cur = dayMap.get(day) || { commission: 0, spend: 0, orders: 0 };
                   dayMap.set(day, {
@@ -330,13 +449,39 @@ const ChannelPerformance = ({
                     spend: cur.spend + (spend.amount || 0),
                   });
                 });
-                const dayData = Array.from(dayMap.entries())
+                let dayData = Array.from(dayMap.entries())
                   .map(([day, vals]) => {
                     const profit = vals.commission - vals.spend; // lucro: comissão - gasto
                     const roas = vals.spend > 0 ? vals.commission / vals.spend : vals.commission > 0 ? 999 : 0;
                     return { day, ...vals, profit, roas };
-                  })
-                  .sort((a, b) => a.day.localeCompare(b.day));
+                  });
+
+                // Apply sorting
+                if (daySortColumn) {
+                  dayData = dayData.sort((a, b) => {
+                    let aVal: any = a[daySortColumn as keyof typeof a];
+                    let bVal: any = b[daySortColumn as keyof typeof b];
+                    
+                    if (daySortColumn === "day") {
+                      aVal = a.day;
+                      bVal = b.day;
+                    }
+                    
+                    if (aVal === bVal) return 0;
+                    if (aVal === undefined || aVal === null) return 1;
+                    if (bVal === undefined || bVal === null) return -1;
+                    
+                    if (typeof aVal === "number" && typeof bVal === "number") {
+                      return daySortDirection === "asc" ? aVal - bVal : bVal - aVal;
+                    }
+                    
+                    const comparison = String(aVal).localeCompare(String(bVal));
+                    return daySortDirection === "asc" ? comparison : -comparison;
+                  });
+                } else {
+                  // Default sort by day ascending
+                  dayData = dayData.sort((a, b) => a.day.localeCompare(b.day));
+                }
 
                 const totalPages = Math.max(1, Math.ceil(dayData.length / dayPageSize));
                 const safePage = Math.min(dayPage, totalPages - 1);
@@ -396,6 +541,13 @@ const ChannelPerformance = ({
                           <div className="flex items-center gap-2">
                             <button
                               className="px-2 py-1 rounded border border-border disabled:opacity-50"
+                              onClick={() => setDayPage(0)}
+                              disabled={safePage === 0}
+                            >
+                              Primeira
+                            </button>
+                            <button
+                              className="px-2 py-1 rounded border border-border disabled:opacity-50"
                               onClick={() => setDayPage((p) => Math.max(0, p - 1))}
                               disabled={safePage === 0}
                             >
@@ -408,6 +560,13 @@ const ChannelPerformance = ({
                               disabled={safePage >= totalPages - 1}
                             >
                               Próxima
+                            </button>
+                            <button
+                              className="px-2 py-1 rounded border border-border disabled:opacity-50"
+                              onClick={() => setDayPage(totalPages - 1)}
+                              disabled={safePage >= totalPages - 1}
+                            >
+                              Última
                             </button>
                           </div>
                         </div>
