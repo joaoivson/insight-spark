@@ -1,4 +1,4 @@
-import { tokenStorage, userStorage } from '@/shared/lib/storage';
+import { tokenStorage, userStorage, getUserId } from '@/shared/lib/storage';
 import { APP_CONFIG } from '@/core/config/app.config';
 
 /**
@@ -93,6 +93,7 @@ export const fetchWithAuth = async (
   options: RequestInit = {}
 ): Promise<Response> => {
   const token = tokenStorage.get();
+  const userId = getUserId(); // Obter user_id no formato user_4
 
   const headers = new Headers(options.headers);
   
@@ -108,7 +109,14 @@ export const fetchWithAuth = async (
     
     if (cleanToken) {
       headers.set('Authorization', `Bearer ${cleanToken}`);
-      
+    }
+  }
+
+  // Adicionar user_id como header em todas as requisições (exceto rotas de autenticação)
+  if (userId) {
+    const isAuthRoute = url.includes('/auth/login') || url.includes('/auth/register');
+    if (!isAuthRoute) {
+      headers.set('X-User-Id', userId);
     }
   }
 
@@ -121,7 +129,18 @@ export const fetchWithAuth = async (
     }
   }
 
-  const response = await fetch(url, {
+  // Adicionar user_id como query parameter também (para compatibilidade)
+  let finalUrl = url;
+  if (userId) {
+    const isAuthRoute = url.includes('/auth/login') || url.includes('/auth/register');
+    if (!isAuthRoute) {
+      // Adicionar user_id como query parameter
+      const separator = url.includes('?') ? '&' : '?';
+      finalUrl = `${url}${separator}user_id=${encodeURIComponent(userId)}`;
+    }
+  }
+
+  const response = await fetch(finalUrl, {
     ...options,
     headers,
   });

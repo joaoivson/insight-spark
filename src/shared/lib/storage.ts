@@ -53,3 +53,32 @@ export const tokenStorage = {
   remove: () => storage.remove(APP_CONFIG.STORAGE_KEYS.TOKEN),
 };
 
+/**
+ * Obtém o user_id no formato user_{id} para uso em APIs e localStorage
+ * @returns string no formato "user_4" ou null se não houver usuário
+ */
+export const getUserId = (): string | null => {
+  const user = userStorage.get() as { id?: string | number } | null;
+  if (!user || !user.id) return null;
+  const id = String(user.id).trim();
+  if (!id) return null;
+  // Se já estiver no formato user_X, retornar como está
+  if (id.startsWith('user_')) return id;
+  // Caso contrário, adicionar o prefixo user_
+  return `user_${id}`;
+};
+
+/**
+ * Obtém apenas o ID numérico do usuário (sem o prefixo user_)
+ * @returns string com o ID numérico ou null
+ */
+export const getUserIdNumber = (): string | null => {
+  const user = userStorage.get() as { id?: string | number } | null;
+  if (!user || !user.id) return null;
+  const id = String(user.id).trim();
+  if (!id) return null;
+  // Se estiver no formato user_X, remover o prefixo
+  if (id.startsWith('user_')) return id.replace(/^user_/, '');
+  return id;
+};
+
