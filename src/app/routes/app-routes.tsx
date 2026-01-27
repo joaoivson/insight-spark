@@ -65,11 +65,19 @@ const ProtectedRoute = ({ element }: { element: JSX.Element }) => {
 
   // Se assinatura inativa, mostrar modal ao invés de redirecionar
   if (status && !status.is_active) {
+    // Garantir que o modal seja exibido quando a assinatura estiver inativa
+    // Se showPlanModal ainda não foi definido, usar true como padrão
+    const shouldShowModal = showPlanModal === undefined ? true : showPlanModal;
+    
     return (
       <>
         <SubscriptionPlanModal
-          open={showPlanModal}
-          onOpenChange={setShowPlanModal}
+          open={shouldShowModal}
+          onOpenChange={(open) => {
+            setShowPlanModal(open);
+            // Se o usuário fechar o modal, não fazer redirect automático
+            // O modal pode ser reaberto se necessário
+          }}
         />
         {/* Renderizar elemento com overlay escuro para indicar que precisa de assinatura */}
         <div className="opacity-50 pointer-events-none">

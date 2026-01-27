@@ -103,6 +103,10 @@ export const useSubscriptionCheck = (options?: {
       if (cachedStatus) {
         setStatus(cachedStatus);
         setLoading(false);
+        // Se tem cache e está inativo, mostrar modal se configurado
+        if (!cachedStatus.is_active && redirectOnInactive && showModalOnInactive) {
+          setShowPlanModal(true);
+        }
         // Não redirecionar se estiver usando cache - apenas se status mudou
         return;
       }
@@ -119,7 +123,7 @@ export const useSubscriptionCheck = (options?: {
 
       if (!subscriptionStatus.is_active && redirectOnInactive) {
         if (showModalOnInactive) {
-          // Mostrar modal ao invés de redirecionar
+          // Mostrar modal ao invés de redirecionar - NÃO fazer redirect aqui
           setShowPlanModal(true);
         } else {
           // Redirecionar direto para Cakto ao invés de página de assinatura
@@ -139,17 +143,20 @@ export const useSubscriptionCheck = (options?: {
       const errorMessage = err instanceof Error ? err.message : "Erro ao verificar assinatura";
       setError(errorMessage);
       
-      // Se for erro 403, redirecionar para assinatura
+      // Se for erro 403, redirecionar para assinatura apenas se não estiver usando modal
       if (err instanceof Error && errorMessage.includes("403")) {
-        if (redirectOnInactive) {
+        if (redirectOnInactive && !showModalOnInactive) {
           navigate("/assinatura");
+        } else if (redirectOnInactive && showModalOnInactive) {
+          // Se estiver usando modal, mostrar modal ao invés de redirecionar
+          setShowPlanModal(true);
         }
       }
     } finally {
       setLoading(false);
       isCheckingRef.current = false;
     }
-  }, [navigate, toast, redirectOnInactive, isDashboardRoute, loadCachedStatus, saveCachedStatus]);
+  }, [navigate, toast, redirectOnInactive, showModalOnInactive, isDashboardRoute, loadCachedStatus, saveCachedStatus]);
 
   useEffect(() => {
     // Se skipCheck estiver ativo, apenas carregar do cache
@@ -158,6 +165,10 @@ export const useSubscriptionCheck = (options?: {
       if (cachedStatus) {
         setStatus(cachedStatus);
         setLoading(false);
+        // Se estiver inativo e showModalOnInactive for true, mostrar modal
+        if (!cachedStatus.is_active && redirectOnInactive && showModalOnInactive) {
+          setShowPlanModal(true);
+        }
         return;
       }
     }
@@ -168,6 +179,10 @@ export const useSubscriptionCheck = (options?: {
       setStatus(cachedStatus);
       setLoading(false);
       // Se tem cache válido do mesmo dia e está ativo, não precisa verificar
+      // Mas se estiver inativo e showModalOnInactive for true, mostrar modal
+      if (!cachedStatus.is_active && redirectOnInactive && showModalOnInactive) {
+        setShowPlanModal(true);
+      }
       return;
     }
 
