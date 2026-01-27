@@ -223,8 +223,15 @@ export const fetchWithAuth = async (
       errorMessage.toLowerCase().includes("not active");
     
     if (isSubscriptionError && typeof window !== 'undefined') {
-      // Não redirecionar se já estiver na página de assinatura ou checkout
-      if (!window.location.pathname.includes('/assinatura') && !window.location.href.includes('cakto')) {
+      // Verificar se estamos em uma rota do dashboard (onde o modal é usado)
+      const isDashboardRoute = window.location.pathname.startsWith('/dashboard');
+      
+      // Não redirecionar se:
+      // 1. Já estiver na página de assinatura ou checkout
+      // 2. Estiver em uma rota do dashboard (o modal será exibido pelo ProtectedRoute)
+      if (!window.location.pathname.includes('/assinatura') && 
+          !window.location.href.includes('cakto') && 
+          !isDashboardRoute) {
         // Importar dinamicamente para evitar dependência circular
         import('@/services/cakto.service').then(({ caktoService }) => {
           const user = userStorage.get() as { email?: string; name?: string; cpf_cnpj?: string } | null;
@@ -242,6 +249,7 @@ export const fetchWithAuth = async (
           window.location.href = '/assinatura';
         });
       }
+      // Se estiver no dashboard, não fazer nada - o ProtectedRoute vai exibir o modal
     }
   }
 
