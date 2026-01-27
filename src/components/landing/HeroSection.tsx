@@ -1,39 +1,11 @@
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Zap } from "lucide-react";
+import { ArrowRight, Zap, TrendingUp, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
-import { caktoService } from "@/services/cakto.service";
-import { tokenStorage, userStorage } from "@/shared/lib/storage";
-import { useToast } from "@/hooks/use-toast";
+import { useSubscribe } from "@/shared/hooks/useSubscribe";
 
 const HeroSection = () => {
-  const { toast } = useToast();
-  
-  const handleSubscribe = async () => {
-    try {
-      const isAuthenticated = !!tokenStorage.get();
-      const user = userStorage.get() as { email?: string; name?: string; cpf_cnpj?: string } | null;
-      
-      if (isAuthenticated && user) {
-        // Usuário logado: pré-preenche dados
-        await caktoService.redirectToCheckout({
-          email: user.email,
-          name: user.name,
-          cpf_cnpj: user.cpf_cnpj,
-        });
-      } else {
-        // Usuário não logado: redireciona direto para Cakto
-        caktoService.redirectToCheckoutDirect();
-      }
-    } catch (error) {
-      console.error('Erro ao redirecionar para checkout:', error);
-      toast({
-        title: "Erro ao acessar página de assinatura",
-        description: "Tente novamente em instantes.",
-        variant: "destructive",
-      });
-    }
-  };
+  const { handleSubscribe, loading } = useSubscribe();
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden pt-20">
       {/* Background Elements */}
@@ -58,11 +30,11 @@ const HeroSection = () => {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-accent/10 border border-accent/20 text-accent text-sm font-medium mb-8"
+            transition={{ duration: 0.5, delay: 0.05 }}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-accent/10 border border-accent/20 text-accent text-sm font-medium mb-6 mt-8"
           >
             <Zap className="w-4 h-4" />
-            SaaS de performance para vendas digitais
+            Antes do painel da Shopee atualizar!
           </motion.div>
 
           {/* Headline */}
@@ -72,8 +44,8 @@ const HeroSection = () => {
             transition={{ duration: 0.5, delay: 0.1 }}
             className="font-display text-4xl md:text-5xl lg:text-6xl font-bold text-foreground leading-tight mb-6"
           >
-            Transforme seus dados em{" "}
-            <span className="gradient-text">crescimento mensurável</span>
+            Aumente seus ganhos como{" "}
+            <span className="gradient-text">afiliado</span> com análises inteligentes
           </motion.h1>
 
           {/* Subheadline */}
@@ -81,29 +53,64 @@ const HeroSection = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.2 }}
-            className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-10"
+            className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-8"
           >
-            Centralize faturamento, comissão, gasto em anúncios e ROAS em um painel
-            claro. Descubra onde investir, o que cortar e quais Sub IDs realmente dão retorno.
+            Analise seus ganhos com precisão, identifique as melhores oportunidades e maximize seus resultados como afiliado Shopee com nossa ferramenta inteligente.
           </motion.p>
+
+          {/* Prova Social */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.25 }}
+            className="flex items-center justify-center gap-2 mb-8 text-sm text-muted-foreground"
+          >
+            <TrendingUp className="w-4 h-4 text-accent" />
+            <span>Mais de <strong className="text-foreground">300 afiliados</strong> já transformaram seus resultados</span>
+          </motion.div>
 
           {/* CTA Buttons */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.3 }}
-            className="flex flex-col sm:flex-row items-center justify-center gap-4"
+            className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-4"
           >
-            <Button variant="hero" size="xl" onClick={handleSubscribe}>
-              Assinar agora
-              <ArrowRight className="w-5 h-5" />
+            <Button 
+              variant="hero" 
+              size="xl" 
+              onClick={() => handleSubscribe(true)}
+              disabled={loading}
+              aria-label="Adquirir ferramenta"
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                  Carregando...
+                </>
+              ) : (
+                <>
+                  Adquirir Ferramenta
+                  <ArrowRight className="w-5 h-5" />
+                </>
+              )}
             </Button>
             <Link to="/demo">
-              <Button variant="hero-outline" size="xl">
-                Ver demo
+              <Button variant="hero-outline" size="xl" aria-label="Ver demonstração">
+                Ver Demonstração
               </Button>
             </Link>
           </motion.div>
+
+          {/* Garantia */}
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.5, delay: 0.4 }}
+            className="text-sm text-muted-foreground"
+          >
+            ✓ Setup em 2 minutos • ✓ Suporte em português • ✓ 7 dias de Garantia
+          </motion.p>
 
           {/* Stats */}
           <motion.div

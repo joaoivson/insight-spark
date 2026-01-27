@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,6 +10,7 @@ import { loginService } from "../services";
 import { userStorage, tokenStorage } from "@/shared/lib/storage";
 import { getApiUrl, fetchWithAuth } from "@/core/config/api.config";
 import { APP_CONFIG } from "@/core/config/app.config";
+import { caktoService } from "@/services/cakto.service";
 import "../styles/index.scss";
 import logoName from "@/assets/logo/logo_name.png";
 import logoIcon from "@/assets/logo/logo.png";
@@ -20,7 +21,20 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
+
+  // Mostrar mensagem se vier de redirecionamento (ex: após definir senha)
+  useEffect(() => {
+    if (location.state?.message) {
+      toast({
+        title: "Sucesso!",
+        description: location.state.message,
+      });
+      // Limpar state para não mostrar novamente
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state, toast]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -162,7 +176,7 @@ const Login = () => {
                 <input type="checkbox" className="rounded border-border" />
                 <span className="text-muted-foreground">Lembrar de mim</span>
               </label>
-              <Link to="/forgot-password" className="auth-link">
+              <Link to="/auth/forgot-password" className="auth-link">
                 Esqueceu a senha?
               </Link>
             </div>
@@ -175,12 +189,27 @@ const Login = () => {
 
           <div className="auth-footer">
             Não tem assinatura?{" "}
-            <Link
-              to={APP_CONFIG.ROUTES.SUBSCRIPTION}
+            <button
+              onClick={async () => {
+                try {
+                  const user = userStorage.get() as { email?: string; name?: string; cpf_cnpj?: string } | null;
+                  if (user) {
+                    await caktoService.redirectToCheckout({
+                      email: user.email,
+                      name: user.name,
+                      cpf_cnpj: user.cpf_cnpj,
+                    });
+                  } else {
+                    caktoService.redirectToCheckoutDirect();
+                  }
+                } catch (error) {
+                  console.error('Erro ao redirecionar para checkout:', error);
+                }
+              }}
               className="auth-link auth-link--medium"
             >
               Assinar agora
-            </Link>
+            </button>
           </div>
         </motion.div>
       </div>

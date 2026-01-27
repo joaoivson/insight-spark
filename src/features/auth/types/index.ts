@@ -18,3 +18,6 @@ export interface LoginResponse {
   error?: string;
 }
 
+// Tipos de senha exportados de password.service.ts
+export type { SetPasswordRequest, SetPasswordResponse, ForgotPasswordRequest, ForgotPasswordResponse } from '../services/password.service';
+

@@ -1,14 +1,11 @@
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { Menu, X } from "lucide-react";
+import { Menu, X, Loader2 } from "lucide-react";
 import { useState } from "react";
 import logoName from "@/assets/logo/logo_name.png";
 import logoIcon from "@/assets/logo/logo.png";
-import { APP_CONFIG } from "@/core/config/app.config";
-import { caktoService } from "@/services/cakto.service";
-import { tokenStorage, userStorage } from "@/shared/lib/storage";
-import { useToast } from "@/hooks/use-toast";
+import { useSubscribe } from "@/shared/hooks/useSubscribe";
 import {
   Sheet,
   SheetContent,
@@ -16,33 +13,7 @@ import {
 
 const Header = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const { toast } = useToast();
-  
-  const handleSubscribe = async () => {
-    try {
-      const isAuthenticated = !!tokenStorage.get();
-      const user = userStorage.get() as { email?: string; name?: string; cpf_cnpj?: string } | null;
-      
-      if (isAuthenticated && user) {
-        // Usuário logado: pré-preenche dados
-        await caktoService.redirectToCheckout({
-          email: user.email,
-          name: user.name,
-          cpf_cnpj: user.cpf_cnpj,
-        });
-      } else {
-        // Usuário não logado: redireciona direto para Cakto
-        caktoService.redirectToCheckoutDirect();
-      }
-    } catch (error) {
-      console.error('Erro ao redirecionar para checkout:', error);
-      toast({
-        title: "Erro ao acessar página de assinatura",
-        description: "Tente novamente em instantes.",
-        variant: "destructive",
-      });
-    }
-  };
+  const { handleSubscribe, loading } = useSubscribe();
 
   const navItems = [
     { label: "Funcionalidades", href: "#features" },
@@ -162,10 +133,19 @@ const Header = () => {
                   className="w-full"
                   onClick={() => {
                     setMobileMenuOpen(false);
-                    handleSubscribe();
+                    handleSubscribe(true);
                   }}
+                  disabled={loading}
+                  aria-label="Assinar plano"
                 >
-                  Assinar
+                  {loading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Carregando...
+                    </>
+                  ) : (
+                    "Assinar"
+                  )}
                 </Button>
               </div>
             </div>

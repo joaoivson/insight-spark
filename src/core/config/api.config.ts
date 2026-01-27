@@ -223,15 +223,24 @@ export const fetchWithAuth = async (
       errorMessage.toLowerCase().includes("not active");
     
     if (isSubscriptionError && typeof window !== 'undefined') {
-      // Não redirecionar se já estiver na página de assinatura
-      if (!window.location.pathname.includes('/assinatura')) {
-        // Mostrar toast e redirecionar
-        if (window.dispatchEvent) {
-          window.dispatchEvent(new CustomEvent('subscription-required', {
-            detail: { message: errorMessage || 'Assinatura necessária' }
-          }));
-        }
-        window.location.href = '/assinatura';
+      // Não redirecionar se já estiver na página de assinatura ou checkout
+      if (!window.location.pathname.includes('/assinatura') && !window.location.href.includes('cakto')) {
+        // Importar dinamicamente para evitar dependência circular
+        import('@/services/cakto.service').then(({ caktoService }) => {
+          const user = userStorage.get() as { email?: string; name?: string; cpf_cnpj?: string } | null;
+          if (user) {
+            caktoService.redirectToCheckout({
+              email: user.email,
+              name: user.name,
+              cpf_cnpj: user.cpf_cnpj,
+            });
+          } else {
+            caktoService.redirectToCheckoutDirect();
+          }
+        }).catch(() => {
+          // Fallback: redirecionar para página de assinatura se houver erro
+          window.location.href = '/assinatura';
+        });
       }
     }
   }

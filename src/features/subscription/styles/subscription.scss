@@ -7,5 +7,5 @@
 @use '../../../shared/styles/variables' as *;
 @use '../../../shared/styles/mixins' as *;
 
-// Reutiliza estilos do auth
-@import '../../../features/auth/styles/auth.scss';
+// Reutiliza estilos do auth usando @use ao invés de @import
+@use '../../../features/auth/styles/auth.scss';

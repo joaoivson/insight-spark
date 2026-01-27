@@ -2,7 +2,8 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { getSubscriptionStatus, SubscriptionStatus } from "@/services/subscription.service";
 import { useToast } from "@/hooks/use-toast";
-import { tokenStorage, storage } from "@/shared/lib/storage";
+import { tokenStorage, storage, userStorage } from "@/shared/lib/storage";
+import { caktoService } from "@/services/cakto.service";
 
 const SUBSCRIPTION_CACHE_KEY = 'subscription-status-cache';
 
@@ -26,14 +27,16 @@ export const useSubscriptionCheck = (options?: {
   redirectOnInactive?: boolean;
   checkInterval?: number; // em ms (padrão: 5 minutos)
   skipCheck?: boolean; // Pular verificação inicial (usar apenas cache)
+  showModalOnInactive?: boolean; // Mostrar modal ao invés de redirecionar
 }) => {
-  const { redirectOnInactive = true, checkInterval = 5 * 60 * 1000, skipCheck = false } = options || {}; // Padrão: 5 minutos
+  const { redirectOnInactive = true, checkInterval = 5 * 60 * 1000, skipCheck = false, showModalOnInactive = false } = options || {}; // Padrão: 5 minutos
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
   const [status, setStatus] = useState<SubscriptionStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showPlanModal, setShowPlanModal] = useState(false);
   const isCheckingRef = useRef(false);
   const lastCheckRef = useRef<number>(0);
   const CHECK_DEBOUNCE_MS = 1000; // Evitar chamadas duplicadas em menos de 1 segundo
@@ -115,12 +118,22 @@ export const useSubscriptionCheck = (options?: {
       saveCachedStatus(subscriptionStatus); // Salvar no cache
 
       if (!subscriptionStatus.is_active && redirectOnInactive) {
-        toast({
-          title: "Assinatura necessária",
-          description: "Sua assinatura não está ativa. Redirecionando para página de assinatura...",
-          variant: "destructive",
-        });
-        navigate("/assinatura");
+        if (showModalOnInactive) {
+          // Mostrar modal ao invés de redirecionar
+          setShowPlanModal(true);
+        } else {
+          // Redirecionar direto para Cakto ao invés de página de assinatura
+          const user = userStorage.get() as { email?: string; name?: string; cpf_cnpj?: string } | null;
+          if (user) {
+            await caktoService.redirectToCheckout({
+              email: user.email,
+              name: user.name,
+              cpf_cnpj: user.cpf_cnpj,
+            });
+          } else {
+            caktoService.redirectToCheckoutDirect();
+          }
+        }
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Erro ao verificar assinatura";
@@ -193,5 +206,7 @@ export const useSubscriptionCheck = (options?: {
     error, 
     refetch: checkStatus,
     isActive: status?.is_active ?? false,
+    showPlanModal,
+    setShowPlanModal,
   };
 };

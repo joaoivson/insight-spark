@@ -1,39 +1,11 @@
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, ShieldCheck, Users, Clock, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
-import { caktoService } from "@/services/cakto.service";
-import { tokenStorage, userStorage } from "@/shared/lib/storage";
-import { useToast } from "@/hooks/use-toast";
+import { useSubscribe } from "@/shared/hooks/useSubscribe";
 
 const FinalCTASection = () => {
-  const { toast } = useToast();
-  
-  const handleSubscribe = async () => {
-    try {
-      const isAuthenticated = !!tokenStorage.get();
-      const user = userStorage.get() as { email?: string; name?: string; cpf_cnpj?: string } | null;
-      
-      if (isAuthenticated && user) {
-        // Usuário logado: pré-preenche dados
-        await caktoService.redirectToCheckout({
-          email: user.email,
-          name: user.name,
-          cpf_cnpj: user.cpf_cnpj,
-        });
-      } else {
-        // Usuário não logado: redireciona direto para Cakto
-        caktoService.redirectToCheckoutDirect();
-      }
-    } catch (error) {
-      console.error('Erro ao redirecionar para checkout:', error);
-      toast({
-        title: "Erro ao acessar página de assinatura",
-        description: "Tente novamente em instantes.",
-        variant: "destructive",
-      });
-    }
-  };
+  const { handleSubscribe, loading } = useSubscribe();
   return (
     <section className="py-20">
       <div className="container mx-auto px-4">
@@ -42,24 +14,72 @@ const FinalCTASection = () => {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.5 }}
-          className="glass-card rounded-3xl p-10 md:p-14 border border-border text-center"
+          className="glass-card rounded-3xl p-10 md:p-14 border-2 border-accent/30 relative overflow-hidden text-center"
         >
-          <h2 className="font-display text-3xl md:text-4xl font-bold text-foreground mb-4">
-            Pronto para aumentar o ROAS e reduzir desperdícios?
-          </h2>
-          <p className="text-muted-foreground text-lg mb-8">
-            Comece agora e veja seus indicadores reais em minutos. Sem planilhas, sem ruído.
-          </p>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Button variant="hero" size="xl" onClick={handleSubscribe}>
-              Assinar agora
-              <ArrowRight className="w-5 h-5" />
-            </Button>
-            <Link to="/demo">
-              <Button variant="hero-outline" size="xl">
-                Ver demo
+          {/* Background Glow */}
+          <div className="absolute inset-0 bg-gradient-to-br from-accent/5 to-transparent pointer-events-none" />
+          
+          <div className="relative z-10">
+            <h2 className="font-display text-3xl md:text-4xl font-bold text-foreground mb-4">
+              Pronto para aumentar suas comissões?
+            </h2>
+            <p className="text-muted-foreground text-lg mb-6 max-w-2xl mx-auto">
+              Junte-se a mais de 300 afiliados que já transformaram seus resultados
+            </p>
+
+            {/* Prova Social */}
+            <div className="flex flex-wrap items-center justify-center gap-6 mb-8 text-sm text-muted-foreground">
+              <div className="flex items-center gap-2">
+                <Users className="w-4 h-4 text-accent" />
+                <span>+300 afiliados ativos</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Clock className="w-4 h-4 text-accent" />
+                <span>Setup em 2 minutos</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="w-4 h-4 text-accent" />
+                <span>7 dias de Garantia</span>
+              </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-6">
+              <Button 
+                variant="hero" 
+                size="xl" 
+                onClick={() => handleSubscribe(true)}
+                disabled={loading}
+                aria-label="Adquirir ferramenta agora"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                    Carregando...
+                  </>
+                ) : (
+                  <>
+                    Adquirir Ferramenta Agora
+                    <ArrowRight className="w-5 h-5" />
+                  </>
+                )}
               </Button>
-            </Link>
+              <Link to="/demo">
+                <Button variant="hero-outline" size="xl" aria-label="Ver demonstração">
+                  Ver Demonstração
+                </Button>
+              </Link>
+            </div>
+
+            {/* Garantia e Benefícios */}
+            <div className="flex flex-wrap items-center justify-center gap-4 text-sm text-muted-foreground">
+              <span>✓ Setup em 2 minutos</span>
+              <span>•</span>
+              <span>✓ Suporte em português</span>
+              <span>•</span>
+              <span>✓ Todas as funcionalidades incluídas</span>
+              <span>•</span>
+              <span className="font-semibold text-accent">✓ 7 dias de Garantia</span>
+            </div>
           </div>
         </motion.div>
       </div>

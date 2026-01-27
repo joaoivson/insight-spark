@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button";
 import { CheckCircle2, XCircle, Loader2 } from "lucide-react";
 import { APP_CONFIG } from "@/core/config/app.config";
 import { useSubscriptionCheck } from "@/shared/hooks/useSubscriptionCheck";
-import { tokenStorage } from "@/shared/lib/storage";
+import { tokenStorage, userStorage } from "@/shared/lib/storage";
+import { caktoService } from "@/services/cakto.service";
 
 const SubscriptionCallback = () => {
   const navigate = useNavigate();
@@ -18,22 +19,36 @@ const SubscriptionCallback = () => {
         // Aguardar alguns segundos para o webhook processar
         await new Promise(resolve => setTimeout(resolve, 3000));
         
-        // Se usuário estiver logado, verificar assinatura
+        // Verificar assinatura (tanto para usuário logado quanto novo)
         if (isAuthenticated) {
           await refetch();
           
           if (isActive) {
             setProcessingStatus('success');
-            // Auto-redirect após 2 segundos
+            // Auto-redirect para dashboard após 2 segundos
             setTimeout(() => {
               navigate(APP_CONFIG.ROUTES.DASHBOARD);
             }, 2000);
           } else {
-            setProcessingStatus('error');
+            // Se ainda não está ativo, aguardar mais um pouco e tentar novamente
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            await refetch();
+            if (isActive) {
+              setProcessingStatus('success');
+              setTimeout(() => {
+                navigate(APP_CONFIG.ROUTES.DASHBOARD);
+              }, 2000);
+            } else {
+              setProcessingStatus('error');
+            }
           }
         } else {
-          // Se não estiver logado, mostrar mensagem para fazer login
+          // Usuário novo: redirecionar para login, que depois redireciona para dashboard
           setProcessingStatus('success');
+          // Auto-redirect para login após 2 segundos
+          setTimeout(() => {
+            navigate(APP_CONFIG.ROUTES.LOGIN);
+          }, 2000);
         }
       } catch (error) {
         console.error('Erro ao processar callback:', error);
@@ -81,12 +96,17 @@ const SubscriptionCallback = () => {
                 <p className="text-muted-foreground mt-2">
                   Sua assinatura foi confirmada.
                 </p>
-                <p className="text-muted-foreground">
-                  Faça login para acessar a plataforma.
+                <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mt-4">
+                  <p className="text-sm text-blue-900 dark:text-blue-100 font-medium">
+                    📧 Senha provisória enviada por email
+                  </p>
+                  <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
+                    Verifique sua caixa de entrada (e spam) para acessar sua conta.
+                  </p>
+                </div>
+                <p className="text-muted-foreground mt-4">
+                  Redirecionando para o login...
                 </p>
-                <Button onClick={() => navigate(APP_CONFIG.ROUTES.LOGIN)} className="mt-4">
-                  Fazer Login
-                </Button>
               </>
             )}
           </div>
@@ -112,7 +132,22 @@ const SubscriptionCallback = () => {
           <Button variant="outline" onClick={() => navigate("/")}>
             Voltar ao Início
           </Button>
-          <Button onClick={() => navigate(APP_CONFIG.ROUTES.SUBSCRIPTION)}>
+          <Button onClick={async () => {
+            try {
+              const user = userStorage.get() as { email?: string; name?: string; cpf_cnpj?: string } | null;
+              if (user) {
+                await caktoService.redirectToCheckout({
+                  email: user.email,
+                  name: user.name,
+                  cpf_cnpj: user.cpf_cnpj,
+                });
+              } else {
+                caktoService.redirectToCheckoutDirect();
+              }
+            } catch (error) {
+              console.error('Erro ao redirecionar para checkout:', error);
+            }
+          }}>
             Tentar Novamente
           </Button>
         </div>

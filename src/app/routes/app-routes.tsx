@@ -8,6 +8,7 @@ import { Suspense } from "react";
 import { tokenStorage } from "@/shared/lib/storage";
 import { useSubscriptionCheck } from "@/shared/hooks/useSubscriptionCheck";
 import { Loader2 } from "lucide-react";
+import { SubscriptionPlanModal } from "@/features/subscription/components/SubscriptionPlanModal";
 
 // Imports diretos para evitar falha de carregamento de chunks dinâmicos
 import Index from "@/features/landing/pages/Index";
@@ -23,6 +24,8 @@ import SubscriptionPage from "@/features/subscription/pages/SubscriptionPage";
 import SubscriptionSuccess from "@/features/subscription/pages/SubscriptionSuccess";
 import SubscriptionError from "@/features/subscription/pages/SubscriptionError";
 import SubscriptionCallback from "@/features/subscription/pages/SubscriptionCallback";
+import SetPasswordPage from "@/features/auth/pages/SetPasswordPage";
+import ForgotPasswordPage from "@/features/auth/pages/ForgotPasswordPage";
 import NotFound from "@/shared/pages/NotFound";
 
 // Loading fallback component
@@ -39,9 +42,10 @@ const ProtectedRoute = ({ element }: { element: JSX.Element }) => {
   const token = tokenStorage.get();
   // Usar skipCheck para rotas do dashboard após primeira validação
   // Isso evita verificações repetidas ao navegar entre páginas do dashboard
-  const { status, loading } = useSubscriptionCheck({ 
+  const { status, loading, showPlanModal, setShowPlanModal } = useSubscriptionCheck({ 
     redirectOnInactive: true,
     skipCheck: false, // Primeira vez sempre verifica
+    showModalOnInactive: true, // Mostrar modal ao invés de redirecionar
   });
 
   if (!token) {
@@ -59,8 +63,20 @@ const ProtectedRoute = ({ element }: { element: JSX.Element }) => {
     );
   }
 
+  // Se assinatura inativa, mostrar modal ao invés de redirecionar
   if (status && !status.is_active) {
-    return <Navigate to="/assinatura" replace />;
+    return (
+      <>
+        <SubscriptionPlanModal
+          open={showPlanModal}
+          onOpenChange={setShowPlanModal}
+        />
+        {/* Renderizar elemento com overlay escuro para indicar que precisa de assinatura */}
+        <div className="opacity-50 pointer-events-none">
+          {element}
+        </div>
+      </>
+    );
   }
 
   return element;
@@ -74,6 +90,10 @@ export const AppRoutes = () => {
         <Route path="/" element={<Index />} />
         <Route path="/demo" element={<Demo />} />
         <Route path="/login" element={<Login />} />
+        
+        {/* Auth Routes */}
+        <Route path="/auth/set-password" element={<SetPasswordPage />} />
+        <Route path="/auth/forgot-password" element={<ForgotPasswordPage />} />
         
         {/* Subscription Routes */}
         <Route path="/assinatura" element={<SubscriptionPage />} />

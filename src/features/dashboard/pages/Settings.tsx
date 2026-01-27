@@ -1,6 +1,6 @@
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { motion } from "framer-motion";
-import { User, Bell, CreditCard, Shield, Trash2, CheckCircle2, AlertTriangle } from "lucide-react";
+import { User, Bell, CreditCard, Shield, Trash2, CheckCircle2, AlertTriangle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,6 +14,18 @@ import { APP_CONFIG } from "@/core/config/app.config";
 import { useNavigate } from "react-router-dom";
 import { getApiUrl, fetchWithAuth } from "@/core/config/api.config";
 import { Badge } from "@/components/ui/badge";
+import { useSubscriptionCheck } from "@/shared/hooks/useSubscriptionCheck";
+import { SubscriptionPlanModal } from "@/features/subscription/components/SubscriptionPlanModal";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const SettingsPage = () => {
   const storedUser = userStorage.get<StoredUser>() || undefined;
@@ -22,8 +34,13 @@ const SettingsPage = () => {
   const [cpfCnpj] = useState(storedUser?.cpf_cnpj || "");
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [showPlanModal, setShowPlanModal] = useState(false);
+  const [showCancelDialog, setShowCancelDialog] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { status: subscriptionStatus, loading: subscriptionLoading } = useSubscriptionCheck({ 
+    redirectOnInactive: false 
+  });
 
   const token = tokenStorage.get();
   const userId = storedUser?.id;
@@ -70,8 +87,6 @@ const SettingsPage = () => {
 
   const handleDelete = async () => {
     if (!userId || !token) return;
-    const confirmed = window.confirm("Tem certeza? Esta ação remove todos os dados da sua conta.");
-    if (!confirmed) return;
     setIsDeleting(true);
     try {
       const response = await fetchWithAuth(getApiUrl(`/api/v1/auth/users/${userId}`), {
@@ -87,7 +102,29 @@ const SettingsPage = () => {
       toast({ title: "Erro ao excluir conta", variant: "destructive" });
     } finally {
       setIsDeleting(false);
+      setShowCancelDialog(false);
     }
+  };
+
+  const handleChangePlan = () => {
+    setShowPlanModal(true);
+  };
+
+  const handleCancelSubscription = () => {
+    setShowCancelDialog(true);
+  };
+
+  const formatDate = (dateString: string | null) => {
+    if (!dateString) return "N/A";
+    return new Date(dateString).toLocaleDateString("pt-BR");
+  };
+
+  const getPlanDisplayName = (plan: string) => {
+    const planNames: Record<string, string> = {
+      'marketdash': 'MarketDash',
+      'free': 'Gratuito',
+    };
+    return planNames[plan] || plan;
   };
 
   return (
@@ -198,28 +235,119 @@ const SettingsPage = () => {
               </div>
               
               <div className="relative z-10">
-                <h3 className="font-bold text-lg mb-1">Seu Plano</h3>
-                <div className="flex items-center gap-2 mb-6">
-                  <Badge className="bg-primary/10 text-primary hover:bg-primary/20 border-primary/20">PRO</Badge>
-                  <span className="text-sm text-muted-foreground">Renova em 15 dias</span>
-                </div>
-
-                <div className="space-y-4 mb-6">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Uploads Mensais</span>
-                    <span className="font-medium">Ilimitado</span>
+                <h3 className="font-bold text-lg mb-1">Gerenciar Assinatura</h3>
+                
+                {subscriptionLoading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
                   </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Usuários</span>
-                    <span className="font-medium">1 Admin</span>
-                  </div>
-                </div>
+                ) : subscriptionStatus ? (
+                  <>
+                    <div className="flex items-center gap-2 mb-4">
+                      <Badge className={`${
+                        subscriptionStatus.is_active 
+                          ? "bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20" 
+                          : "bg-destructive/10 text-destructive border-destructive/20"
+                      }`}>
+                        {subscriptionStatus.is_active ? (
+                          <><CheckCircle2 className="w-3 h-3 mr-1" /> Ativa</>
+                        ) : (
+                          "Inativa"
+                        )}
+                      </Badge>
+                      <span className="text-sm text-muted-foreground">
+                        {getPlanDisplayName(subscriptionStatus.plan)}
+                      </span>
+                    </div>
 
-                <Button variant="outline" className="w-full">
-                  Gerenciar Fatura
-                </Button>
+                    <div className="space-y-3 mb-6 text-sm">
+                      {subscriptionStatus.expires_at && (
+                        <div className="flex items-center justify-between">
+                          <span className="text-muted-foreground">Expira em</span>
+                          <span className="font-medium">{formatDate(subscriptionStatus.expires_at)}</span>
+                        </div>
+                      )}
+                      {subscriptionStatus.last_validation_at && (
+                        <div className="flex items-center justify-between">
+                          <span className="text-muted-foreground">Última validação</span>
+                          <span className="font-medium">{formatDate(subscriptionStatus.last_validation_at)}</span>
+                        </div>
+                      )}
+                      <div className="flex items-center justify-between">
+                        <span className="text-muted-foreground">Uploads Mensais</span>
+                        <span className="font-medium">Ilimitado</span>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Button 
+                        variant="default" 
+                        className="w-full"
+                        onClick={handleChangePlan}
+                      >
+                        <CreditCard className="w-4 h-4 mr-2" />
+                        Mudar de Plano
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        className="w-full text-destructive hover:text-destructive hover:bg-destructive/10"
+                        onClick={handleCancelSubscription}
+                      >
+                        Cancelar Assinatura
+                      </Button>
+                    </div>
+                  </>
+                ) : (
+                  <div className="py-4 text-center">
+                    <p className="text-sm text-muted-foreground mb-4">
+                      Não foi possível carregar informações da assinatura.
+                    </p>
+                    <Button 
+                      variant="outline" 
+                      className="w-full"
+                      onClick={handleChangePlan}
+                    >
+                      Ativar Assinatura
+                    </Button>
+                  </div>
+                )}
               </div>
             </div>
+
+            {/* Modal de Seleção de Plano */}
+            <SubscriptionPlanModal
+              open={showPlanModal}
+              onOpenChange={setShowPlanModal}
+            />
+
+            {/* Dialog de Confirmação de Cancelamento */}
+            <AlertDialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Cancelar Assinatura</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Para cancelar sua assinatura, você precisa acessar sua conta na Cakto. 
+                    O cancelamento pode ser feito a qualquer momento e sua assinatura continuará ativa até o final do período pago.
+                    <br /><br />
+                    Deseja ser redirecionado para a página de gerenciamento da Cakto?
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Fechar</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={() => {
+                      // Redirecionar para página de gerenciamento da Cakto
+                      // Nota: A URL exata depende da configuração da Cakto
+                      window.open('https://www.cakto.com.br/area-do-cliente', '_blank');
+                      setShowCancelDialog(false);
+                    }}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
+                    Ir para Cakto
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
 
             {/* Danger Zone */}
             <div className="bg-destructive/5 border border-destructive/20 rounded-2xl p-6">

@@ -5,10 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { caktoService } from "@/services/cakto.service";
+import { caktoService, PlanInfo } from "@/services/cakto.service";
 import { useSubscriptionCheck } from "@/shared/hooks/useSubscriptionCheck";
 import { userStorage } from "@/shared/lib/storage";
-import { Loader2, CheckCircle2, BarChart3, TrendingUp, Target, Shield, ArrowRight, User, Phone, Mail, CreditCard } from "lucide-react";
+import { Loader2, CheckCircle2, BarChart3, TrendingUp, Target, Shield, ArrowRight, User, Phone, Mail, CreditCard, Check } from "lucide-react";
 import { APP_CONFIG } from "@/core/config/app.config";
 import "../styles/index.scss";
 import logoName from "@/assets/logo/logo_name.png";
@@ -19,12 +19,45 @@ const SubscriptionPage = () => {
   const { toast } = useToast();
   const { status, loading: statusLoading, isActive } = useSubscriptionCheck({ redirectOnInactive: false });
   const [loading, setLoading] = useState(false);
+  const [plans, setPlans] = useState<PlanInfo[]>([]);
+  const [selectedPlan, setSelectedPlan] = useState<string>("principal");
+  const [plansLoading, setPlansLoading] = useState(true);
   const [formData, setFormData] = useState({
     name: "",
     email: "",
     cpf_cnpj: "",
     telefone: "",
   });
+
+  // Buscar planos disponíveis
+  useEffect(() => {
+    const fetchPlans = async () => {
+      try {
+        const plansList = await caktoService.getPlans();
+        setPlans(plansList);
+        // Se houver apenas um plano, selecionar automaticamente
+        if (plansList.length === 1) {
+          setSelectedPlan(plansList[0].id);
+        } else if (plansList.length > 0) {
+          // Selecionar plano "principal" por padrão, ou o primeiro se não existir
+          const principalPlan = plansList.find(p => p.id === "principal");
+          setSelectedPlan(principalPlan?.id || plansList[0].id);
+        }
+      } catch (error) {
+        console.error('Erro ao carregar planos:', error);
+        toast({ 
+          title: "Erro ao carregar planos", 
+          description: "Usando plano padrão. Tente novamente mais tarde.",
+          variant: "destructive" 
+        });
+        // Fallback: usar plano padrão
+        setSelectedPlan("principal");
+      } finally {
+        setPlansLoading(false);
+      }
+    };
+    fetchPlans();
+  }, [toast]);
 
   // Pré-preencher formulário se usuário estiver logado
   useEffect(() => {
@@ -102,6 +135,7 @@ const SubscriptionPage = () => {
         email: formData.email.trim(),
         cpf_cnpj: formData.cpf_cnpj.replace(/\D/g, ""), // Remove formatação
         telefone: formData.telefone.replace(/\D/g, ""), // Remove formatação
+        plan: selectedPlan,
       });
     } catch (error) {
       toast({
@@ -164,8 +198,65 @@ const SubscriptionPage = () => {
             Assine o MarketDash
           </h1>
           <p className="auth-subtitle">
-            Preencha seus dados para iniciar sua assinatura
+            Escolha seu plano e preencha seus dados para iniciar sua assinatura
           </p>
+
+          {/* Seleção de Planos */}
+          {plansLoading ? (
+            <div className="mb-6 flex items-center justify-center py-4">
+              <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+              <span className="ml-2 text-sm text-muted-foreground">Carregando planos...</span>
+            </div>
+          ) : plans.length > 0 ? (
+            <div className="mb-6 space-y-3">
+              <Label className="text-base font-semibold">Escolha seu plano:</Label>
+              <div className="grid grid-cols-1 gap-3">
+                {plans.map((plan) => (
+                  <motion.button
+                    key={plan.id}
+                    type="button"
+                    onClick={() => setSelectedPlan(plan.id)}
+                    className={`relative p-4 rounded-lg border-2 transition-all text-left ${
+                      selectedPlan === plan.id
+                        ? "border-accent bg-accent/10"
+                        : "border-border hover:border-accent/50 bg-card"
+                    }`}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <h3 className="font-semibold text-foreground">{plan.name}</h3>
+                          {selectedPlan === plan.id && (
+                            <Check className="w-4 h-4 text-accent" />
+                          )}
+                        </div>
+                        <p className="text-sm text-muted-foreground capitalize">
+                          Período: {plan.period}
+                        </p>
+                      </div>
+                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                        selectedPlan === plan.id
+                          ? "border-accent bg-accent"
+                          : "border-border"
+                      }`}>
+                        {selectedPlan === plan.id && (
+                          <div className="w-2 h-2 rounded-full bg-accent-foreground" />
+                        )}
+                      </div>
+                    </div>
+                  </motion.button>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="mb-6 p-4 rounded-lg border border-border bg-muted/50">
+              <p className="text-sm text-muted-foreground text-center">
+                Não foi possível carregar os planos. Usando plano padrão.
+              </p>
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} className="auth-form">
             <div className="auth-form-group">

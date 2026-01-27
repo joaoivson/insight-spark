@@ -18,6 +18,8 @@ export const APP_CONFIG = {
     SUBSCRIPTION_SUCCESS: '/assinatura/sucesso',
     SUBSCRIPTION_ERROR: '/assinatura/erro',
     SUBSCRIPTION_CALLBACK: '/assinatura/callback',
+    SET_PASSWORD: '/auth/set-password',
+    FORGOT_PASSWORD: '/auth/forgot-password',
   },
   EXTERNALS: {
     SUBSCRIBE_URL: 'https://www.cakto.com.br/#integracoes',
