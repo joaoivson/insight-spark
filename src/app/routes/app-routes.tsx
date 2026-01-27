@@ -7,8 +7,9 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import { Suspense } from "react";
 import { tokenStorage } from "@/shared/lib/storage";
 import { useSubscriptionCheck } from "@/shared/hooks/useSubscriptionCheck";
-import { Loader2 } from "lucide-react";
+import { Loader2, Lock, ArrowRight } from "lucide-react";
 import { SubscriptionPlanModal } from "@/features/subscription/components/SubscriptionPlanModal";
+import { Button } from "@/components/ui/button";
 
 // Imports diretos para evitar falha de carregamento de chunks dinâmicos
 import Index from "@/features/landing/pages/Index";
@@ -66,7 +67,7 @@ const ProtectedRoute = ({ element }: { element: JSX.Element }) => {
   // Se assinatura inativa, mostrar modal ao invés de redirecionar
   if (status && !status.is_active) {
     // Garantir que o modal seja exibido quando a assinatura estiver inativa
-    // Se showPlanModal ainda não foi definido, usar true como padrão
+    // O redirect só acontece quando o usuário escolher um plano no modal (através do handleContinue)
     const shouldShowModal = showPlanModal === undefined ? true : showPlanModal;
     
     return (
@@ -76,12 +77,53 @@ const ProtectedRoute = ({ element }: { element: JSX.Element }) => {
           onOpenChange={(open) => {
             setShowPlanModal(open);
             // Se o usuário fechar o modal, não fazer redirect automático
-            // O modal pode ser reaberto se necessário
+            // O dashboard continua bloqueado até que a assinatura seja ativada
+            // O redirect só acontece quando o usuário escolhe um plano e clica em "Continuar"
           }}
         />
-        {/* Renderizar elemento com overlay escuro para indicar que precisa de assinatura */}
-        <div className="opacity-50 pointer-events-none">
-          {element}
+        {/* Overlay bloqueado com opção de assinar */}
+        <div className="relative">
+          {/* Elemento bloqueado */}
+          <div className="opacity-50 pointer-events-none">
+            {element}
+          </div>
+          
+          {/* Banner de assinatura sobreposto */}
+          <div className="absolute inset-0 flex items-center justify-center bg-background/80 backdrop-blur-sm z-50">
+            <div className="bg-card border border-border rounded-lg shadow-lg p-8 max-w-md mx-4 text-center space-y-6">
+              <div className="flex justify-center">
+                <div className="rounded-full bg-primary/10 p-4">
+                  <Lock className="w-12 h-12 text-primary" />
+                </div>
+              </div>
+              
+              <div className="space-y-2">
+                <h2 className="text-2xl font-bold">Assinatura Necessária</h2>
+                <p className="text-muted-foreground">
+                  Para acessar o dashboard, você precisa de uma assinatura ativa.
+                  Escolha um plano e comece a usar todas as funcionalidades.
+                </p>
+              </div>
+              
+              <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowPlanModal(true)}
+                  className="w-full sm:w-auto"
+                >
+                  Ver Planos
+                </Button>
+                <Button
+                  variant="hero"
+                  onClick={() => setShowPlanModal(true)}
+                  className="w-full sm:w-auto"
+                >
+                  Assinar Agora
+                  <ArrowRight className="w-4 h-4 ml-2" />
+                </Button>
+              </div>
+            </div>
+          </div>
         </div>
       </>
     );
