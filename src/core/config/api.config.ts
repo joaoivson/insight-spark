@@ -43,8 +43,13 @@ const getBaseUrl = (): string => {
     }
   }
 
-  // Se não houver URL configurada, usar localhost (desenvolvimento)
+  // Se não houver URL configurada, usar proxy do Vite em desenvolvimento
+  // O proxy redireciona /api para localhost:8000, evitando problemas de CORS
   if (!envUrl) {
+    // Em desenvolvimento, usar proxy do Vite (sem porta, relativo ao host)
+    if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
+      return ''; // Vazio = usar o mesmo host/porta do frontend (proxy do Vite)
+    }
     return 'http://localhost:8000';
   }
 
@@ -81,6 +86,33 @@ export const API_CONFIG = {
 
 export const getApiUrl = (endpoint: string): string => {
   return `${API_CONFIG.BASE_URL}${endpoint}`;
+};
+
+/**
+ * Função helper para fazer requisições públicas (sem autenticação)
+ * Usada para endpoints que não requerem token, como checkout-url da Cakto
+ */
+export const fetchPublic = async (
+  url: string,
+  options: RequestInit = {}
+): Promise<Response> => {
+  const headers = new Headers(options.headers);
+
+  // Adicionar Content-Type se não estiver definido e houver body
+  if (options.body && !headers.has('Content-Type')) {
+    if (options.body instanceof FormData) {
+      // FormData define seu próprio Content-Type com boundary
+    } else if (typeof options.body === 'string') {
+      headers.set('Content-Type', 'application/json');
+    }
+  }
+
+  const response = await fetch(url, {
+    ...options,
+    headers,
+  });
+
+  return response;
 };
 
 /**
@@ -178,6 +210,30 @@ export const fetchWithAuth = async (
     
     // Redirecionar para login
     window.location.href = APP_CONFIG.ROUTES.LOGIN;
+  }
+
+  // Tratamento de erro 403 - Assinatura inativa
+  if (response.status === 403) {
+    const errorData = await response.json().catch(() => ({}));
+    const errorMessage = errorData.detail || errorData.message || '';
+    const isSubscriptionError = 
+      errorMessage.toLowerCase().includes("assinatura") ||
+      errorMessage.toLowerCase().includes("subscription") ||
+      errorMessage.toLowerCase().includes("não está ativa") ||
+      errorMessage.toLowerCase().includes("not active");
+    
+    if (isSubscriptionError && typeof window !== 'undefined') {
+      // Não redirecionar se já estiver na página de assinatura
+      if (!window.location.pathname.includes('/assinatura')) {
+        // Mostrar toast e redirecionar
+        if (window.dispatchEvent) {
+          window.dispatchEvent(new CustomEvent('subscription-required', {
+            detail: { message: errorMessage || 'Assinatura necessária' }
+          }));
+        }
+        window.location.href = '/assinatura';
+      }
+    }
   }
 
   return response;

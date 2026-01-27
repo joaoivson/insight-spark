@@ -175,14 +175,12 @@ const Login = () => {
 
           <div className="auth-footer">
             Não tem assinatura?{" "}
-            <a
-              href={APP_CONFIG.EXTERNALS.SUBSCRIBE_URL}
-              target="_blank"
-              rel="noreferrer"
+            <Link
+              to={APP_CONFIG.ROUTES.SUBSCRIPTION}
               className="auth-link auth-link--medium"
             >
               Assinar agora
-            </a>
+            </Link>
           </div>
         </motion.div>
       </div>

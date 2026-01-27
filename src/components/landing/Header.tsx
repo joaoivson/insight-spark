@@ -6,6 +6,9 @@ import { useState } from "react";
 import logoName from "@/assets/logo/logo_name.png";
 import logoIcon from "@/assets/logo/logo.png";
 import { APP_CONFIG } from "@/core/config/app.config";
+import { caktoService } from "@/services/cakto.service";
+import { tokenStorage, userStorage } from "@/shared/lib/storage";
+import { useToast } from "@/hooks/use-toast";
 import {
   Sheet,
   SheetContent,
@@ -13,6 +16,33 @@ import {
 
 const Header = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { toast } = useToast();
+  
+  const handleSubscribe = async () => {
+    try {
+      const isAuthenticated = !!tokenStorage.get();
+      const user = userStorage.get() as { email?: string; name?: string; cpf_cnpj?: string } | null;
+      
+      if (isAuthenticated && user) {
+        // Usuário logado: pré-preenche dados
+        await caktoService.redirectToCheckout({
+          email: user.email,
+          name: user.name,
+          cpf_cnpj: user.cpf_cnpj,
+        });
+      } else {
+        // Usuário não logado: redireciona direto para Cakto
+        caktoService.redirectToCheckoutDirect();
+      }
+    } catch (error) {
+      console.error('Erro ao redirecionar para checkout:', error);
+      toast({
+        title: "Erro ao acessar página de assinatura",
+        description: "Tente novamente em instantes.",
+        variant: "destructive",
+      });
+    }
+  };
 
   const navItems = [
     { label: "Funcionalidades", href: "#features" },
@@ -61,9 +91,9 @@ const Header = () => {
             <Link to="/login">
               <Button variant="ghost">Entrar</Button>
             </Link>
-            <a href={APP_CONFIG.EXTERNALS.SUBSCRIBE_URL} target="_blank" rel="noreferrer">
-              <Button variant="accent">Assinar</Button>
-            </a>
+            <Button variant="accent" onClick={handleSubscribe}>
+              Assinar
+            </Button>
           </div>
 
           {/* Mobile Menu Toggle */}
@@ -127,14 +157,16 @@ const Header = () => {
                 <Link to="/login" onClick={() => setMobileMenuOpen(false)}>
                   <Button variant="ghost" className="w-full">Entrar</Button>
                 </Link>
-                <a
-                  href={APP_CONFIG.EXTERNALS.SUBSCRIBE_URL}
-                  target="_blank"
-                  rel="noreferrer"
-                  onClick={() => setMobileMenuOpen(false)}
+                <Button 
+                  variant="accent" 
+                  className="w-full"
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    handleSubscribe();
+                  }}
                 >
-                  <Button variant="accent" className="w-full">Assinar</Button>
-                </a>
+                  Assinar
+                </Button>
               </div>
             </div>
           </SheetContent>

@@ -5,22 +5,9 @@
 
 import { User } from "@/shared/types";
 
-export interface SignupData {
-  nome: string;
-  email: string;
-  cpfCnpj: string;
-  senha: string;
-}
-
 export interface LoginData {
   email: string;
   senha: string;
-}
-
-export interface SignupResponse {
-  success: boolean;
-  user?: User;
-  error?: string;
 }
 
 export interface LoginResponse {

@@ -2,9 +2,38 @@ import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Zap } from "lucide-react";
 import { Link } from "react-router-dom";
-import { APP_CONFIG } from "@/core/config/app.config";
+import { caktoService } from "@/services/cakto.service";
+import { tokenStorage, userStorage } from "@/shared/lib/storage";
+import { useToast } from "@/hooks/use-toast";
 
 const HeroSection = () => {
+  const { toast } = useToast();
+  
+  const handleSubscribe = async () => {
+    try {
+      const isAuthenticated = !!tokenStorage.get();
+      const user = userStorage.get() as { email?: string; name?: string; cpf_cnpj?: string } | null;
+      
+      if (isAuthenticated && user) {
+        // Usuário logado: pré-preenche dados
+        await caktoService.redirectToCheckout({
+          email: user.email,
+          name: user.name,
+          cpf_cnpj: user.cpf_cnpj,
+        });
+      } else {
+        // Usuário não logado: redireciona direto para Cakto
+        caktoService.redirectToCheckoutDirect();
+      }
+    } catch (error) {
+      console.error('Erro ao redirecionar para checkout:', error);
+      toast({
+        title: "Erro ao acessar página de assinatura",
+        description: "Tente novamente em instantes.",
+        variant: "destructive",
+      });
+    }
+  };
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden pt-20">
       {/* Background Elements */}
@@ -65,12 +94,10 @@ const HeroSection = () => {
             transition={{ duration: 0.5, delay: 0.3 }}
             className="flex flex-col sm:flex-row items-center justify-center gap-4"
           >
-            <a href={APP_CONFIG.EXTERNALS.SUBSCRIBE_URL} target="_blank" rel="noreferrer">
-              <Button variant="hero" size="xl">
-                Assinar agora
-                <ArrowRight className="w-5 h-5" />
-              </Button>
-            </a>
+            <Button variant="hero" size="xl" onClick={handleSubscribe}>
+              Assinar agora
+              <ArrowRight className="w-5 h-5" />
+            </Button>
             <Link to="/demo">
               <Button variant="hero-outline" size="xl">
                 Ver demo
