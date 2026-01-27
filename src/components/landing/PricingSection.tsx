@@ -37,9 +37,9 @@ const PricingSection = () => {
         console.error('Erro ao carregar planos:', error);
         // Fallback: criar planos padrão se API falhar
         setPlans([
-          { id: "anual", name: "MarketDash Anual", checkout_url: "https://pay.cakto.com.br/6bpwn57", period: "anual" },
+          { id: "anual", name: "MarketDash Anual", checkout_url: "https://pay.cakto.com.br/ebrg3ir", period: "anual" },
           { id: "principal", name: "MarketDash Mensal", checkout_url: "https://pay.cakto.com.br/8e9qxyg_742442", period: "mensal" },
-          { id: "trimestral", name: "MarketDash Trimestral", checkout_url: "https://pay.cakto.com.br/hi5cerw", period: "trimestral" }
+          { id: "trimestral", name: "MarketDash Trimestral", checkout_url: "https://pay.cakto.com.br/3frhhks", period: "trimestral" }
         ]);
       } finally {
         setLoading(false);
