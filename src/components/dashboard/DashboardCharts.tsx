@@ -18,6 +18,8 @@ import type { DatasetRow } from "./DataTable";
 import { useMemo, useState, ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
+import { toDateKey } from "@/shared/lib/date";
+import { getComissaoAfiliado } from "@/shared/lib/kpi";
 
 const PIE_COLORS = ["hsl(210, 80%, 55%)", "hsl(222, 47%, 25%)", "hsl(24, 90%, 55%)", "hsl(273, 65%, 60%)"];
 const BAR_COLOR = "hsl(210, 80%, 55%)";
@@ -28,6 +30,9 @@ export type DrillDownType = "mes_ano" | "category" | "sub_id1" | "product" | "pl
 
 interface DashboardChartsProps {
   rows: DatasetRow[];
+  adSpends?: any[];
+  dateRange?: { from?: Date; to?: Date };
+  subIdFilter?: string;
   onDrillDown?: (type: DrillDownType, value: string) => void;
   belowRevenueContent?: ReactNode;
 }
@@ -69,18 +74,16 @@ const getCommissionValue = (row: DatasetRow): number => {
   return parsed !== undefined ? parsed : 0;
 };
 
+// Use the same function as kpi.ts to ensure consistency with cards
 const getAffiliateCommissionValue = (row: DatasetRow): number => {
-  const raw = (row as any).raw_data || {};
-  const parsed = cleanNumber(raw["Comissão líquida do afiliado(R$)"]);
-  if (parsed !== undefined) return parsed;
-  return getCommissionValue(row);
+  return getComissaoAfiliado(row);
 };
 
 const groupByMesAno = (rows: DatasetRow[]) => {
   const map = new Map<string, number>();
   rows.forEach((r) => {
     const key = r.mes_ano || (r.date ? r.date.slice(0, 7) : "Sem Mês");
-    map.set(key, (map.get(key) || 0) + getCommissionValue(r));
+    map.set(key, (map.get(key) || 0) + getAffiliateCommissionValue(r));
   });
   return Array.from(map.entries())
     .map(([key, value]) => {
@@ -96,7 +99,7 @@ const groupCommissionByDay = (rows: DatasetRow[]) => {
   rows.forEach((r) => {
     if (!r.date) return;
     const key = r.date;
-    map.set(key, (map.get(key) || 0) + getCommissionValue(r));
+    map.set(key, (map.get(key) || 0) + getAffiliateCommissionValue(r));
   });
   return Array.from(map.entries())
     .map(([key, value]) => {
@@ -107,33 +110,66 @@ const groupCommissionByDay = (rows: DatasetRow[]) => {
     .sort((a, b) => a.key.localeCompare(b.key));
 };
 
-const groupRevenueProfitByMes = (rows: DatasetRow[]) => {
-  const map = new Map<string, { revenue: number; cost: number; profit: number }>();
+const groupRevenueProfitByMes = (rows: DatasetRow[], adSpends: any[] = [], dateRange?: { from?: Date; to?: Date }, subIdFilter?: string) => {
+  const map = new Map<string, { commission: number; cost: number; profit: number }>();
+  
+  // Process rows for commission (already filtered by dateRange in Dashboard.tsx)
   rows.forEach((r) => {
-    const key = r.mes_ano || "Sem Mês";
-    const prev = map.get(key) || { revenue: 0, cost: 0, profit: 0 };
-    const raw = (r as any).raw_data || {};
-    const faturamento = cleanNumber(raw["Valor de Compra(R$)"]) ?? 0;
+    // Calculate mes_ano from date if not present
+    let key = r.mes_ano;
+    if (!key && r.date) {
+      const date = new Date(r.date);
+      if (!isNaN(date.getTime())) {
+        key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+      }
+    }
+    if (!key) key = "Sem Mês";
+    
+    const prev = map.get(key) || { commission: 0, cost: 0, profit: 0 };
     const comissao = getAffiliateCommissionValue(r);
-    const gasto = cleanNumber(raw["Valor gasto anuncios"]) ?? 0;
-    const lucro = comissao - gasto; // alinhado aos cards: lucro = comissão líquida - gasto anúncios
-    const custo = gasto; // exibir Gasto Anúncios
     map.set(key, {
-      revenue: prev.revenue + faturamento,
-      cost: prev.cost + custo,
-      profit: prev.profit + lucro,
+      ...prev,
+      commission: prev.commission + comissao,
     });
   });
+  
+  // Process ad spends for cost - filter by dateRange and subIdFilter to match cards (same logic as calcTotals)
+  adSpends.forEach((spend) => {
+    if (!spend.date) return;
+    
+    // Filter by subIdFilter (same logic as calcTotals)
+    if (subIdFilter && spend.sub_id !== subIdFilter) return;
+    
+    // Filter by dateRange (same logic as calcTotals)
+    const spendDate = toDateKey(spend.date);
+    if (dateRange?.from && spendDate < toDateKey(dateRange.from)) return;
+    if (dateRange?.to && spendDate > toDateKey(dateRange.to)) return;
+    
+    const date = new Date(spend.date);
+    const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+    const prev = map.get(key) || { commission: 0, cost: 0, profit: 0 };
+    map.set(key, {
+      ...prev,
+      cost: prev.cost + (spend.amount || 0),
+    });
+  });
+  
+  // Calculate profit for each month
   return Array.from(map.entries())
-    .map(([mes_ano, v]) => ({ mes_ano, ...v }))
+    .map(([mes_ano, v]) => ({ 
+      mes_ano, 
+      commission: v.commission,
+      cost: v.cost,
+      profit: v.commission - v.cost
+    }))
     .sort((a, b) => a.mes_ano.localeCompare(b.mes_ano));
 };
 
 const groupByPlatform = (rows: DatasetRow[]) => {
   const map = new Map<string, number>();
   rows.forEach((r) => {
-    const key = r.platform || r.sub_id1 || "Outros";
-    map.set(key, (map.get(key) || 0) + getCommissionValue(r));
+    const key = r.platform || "Outros";
+    map.set(key, (map.get(key) || 0) + getAffiliateCommissionValue(r));
   });
   return Array.from(map.entries())
     .map(([name, value]) => ({ name, value }))
@@ -144,7 +180,7 @@ const groupByCategory = (rows: DatasetRow[]) => {
   const map = new Map<string, number>();
   rows.forEach((r) => {
     const key = r.category || "Sem categoria";
-    map.set(key, (map.get(key) || 0) + getCommissionValue(r));
+    map.set(key, (map.get(key) || 0) + getAffiliateCommissionValue(r));
   });
   return Array.from(map.entries())
     .map(([name, value]) => ({ name, value }))
@@ -409,9 +445,17 @@ const MesAnoChart = ({
     </div>
     <div className="h-64 sm:h-72 overflow-x-auto -mx-2 sm:mx-0 px-2 sm:px-0">
       <ResponsiveContainer width="100%" height="100%" minWidth={280}>
-        <BarChart data={data} margin={{ top: 10, right: 10, left: 10, bottom: 10 }}>
+        <BarChart data={data} margin={{ top: 10, right: 10, left: 10, bottom: 40 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-          <XAxis dataKey="label" stroke="hsl(var(--muted-foreground))" tick={false} tickLine={false} />
+          <XAxis 
+            dataKey="label" 
+            stroke="hsl(var(--muted-foreground))" 
+            tick={{ fill: "hsl(var(--foreground))", fontSize: 11 }}
+            tickLine={false}
+            angle={-45}
+            textAnchor="end"
+            height={60}
+          />
           <YAxis stroke="hsl(var(--muted-foreground))" tick={false} axisLine={false} tickLine={false} />
           <Tooltip
             contentStyle={{
@@ -504,7 +548,19 @@ const RevenueProfitArea = ({ data, onDrillDown }: { data: any[]; onDrillDown?: (
             </linearGradient>
           </defs>
           <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-          <XAxis dataKey="mes_ano" stroke="hsl(var(--muted-foreground))" tickLine={false} hide />
+          <XAxis 
+            dataKey="mes_ano" 
+            stroke="hsl(var(--muted-foreground))" 
+            tick={{ fill: "hsl(var(--foreground))", fontSize: 11 }}
+            tickLine={false}
+            tickFormatter={(value) => {
+              if (typeof value === "string" && value.length >= 7) {
+                const [year, month] = value.split("-");
+                if (year && month) return `${month}/${year}`;
+              }
+              return value;
+            }}
+          />
           <YAxis stroke="hsl(var(--muted-foreground))" tickFormatter={formatK} axisLine={false} tickLine={false} hide />
           <Tooltip
             contentStyle={{
@@ -516,10 +572,10 @@ const RevenueProfitArea = ({ data, onDrillDown }: { data: any[]; onDrillDown?: (
             formatter={(v: number, _name: string, ctx) => {
               const key = ctx?.dataKey;
               const label =
-                key === "revenue"
-                  ? "Faturamento"
+                key === "commission"
+                  ? "Comissão"
                   : key === "profit"
-                  ? "Lucro (Comissão - Gasto Anúncios)"
+                  ? "Lucro"
                   : "Gasto Anúncios";
               return [formatCurrency(v), label];
             }}
@@ -534,8 +590,8 @@ const RevenueProfitArea = ({ data, onDrillDown }: { data: any[]; onDrillDown?: (
           <Legend />
           <Area
             type="monotone"
-            dataKey="revenue"
-            name="Faturamento"
+            dataKey="commission"
+            name="Comissão"
             stroke={BAR_COLOR}
             fillOpacity={1}
             fill="url(#rev)"
@@ -553,7 +609,7 @@ const RevenueProfitArea = ({ data, onDrillDown }: { data: any[]; onDrillDown?: (
           <Area
             type="monotone"
             dataKey="profit"
-            name="Lucro (Comissão - Gasto Anúncios)"
+            name="Lucro"
             stroke={PROFIT_COLOR}
             fillOpacity={1}
             fill="url(#prof)"
@@ -566,7 +622,7 @@ const RevenueProfitArea = ({ data, onDrillDown }: { data: any[]; onDrillDown?: (
   );
 };
 
-const DashboardCharts = ({ rows, onDrillDown, belowRevenueContent }: DashboardChartsProps) => {
+const DashboardCharts = ({ rows, adSpends = [], dateRange, subIdFilter, onDrillDown, belowRevenueContent }: DashboardChartsProps) => {
   const [commissionMode, setCommissionMode] = useState<"month" | "day">("month");
 
   if (!rows.length) {
@@ -591,7 +647,7 @@ const DashboardCharts = ({ rows, onDrillDown, belowRevenueContent }: DashboardCh
 
   const mesAnoData = groupByMesAno(rows);
   const commissionDayData = groupCommissionByDay(rows);
-  const revProfitData = groupRevenueProfitByMes(rows);
+  const revProfitData = groupRevenueProfitByMes(rows, adSpends, dateRange, subIdFilter);
   const channelData = groupByPlatform(rows);
   const categoryData = groupByCategory(rows);
 

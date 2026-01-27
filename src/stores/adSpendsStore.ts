@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import type { AdSpend } from "@/shared/types/adspend";
-import { userStorage } from "@/shared/lib/storage";
+import { userStorage, getUserId } from "@/shared/lib/storage";
 import { safeGetJSON, safeRemove, safeSetJSON } from "@/utils/storage";
 import { createAdSpend, deleteAdSpend, listAdSpends, updateAdSpend, type AdSpendPayload } from "@/services/adspends.service";
 
@@ -19,7 +19,18 @@ type AdSpendsState = {
   invalidate: () => void;
 };
 
-const getCacheKey = (userId?: string | number | null) => `adspends-cache:${userId ?? "anon"}`;
+const getCacheKey = (userId?: string | number | null) => {
+  if (userId) {
+    // Se já estiver no formato user_X, usar como está
+    const idStr = String(userId);
+    if (idStr.startsWith('user_')) {
+      return `adspends-cache:${idStr}`;
+    }
+    // Caso contrário, adicionar prefixo user_
+    return `adspends-cache:user_${idStr}`;
+  }
+  return `adspends-cache:anon`;
+};
 
 const rangeToParams = (range?: DateRange) => {
   const startDate = range?.from ? new Date(range.from as any).toISOString().slice(0, 10) : undefined;
@@ -35,13 +46,13 @@ export const useAdSpendsStore = create<AdSpendsState>((set, get) => ({
   lastUpdated: null,
 
   invalidate: () => {
-    const userId = (userStorage.get() as { id?: string } | null)?.id ?? null;
+    const userId = getUserId(); // Usar formato user_4
     safeRemove(getCacheKey(userId));
     set({ adSpends: [], hydrated: false, lastUpdated: null });
   },
 
   fetchAdSpends: async (opts = {}) => {
-    const userId = (userStorage.get() as { id?: string } | null)?.id ?? null;
+    const userId = getUserId(); // Usar formato user_4
     const cacheKey = getCacheKey(userId);
     const { adSpends, hydrated, loading } = get();
 

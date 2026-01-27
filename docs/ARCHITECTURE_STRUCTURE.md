@@ -166,4 +166,3 @@ export const useUser = () => {
 - Use TypeScript para type safety
 - Documente tipos complexos
 - Mantenha imports organizados
-

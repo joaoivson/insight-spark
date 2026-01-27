@@ -10,14 +10,24 @@
 .auth-container {
   min-height: 100vh;
   display: flex;
+  flex-direction: column;
   background: hsl(var(--background));
+  
+  @include desktop {
+    flex-direction: row;
+  }
 }
 
 // Form Side
 .auth-form-side {
   flex: 1;
+  width: 100%;
   @include flex-center;
   padding: $spacing-xl;
+  
+  @include desktop {
+    width: auto;
+  }
 }
 
 .auth-form-wrapper {

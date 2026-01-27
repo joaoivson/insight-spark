@@ -1,4 +1,4 @@
-import { tokenStorage, userStorage } from '@/shared/lib/storage';
+import { tokenStorage, userStorage, getUserId } from '@/shared/lib/storage';
 import { APP_CONFIG } from '@/core/config/app.config';
 
 /**
@@ -43,8 +43,13 @@ const getBaseUrl = (): string => {
     }
   }
 
-  // Se não houver URL configurada, usar localhost (desenvolvimento)
+  // Se não houver URL configurada, usar proxy do Vite em desenvolvimento
+  // O proxy redireciona /api para localhost:8000, evitando problemas de CORS
   if (!envUrl) {
+    // Em desenvolvimento, usar proxy do Vite (sem porta, relativo ao host)
+    if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
+      return ''; // Vazio = usar o mesmo host/porta do frontend (proxy do Vite)
+    }
     return 'http://localhost:8000';
   }
 
@@ -84,6 +89,33 @@ export const getApiUrl = (endpoint: string): string => {
 };
 
 /**
+ * Função helper para fazer requisições públicas (sem autenticação)
+ * Usada para endpoints que não requerem token, como checkout-url da Cakto
+ */
+export const fetchPublic = async (
+  url: string,
+  options: RequestInit = {}
+): Promise<Response> => {
+  const headers = new Headers(options.headers);
+
+  // Adicionar Content-Type se não estiver definido e houver body
+  if (options.body && !headers.has('Content-Type')) {
+    if (options.body instanceof FormData) {
+      // FormData define seu próprio Content-Type com boundary
+    } else if (typeof options.body === 'string') {
+      headers.set('Content-Type', 'application/json');
+    }
+  }
+
+  const response = await fetch(url, {
+    ...options,
+    headers,
+  });
+
+  return response;
+};
+
+/**
  * Função helper para fazer requisições autenticadas
  * Adiciona automaticamente o token JWT no header Authorization
  * Trata erros 401 removendo token e redirecionando para login
@@ -93,6 +125,7 @@ export const fetchWithAuth = async (
   options: RequestInit = {}
 ): Promise<Response> => {
   const token = tokenStorage.get();
+  const userId = getUserId(); // Obter user_id no formato user_4
 
   const headers = new Headers(options.headers);
   
@@ -108,7 +141,14 @@ export const fetchWithAuth = async (
     
     if (cleanToken) {
       headers.set('Authorization', `Bearer ${cleanToken}`);
-      
+    }
+  }
+
+  // Adicionar user_id como header em todas as requisições (exceto rotas de autenticação)
+  if (userId) {
+    const isAuthRoute = url.includes('/auth/login') || url.includes('/auth/register');
+    if (!isAuthRoute) {
+      headers.set('X-User-Id', userId);
     }
   }
 
@@ -121,7 +161,18 @@ export const fetchWithAuth = async (
     }
   }
 
-  const response = await fetch(url, {
+  // Adicionar user_id como query parameter também (para compatibilidade)
+  let finalUrl = url;
+  if (userId) {
+    const isAuthRoute = url.includes('/auth/login') || url.includes('/auth/register');
+    if (!isAuthRoute) {
+      // Adicionar user_id como query parameter
+      const separator = url.includes('?') ? '&' : '?';
+      finalUrl = `${url}${separator}user_id=${encodeURIComponent(userId)}`;
+    }
+  }
+
+  const response = await fetch(finalUrl, {
     ...options,
     headers,
   });
@@ -159,6 +210,39 @@ export const fetchWithAuth = async (
     
     // Redirecionar para login
     window.location.href = APP_CONFIG.ROUTES.LOGIN;
+  }
+
+  // Tratamento de erro 403 - Assinatura inativa
+  if (response.status === 403) {
+    const errorData = await response.json().catch(() => ({}));
+    const errorMessage = errorData.detail || errorData.message || '';
+    const isSubscriptionError = 
+      errorMessage.toLowerCase().includes("assinatura") ||
+      errorMessage.toLowerCase().includes("subscription") ||
+      errorMessage.toLowerCase().includes("não está ativa") ||
+      errorMessage.toLowerCase().includes("not active");
+    
+    if (isSubscriptionError && typeof window !== 'undefined') {
+      // Não redirecionar se já estiver na página de assinatura ou checkout
+      if (!window.location.pathname.includes('/assinatura') && !window.location.href.includes('cakto')) {
+        // Importar dinamicamente para evitar dependência circular
+        import('@/services/cakto.service').then(({ caktoService }) => {
+          const user = userStorage.get() as { email?: string; name?: string; cpf_cnpj?: string } | null;
+          if (user) {
+            caktoService.redirectToCheckout({
+              email: user.email,
+              name: user.name,
+              cpf_cnpj: user.cpf_cnpj,
+            });
+          } else {
+            caktoService.redirectToCheckoutDirect();
+          }
+        }).catch(() => {
+          // Fallback: redirecionar para página de assinatura se houver erro
+          window.location.href = '/assinatura';
+        });
+      }
+    }
   }
 
   return response;

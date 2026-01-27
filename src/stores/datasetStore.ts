@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import type { DatasetRow } from "@/components/dashboard/DataTable";
-import { userStorage } from "@/shared/lib/storage";
+import { userStorage, getUserId } from "@/shared/lib/storage";
 import { fetchDatasetRows } from "@/services/datasets.service";
 import { safeGetJSON, safeRemove, safeSetJSON } from "@/utils/storage";
 
@@ -17,7 +17,18 @@ type DatasetState = {
   persist: (rows: DatasetRow[]) => void;
 };
 
-const getCacheKey = (userId?: string | number | null) => `dataset-cache:${userId ?? "anon"}`;
+const getCacheKey = (userId?: string | number | null) => {
+  if (userId) {
+    // Se já estiver no formato user_X, usar como está
+    const idStr = String(userId);
+    if (idStr.startsWith('user_')) {
+      return `dataset-cache:${idStr}`;
+    }
+    // Caso contrário, adicionar prefixo user_
+    return `dataset-cache:user_${idStr}`;
+  }
+  return `dataset-cache:anon`;
+};
 
 const rangeToParams = (range?: DateRange) => {
   const startDate = range?.from ? new Date(range.from as any).toISOString().slice(0, 10) : undefined;
@@ -26,7 +37,7 @@ const rangeToParams = (range?: DateRange) => {
 };
 
 const getInitialState = () => {
-  const userId = (userStorage.get() as { id?: string } | null)?.id ?? null;
+  const userId = getUserId(); // Usar formato user_4
   const cacheKey = getCacheKey(userId);
   const cached = safeGetJSON<{ rows: DatasetRow[]; lastUpdated?: number }>(cacheKey);
   if (cached && Array.isArray(cached.rows)) {
@@ -49,13 +60,13 @@ export const useDatasetStore = create<DatasetState>((set, get) => {
     lastUpdated: initial.lastUpdated,
 
   invalidate: () => {
-    const userId = (userStorage.get() as { id?: string } | null)?.id ?? null;
+    const userId = getUserId(); // Usar formato user_4
     safeRemove(getCacheKey(userId));
     set({ rows: [], hydrated: false, lastUpdated: null });
   },
 
   persist: (newRows: DatasetRow[]) => {
-    const userId = (userStorage.get() as { id?: string } | null)?.id ?? null;
+    const userId = getUserId(); // Usar formato user_4
     const cacheKey = getCacheKey(userId);
     const now = Date.now();
     set({ rows: newRows, hydrated: true, lastUpdated: now });
@@ -63,7 +74,7 @@ export const useDatasetStore = create<DatasetState>((set, get) => {
   },
 
   fetchRows: async (opts = {}) => {
-    const userId = (userStorage.get() as { id?: string } | null)?.id ?? null;
+    const userId = getUserId(); // Usar formato user_4
     const cacheKey = getCacheKey(userId);
     const { rows, hydrated, loading } = get();
 

@@ -1,6 +1,7 @@
 /**
  * Auth Services Barrel Export
  */
-export { signupService } from './signup.service';
 export { loginService } from './login.service';
+export { passwordService } from './password.service';
+export type { SetPasswordRequest, SetPasswordResponse, ForgotPasswordRequest, ForgotPasswordResponse } from './password.service';
 

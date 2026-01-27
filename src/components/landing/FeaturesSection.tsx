@@ -1,36 +1,114 @@
 import { motion } from "framer-motion";
-import { Upload, BarChart3, Filter, RefreshCw, Target, ShoppingCart } from "lucide-react";
+import { 
+  Upload, BarChart3, Filter, RefreshCw, Target, ShoppingCart, 
+  DollarSign, Package, TrendingUp, MousePointer, Clock, Hash,
+  FileText, PieChart
+} from "lucide-react";
 
-const features = [
+const featureCategories = [
   {
-    icon: Upload,
-    title: "Importação em segundos",
-    description: "Envie CSVs e visualize seus KPIs instantaneamente, sem depender de planilhas.",
+    category: "Comissões",
+    icon: DollarSign,
+    features: [
+      {
+        icon: DollarSign,
+        title: "Total de Comissões",
+        description: "Mostra o valor total recebido em comissões de vendas, consolidado e organizado.",
+      },
+      {
+        icon: BarChart3,
+        title: "Total de Comissões por Canal/Plataforma",
+        description: "Apresenta o valor total de comissões separadas por cada canal de divulgação (Instagram, WhatsApp, TikTok, etc.).",
+      },
+      {
+        icon: Hash,
+        title: "Total de Comissões por Sub_Id",
+        description: "Indica o valor total de comissões separadas por Sub_Id, ideal para quem usa tráfego pago e precisa identificar campanhas.",
+      },
+    ],
   },
   {
-    icon: BarChart3,
-    title: "KPIs que importam",
-    description: "Faturamento, comissão, gasto em anúncios, lucro e ROAS na mesma tela.",
+    category: "Pedidos",
+    icon: Package,
+    features: [
+      {
+        icon: Package,
+        title: "Total de Pedidos",
+        description: "Exibe a quantidade total de pedidos gerados a partir dos seus links de afiliado.",
+      },
+      {
+        icon: Target,
+        title: "Total de Pedidos por Canal/Plataforma",
+        description: "Mostra quantos pedidos foram feitos em cada canal de divulgação utilizado.",
+      },
+      {
+        icon: Hash,
+        title: "Total de Pedidos por Sub_Id",
+        description: "Mostra a quantidade de pedidos gerados por cada Sub_Id, ajudando na análise de campanhas de tráfego pago.",
+      },
+    ],
   },
   {
-    icon: Target,
-    title: "Decisões por canal",
-    description: "Veja a performance por Sub ID, plataforma e categoria com drill-down.",
+    category: "Cliques",
+    icon: MousePointer,
+    features: [
+      {
+        icon: MousePointer,
+        title: "Total de Cliques",
+        description: "Aponta o número total de cliques gerados nos seus links de afiliado.",
+      },
+      {
+        icon: Target,
+        title: "Total de Cliques por Canal/Plataforma",
+        description: "Informa quantos cliques vieram de cada canal/plataforma de divulgação.",
+      },
+      {
+        icon: Clock,
+        title: "Total de Cliques por Horário",
+        description: "Mostra os horários do dia com maior volume de cliques, ajudando a otimizar suas campanhas.",
+      },
+      {
+        icon: Hash,
+        title: "Total de Cliques por Sub_Id",
+        description: "Mostra a quantidade de cliques em links da Shopee que você adicionou Sub_Id, informação importante para quem faz tráfego pago.",
+      },
+    ],
   },
   {
-    icon: ShoppingCart,
-    title: "Controle de Ads",
-    description: "Registre gastos e compare retorno real por canal e por período.",
-  },
-  {
-    icon: Filter,
-    title: "Filtros inteligentes",
-    description: "Aplique período, status, categoria e canal sem perder contexto do negócio.",
-  },
-  {
-    icon: RefreshCw,
-    title: "Cache & velocidade",
-    description: "Interface rápida com dados em cache e atualização controlada.",
+    category: "Análises Avançadas",
+    icon: TrendingUp,
+    features: [
+      {
+        icon: PieChart,
+        title: "Análise de ROAS",
+        description: "Cálculo automático de Retorno sobre Investimento em Anúncios, comparando comissões com gastos em ads.",
+      },
+      {
+        icon: ShoppingCart,
+        title: "Gestão de Gastos em Anúncios",
+        description: "Registre e acompanhe todos os gastos em anúncios por data, canal e Sub_Id para análise precisa.",
+      },
+      {
+        icon: FileText,
+        title: "Relatórios Mensais",
+        description: "Gere relatórios detalhados mensais com todos os KPIs e métricas consolidadas.",
+      },
+      {
+        icon: Filter,
+        title: "Filtros Avançados",
+        description: "Aplique filtros por período, status, categoria, canal e Sub_Id para análises específicas.",
+      },
+      {
+        icon: Upload,
+        title: "Importação Ilimitada",
+        description: "Importe quantos CSVs precisar, sem limite de análises ou dados processados.",
+      },
+      {
+        icon: RefreshCw,
+        title: "Atualização Rápida",
+        description: "Interface rápida com cache local e atualização controlada para performance otimizada.",
+      },
+    ],
   },
 ];
 
@@ -50,34 +128,55 @@ const FeaturesSection = () => {
             Funcionalidades
           </span>
           <h2 className="font-display text-3xl md:text-4xl font-bold text-foreground mb-4">
-            Tudo que você precisa para analisar seus dados
+            Funcionalidades que fazem a diferença
           </h2>
           <p className="text-muted-foreground text-lg">
-            Ferramentas poderosas e intuitivas para transformar dados brutos em insights acionáveis.
+            Recursos desenvolvidos especificamente para afiliados Shopee que querem resultados
           </p>
         </motion.div>
 
-        {/* Features Grid */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {features.map((feature, index) => (
+        {/* Features por Categoria */}
+        <div className="space-y-12">
+          {featureCategories.map((category, categoryIndex) => (
             <motion.div
-              key={feature.title}
+              key={category.category}
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
-              transition={{ duration: 0.5, delay: index * 0.1 }}
-              className="group"
+              transition={{ duration: 0.5, delay: categoryIndex * 0.1 }}
             >
-              <div className="h-full glass-card rounded-2xl p-6 hover-lift cursor-pointer border border-transparent hover:border-accent/20">
-                <div className="w-12 h-12 rounded-xl bg-accent/10 flex items-center justify-center mb-4 group-hover:bg-accent/20 transition-colors">
-                  <feature.icon className="w-6 h-6 text-accent" />
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center">
+                  <category.icon className="w-5 h-5 text-accent" />
                 </div>
-                <h3 className="font-display font-semibold text-lg text-foreground mb-2">
-                  {feature.title}
+                <h3 className="font-display font-bold text-2xl text-foreground">
+                  {category.category}
                 </h3>
-                <p className="text-muted-foreground text-sm leading-relaxed">
-                  {feature.description}
-                </p>
+              </div>
+              
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {category.features.map((feature, featureIndex) => (
+                  <motion.div
+                    key={feature.title}
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ duration: 0.5, delay: (categoryIndex * 0.1) + (featureIndex * 0.05) }}
+                    className="group"
+                  >
+                    <div className="h-full glass-card rounded-2xl p-6 hover-lift cursor-pointer border border-transparent hover:border-accent/20">
+                      <div className="w-12 h-12 rounded-xl bg-accent/10 flex items-center justify-center mb-4 group-hover:bg-accent/20 transition-colors">
+                        <feature.icon className="w-6 h-6 text-accent" />
+                      </div>
+                      <h4 className="font-display font-semibold text-lg text-foreground mb-2">
+                        {feature.title}
+                      </h4>
+                      <p className="text-muted-foreground text-sm leading-relaxed">
+                        {feature.description}
+                      </p>
+                    </div>
+                  </motion.div>
+                ))}
               </div>
             </motion.div>
           ))}
