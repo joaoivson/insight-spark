@@ -10,6 +10,7 @@ import { useSubscriptionCheck } from "@/shared/hooks/useSubscriptionCheck";
 import { userStorage } from "@/shared/lib/storage";
 import { Loader2, CheckCircle2, BarChart3, TrendingUp, Target, Shield, ArrowRight, User, Phone, Mail, CreditCard, Check } from "lucide-react";
 import { APP_CONFIG } from "@/core/config/app.config";
+import { SubscriptionPlanModal } from "@/features/subscription/components/SubscriptionPlanModal";
 import "../styles/index.scss";
 import logoName from "@/assets/logo/logo_name.png";
 import logoIcon from "@/assets/logo/logo.png";
@@ -28,6 +29,8 @@ const SubscriptionPage = () => {
     cpf_cnpj: "",
     telefone: "",
   });
+  const [showPlanModal, setShowPlanModal] = useState(false);
+  const [checkoutPrefill, setCheckoutPrefill] = useState<{ name: string; email: string; cpf_cnpj: string; telefone: string } | null>(null);
 
   // Buscar planos disponíveis
   useEffect(() => {
@@ -86,9 +89,9 @@ const SubscriptionPage = () => {
     return cleaned.length >= 10 && cleaned.length <= 11;
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Validações obrigatórias
     if (!formData.name.trim()) {
       toast({ title: "Nome completo é obrigatório", variant: "destructive" });
@@ -128,23 +131,16 @@ const SubscriptionPage = () => {
       return;
     }
 
-    try {
-      setLoading(true);
-      await caktoService.redirectToCheckout({
-        name: formData.name.trim(),
-        email: formData.email.trim(),
-        cpf_cnpj: formData.cpf_cnpj.replace(/\D/g, ""), // Remove formatação
-        telefone: formData.telefone.replace(/\D/g, ""), // Remove formatação
-        plan: selectedPlan,
-      });
-    } catch (error) {
-      toast({
-        title: "Erro ao processar",
-        description: error instanceof Error ? error.message : "Não foi possível iniciar o checkout",
-        variant: "destructive",
-      });
-      setLoading(false);
-    }
+    const sanitizedData = {
+      name: formData.name.trim(),
+      email: formData.email.trim(),
+      cpf_cnpj: formData.cpf_cnpj.replace(/\D/g, ""),
+      telefone: formData.telefone.replace(/\D/g, ""),
+    };
+
+    setLoading(true);
+    setCheckoutPrefill(sanitizedData);
+    setShowPlanModal(true);
   };
 
   // Se já tiver assinatura ativa, mostrar mensagem
@@ -414,6 +410,18 @@ const SubscriptionPage = () => {
           </div>
         </motion.div>
       </div>
+      <SubscriptionPlanModal
+        open={showPlanModal}
+        onOpenChange={(open) => {
+          setShowPlanModal(open);
+          if (!open) {
+            setLoading(false);
+          }
+        }}
+        initialPlanId={selectedPlan}
+        onPlanSelected={(planId) => setSelectedPlan(planId)}
+        customerData={checkoutPrefill || undefined}
+      />
     </div>
   );
 };

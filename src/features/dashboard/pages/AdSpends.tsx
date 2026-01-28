@@ -104,12 +104,12 @@ const normalizeAmount = (value: any) => {
 
 const normalizeDate = (value: string | Date | number | null | undefined) => {
   if (!value && value !== 0) return null;
-  
+
   // Se for objeto Date válido
   if (value instanceof Date && !isNaN(value.getTime())) {
     return value.toISOString().slice(0, 10);
   }
-  
+
   // Se for número (serial number do Excel: dias desde 1900-01-01)
   if (typeof value === "number") {
     // Excel epoch: 1900-01-01 (mas Excel tem bug: trata 1900 como ano bissexto)
@@ -120,14 +120,14 @@ const normalizeDate = (value: string | Date | number | null | undefined) => {
       return date.toISOString().slice(0, 10);
     }
   }
-  
+
   if (typeof value === "string") {
     const trimmed = value.trim();
     if (!trimmed) return null;
-    
+
     // yyyy-mm-dd (ISO)
     if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
-    
+
     // dd/MM/yyyy ou dd/MM/yy
     const match = trimmed.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
     if (match) {
@@ -135,23 +135,23 @@ const normalizeDate = (value: string | Date | number | null | undefined) => {
       const d = parseInt(dRaw, 10);
       const m = parseInt(mRaw, 10) - 1; // meses são 0-indexed
       const y = yRaw.length === 2 ? parseInt(`20${yRaw}`, 10) : parseInt(yRaw, 10);
-      
+
       // Validação básica
       if (d < 1 || d > 31 || m < 0 || m > 11 || y < 1900 || y > 2100) return null;
-      
+
       const date = new Date(y, m, d);
       if (!isNaN(date.getTime()) && date.getDate() === d && date.getMonth() === m && date.getFullYear() === y) {
         return date.toISOString().slice(0, 10);
       }
     }
   }
-  
+
   // Última tentativa: constructor padrão do Date
   const d = new Date(value as any);
   if (!isNaN(d.getTime())) {
     return d.toISOString().slice(0, 10);
   }
-  
+
   return null;
 };
 
@@ -291,7 +291,7 @@ const AdSpends = () => {
       e.preventDefault();
       e.stopPropagation();
     }
-    
+
     try {
       const today = new Date().toISOString().slice(0, 10);
       // Estrutura: Data, SubId, ValorGasto (vírgula para decimais)
@@ -300,23 +300,23 @@ const AdSpends = () => {
         [today, "ASPRADOR02", "120,50"],
         [today, "", "300,00"],
       ];
-      
+
       const ws = XLSX.utils.aoa_to_sheet(data);
-      
+
       // Ajustar largura das colunas para melhor visualização
       ws['!cols'] = [
         { wch: 12 }, // Data
         { wch: 15 }, // SubId
         { wch: 12 }, // ValorGasto
       ];
-      
+
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, "Modelo");
-      
+
       // Usar XLSX.writeFile diretamente - método nativo da biblioteca
       const fileName = "modelo-investimentos.xlsx";
       XLSX.writeFile(wb, fileName);
-      
+
       toast({
         title: "Download iniciado",
         description: "Modelo de investimentos baixado com sucesso.",
@@ -344,18 +344,18 @@ const AdSpends = () => {
     const data = await file.arrayBuffer();
     const wb = XLSX.read(data, { type: "array", cellDates: false, raw: true });
     const ws = wb.Sheets[wb.SheetNames[0]];
-    
+
     // Obter range de células
     const range = XLSX.utils.decode_range(ws["!ref"] || "A1");
     const headers: string[] = [];
-    
+
     // Ler header (primeira linha)
     for (let C = range.s.c; C <= range.e.c; ++C) {
       const cellAddress = XLSX.utils.encode_cell({ r: 0, c: C });
       const cell = ws[cellAddress];
       headers[C] = cell ? (cell.w || cell.v || "").toString() : "";
     }
-    
+
     // Processar linhas de dados
     const rows: any[] = [];
     for (let R = 1; R <= range.e.r; ++R) {
@@ -365,14 +365,14 @@ const AdSpends = () => {
         const cellAddress = XLSX.utils.encode_cell({ r: R, c: C });
         const cell = ws[cellAddress];
         if (!cell) continue;
-        
+
         const header = headers[C];
         if (!header) continue;
-        
+
         hasData = true;
         const keyLower = header.toLowerCase();
         let value: any = cell.v;
-        
+
         // Para coluna Data: converter serial numbers do Excel
         if (keyLower === "data" || keyLower === "date") {
           if (typeof value === "number" && value > 1 && value < 100000) {
@@ -390,12 +390,12 @@ const AdSpends = () => {
           // Se for string, pode ser valor formatado com vírgula
           value = cell.v; // sempre usar valor raw
         }
-        
+
         row[header] = value;
       }
       if (hasData) rows.push(row);
     }
-    
+
     return rows;
   };
 
@@ -429,7 +429,7 @@ const AdSpends = () => {
   const handleImport = async (file?: File) => {
     const fileToImport = file || previewFile;
     if (!fileToImport) return;
-    
+
     setImporting(true);
     try {
       const ext = fileToImport.name.toLowerCase();
@@ -483,7 +483,7 @@ const AdSpends = () => {
           // Busca flexível por coluna de sub_id (case-insensitive)
           const rawSubId = findColumn(row, ["subid", "sub_id", "sub id", "canal", "channel"]);
           const sid = rawSubId ? String(rawSubId).trim() : "";
-          
+
           // Normalize sub_id to lowercase for comparison with existing sub_ids
           const normalizedSubId = sid.toLowerCase();
 
@@ -555,7 +555,7 @@ const AdSpends = () => {
             <AlertDialogHeader>
               <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
               <AlertDialogDescription>
-                Esta ação irá excluir permanentemente todos os investimentos (todos os dados da tabela ad_spends vinculado ao user_id). 
+                Esta ação irá excluir permanentemente todos os investimentos.
                 Esta ação não pode ser desfeita.
               </AlertDialogDescription>
             </AlertDialogHeader>
@@ -574,146 +574,61 @@ const AdSpends = () => {
       }
     >
       <div className="grid gap-4">
-        <Card className="bg-gradient-to-r from-primary/15 via-primary/10 to-background border-primary/20 p-6">
-          <div className="flex items-start justify-between gap-4 flex-wrap">
-            <div className="space-y-2 max-w-2xl">
-              <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-primary text-xs font-semibold">
-                <Wallet className="w-4 h-4" />
-                Hub de investimentos ousado
-              </div>
-              <h2 className="text-2xl font-bold text-foreground">Registre, importe e edite gastos em um só lugar</h2>
-              <p className="text-muted-foreground">
-                Opção 1: preencha os campos abaixo para um lançamento rápido. <br />
-                Opção 2: baixe o modelo, preencha no Excel/Sheets e faça o upload para múltiplos lançamentos.
-              </p>
-            </div>
+
+        <Card className="p-5">
+          <h3 className="text-lg font-semibold text-foreground mb-3">Importar planilha</h3>
+          <div
+            className="border border-dashed border-border rounded-xl p-6 text-center bg-secondary/30 transition-colors min-h-[200px] flex flex-col items-center justify-center"
+            onDragEnter={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              if (!blocking) {
+                e.currentTarget.classList.add('border-primary', 'bg-primary/5');
+              }
+            }}
+            onDragLeave={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              e.currentTarget.classList.remove('border-primary', 'bg-primary/5');
+            }}
+            onDragOver={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+            }}
+            onDrop={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              e.currentTarget.classList.remove('border-primary', 'bg-primary/5');
+              if (!blocking && e.dataTransfer.files && e.dataTransfer.files[0]) {
+                const file = e.dataTransfer.files[0];
+                const ext = file.name.toLowerCase();
+                if (ext.endsWith('.csv') || ext.endsWith('.xlsx') || ext.endsWith('.xls')) {
+                  handleFilePreview(file);
+                } else {
+                  toast({
+                    title: "Formato inválido",
+                    description: "Por favor, use arquivos .csv, .xlsx ou .xls",
+                    variant: "destructive",
+                  });
+                }
+              }
+            }}
+          >
+            <UploadCloud className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+            <p className="text-sm font-medium text-foreground mb-2">
+              Arraste e solte sua planilha aqui
+            </p>
+            <p className="text-xs text-muted-foreground mb-4 max-w-xs">
+              Use o modelo para garantir as colunas corretas: <strong>Data</strong>, <strong>SubId</strong>,{" "}
+              <strong>ValorGasto</strong> (R$). Suporta Excel (.xlsx/.xls) ou CSV.
+            </p>
+
             <div className="flex gap-2">
               <Button variant="secondary" onClick={handleDownloadTemplate} disabled={blocking}>
                 <Download className="w-4 h-4 mr-2" />
                 Baixar modelo (.xlsx)
               </Button>
-              <Button variant="ghost" onClick={refreshData} disabled={blocking}>
-                <RefreshCw className={`w-4 h-4 mr-2 ${refreshing ? "animate-spin" : ""}`} />
-                {refreshing ? "Atualizando..." : "Atualizar dados"}
-              </Button>
-            </div>
-          </div>
-        </Card>
 
-        <div className="grid gap-4 lg:grid-cols-3">
-          <Card className="p-5 lg:col-span-2">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <p className="text-sm text-muted-foreground">Opção 1</p>
-                <h3 className="text-lg font-semibold text-foreground">Lançamento manual</h3>
-              </div>
-              {editingId && (
-                <div className="text-xs bg-secondary px-3 py-1 rounded-full text-muted-foreground">
-                  Editando #{editingId}
-                </div>
-              )}
-            </div>
-            <div className="grid gap-4 md:grid-cols-3">
-              <div className="space-y-2">
-                <Label htmlFor="amount">Valor gasto (R$)</Label>
-                <Input
-                  id="amount"
-                  type="number"
-                  placeholder="0,00"
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                  className="text-foreground"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="subid">Canal / Sub ID</Label>
-                <Select value={subId} onValueChange={setSubId}>
-                  <SelectTrigger className="text-foreground">
-                    <SelectValue placeholder="Selecione..." />
-                  </SelectTrigger>
-                  <SelectContent className="text-foreground">
-                    <SelectItem value="__all__">Geral (rateio entre todos)</SelectItem>
-                    {subIds.map((s) => (
-                      <SelectItem key={s as string} value={s as string}>
-                        {s}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="date">Data do gasto</Label>
-                <Input
-                  id="date"
-                  type="date"
-                  value={date}
-                  onChange={(e) => setDate(e.target.value)}
-                  className="text-foreground"
-                />
-              </div>
-            </div>
-            <div className="flex items-center gap-2 mt-4">
-              <Button onClick={handleSave} disabled={blocking}>
-                <PlusCircle className="w-4 h-4 mr-2" />
-                {saving ? "Salvando..." : editingId ? "Salvar alteração" : "Registrar investimento"}
-              </Button>
-              {editingId && (
-                <Button variant="ghost" onClick={resetForm}>
-                  Cancelar edição
-                </Button>
-              )}
-            </div>
-          </Card>
-
-          <Card className="p-5">
-            <p className="text-sm text-muted-foreground mb-1">Opção 2</p>
-            <h3 className="text-lg font-semibold text-foreground mb-3">Importar planilha</h3>
-            <div 
-              className="border border-dashed border-border rounded-xl p-6 text-center bg-secondary/30 transition-colors min-h-[200px] flex flex-col items-center justify-center"
-              onDragEnter={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                if (!blocking) {
-                  e.currentTarget.classList.add('border-primary', 'bg-primary/5');
-                }
-              }}
-              onDragLeave={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                e.currentTarget.classList.remove('border-primary', 'bg-primary/5');
-              }}
-              onDragOver={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-              }}
-              onDrop={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                e.currentTarget.classList.remove('border-primary', 'bg-primary/5');
-                if (!blocking && e.dataTransfer.files && e.dataTransfer.files[0]) {
-                  const file = e.dataTransfer.files[0];
-                  const ext = file.name.toLowerCase();
-                  if (ext.endsWith('.csv') || ext.endsWith('.xlsx') || ext.endsWith('.xls')) {
-                    handleFilePreview(file);
-                  } else {
-                    toast({
-                      title: "Formato inválido",
-                      description: "Por favor, use arquivos .csv, .xlsx ou .xls",
-                      variant: "destructive",
-                    });
-                  }
-                }
-              }}
-            >
-              <UploadCloud className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-              <p className="text-sm font-medium text-foreground mb-2">
-                Arraste e solte sua planilha aqui
-              </p>
-              <p className="text-xs text-muted-foreground mb-4 max-w-xs">
-                Use o modelo para garantir as colunas corretas: <strong>Data</strong>, <strong>SubId</strong>,{" "}
-                <strong>ValorGasto</strong> (R$). Suporta Excel (.xlsx/.xls) ou CSV.
-              </p>
-              
               <Button
                 type="button"
                 variant="outline"
@@ -731,100 +646,162 @@ const AdSpends = () => {
                 <UploadCloud className="w-4 h-4 mr-2" />
                 Selecionar arquivo
               </Button>
-              
-              <input
-                ref={fileInputRef}
-                id="adspends-file-input"
-                type="file"
-                accept=".csv,.xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
-                onChange={(e) => {
-                  if (e.target.files && e.target.files[0] && !blocking) {
-                    handleFilePreview(e.target.files[0]);
-                    // Reset input para permitir selecionar o mesmo arquivo novamente
-                    e.target.value = '';
-                  }
-                }}
-                disabled={blocking}
-                style={{ display: 'none' }}
-                aria-label="Selecionar arquivo de investimentos"
-              />
-              <p className="text-xs text-muted-foreground">
-                Datas em yyyy-mm-dd ou dd/mm/aaaa. Valores com vírgula ou ponto.
-              </p>
             </div>
-            
-            {/* Preview Section */}
-            {previewData && previewFile && (
-              <div className="mt-4 bg-card border border-border rounded-xl overflow-hidden">
-                <div className="p-4 border-b border-border bg-secondary/5 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Eye className="w-4 h-4 text-muted-foreground" />
-                    <span className="font-semibold text-sm">Visualização (10 primeiras linhas)</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-muted-foreground px-2 py-1 bg-background rounded-md border border-border">
-                      {previewData.headers.length} colunas detectadas
-                    </span>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8"
-                      onClick={() => {
-                        setPreviewData(null);
-                        setPreviewFile(null);
-                      }}
-                    >
-                      <X className="w-4 h-4" />
-                    </Button>
-                  </div>
+
+            <input
+              ref={fileInputRef}
+              id="adspends-file-input"
+              type="file"
+              accept=".csv,.xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+              onChange={(e) => {
+                if (e.target.files && e.target.files[0] && !blocking) {
+                  handleFilePreview(e.target.files[0]);
+                  // Reset input para permitir selecionar o mesmo arquivo novamente
+                  e.target.value = '';
+                }
+              }}
+              disabled={blocking}
+              style={{ display: 'none' }}
+              aria-label="Selecionar arquivo de investimentos"
+            />
+            <p className="text-xs text-muted-foreground">
+              Datas em yyyy-mm-dd ou dd/mm/aaaa. Valores com vírgula ou ponto.
+            </p>
+          </div>
+
+          {/* Preview Section */}
+          {previewData && previewFile && (
+            <div className="mt-4 bg-card border border-border rounded-xl overflow-hidden">
+              <div className="p-4 border-b border-border bg-secondary/5 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Eye className="w-4 h-4 text-muted-foreground" />
+                  <span className="font-semibold text-sm">Visualização (10 primeiras linhas)</span>
                 </div>
-                <div className="overflow-x-auto max-h-[400px]">
-                  <div className="min-w-full inline-block">
-                    <Table>
-                      <TableHeader className="sticky top-0 bg-card z-10 shadow-sm">
-                        <TableRow>
-                          {previewData.headers.map((h, i) => (
-                            <TableHead key={i} className="whitespace-nowrap font-bold text-xs uppercase tracking-wider bg-card">
-                              {h}
-                            </TableHead>
-                          ))}
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {previewData.rows.map((row, i) => (
-                          <TableRow key={i} className="hover:bg-secondary/30">
-                            {previewData.headers.map((header, j) => (
-                              <TableCell key={j} className="whitespace-nowrap text-sm text-muted-foreground">
-                                {row[header] ?? ""}
-                              </TableCell>
-                            ))}
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                </div>
-                <div className="p-4 border-t border-border flex justify-end gap-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground px-2 py-1 bg-background rounded-md border border-border">
+                    {previewData.headers.length} colunas detectadas
+                  </span>
                   <Button
-                    variant="outline"
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
                     onClick={() => {
                       setPreviewData(null);
                       setPreviewFile(null);
                     }}
                   >
-                    Cancelar
-                  </Button>
-                  <Button
-                    onClick={() => handleImport()}
-                    disabled={blocking}
-                  >
-                    Confirmar Importação
+                    <X className="w-4 h-4" />
                   </Button>
                 </div>
               </div>
+              <div className="overflow-x-auto max-h-[400px]">
+                <div className="min-w-full inline-block">
+                  <Table>
+                    <TableHeader className="sticky top-0 bg-card z-10 shadow-sm">
+                      <TableRow>
+                        {previewData.headers.map((h, i) => (
+                          <TableHead key={i} className="whitespace-nowrap font-bold text-xs uppercase tracking-wider bg-card">
+                            {h}
+                          </TableHead>
+                        ))}
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {previewData.rows.map((row, i) => (
+                        <TableRow key={i} className="hover:bg-secondary/30">
+                          {previewData.headers.map((header, j) => (
+                            <TableCell key={j} className="whitespace-nowrap text-sm text-muted-foreground">
+                              {row[header] ?? ""}
+                            </TableCell>
+                          ))}
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+              <div className="p-4 border-t border-border flex justify-end gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setPreviewData(null);
+                    setPreviewFile(null);
+                  }}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  onClick={() => handleImport()}
+                  disabled={blocking}
+                >
+                  Confirmar Importação
+                </Button>
+              </div>
+            </div>
+          )}
+          <div className="flex items-center justify-between mb-4 mt-8">
+            <div>
+              <h3 className="text-lg font-semibold text-foreground">Lançamento manual</h3>
+            </div>
+            {editingId && (
+              <div className="text-xs bg-secondary px-3 py-1 rounded-full text-muted-foreground">
+                Editando #{editingId}
+              </div>
             )}
-          </Card>
-        </div>
+          </div>
+          <div className="grid gap-4 md:grid-cols-3">
+            <div className="space-y-2">
+              <Label htmlFor="amount">Valor gasto (R$)</Label>
+              <Input
+                id="amount"
+                type="number"
+                placeholder="0,00"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                className="text-foreground"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="subid">Canal / Sub ID</Label>
+              <Select value={subId} onValueChange={setSubId}>
+                <SelectTrigger className="text-foreground">
+                  <SelectValue placeholder="Selecione..." />
+                </SelectTrigger>
+                <SelectContent className="text-foreground">
+                  <SelectItem value="__all__">Geral (rateio entre todos)</SelectItem>
+                  {subIds.map((s) => (
+                    <SelectItem key={s as string} value={s as string}>
+                      {s}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="date">Data do gasto</Label>
+              <Input
+                id="date"
+                type="date"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+                className="text-foreground"
+              />
+            </div>
+          </div>
+          <div className="flex items-center gap-2 mt-4">
+            <Button onClick={handleSave} disabled={blocking}>
+              <PlusCircle className="w-4 h-4 mr-2" />
+              {saving ? "Salvando..." : editingId ? "Salvar alteração" : "Registrar investimento"}
+            </Button>
+            {editingId && (
+              <Button variant="ghost" onClick={resetForm}>
+                Cancelar edição
+              </Button>
+            )}
+          </div>
+        </Card>
+
+
 
         <Card className="p-5">
           <div className="flex items-center justify-between gap-3 flex-wrap mb-4">

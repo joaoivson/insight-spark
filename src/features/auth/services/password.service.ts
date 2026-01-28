@@ -22,6 +22,11 @@ export interface ForgotPasswordResponse {
   message: string;
 }
 
+export interface CheckEmailResponse {
+  exists: boolean;
+  message?: string;
+}
+
 /**
  * Serviço para gerenciamento de senhas
  */
@@ -68,5 +73,58 @@ export const passwordService = {
     }
 
     return response.json();
+  },
+
+  /**
+   * Verifica se o email informado está cadastrado antes de iniciar o fluxo de reset de senha.
+   * Caso o backend não ofereça esse endpoint, lança erro com código específico para fallback.
+   */
+  async checkEmailExists(email: string): Promise<boolean> {
+    const url = getApiUrl("/api/v1/auth/check-email");
+
+    try {
+      const response = await fetchPublic(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email }),
+      });
+
+      if (response.ok) {
+        const data: CheckEmailResponse = await response.json().catch(() => ({ exists: true }));
+        // Se API não retornar explicitamente, assumir que existe para evitar bloqueios indevidos
+        return typeof data.exists === "boolean" ? data.exists : true;
+      }
+
+      const error = await response.json().catch(() => ({} as Record<string, string>));
+      const detail = (error.detail || error.message || error.error || "").toString();
+      const normalizedDetail = detail.toLowerCase();
+
+      if (
+        response.status === 404 ||
+        response.status === 422 ||
+        normalizedDetail.includes("não encontrado") ||
+        normalizedDetail.includes("nao encontrado") ||
+        normalizedDetail.includes("não cadastrado") ||
+        normalizedDetail.includes("nao cadastrado")
+      ) {
+        return false;
+      }
+
+      // Se a API não for encontrada (endpoint inexistente), avisar para permitir fallback
+      if (response.status === 404 && normalizedDetail === "not found") {
+        throw new Error("CHECK_ENDPOINT_UNAVAILABLE");
+      }
+
+      throw new Error(detail || "Erro ao verificar email");
+    } catch (error) {
+      if (error instanceof Error && error.message === "CHECK_ENDPOINT_UNAVAILABLE") {
+        throw error;
+      }
+
+      // Se houver falha de rede ou outro erro inesperado, propagar para tratamento padrão
+      throw new Error(error instanceof Error ? error.message : "Erro ao verificar email");
+    }
   },
 };

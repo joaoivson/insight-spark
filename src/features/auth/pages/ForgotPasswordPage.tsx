@@ -25,13 +25,15 @@ const ForgotPasswordPage = () => {
     e.preventDefault();
     setError(null);
 
-    if (!email.trim()) {
+    const trimmedEmail = email.trim();
+
+    if (!trimmedEmail) {
       setError('Por favor, informe seu email');
       return;
     }
 
     // Validação básica de email
-    if (!email.includes("@")) {
+    if (!trimmedEmail.includes("@")) {
       setError('Email inválido');
       return;
     }
@@ -47,7 +49,26 @@ const ForgotPasswordPage = () => {
     setLoading(true);
 
     try {
-      await passwordService.forgotPassword(email.trim());
+      let emailExists = true;
+
+      try {
+        emailExists = await passwordService.checkEmailExists(trimmedEmail);
+      } catch (checkError) {
+        if (checkError instanceof Error && checkError.message === "CHECK_ENDPOINT_UNAVAILABLE") {
+          emailExists = true;
+        } else {
+          const checkMessage = checkError instanceof Error ? checkError.message : 'Erro ao verificar email.';
+          setError(checkMessage || 'Erro ao verificar email.');
+          return;
+        }
+      }
+
+      if (!emailExists) {
+        setError('Email não cadastrado. Verifique e tente novamente.');
+        return;
+      }
+
+      await passwordService.forgotPassword(trimmedEmail);
       setSuccess(true);
       setLastSent(now);
       

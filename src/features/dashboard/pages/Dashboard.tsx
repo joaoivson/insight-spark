@@ -278,11 +278,6 @@ const Dashboard = () => {
                 </div>
               }
             />
-
-            {/* Tabela de Sub ID permanece na posição original (após os gráficos principais) */}
-            <div className="mt-8">
-              <ChannelPerformance rows={filteredRows} adSpends={adSpends} dateRange={dateRange} showDayTable={false} showHighlights />
-            </div>
                 
                 {drillDown && (
                   <motion.div

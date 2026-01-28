@@ -12,15 +12,24 @@ interface SubscriptionPlanModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onPlanSelected?: (planId: string) => void;
+  initialPlanId?: string;
+  customerData?: {
+    name?: string;
+    email?: string;
+    cpf_cnpj?: string;
+    telefone?: string;
+  };
 }
 
 export const SubscriptionPlanModal = ({
   open,
   onOpenChange,
   onPlanSelected,
+  initialPlanId,
+  customerData,
 }: SubscriptionPlanModalProps) => {
   const [plans, setPlans] = useState<PlanInfo[]>([]);
-  const [selectedPlan, setSelectedPlan] = useState<string>("anual"); // Default: anual
+  const [selectedPlan, setSelectedPlan] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [redirecting, setRedirecting] = useState(false);
   const { toast } = useToast();
@@ -35,13 +44,28 @@ export const SubscriptionPlanModal = ({
           return (order[a.period] ?? 99) - (order[b.period] ?? 99);
         });
         setPlans(sortedPlans);
-        // Selecionar plano anual por padrão
-        const annualPlan = sortedPlans.find(p => p.period === 'anual');
-        if (annualPlan) {
-          setSelectedPlan(annualPlan.id);
-        } else if (sortedPlans.length > 0) {
-          setSelectedPlan(sortedPlans[0].id);
-        }
+
+        const resolveInitialPlan = () => {
+          if (!sortedPlans.length) {
+            return "";
+          }
+
+          if (initialPlanId) {
+            const matchedPlan = sortedPlans.find(plan => plan.id === initialPlanId);
+            if (matchedPlan) {
+              return matchedPlan.id;
+            }
+          }
+
+          const annualPlan = sortedPlans.find(plan => plan.period === 'anual');
+          if (annualPlan) {
+            return annualPlan.id;
+          }
+
+          return sortedPlans[0].id;
+        };
+
+        setSelectedPlan(resolveInitialPlan());
       } catch (error) {
         console.error('Erro ao carregar planos:', error);
         toast({
@@ -55,9 +79,16 @@ export const SubscriptionPlanModal = ({
     };
 
     if (open) {
+      setLoading(true);
       fetchPlans();
     }
-  }, [open, toast]);
+  }, [open, toast, initialPlanId]);
+
+  useEffect(() => {
+    if (!open) {
+      setRedirecting(false);
+    }
+  }, [open]);
 
   const handleContinue = async () => {
     if (!selectedPlan) {
@@ -71,24 +102,42 @@ export const SubscriptionPlanModal = ({
 
     try {
       setRedirecting(true);
-      const user = userStorage.get() as { email?: string; name?: string; cpf_cnpj?: string } | null;
+      const storedUser = userStorage.get() as { email?: string; name?: string; cpf_cnpj?: string; telefone?: string } | null;
 
       if (onPlanSelected) {
         onPlanSelected(selectedPlan);
       }
 
-      if (user) {
-        await caktoService.redirectToCheckout({
-          email: user.email,
-          name: user.name,
-          cpf_cnpj: user.cpf_cnpj,
-          plan: selectedPlan,
-        });
-      } else {
-        await caktoService.redirectToCheckout({
-          plan: selectedPlan,
-        });
+      const mergedData = {
+        name: customerData?.name?.trim() || storedUser?.name,
+        email: customerData?.email?.trim() || storedUser?.email,
+        cpf_cnpj: customerData?.cpf_cnpj
+          ? customerData.cpf_cnpj.replace(/\D/g, "")
+          : storedUser?.cpf_cnpj,
+        telefone: customerData?.telefone
+          ? customerData.telefone.replace(/\D/g, "")
+          : storedUser?.telefone,
+      };
+
+      const checkoutPayload: Record<string, string> = { plan: selectedPlan };
+
+      if (mergedData.email) {
+        checkoutPayload.email = mergedData.email;
       }
+
+      if (mergedData.name) {
+        checkoutPayload.name = mergedData.name;
+      }
+
+      if (mergedData.cpf_cnpj) {
+        checkoutPayload.cpf_cnpj = mergedData.cpf_cnpj;
+      }
+
+      if (mergedData.telefone) {
+        checkoutPayload.telefone = mergedData.telefone;
+      }
+
+      await caktoService.redirectToCheckout(checkoutPayload);
     } catch (error) {
       console.error('Erro ao redirecionar para checkout:', error);
       toast({
