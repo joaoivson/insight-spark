@@ -298,7 +298,6 @@ const ChannelPieChart = ({
             <div key={item.name} className="flex items-center gap-2 text-sm">
               <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: PIE_COLORS[index % PIE_COLORS.length] }} />
               <span className="text-muted-foreground truncate">{item.name}</span>
-              console.log(item)
               <span className="font-medium text-foreground ml-auto flex-shrink-0">{percent.toFixed(1)}%</span>
             </div>
           );
