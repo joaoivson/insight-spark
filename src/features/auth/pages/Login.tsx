@@ -10,7 +10,7 @@ import { loginService } from "../services";
 import { userStorage, tokenStorage } from "@/shared/lib/storage";
 import { getApiUrl, fetchWithAuth } from "@/core/config/api.config";
 import { APP_CONFIG } from "@/core/config/app.config";
-import { caktoService } from "@/services/cakto.service";
+import { SubscriptionPlanModal } from "@/features/subscription/components/SubscriptionPlanModal";
 import "../styles/index.scss";
 import logoName from "@/assets/logo/logo_name.png";
 import logoIcon from "@/assets/logo/logo.png";
@@ -23,6 +23,8 @@ const Login = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
+  const [showPlanModal, setShowPlanModal] = useState(false);
+  const [checkoutPrefill, setCheckoutPrefill] = useState<{ name?: string; email?: string; cpf_cnpj?: string; telefone?: string } | null>(null);
 
   // Mostrar mensagem se vier de redirecionamento (ex: após definir senha)
   useEffect(() => {
@@ -190,21 +192,19 @@ const Login = () => {
           <div className="auth-footer">
             Não tem assinatura?{" "}
             <button
-              onClick={async () => {
-                try {
-                  const user = userStorage.get() as { email?: string; name?: string; cpf_cnpj?: string } | null;
-                  if (user) {
-                    await caktoService.redirectToCheckout({
-                      email: user.email,
-                      name: user.name,
-                      cpf_cnpj: user.cpf_cnpj,
-                    });
-                  } else {
-                    caktoService.redirectToCheckoutDirect();
-                  }
-                } catch (error) {
-                  console.error('Erro ao redirecionar para checkout:', error);
+              onClick={() => {
+                const storedUser = userStorage.get() as { email?: string; name?: string; cpf_cnpj?: string; telefone?: string } | null;
+                if (storedUser) {
+                  setCheckoutPrefill({
+                    name: storedUser.name,
+                    email: storedUser.email,
+                    cpf_cnpj: storedUser.cpf_cnpj,
+                    telefone: storedUser.telefone,
+                  });
+                } else {
+                  setCheckoutPrefill(null);
                 }
+                setShowPlanModal(true);
               }}
               className="auth-link auth-link--medium"
             >
@@ -237,6 +237,11 @@ const Login = () => {
           </p>
         </motion.div>
       </div>
+      <SubscriptionPlanModal
+        open={showPlanModal}
+        onOpenChange={setShowPlanModal}
+        customerData={checkoutPrefill ?? undefined}
+      />
     </div>
   );
 };

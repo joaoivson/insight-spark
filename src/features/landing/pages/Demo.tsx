@@ -20,9 +20,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { calcTotals } from "@/shared/lib/kpi";
 import { isBeforeDateKey, isAfterDateKey } from "@/shared/lib/date";
 import type { AdSpend } from "@/shared/types/adspend";
-import { caktoService } from "@/services/cakto.service";
-import { tokenStorage, userStorage } from "@/shared/lib/storage";
-import { useToast } from "@/hooks/use-toast";
+import { userStorage } from "@/shared/lib/storage";
+import { SubscriptionPlanModal } from "@/features/subscription/components/SubscriptionPlanModal";
 
 const demoRows: DatasetRow[] = [
   {
@@ -260,35 +259,24 @@ const Demo = () => {
   const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({});
   const [drillDown, setDrillDown] = useState<DrillDownFilter>(null);
   const [loading, setLoading] = useState(false);
-  const { toast } = useToast();
+  const [showPlanModal, setShowPlanModal] = useState(false);
+  const [checkoutPrefill, setCheckoutPrefill] = useState<{ name?: string; email?: string; cpf_cnpj?: string } | null>(null);
 
   // Scroll to top when component mounts
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, []);
 
-  const handleSubscribe = async () => {
-    try {
-      const isAuthenticated = !!tokenStorage.get();
-      const user = userStorage.get() as { email?: string; name?: string; cpf_cnpj?: string } | null;
-      
-      if (isAuthenticated && user) {
-        await caktoService.redirectToCheckout({
-          email: user.email,
-          name: user.name,
-          cpf_cnpj: user.cpf_cnpj,
-        });
-      } else {
-        await caktoService.redirectToCheckoutDirect();
-      }
-    } catch (error) {
-      console.error('Erro ao redirecionar para checkout:', error);
-      toast({
-        title: "Erro ao acessar página de assinatura",
-        description: "Tente novamente em instantes.",
-        variant: "destructive",
-      });
+  const handleSubscribe = () => {
+    const storedUser = userStorage.get() as { email?: string; name?: string; cpf_cnpj?: string } | null;
+
+    if (storedUser) {
+      setCheckoutPrefill({ name: storedUser.name, email: storedUser.email, cpf_cnpj: storedUser.cpf_cnpj });
+    } else {
+      setCheckoutPrefill(null);
     }
+
+    setShowPlanModal(true);
   };
 
   const rangeLabel = useMemo(() => {
@@ -370,143 +358,149 @@ const Demo = () => {
   };
 
   return (
-    <DashboardLayout
-      title="Demo"
-      subtitle="Dashboard completo com dados simulados"
-      action={
-        <Button onClick={handleSubscribe} variant="hero">
-          Assinar Agora
-        </Button>
-      }
-    >
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
+    <>
+      <DashboardLayout
+        title="Demo"
+        subtitle="Dashboard completo com dados simulados"
+        action={
+          <Button onClick={handleSubscribe} variant="hero">
+            Assinar Agora
+          </Button>
+        }
       >
-        {loading ? (
-          <DashboardSkeleton />
-        ) : (
-          <>
-            <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground mb-3">
-              <span>{rangeLabel}</span>
-            </div>
-
-            <DashboardFilters
-              dateRange={dateRange}
-              onDateRangeApply={(range) => setDateRange(range)}
-              onClear={() => {
-                setStatusFilter("");
-                setCategoryFilter("");
-                setSubIdFilter("");
-                setDateRange({});
-                setDrillDown(null);
-              }}
-              hasActive={!!dateRange.from || !!dateRange.to || !!statusFilter || !!categoryFilter || !!subIdFilter}
-              loading={loading}
-              statusFilter={statusFilter}
-              categoryFilter={categoryFilter}
-              subIdFilter={subIdFilter}
-              onStatusFilterChange={setStatusFilter}
-              onCategoryFilterChange={setCategoryFilter}
-              onSubIdFilterChange={setSubIdFilter}
-              statusOptions={statusOptions}
-              categoryOptions={categoryOptions}
-              subIdOptions={subIdOptions}
-              rows={demoRows}
-              adSpends={demoAdSpends}
-            />
-
-            {/* Aviso quando zerado */}
-            {(!filteredRows.length || totals.faturamento === 0) && (
-              <div 
-                className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 rounded-xl p-4 mb-4 flex items-start gap-3"
-                role="alert"
-                aria-live="polite"
-              >
-                <AlertTriangle className="w-5 h-5 mt-0.5 text-amber-700 dark:text-amber-200" aria-hidden="true" />
-                <div className="space-y-1 text-amber-900 dark:text-amber-50">
-                  <p className="font-semibold text-sm">Sem valores no período selecionado</p>
-                  <p className="text-sm text-amber-800 dark:text-amber-100">
-                    Ajuste o intervalo de datas ou filtros de status/canal/categoria para visualizar os KPIs. Assim que houver dados, os cards e gráficos serão preenchidos automaticamente.
-                  </p>
-                </div>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+        >
+          {loading ? (
+            <DashboardSkeleton />
+          ) : (
+            <>
+              <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground mb-3">
+                <span>{rangeLabel}</span>
               </div>
-            )}
 
-            <KPICards kpis={kpis} onCardClick={handleCardClick} />
-
-            <DashboardCharts
-              rows={filteredRows}
-              adSpends={demoAdSpends}
-              dateRange={dateRange}
-              subIdFilter={subIdFilter}
-              onDrillDown={handleDrillDown}
-              belowRevenueContent={
-                <div className="mt-2">
-                  <ChannelPerformance
-                    rows={filteredRows}
-                    adSpends={demoAdSpends}
-                    dateRange={dateRange}
-                    showSubTable={false}
-                    showDayTable
-                    showHighlights={false}
-                  />
-                </div>
-              }
-            />
-
-            <div className="mt-8">
-              <ChannelPerformance 
-                rows={filteredRows} 
-                adSpends={demoAdSpends} 
+              <DashboardFilters
                 dateRange={dateRange}
-                showDayTable={false} 
-                showHighlights 
+                onDateRangeApply={(range) => setDateRange(range)}
+                onClear={() => {
+                  setStatusFilter("");
+                  setCategoryFilter("");
+                  setSubIdFilter("");
+                  setDateRange({});
+                  setDrillDown(null);
+                }}
+                hasActive={!!dateRange.from || !!dateRange.to || !!statusFilter || !!categoryFilter || !!subIdFilter}
+                loading={loading}
+                statusFilter={statusFilter}
+                categoryFilter={categoryFilter}
+                subIdFilter={subIdFilter}
+                onStatusFilterChange={setStatusFilter}
+                onCategoryFilterChange={setCategoryFilter}
+                onSubIdFilterChange={setSubIdFilter}
+                statusOptions={statusOptions}
+                categoryOptions={categoryOptions}
+                subIdOptions={subIdOptions}
+                rows={demoRows}
+                adSpends={demoAdSpends}
               />
-            </div>
 
-            {drillDown && (
-              <motion.div
-                id="detail-table"
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: "auto" }}
-                transition={{ duration: 0.5 }}
-                className="mt-8"
-              >
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-xl font-bold flex items-center gap-2">
-                    <span className="text-primary">Dados Detalhados</span>
-                    <span className="text-sm font-normal text-muted-foreground bg-secondary px-3 py-1 rounded-full">
-                      {drillDown.label}
-                    </span>
-                  </h3>
-                  <Button variant="ghost" size="sm" onClick={() => setDrillDown(null)}>
-                    <X className="w-4 h-4 mr-2" />
-                    Fechar Tabela
-                  </Button>
+              {/* Aviso quando zerado */}
+              {(!filteredRows.length || totals.faturamento === 0) && (
+                <div
+                  className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 rounded-xl p-4 mb-4 flex items-start gap-3"
+                  role="alert"
+                  aria-live="polite"
+                >
+                  <AlertTriangle className="w-5 h-5 mt-0.5 text-amber-700 dark:text-amber-200" aria-hidden="true" />
+                  <div className="space-y-1 text-amber-900 dark:text-amber-50">
+                    <p className="font-semibold text-sm">Sem valores no período selecionado</p>
+                    <p className="text-sm text-amber-800 dark:text-amber-100">
+                      Ajuste o intervalo de datas ou filtros de status/canal/categoria para visualizar os KPIs. Assim que houver dados, os cards e gráficos serão preenchidos automaticamente.
+                    </p>
+                  </div>
                 </div>
-                <DataTable rows={tableRows} />
-              </motion.div>
-            )}
+              )}
 
-            {!drillDown && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="mt-8 text-center p-8 border-2 border-dashed border-border rounded-xl bg-secondary/20"
-                role="status"
-                aria-live="polite"
-              >
-                <p className="text-muted-foreground">
-                  Clique em um Card ou Gráfico para ver os detalhes na tabela.
-                </p>
-              </motion.div>
-            )}
-          </>
-        )}
-      </motion.div>
-    </DashboardLayout>
+              <KPICards kpis={kpis} onCardClick={handleCardClick} />
+
+              <DashboardCharts
+                rows={filteredRows}
+                adSpends={demoAdSpends}
+                dateRange={dateRange}
+                subIdFilter={subIdFilter}
+                onDrillDown={handleDrillDown}
+                belowRevenueContent={
+                  <div className="mt-2">
+                    <ChannelPerformance
+                      rows={filteredRows}
+                      adSpends={demoAdSpends}
+                      dateRange={dateRange}
+                      showSubTable={false}
+                      showDayTable
+                      showHighlights={false}
+                    />
+                  </div>
+                }
+              />
+
+              <div className="mt-8">
+                <ChannelPerformance
+                  rows={filteredRows}
+                  adSpends={demoAdSpends}
+                  dateRange={dateRange}
+                  showDayTable={false}
+                  showHighlights
+                />
+              </div>
+
+              {drillDown ? (
+                <motion.div
+                  id="detail-table"
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  transition={{ duration: 0.5 }}
+                  className="mt-8"
+                >
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-xl font-bold flex items-center gap-2">
+                      <span className="text-primary">Dados Detalhados</span>
+                      <span className="text-sm font-normal text-muted-foreground bg-secondary px-3 py-1 rounded-full">
+                        {drillDown.label}
+                      </span>
+                    </h3>
+                    <Button variant="ghost" size="sm" onClick={() => setDrillDown(null)}>
+                      <X className="w-4 h-4 mr-2" />
+                      Fechar Tabela
+                    </Button>
+                  </div>
+                  <DataTable rows={tableRows} />
+                </motion.div>
+              ) : (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="mt-8 text-center p-8 border-2 border-dashed border-border rounded-xl bg-secondary/20"
+                  role="status"
+                  aria-live="polite"
+                >
+                  <p className="text-muted-foreground">
+                    Clique em um Card ou Gráfico para ver os detalhes na tabela.
+                  </p>
+                </motion.div>
+              )}
+            </>
+          )}
+        </motion.div>
+      </DashboardLayout>
+
+      <SubscriptionPlanModal
+        open={showPlanModal}
+        onOpenChange={setShowPlanModal}
+        customerData={checkoutPrefill ?? undefined}
+      />
+    </>
   );
 };
 

@@ -201,7 +201,7 @@ const UploadCSV = () => {
             <AlertDialogHeader>
               <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
               <AlertDialogDescription>
-                Esta ação irá excluir permanentemente todos os dados de vendas (todos os dados da tabela datasets vinculado ao user_id). 
+                Esta ação irá excluir permanentemente todos os dados de vendas. 
                 Esta ação não pode ser desfeita.
               </AlertDialogDescription>
             </AlertDialogHeader>
@@ -263,7 +263,7 @@ const UploadCSV = () => {
                     Arraste e solte seu arquivo CSV aqui
                   </h3>
                   <p className="text-muted-foreground mb-6 max-w-md mx-auto leading-relaxed">
-                    Solte o arquivo CSV nesta área para fazer o upload. Suporta Shopee, Amazon e e-commerce padrão.
+                    Solte o arquivo CSV nesta área para fazer o upload... Suporta Shopee.
                   </p>
                   
                   <Button
