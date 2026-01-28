@@ -221,7 +221,6 @@ const ChannelPieChart = ({
 }) => {
   const total = data.reduce((sum, item) => sum + (item.value || 0), 0);
   const pieData = data.slice(0, 6);
-  console.log(pieData);
 
   return (
     <motion.div
