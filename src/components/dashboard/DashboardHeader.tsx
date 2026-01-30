@@ -6,7 +6,7 @@ import { useTheme } from "@/shared/hooks/useTheme";
 import { useDatasetStore } from "@/stores/datasetStore";
 import { useAdSpendsStore } from "@/stores/adSpendsStore";
 import { useIsMobile } from "@/shared/hooks/use-mobile";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { APP_CONFIG } from "@/core/config/app.config";
 
 interface DashboardHeaderProps {
@@ -24,6 +24,8 @@ const DashboardHeader = ({ title, subtitle, subtitleSize = "sm", action, onMobil
   const { fetchAdSpends } = useAdSpendsStore();
   const [refreshing, setRefreshing] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
+  const isDemo = location.pathname.startsWith("/demo");
 
   const handleRefresh = async () => {
     try {
@@ -111,7 +113,8 @@ const DashboardHeader = ({ title, subtitle, subtitleSize = "sm", action, onMobil
           variant="ghost"
           size="icon"
           aria-label="Abrir configurações"
-          onClick={() => navigate(APP_CONFIG.ROUTES.DASHBOARD_SETTINGS)}
+          onClick={() => !isDemo && navigate(APP_CONFIG.ROUTES.DASHBOARD_SETTINGS)}
+          disabled={isDemo}
         >
           <div className="w-8 h-8 rounded-full bg-accent/20 flex items-center justify-center">
             <User className="w-4 h-4 text-accent" aria-hidden="true" />
