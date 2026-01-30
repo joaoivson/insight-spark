@@ -265,7 +265,7 @@ const ChannelPieChart = ({
         </h3>
         <p className="text-sm text-muted-foreground">Distribuição percentual</p>
       </div>
-    <div className="min-h-[320px] sm:min-h-[384px] flex items-center justify-center overflow-x-auto -mx-2 sm:mx-0 px-2 sm:px-0">
+    <div className="h-80 sm:h-96 flex items-center justify-center overflow-x-auto -mx-2 sm:mx-0 px-2 sm:px-0">
       <ResponsiveContainer width="100%" height="100%" minWidth={280}>
         <PieChart>
             <Pie
@@ -356,7 +356,7 @@ const CategoryBarChart = ({
       </h3>
       <p className="text-sm text-muted-foreground">Top 12 categorias</p>
     </div>
-    <div className="min-h-[320px] sm:min-h-[384px] overflow-x-auto -mx-2 sm:mx-0 px-2 sm:px-0">
+    <div className="h-96 overflow-x-auto -mx-2 sm:mx-0 px-2 sm:px-0">
       <ResponsiveContainer width="100%" height="100%" minWidth={320}>
         <BarChart
           data={data}
@@ -469,7 +469,7 @@ const MesAnoChart = ({
         </motion.div>
       </AnimatePresence>
     </div>
-    <div className="min-h-[320px] sm:min-h-[384px] overflow-x-auto -mx-2 sm:mx-0 px-2 sm:px-0">
+    <div className="h-80 sm:h-96 overflow-x-auto -mx-2 sm:mx-0 px-2 sm:px-0">
       <ResponsiveContainer width="100%" height="100%" minWidth={280}>
         <BarChart data={data} margin={{ top: 10, right: 10, left: 10, bottom: 40 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
@@ -552,7 +552,7 @@ const RevenueProfitArea = ({ data, onDrillDown }: { data: any[]; onDrillDown?: (
         <h3 className="font-display font-semibold text-lg text-foreground">Comissão x Valor Gasto em Ads x Lucro</h3>
         <p className="text-sm text-muted-foreground">{periodLabel}</p>
       </div>
-    <div className="min-h-[320px] sm:min-h-[384px] overflow-x-auto -mx-2 sm:mx-0 px-2 sm:px-0">
+    <div className="h-80 sm:h-96 overflow-x-auto -mx-2 sm:mx-0 px-2 sm:px-0">
       <ResponsiveContainer width="100%" height="100%" minWidth={320}>
         <AreaChart
           data={data}
