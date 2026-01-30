@@ -18,7 +18,7 @@ import type { DatasetRow } from "./DataTable";
 import { useMemo, useState, ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
-import { toDateKey } from "@/shared/lib/date";
+import { toDateKey, isBeforeDateKey, isAfterDateKey } from "@/shared/lib/date";
 import { getComissaoAfiliado } from "@/shared/lib/kpi";
 
 const PIE_COLORS = ["hsl(210, 80%, 55%)", "hsl(222, 47%, 25%)", "hsl(24, 90%, 55%)", "hsl(273, 65%, 60%)"];
@@ -79,10 +79,17 @@ const getAffiliateCommissionValue = (row: DatasetRow): number => {
   return getComissaoAfiliado(row);
 };
 
-const groupByMesAno = (rows: DatasetRow[]) => {
+const groupByMesAno = (rows: DatasetRow[], dateRange?: { from?: Date; to?: Date }) => {
   const map = new Map<string, number>();
   rows.forEach((r) => {
-    const key = r.mes_ano || (r.date ? r.date.slice(0, 7) : "Sem Mês");
+    // Skip if no date
+    if (!r.date) return;
+    
+    // Filter by dateRange
+    if (dateRange?.from && isBeforeDateKey(r.date, dateRange.from)) return;
+    if (dateRange?.to && isAfterDateKey(r.date, dateRange.to)) return;
+    
+    const key = r.mes_ano || r.date.slice(0, 7);
     map.set(key, (map.get(key) || 0) + getAffiliateCommissionValue(r));
   });
   return Array.from(map.entries())
@@ -94,10 +101,15 @@ const groupByMesAno = (rows: DatasetRow[]) => {
     .sort((a, b) => a.key.localeCompare(b.key));
 };
 
-const groupCommissionByDay = (rows: DatasetRow[]) => {
+const groupCommissionByDay = (rows: DatasetRow[], dateRange?: { from?: Date; to?: Date }) => {
   const map = new Map<string, number>();
   rows.forEach((r) => {
     if (!r.date) return;
+    
+    // Filter by dateRange
+    if (dateRange?.from && isBeforeDateKey(r.date, dateRange.from)) return;
+    if (dateRange?.to && isAfterDateKey(r.date, dateRange.to)) return;
+    
     const key = r.date;
     map.set(key, (map.get(key) || 0) + getAffiliateCommissionValue(r));
   });
@@ -165,9 +177,16 @@ const groupRevenueProfitByMes = (rows: DatasetRow[], adSpends: any[] = [], dateR
     .sort((a, b) => a.mes_ano.localeCompare(b.mes_ano));
 };
 
-const groupByPlatform = (rows: DatasetRow[]) => {
+const groupByPlatform = (rows: DatasetRow[], dateRange?: { from?: Date; to?: Date }) => {
   const map = new Map<string, number>();
   rows.forEach((r) => {
+    // Skip if no date
+    if (!r.date) return;
+    
+    // Filter by dateRange
+    if (dateRange?.from && isBeforeDateKey(r.date, dateRange.from)) return;
+    if (dateRange?.to && isAfterDateKey(r.date, dateRange.to)) return;
+    
     const key = r.platform || "Outros";
     map.set(key, (map.get(key) || 0) + getAffiliateCommissionValue(r));
   });
@@ -176,9 +195,16 @@ const groupByPlatform = (rows: DatasetRow[]) => {
     .sort((a, b) => b.value - a.value);
 };
 
-const groupByCategory = (rows: DatasetRow[]) => {
+const groupByCategory = (rows: DatasetRow[], dateRange?: { from?: Date; to?: Date }) => {
   const map = new Map<string, number>();
   rows.forEach((r) => {
+    // Skip if no date
+    if (!r.date) return;
+    
+    // Filter by dateRange
+    if (dateRange?.from && isBeforeDateKey(r.date, dateRange.from)) return;
+    if (dateRange?.to && isAfterDateKey(r.date, dateRange.to)) return;
+    
     const key = r.category || "Sem categoria";
     map.set(key, (map.get(key) || 0) + getAffiliateCommissionValue(r));
   });
@@ -239,7 +265,7 @@ const ChannelPieChart = ({
         </h3>
         <p className="text-sm text-muted-foreground">Distribuição percentual</p>
       </div>
-    <div className="h-72 sm:h-80 flex items-center justify-center overflow-x-auto -mx-2 sm:mx-0 px-2 sm:px-0">
+    <div className="min-h-[320px] sm:min-h-[384px] flex items-center justify-center overflow-x-auto -mx-2 sm:mx-0 px-2 sm:px-0">
       <ResponsiveContainer width="100%" height="100%" minWidth={280}>
         <PieChart>
             <Pie
@@ -330,7 +356,7 @@ const CategoryBarChart = ({
       </h3>
       <p className="text-sm text-muted-foreground">Top 12 categorias</p>
     </div>
-    <div className="h-96 overflow-x-auto -mx-2 sm:mx-0 px-2 sm:px-0">
+    <div className="min-h-[320px] sm:min-h-[384px] overflow-x-auto -mx-2 sm:mx-0 px-2 sm:px-0">
       <ResponsiveContainer width="100%" height="100%" minWidth={320}>
         <BarChart
           data={data}
@@ -443,7 +469,7 @@ const MesAnoChart = ({
         </motion.div>
       </AnimatePresence>
     </div>
-    <div className="h-64 sm:h-72 overflow-x-auto -mx-2 sm:mx-0 px-2 sm:px-0">
+    <div className="min-h-[320px] sm:min-h-[384px] overflow-x-auto -mx-2 sm:mx-0 px-2 sm:px-0">
       <ResponsiveContainer width="100%" height="100%" minWidth={280}>
         <BarChart data={data} margin={{ top: 10, right: 10, left: 10, bottom: 40 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
@@ -526,7 +552,7 @@ const RevenueProfitArea = ({ data, onDrillDown }: { data: any[]; onDrillDown?: (
         <h3 className="font-display font-semibold text-lg text-foreground">Comissão x Valor Gasto em Ads x Lucro</h3>
         <p className="text-sm text-muted-foreground">{periodLabel}</p>
       </div>
-    <div className="h-72 sm:h-80 overflow-x-auto -mx-2 sm:mx-0 px-2 sm:px-0">
+    <div className="min-h-[320px] sm:min-h-[384px] overflow-x-auto -mx-2 sm:mx-0 px-2 sm:px-0">
       <ResponsiveContainer width="100%" height="100%" minWidth={320}>
         <AreaChart
           data={data}
@@ -645,11 +671,11 @@ const DashboardCharts = ({ rows, adSpends = [], dateRange, subIdFilter, onDrillD
     );
   }
 
-  const mesAnoData = groupByMesAno(rows);
-  const commissionDayData = groupCommissionByDay(rows);
+  const mesAnoData = groupByMesAno(rows, dateRange);
+  const commissionDayData = groupCommissionByDay(rows, dateRange);
   const revProfitData = groupRevenueProfitByMes(rows, adSpends, dateRange, subIdFilter);
-  const channelData = groupByPlatform(rows);
-  const categoryData = groupByCategory(rows);
+  const channelData = groupByPlatform(rows, dateRange);
+  const categoryData = groupByCategory(rows, dateRange);
 
   const containerVariants = {
     hidden: { opacity: 0 },
