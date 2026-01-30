@@ -1,14 +1,6 @@
 import { ReactNode, useState } from "react";
 import { Bell, RefreshCw, User, Sun, Moon, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
 import { useTheme } from "@/shared/hooks/useTheme";
 import { useDatasetStore } from "@/stores/datasetStore";
@@ -85,7 +77,7 @@ const DashboardHeader = ({ title, subtitle, subtitleSize = "sm", action, onMobil
           </>
         )}
         
-        <Button 
+        {/* <Button 
           variant="outline" 
           size="sm" 
           onClick={handleRefresh} 
@@ -94,13 +86,13 @@ const DashboardHeader = ({ title, subtitle, subtitleSize = "sm", action, onMobil
           aria-label="Atualizar dados do dashboard"
         >
           Atualizar Dados
-        </Button>
+        </Button> */}
 
         <Button variant="ghost" size="icon" onClick={toggleTheme} aria-label="Alternar tema">
           {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
         </Button>
 
-        <Button 
+        {/* <Button 
           variant="ghost" 
           size="icon" 
           className="relative"
@@ -113,28 +105,18 @@ const DashboardHeader = ({ title, subtitle, subtitleSize = "sm", action, onMobil
             className="absolute top-1 right-1 w-2 h-2 bg-accent rounded-full" 
             aria-label="Você tem notificações"
           />
-        </Button>
+        </Button> */}
 
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" aria-label="Menu do usuário">
-              <div className="w-8 h-8 rounded-full bg-accent/20 flex items-center justify-center">
-                <User className="w-4 h-4 text-accent" aria-hidden="true" />
-              </div>
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56">
-            <DropdownMenuLabel>Minha Conta</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem>Perfil</DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => navigate(APP_CONFIG.ROUTES.DASHBOARD_SETTINGS)}>
-              Configurações
-            </DropdownMenuItem>
-            <DropdownMenuItem>Assinatura</DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem className="text-destructive">Sair</DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label="Abrir configurações"
+          onClick={() => navigate(APP_CONFIG.ROUTES.DASHBOARD_SETTINGS)}
+        >
+          <div className="w-8 h-8 rounded-full bg-accent/20 flex items-center justify-center">
+            <User className="w-4 h-4 text-accent" aria-hidden="true" />
+          </div>
+        </Button>
       </div>
     </header>
   );

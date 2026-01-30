@@ -260,42 +260,45 @@ const SettingsPage = () => {
                             <AlertTriangle className="w-3 h-3 mr-1" /> Validação pendente
                           </Badge>
                         )}
-                        <span className="text-sm text-muted-foreground">
-                          {getPlanDisplayName(subscriptionStatus.plan, subscriptionStatus.cakto_offer_name)}
-                        </span>
+                        <div className="flex flex-col text-sm text-muted-foreground">
+                          <span>{getPlanDisplayName(subscriptionStatus.plan, subscriptionStatus.cakto_offer_name)}</span>
+                          {subscriptionStatus.plan && (
+                            <span className="text-xs text-muted-foreground/80">ID do plano: {subscriptionStatus.plan}</span>
+                          )}
+                        </div>
                       </div>
 
                       <div className="space-y-3 mb-6 text-sm">
                         <div className="flex items-center justify-between">
-                          <span className="text-muted-foreground">Status da Cakto</span>
-                          <span className="font-medium">{formatStatusLabel(subscriptionStatus.cakto_status)}</span>
+                          <span className="text-muted-foreground">Status do plano</span>
+                          <span className="font-medium">
+                            {subscriptionStatus.cakto_subscription_status
+                              ? formatStatusLabel(subscriptionStatus.cakto_subscription_status)
+                              : subscriptionStatus.is_active ? "Ativa" : "Inativa"}
+                          </span>
                         </div>
                         <div className="flex items-center justify-between">
-                          <span className="text-muted-foreground">Status assinatura</span>
-                          <span className="font-medium">{formatStatusLabel(subscriptionStatus.cakto_subscription_status)}</span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-muted-foreground">Status pagamento</span>
-                          <span className="font-medium">{formatStatusLabel(subscriptionStatus.cakto_payment_status)}</span>
+                          <span className="text-muted-foreground">Status de pagamento</span>
+                          <span className="font-medium">
+                            {subscriptionStatus.cakto_payment_status
+                              ? formatStatusLabel(subscriptionStatus.cakto_payment_status)
+                              : "Não informado"}
+                          </span>
                         </div>
                         <div className="flex items-center justify-between">
                           <span className="text-muted-foreground">Forma de pagamento</span>
                           <span className="font-medium">{formatPaymentMethod(subscriptionStatus.cakto_payment_method)}</span>
                         </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-muted-foreground">ID Cliente Cakto</span>
-                          <span className="font-medium">{subscriptionStatus.cakto_customer_id ?? "Não informado"}</span>
-                        </div>
-                        {subscriptionStatus.expires_at && (
-                          <div className="flex items-center justify-between">
-                            <span className="text-muted-foreground">Expira em</span>
-                            <span className="font-medium">{formatDate(subscriptionStatus.expires_at)}</span>
-                          </div>
-                        )}
-                        {subscriptionStatus.cakto_due_date && (
+                        {(
+                          subscriptionStatus.cakto_due_date || subscriptionStatus.expires_at
+                        ) && (
                           <div className="flex items-center justify-between">
                             <span className="text-muted-foreground">Próximo vencimento</span>
-                            <span className="font-medium">{formatDate(subscriptionStatus.cakto_due_date)}</span>
+                            <span className="font-medium">
+                              {formatDate(
+                                subscriptionStatus.cakto_due_date || subscriptionStatus.expires_at
+                              )}
+                            </span>
                           </div>
                         )}
                         {subscriptionStatus.last_validation_at && (
@@ -304,10 +307,6 @@ const SettingsPage = () => {
                             <span className="font-medium">{formatDate(subscriptionStatus.last_validation_at)}</span>
                           </div>
                         )}
-                        <div className="flex items-center justify-between">
-                          <span className="text-muted-foreground">Uploads Mensais</span>
-                          <span className="font-medium">Ilimitado</span>
-                        </div>
                       </div>
 
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
