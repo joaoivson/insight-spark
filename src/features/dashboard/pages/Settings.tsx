@@ -260,31 +260,12 @@ const SettingsPage = () => {
                             <AlertTriangle className="w-3 h-3 mr-1" /> Validação pendente
                           </Badge>
                         )}
-                        <div className="flex flex-col text-sm text-muted-foreground">
-                          <span>{getPlanDisplayName(subscriptionStatus.plan, subscriptionStatus.cakto_offer_name)}</span>
-                          {subscriptionStatus.plan && (
-                            <span className="text-xs text-muted-foreground/80">ID do plano: {subscriptionStatus.plan}</span>
-                          )}
-                        </div>
+                        <span className="text-sm text-muted-foreground">
+                          {getPlanDisplayName(subscriptionStatus.plan, subscriptionStatus.cakto_offer_name)}
+                        </span>
                       </div>
 
                       <div className="space-y-3 mb-6 text-sm">
-                        <div className="flex items-center justify-between">
-                          <span className="text-muted-foreground">Status do plano</span>
-                          <span className="font-medium">
-                            {subscriptionStatus.cakto_subscription_status
-                              ? formatStatusLabel(subscriptionStatus.cakto_subscription_status)
-                              : subscriptionStatus.is_active ? "Ativa" : "Inativa"}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-muted-foreground">Status de pagamento</span>
-                          <span className="font-medium">
-                            {subscriptionStatus.cakto_payment_status
-                              ? formatStatusLabel(subscriptionStatus.cakto_payment_status)
-                              : "Não informado"}
-                          </span>
-                        </div>
                         <div className="flex items-center justify-between">
                           <span className="text-muted-foreground">Forma de pagamento</span>
                           <span className="font-medium">{formatPaymentMethod(subscriptionStatus.cakto_payment_method)}</span>
@@ -307,23 +288,6 @@ const SettingsPage = () => {
                             <span className="font-medium">{formatDate(subscriptionStatus.last_validation_at)}</span>
                           </div>
                         )}
-                      </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <Button 
-                          variant="outline" 
-                          className="w-full"
-                          onClick={handleChangePlan}
-                        >
-                          Alterar Plano
-                        </Button>
-                        <Button 
-                          variant="ghost" 
-                          className="w-full border border-destructive/20 text-destructive hover:text-destructive-foreground hover:bg-destructive"
-                          onClick={handleCancelSubscription}
-                        >
-                          Cancelar Assinatura
-                        </Button>
                       </div>
                     </> 
                   ) : (
