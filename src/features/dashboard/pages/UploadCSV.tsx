@@ -282,7 +282,7 @@ const UploadCSV = () => {
                   
                   <div className="inline-flex items-center gap-2 px-4 py-2 bg-background/50 rounded-full border border-border text-xs font-medium text-muted-foreground mt-4">
                     <FileSpreadsheet className="w-4 h-4" />
-                    <span>Suporta Shopee, Amazon, e-commerce padrão</span>
+                    <span>Suporta Shopee</span>
                   </div>
                 </div>
               </div>
