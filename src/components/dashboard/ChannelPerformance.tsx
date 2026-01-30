@@ -185,31 +185,6 @@ const ChannelPerformance = ({
             </div>
           </div>
 
-          {/* Card Alerta */}
-          <div className={cn(
-            "border rounded-xl p-4 flex items-center gap-4",
-            alertChannel 
-              ? "bg-red-500/10 border-red-500/20" 
-              : "bg-green-500/10 border-green-500/20"
-          )}>
-            <div className={cn("p-3 rounded-lg", alertChannel ? "bg-red-500/20 text-red-500" : "bg-green-500/20 text-green-500")}>
-              {alertChannel ? <AlertTriangle className="w-6 h-6" /> : <TrendingUp className="w-6 h-6" />}
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground font-medium">
-                {alertChannel ? "Atenção Necessária" : "Saúde da Operação"}
-              </p>
-              <p className="text-lg font-bold text-foreground">
-                {alertChannel ? alertChannel.name : "Tudo Positivo"}
-              </p>
-              <p className={cn("text-xs font-medium", alertChannel ? "text-red-400" : "text-green-400")}>
-                {alertChannel 
-                  ? `Prejuízo de ${formatCurrency(alertChannel.profit)}` 
-                  : "Nenhum canal com prejuízo"}
-              </p>
-            </div>
-          </div>
-
           {/* Card Volume */}
           <div className="bg-card border border-border rounded-xl p-4 flex items-center gap-4">
             <div className="p-3 bg-blue-500/10 rounded-lg text-blue-500">

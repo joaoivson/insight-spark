@@ -3,7 +3,6 @@ import {
   Upload, 
   FileText, 
   Puzzle, 
-  Settings, 
   LogOut,
   LayoutDashboard,
   ChevronLeft,
@@ -33,7 +32,6 @@ const menuItems = [
   { icon: Wallet, label: "Investimentos Ads", path: "/dashboard/investimentos" },
   { icon: FileText, label: "Relatórios", path: "/dashboard/reports" },
   // { icon: Puzzle, label: "Módulos", path: "/dashboard/modules" }, // Temporarily hidden
-  { icon: Settings, label: "Configurações", path: "/dashboard/settings" },
 ];
 
 interface DashboardSidebarProps {

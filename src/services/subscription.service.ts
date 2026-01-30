@@ -1,12 +1,19 @@
 import { getApiUrl, fetchWithAuth } from "@/core/config/api.config";
 
 export interface SubscriptionStatus {
+  has_subscription: boolean;
   is_active: boolean;
-  plan: string; // "marketdash" ou "free"
-  expires_at: string | null;
+  plan: string | null;
+  needs_validation: boolean;
   last_validation_at: string | null;
+  expires_at: string | null;
   cakto_customer_id: string | null;
-  needs_validation: boolean; // Se precisa validar (passou 30 dias)
+  cakto_status: string | null;
+  cakto_offer_name: string | null;
+  cakto_due_date: string | null;
+  cakto_subscription_status: string | null;
+  cakto_payment_status: string | null;
+  cakto_payment_method: string | null;
 }
 
 // GET /api/v1/subscription/status

@@ -49,13 +49,15 @@ const ForgotPasswordPage = () => {
     setLoading(true);
 
     try {
-      let emailExists = true;
+      let emailCheck: Awaited<ReturnType<typeof passwordService.checkEmailExists>> = {
+        exists: true,
+      };
 
       try {
-        emailExists = await passwordService.checkEmailExists(trimmedEmail);
+        emailCheck = await passwordService.checkEmailExists(trimmedEmail);
       } catch (checkError) {
         if (checkError instanceof Error && checkError.message === "CHECK_ENDPOINT_UNAVAILABLE") {
-          emailExists = true;
+          emailCheck = { exists: true };
         } else {
           const checkMessage = checkError instanceof Error ? checkError.message : 'Erro ao verificar email.';
           setError(checkMessage || 'Erro ao verificar email.');
@@ -63,9 +65,19 @@ const ForgotPasswordPage = () => {
         }
       }
 
-      if (!emailExists) {
+      if (!emailCheck.exists) {
         setError('Email não cadastrado. Verifique e tente novamente.');
         return;
+      }
+
+      if (emailCheck.matchedEmail) {
+        const normalizedInput = trimmedEmail.toLowerCase();
+        const normalizedMatch = emailCheck.matchedEmail.trim().toLowerCase();
+
+        if (normalizedInput !== normalizedMatch) {
+          setError('Email não cadastrado. Verifique e tente novamente.');
+          return;
+        }
       }
 
       await passwordService.forgotPassword(trimmedEmail);

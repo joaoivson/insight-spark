@@ -14,6 +14,8 @@ import { useTheme } from "@/shared/hooks/useTheme";
 import { useDatasetStore } from "@/stores/datasetStore";
 import { useAdSpendsStore } from "@/stores/adSpendsStore";
 import { useIsMobile } from "@/shared/hooks/use-mobile";
+import { useNavigate } from "react-router-dom";
+import { APP_CONFIG } from "@/core/config/app.config";
 
 interface DashboardHeaderProps {
   title: string;
@@ -29,6 +31,7 @@ const DashboardHeader = ({ title, subtitle, subtitleSize = "sm", action, onMobil
   const { fetchRows } = useDatasetStore();
   const { fetchAdSpends } = useAdSpendsStore();
   const [refreshing, setRefreshing] = useState(false);
+  const navigate = useNavigate();
 
   const handleRefresh = async () => {
     try {
@@ -124,7 +127,9 @@ const DashboardHeader = ({ title, subtitle, subtitleSize = "sm", action, onMobil
             <DropdownMenuLabel>Minha Conta</DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem>Perfil</DropdownMenuItem>
-            <DropdownMenuItem>Configurações</DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => navigate(APP_CONFIG.ROUTES.DASHBOARD_SETTINGS)}>
+              Configurações
+            </DropdownMenuItem>
             <DropdownMenuItem>Assinatura</DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem className="text-destructive">Sair</DropdownMenuItem>

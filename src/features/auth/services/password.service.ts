@@ -25,6 +25,21 @@ export interface ForgotPasswordResponse {
 export interface CheckEmailResponse {
   exists: boolean;
   message?: string;
+  email?: string;
+  normalizedEmail?: string;
+  matchedEmail?: string;
+  user?: {
+    email?: string;
+  };
+  data?: {
+    email?: string;
+  };
+  user_email?: string;
+}
+
+export interface CheckEmailResult {
+  exists: boolean;
+  matchedEmail?: string;
 }
 
 /**
@@ -79,7 +94,7 @@ export const passwordService = {
    * Verifica se o email informado está cadastrado antes de iniciar o fluxo de reset de senha.
    * Caso o backend não ofereça esse endpoint, lança erro com código específico para fallback.
    */
-  async checkEmailExists(email: string): Promise<boolean> {
+  async checkEmailExists(email: string): Promise<CheckEmailResult> {
     const url = getApiUrl("/api/v1/auth/check-email");
 
     try {
@@ -93,8 +108,24 @@ export const passwordService = {
 
       if (response.ok) {
         const data: CheckEmailResponse = await response.json().catch(() => ({ exists: true }));
-        // Se API não retornar explicitamente, assumir que existe para evitar bloqueios indevidos
-        return typeof data.exists === "boolean" ? data.exists : true;
+
+        const possibleMatches = [
+          data.email,
+          data.normalizedEmail,
+          data.matchedEmail,
+          data.user?.email,
+          data.user_email,
+          data.data?.email,
+        ];
+
+        const matchedEmail = possibleMatches.find((value): value is string => typeof value === "string" && value.trim().length > 0);
+
+        const exists = typeof data.exists === "boolean" ? data.exists : true;
+
+        return {
+          exists,
+          matchedEmail: matchedEmail ? matchedEmail.trim() : undefined,
+        };
       }
 
       const error = await response.json().catch(() => ({} as Record<string, string>));
@@ -109,7 +140,7 @@ export const passwordService = {
         normalizedDetail.includes("não cadastrado") ||
         normalizedDetail.includes("nao cadastrado")
       ) {
-        return false;
+        return { exists: false };
       }
 
       // Se a API não for encontrada (endpoint inexistente), avisar para permitir fallback
