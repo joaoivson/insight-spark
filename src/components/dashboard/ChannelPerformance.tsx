@@ -169,38 +169,6 @@ const ChannelPerformance = ({
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
-      {showHighlights && (
-        <div className="grid md:grid-cols-3 gap-4">
-          {/* Card Estrela */}
-          <div className="bg-gradient-to-br from-indigo-500/10 to-purple-500/10 border border-indigo-500/20 rounded-xl p-4 flex items-center gap-4">
-            <div className="p-3 bg-indigo-500/20 rounded-lg text-indigo-500">
-              <Trophy className="w-6 h-6" />
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground font-medium">Campeão de ROAS</p>
-              <p className="text-lg font-bold text-foreground">{starChannel?.name || "N/A"}</p>
-              <p className="text-xs text-indigo-400 font-medium">
-                {starChannel?.spend > 0 ? `${starChannel.roas.toFixed(1)}x retorno` : "Sem gastos registrados"}
-              </p>
-            </div>
-          </div>
-
-          {/* Card Volume */}
-          <div className="bg-card border border-border rounded-xl p-4 flex items-center gap-4">
-            <div className="p-3 bg-blue-500/10 rounded-lg text-blue-500">
-              <BarChart3 className="w-6 h-6" />
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground font-medium">Maior Volume</p>
-              <p className="text-lg font-bold text-foreground">{volumeChannel?.name}</p>
-              <p className="text-xs text-muted-foreground">
-                {formatCurrency(volumeChannel?.revenue)} em vendas
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Tabela Visual */}
       {showSubTable && (
         <div className="bg-card border border-border rounded-xl overflow-hidden">
