@@ -38,7 +38,7 @@ const SettingsPage = () => {
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
-  const { status: subscriptionStatus, loading: subscriptionLoading } = useSubscriptionCheck({ 
+  const { status: subscriptionStatus, loading: subscriptionLoading, refetch: refetchSubscription } = useSubscriptionCheck({ 
     redirectOnInactive: false 
   });
 
@@ -119,12 +119,37 @@ const SettingsPage = () => {
     return new Date(dateString).toLocaleDateString("pt-BR");
   };
 
-  const getPlanDisplayName = (plan: string) => {
+  const getPlanDisplayName = (plan: string | null, offerName?: string | null) => {
+    if (offerName) return offerName;
+    if (!plan) return "Plano não informado";
+    const normalized = plan.toLowerCase();
     const planNames: Record<string, string> = {
       'marketdash': 'MarketDash',
+      'marketdash mensal': 'MarketDash Mensal',
+      'marketdash trimestral': 'MarketDash Trimestral',
+      'marketdash anual': 'MarketDash Anual',
       'free': 'Gratuito',
     };
-    return planNames[plan] || plan;
+    return planNames[normalized] || plan;
+  };
+
+  const formatStatusLabel = (value: string | null) => {
+    if (!value) return "Não informado";
+    return value
+      .split(/[_\s]+/)
+      .filter(Boolean)
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(" ");
+  };
+
+  const formatPaymentMethod = (method: string | null) => {
+    if (!method) return "Não informado";
+    const map: Record<string, string> = {
+      credit_card: "Cartão de Crédito",
+      boleto: "Boleto",
+      pix: "PIX",
+    };
+    return map[method as keyof typeof map] || formatStatusLabel(method);
   };
 
   return (
@@ -197,32 +222,6 @@ const SettingsPage = () => {
                 </div>
               </div>
             </div>
-
-            {/* Notificações */}
-            <div className="bg-card border border-border rounded-2xl p-8 shadow-sm">
-              <div className="flex items-center gap-4 mb-6">
-                <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center text-accent">
-                  <Bell className="w-5 h-5" />
-                </div>
-                <h3 className="text-lg font-bold text-foreground">Preferências de Notificação</h3>
-              </div>
-
-              <div className="space-y-6">
-                {[
-                  { title: "Resumo Semanal", desc: "Receba estatísticas consolidadas toda segunda-feira" },
-                  { title: "Alertas de Performance", desc: "Notifique-me quando o ROAS cair abaixo da meta" },
-                  { title: "Atualizações do Sistema", desc: "Novidades e melhorias na plataforma" },
-                ].map((item, i) => (
-                  <div key={i} className="flex items-start justify-between">
-                    <div>
-                      <p className="font-medium text-foreground">{item.title}</p>
-                      <p className="text-sm text-muted-foreground">{item.desc}</p>
-                    </div>
-                    <Switch defaultChecked={i < 2} />
-                  </div>
-                ))}
-              </div>
-            </div>
           </div>
 
           {/* Coluna Lateral (Assinatura e Danger Zone) */}
@@ -233,70 +232,117 @@ const SettingsPage = () => {
               <div className="absolute top-0 right-0 p-4 opacity-10">
                 <CreditCard className="w-24 h-24" />
               </div>
-              
+
               <div className="relative z-10">
-                <h3 className="font-bold text-lg mb-1">Gerenciar Assinatura</h3>
-                
+                <h3 className="font-bold text-lg mb-1">Assinatura</h3>
+
                 {subscriptionLoading ? (
                   <div className="flex items-center justify-center py-8">
                     <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
                   </div>
                 ) : subscriptionStatus ? (
-                  <>
-                    <div className="flex items-center gap-2 mb-4">
-                      <Badge className={`${
-                        subscriptionStatus.is_active 
-                          ? "bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20" 
-                          : "bg-destructive/10 text-destructive border-destructive/20"
-                      }`}>
-                        {subscriptionStatus.is_active ? (
-                          <><CheckCircle2 className="w-3 h-3 mr-1" /> Ativa</>
-                        ) : (
-                          "Inativa"
+                  subscriptionStatus.has_subscription ? (
+                    <>
+                      <div className="flex flex-wrap items-center gap-2 mb-4">
+                        <Badge className={`${
+                          subscriptionStatus.is_active 
+                            ? "bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20" 
+                            : "bg-destructive/10 text-destructive border-destructive/20"
+                        }`}>
+                          {subscriptionStatus.is_active ? (
+                            <><CheckCircle2 className="w-3 h-3 mr-1" /> Ativa</>
+                          ) : (
+                            "Inativa"
+                          )}
+                        </Badge>
+                        {subscriptionStatus.needs_validation && (
+                          <Badge variant="outline" className="border-amber-500/30 text-amber-600 dark:text-amber-400">
+                            <AlertTriangle className="w-3 h-3 mr-1" /> Validação pendente
+                          </Badge>
                         )}
-                      </Badge>
-                      <span className="text-sm text-muted-foreground">
-                        {getPlanDisplayName(subscriptionStatus.plan)}
-                      </span>
-                    </div>
-
-                    <div className="space-y-3 mb-6 text-sm">
-                      {subscriptionStatus.expires_at && (
-                        <div className="flex items-center justify-between">
-                          <span className="text-muted-foreground">Expira em</span>
-                          <span className="font-medium">{formatDate(subscriptionStatus.expires_at)}</span>
+                        <div className="flex flex-col text-sm text-muted-foreground">
+                          <span>{getPlanDisplayName(subscriptionStatus.plan, subscriptionStatus.cakto_offer_name)}</span>
+                          {subscriptionStatus.plan && (
+                            <span className="text-xs text-muted-foreground/80">ID do plano: {subscriptionStatus.plan}</span>
+                          )}
                         </div>
-                      )}
-                      {subscriptionStatus.last_validation_at && (
-                        <div className="flex items-center justify-between">
-                          <span className="text-muted-foreground">Última validação</span>
-                          <span className="font-medium">{formatDate(subscriptionStatus.last_validation_at)}</span>
-                        </div>
-                      )}
-                      <div className="flex items-center justify-between">
-                        <span className="text-muted-foreground">Uploads Mensais</span>
-                        <span className="font-medium">Ilimitado</span>
                       </div>
-                    </div>
 
-                    <div className="space-y-2">
+                      <div className="space-y-3 mb-6 text-sm">
+                        <div className="flex items-center justify-between">
+                          <span className="text-muted-foreground">Status do plano</span>
+                          <span className="font-medium">
+                            {subscriptionStatus.cakto_subscription_status
+                              ? formatStatusLabel(subscriptionStatus.cakto_subscription_status)
+                              : subscriptionStatus.is_active ? "Ativa" : "Inativa"}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-muted-foreground">Status de pagamento</span>
+                          <span className="font-medium">
+                            {subscriptionStatus.cakto_payment_status
+                              ? formatStatusLabel(subscriptionStatus.cakto_payment_status)
+                              : "Não informado"}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-muted-foreground">Forma de pagamento</span>
+                          <span className="font-medium">{formatPaymentMethod(subscriptionStatus.cakto_payment_method)}</span>
+                        </div>
+                        {(
+                          subscriptionStatus.cakto_due_date || subscriptionStatus.expires_at
+                        ) && (
+                          <div className="flex items-center justify-between">
+                            <span className="text-muted-foreground">Próximo vencimento</span>
+                            <span className="font-medium">
+                              {formatDate(
+                                subscriptionStatus.cakto_due_date || subscriptionStatus.expires_at
+                              )}
+                            </span>
+                          </div>
+                        )}
+                        {subscriptionStatus.last_validation_at && (
+                          <div className="flex items-center justify-between">
+                            <span className="text-muted-foreground">Última validação</span>
+                            <span className="font-medium">{formatDate(subscriptionStatus.last_validation_at)}</span>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <Button 
+                          variant="outline" 
+                          className="w-full"
+                          onClick={handleChangePlan}
+                        >
+                          Alterar Plano
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          className="w-full border border-destructive/20 text-destructive hover:text-destructive-foreground hover:bg-destructive"
+                          onClick={handleCancelSubscription}
+                        >
+                          Cancelar Assinatura
+                        </Button>
+                      </div>
+                    </> 
+                  ) : (
+                    <div className="py-4 text-center space-y-4">
+                      <div className="flex flex-col items-center gap-2">
+                        <AlertTriangle className="w-6 h-6 text-muted-foreground" />
+                        <p className="text-sm text-muted-foreground">
+                          Você ainda não possui uma assinatura ativa.
+                        </p>
+                      </div>
                       <Button 
-                        variant="default" 
+                        variant="outline" 
                         className="w-full"
                         onClick={handleChangePlan}
                       >
-                        <CreditCard className="w-4 h-4 mr-2" />
-                        Mudar de Plano
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        className="w-full text-destructive hover:text-destructive hover:bg-destructive/10"
-                        onClick={handleCancelSubscription}
-                      >
-                        Cancelar Assinatura
+                        Ativar Assinatura
                       </Button>
                     </div>
-                  </>
+                  )
                 ) : (
                   <div className="py-4 text-center">
                     <p className="text-sm text-muted-foreground mb-4">
@@ -305,71 +351,52 @@ const SettingsPage = () => {
                     <Button 
                       variant="outline" 
                       className="w-full"
-                      onClick={handleChangePlan}
+                      onClick={() => refetchSubscription(true)}
                     >
-                      Ativar Assinatura
+                      Tentar novamente
                     </Button>
                   </div>
                 )}
               </div>
             </div>
-
-            {/* Modal de Seleção de Plano */}
-            <SubscriptionPlanModal
-              open={showPlanModal}
-              onOpenChange={setShowPlanModal}
-            />
-
-            {/* Dialog de Confirmação de Cancelamento */}
-            <AlertDialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Cancelar Assinatura</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Para cancelar sua assinatura, você precisa acessar sua conta na Cakto. 
-                    O cancelamento pode ser feito a qualquer momento e sua assinatura continuará ativa até o final do período pago.
-                    <br /><br />
-                    Deseja ser redirecionado para a página de gerenciamento da Cakto?
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Fechar</AlertDialogCancel>
-                  <AlertDialogAction
-                    onClick={() => {
-                      // Redirecionar para página de gerenciamento da Cakto
-                      // Nota: A URL exata depende da configuração da Cakto
-                      window.open('https://www.cakto.com.br/area-do-cliente', '_blank');
-                      setShowCancelDialog(false);
-                    }}
-                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                  >
-                    Ir para Cakto
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-
-            {/* Danger Zone */}
-            <div className="bg-destructive/5 border border-destructive/20 rounded-2xl p-6">
-              <div className="flex items-center gap-3 mb-4 text-destructive">
-                <AlertTriangle className="w-5 h-5" />
-                <h3 className="font-bold">Zona de Perigo</h3>
-              </div>
-              <p className="text-sm text-muted-foreground mb-6">
-                A exclusão da conta é permanente e remove todos os históricos de dados.
-              </p>
-              <Button 
-                variant="destructive" 
-                onClick={handleDelete} 
-                disabled={isDeleting} 
-                className="w-full"
-              >
-                {isDeleting ? "Processando..." : "Excluir minha conta"}
-              </Button>
-            </div>
-
           </div>
         </div>
+
+        {/* Modal de Seleção de Plano */}
+        <SubscriptionPlanModal
+          open={showPlanModal}
+          onOpenChange={setShowPlanModal}
+        />
+
+        {/* Dialog de Confirmação de Cancelamento */}
+        <AlertDialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Cancelar Assinatura</AlertDialogTitle>
+              <AlertDialogDescription>
+                Para cancelar sua assinatura, você precisa acessar sua conta na Cakto. 
+                O cancelamento pode ser feito a qualquer momento e sua assinatura continuará ativa até o final do período pago.
+                <br /><br />
+                Deseja ser redirecionado para a página de gerenciamento da Cakto?
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Fechar</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => {
+                  // Redirecionar para página de gerenciamento da Cakto
+                  // Nota: A URL exata depende da configuração da Cakto
+                  window.open('https://www.cakto.com.br/area-do-cliente', '_blank');
+                  setShowCancelDialog(false);
+                }}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                Ir para Cakto
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
       </motion.div>
     </DashboardLayout>
   );
