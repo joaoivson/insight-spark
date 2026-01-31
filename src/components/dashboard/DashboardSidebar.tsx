@@ -8,7 +8,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Wallet,
-  X
+  X,
+  MousePointerClick
 } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -28,8 +29,9 @@ import { useIsMobile } from "@/shared/hooks/use-mobile";
 
 const menuItems = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
-  { icon: Upload, label: "Upload CSV", path: "/dashboard/upload" },
-  { icon: Wallet, label: "Investimentos Ads", path: "/dashboard/investimentos" },
+  { icon: Upload, label: "Upload Comissão", path: "/dashboard/upload" },
+  { icon: MousePointerClick, label: "Upload Cliques", path: "/dashboard/upload-cliques" },
+  { icon: Wallet, label: "Custos de Anúncios", path: "/dashboard/investimentos" },
   { icon: FileText, label: "Relatórios", path: "/dashboard/reports" },
   // { icon: Puzzle, label: "Módulos", path: "/dashboard/modules" }, // Temporarily hidden
 ];

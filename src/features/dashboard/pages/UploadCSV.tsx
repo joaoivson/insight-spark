@@ -1,10 +1,11 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { motion, AnimatePresence } from "framer-motion";
-import { Upload, FileText, Check, AlertCircle, X, Eye, FileSpreadsheet, Trash2 } from "lucide-react";
+import { Upload, FileText, Check, AlertCircle, X, Eye, FileSpreadsheet, Trash2, MousePointerClick } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import Papa from "papaparse";
+import { useLocation } from "react-router-dom";
 import {
   Table,
   TableBody,
@@ -25,10 +26,11 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { getApiUrl, fetchWithAuth } from "@/core/config/api.config";
-import { userStorage } from "@/shared/lib/storage";
 import { Progress } from "@/components/ui/progress";
 import { useDatasetStore } from "@/stores/datasetStore";
+import { useClicksStore } from "@/stores/clicksStore";
 import { deleteAllDatasets } from "@/services/datasets.service";
+import { deleteAllClicks } from "@/services/clicks.service";
 
 interface CSVData {
   headers: string[];
@@ -36,6 +38,9 @@ interface CSVData {
 }
 
 const UploadCSV = () => {
+  const location = useLocation();
+  const isClicksMode = location.pathname.includes("upload-cliques");
+  
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [dragActive, setDragActive] = useState(false);
   const [file, setFile] = useState<File | null>(null);
@@ -45,7 +50,29 @@ const UploadCSV = () => {
   const [error, setError] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const { toast } = useToast();
-  const { fetchRows, persist, invalidate } = useDatasetStore();
+  
+  const { fetchRows, invalidate: invalidateSales } = useDatasetStore();
+  const { fetchClicks, invalidate: invalidateClicks } = useClicksStore();
+
+  const config = {
+    title: isClicksMode ? "Importar Cliques" : "Importar Dados",
+    subtitle: isClicksMode ? "Carregue seus relatórios de cliques" : "Carregue seus relatórios de vendas",
+    uploadUrl: isClicksMode ? "/api/v1/clicks/upload" : "/api/v1/datasets/upload",
+    deleteAction: isClicksMode ? deleteAllClicks : deleteAllDatasets,
+    invalidate: isClicksMode ? invalidateClicks : invalidateSales,
+    fetchAction: isClicksMode ? fetchClicks : fetchRows,
+    deleteLabel: isClicksMode ? "Excluir Todos os Cliques" : "Excluir Todas as Vendas",
+    deleteDescription: isClicksMode 
+      ? "Esta ação irá excluir permanentemente todos os dados de cliques. Esta ação não pode ser desfeita."
+      : "Esta ação irá excluir permanentemente todos os dados de vendas. Esta ação não pode ser desfeita.",
+    successMessage: isClicksMode ? "Cliques importados com sucesso." : "Seus dados foram importados com sucesso.",
+    icon: isClicksMode ? MousePointerClick : CloudUploadIcon,
+  };
+
+  // Limpar estado quando mudar de rota
+  useEffect(() => {
+    clearFile();
+  }, [location.pathname]);
 
   const handleDrag = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -118,14 +145,12 @@ const UploadCSV = () => {
       const formData = new FormData();
       formData.append("file", file);
 
-      // Removido user_id - agora vem do token JWT
-
       // Simulate progress for UX
       const interval = setInterval(() => {
         setUploadProgress((prev) => Math.min(prev + 10, 90));
       }, 500);
 
-      const res = await fetchWithAuth(getApiUrl(`/api/v1/datasets/upload`), {
+      const res = await fetchWithAuth(getApiUrl(config.uploadUrl), {
         method: "POST",
         body: formData,
       });
@@ -140,15 +165,11 @@ const UploadCSV = () => {
 
       toast({
         title: "Processamento concluído!",
-        description: "Seus dados foram importados com sucesso.",
+        description: config.successMessage,
         duration: 5000,
       });
 
-      const updated = await fetchRows({ force: true, includeRawData: true });
-      // reforça persistência em cache/localStorage
-      if (Array.isArray(updated)) {
-        persist(updated);
-      }
+      await config.fetchAction({ force: true });
       clearFile();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro desconhecido no upload.");
@@ -168,11 +189,11 @@ const UploadCSV = () => {
   const handleDeleteAll = async () => {
     setIsDeleting(true);
     try {
-      await deleteAllDatasets();
-      invalidate();
+      await config.deleteAction();
+      config.invalidate();
       toast({
         title: "Dados excluídos",
-        description: "Todos os dados de vendas foram removidos com sucesso.",
+        description: isClicksMode ? "Todos os dados de cliques foram removidos." : "Todos os dados de vendas foram removidos.",
       });
     } catch (err) {
       toast({
@@ -185,24 +206,25 @@ const UploadCSV = () => {
     }
   };
 
+  const IconComponent = config.icon;
+
   return (
     <DashboardLayout 
-      title="Importar Dados" 
-      subtitle="Carregue seus relatórios de vendas"
+      title={config.title} 
+      subtitle={config.subtitle}
       action={
         <AlertDialog>
           <AlertDialogTrigger asChild>
             <Button variant="destructive" size="sm" disabled={isDeleting}>
               <Trash2 className="w-4 h-4 mr-2" />
-              Excluir Todas as Vendas
+              {config.deleteLabel}
             </Button>
           </AlertDialogTrigger>
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
               <AlertDialogDescription>
-                Esta ação irá excluir permanentemente todos os dados de vendas. 
-                Esta ação não pode ser desfeita.
+                {config.deleteDescription}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -256,14 +278,14 @@ const UploadCSV = () => {
                 
                 <div className="relative z-0">
                   <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center mx-auto mb-8 shadow-inner group-hover:scale-110 transition-transform duration-300">
-                    <CloudUploadIcon className="w-10 h-10 text-primary" />
+                    <IconComponent className="w-10 h-10 text-primary" />
                   </div>
                   
                   <h3 className="font-display font-bold text-2xl text-foreground mb-3 group-hover:text-primary transition-colors">
                     Arraste e solte seu arquivo CSV aqui
                   </h3>
                   <p className="text-muted-foreground mb-6 max-w-md mx-auto leading-relaxed">
-                    Solte o arquivo CSV nesta área para fazer o upload... Suporta Shopee.
+                    Solte o arquivo CSV nesta área para fazer o upload... {isClicksMode ? "Relatório de cliques." : "Suporta Shopee."}
                   </p>
                   
                   <Button
@@ -280,10 +302,12 @@ const UploadCSV = () => {
                     Selecionar arquivo CSV
                   </Button>
                   
-                  <div className="inline-flex items-center gap-2 px-4 py-2 bg-background/50 rounded-full border border-border text-xs font-medium text-muted-foreground mt-4">
-                    <FileSpreadsheet className="w-4 h-4" />
-                    <span>Suporta Shopee</span>
-                  </div>
+                  {!isClicksMode && (
+                    <div className="inline-flex items-center gap-2 px-4 py-2 bg-background/50 rounded-full border border-border text-xs font-medium text-muted-foreground mt-4">
+                      <FileSpreadsheet className="w-4 h-4" />
+                      <span>Suporta Shopee</span>
+                    </div>
+                  )}
                 </div>
               </div>
 

@@ -10,6 +10,7 @@ interface KPICardProps {
   icon: React.ElementType;
   iconColor?: string;
   onClick?: () => void;
+  className?: string;
 }
 
 export interface KPIData {
@@ -51,6 +52,7 @@ const KPICard = ({
   icon: Icon,
   iconColor = "text-accent",
   onClick,
+  className,
 }: KPICardProps) => {
   return (
     <motion.div
@@ -61,8 +63,9 @@ const KPICard = ({
       whileHover={onClick ? "hover" : undefined}
       whileTap={onClick ? { scale: 0.98 } : undefined}
       className={cn(
-        "bg-card rounded-xl border border-border p-6 transition-all duration-300 min-w-0 overflow-hidden",
-        onClick && "cursor-pointer hover:border-primary/50 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+        "bg-card rounded-xl border border-border p-3 sm:p-4 transition-all duration-300 min-w-0 overflow-hidden",
+        onClick && "cursor-pointer hover:border-primary/50 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+        className
       )}
       role={onClick ? "button" : undefined}
       tabIndex={onClick ? 0 : undefined}
@@ -74,17 +77,17 @@ const KPICard = ({
       }}
       aria-label={onClick ? `${title}: ${value}` : undefined}
     >
-      <div className="flex items-start justify-between mb-4 gap-2 min-w-0">
+      <div className="flex items-center justify-between mb-2 gap-2 min-w-0">
         <div
           className={cn(
-            "w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0",
+            "w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0",
             iconColor === "text-accent" && "bg-accent/10",
             iconColor === "text-success" && "bg-success/10",
             iconColor === "text-warning" && "bg-warning/10",
             iconColor === "text-chart-5" && "bg-chart-5/10"
           )}
         >
-          <Icon className={cn("w-6 h-6", iconColor)} />
+          <Icon className={cn("w-4 h-4", iconColor)} />
         </div>
         {change && (
           <div
@@ -109,13 +112,17 @@ const KPICard = ({
         key={value}
       >
         <span 
-          className="block break-words overflow-wrap-anywhere text-xl sm:text-2xl leading-tight" 
+          className={cn(
+            "block whitespace-nowrap leading-tight transition-all",
+            "text-base sm:text-lg lg:text-xl font-bold",
+            value.length > 13 && "lg:text-[1.1rem]"
+          )} 
           title={value}
         >
           {value}
         </span>
       </motion.div>
-      <div className="text-sm text-muted-foreground truncate" title={title}>{title}</div>
+      <div className="text-xs text-muted-foreground truncate" title={title}>{title}</div>
     </motion.div>
   );
 };
@@ -176,12 +183,13 @@ const KPICards = ({
       variants={containerVariants}
       initial="hidden"
       animate="show"
-      className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 lg:gap-6"
+      className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 lg:gap-4"
     >
       {data.map((kpi, index) => (
         <KPICard
           key={kpi.title}
           {...kpi}
+          className="min-w-0"
           changeType={kpi.changeType as any}
           onClick={() => onCardClick?.(kpi)}
         />

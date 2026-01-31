@@ -9,6 +9,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { useMemo, useState } from "react";
+import { parseDateOnly } from "@/shared/lib/date";
 import { Button } from "@/components/ui/button";
 import { useIsMobile } from "@/shared/hooks/use-mobile";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -148,7 +149,8 @@ const DataTable = ({ rows }: DataTableProps) => {
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("pt-BR");
+    const d = parseDateOnly(dateString);
+    return d ? d.toLocaleDateString("pt-BR") : dateString;
   };
 
   const [pageSize, setPageSize] = useState<number>(10);
@@ -221,7 +223,8 @@ const DataTable = ({ rows }: DataTableProps) => {
 
   const commissionSeries = useMemo(() => {
     if (!rows.length) return [];
-    const dates = rows.map((r) => new Date(r.date));
+    const dates = rows.map((r) => parseDateOnly(r.date)).filter((d): d is Date => d !== null);
+    if (!dates.length) return [];
     const minDate = new Date(Math.min(...dates.map((d) => d.getTime())));
     const maxDate = new Date(Math.max(...dates.map((d) => d.getTime())));
     const diffDays = Math.max(1, Math.round((maxDate.getTime() - minDate.getTime()) / (1000 * 60 * 60 * 24)));
@@ -245,7 +248,8 @@ const DataTable = ({ rows }: DataTableProps) => {
 
     const map = new Map<string, number>();
     rows.forEach((r) => {
-      const d = new Date(r.date);
+      const d = parseDateOnly(r.date);
+      if (!d) return;
       const key = fmtKey(d);
       const com = getAffiliateCommission(r);
       map.set(key, (map.get(key) || 0) + com);
@@ -271,7 +275,7 @@ const DataTable = ({ rows }: DataTableProps) => {
         </div>
         <div className="h-56 w-full">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={commissionSeries} margin={{ top: 10, right: 10, left: 0, bottom: 10 }}>
+            <BarChart data={commissionSeries} margin={{ top: 30, right: 10, left: 0, bottom: 10 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
               <XAxis dataKey="label" stroke="hsl(var(--muted-foreground))" tick={false} tickLine={false} axisLine={false} />
               <YAxis stroke="hsl(var(--muted-foreground))" tick={false} tickLine={false} axisLine={false} />

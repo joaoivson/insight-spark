@@ -162,6 +162,7 @@ const AdSpends = () => {
   const { toast } = useToast();
 
   const [amount, setAmount] = useState("");
+  const [clicksCount, setClicksCount] = useState("");
   const [subId, setSubId] = useState<string>("__all__");
   const [date, setDate] = useState<string>(new Date().toISOString().slice(0, 10));
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -191,6 +192,7 @@ const AdSpends = () => {
 
   const resetForm = () => {
     setAmount("");
+    setClicksCount("");
     setSubId("__all__");
     setDate(new Date().toISOString().slice(0, 10));
     setEditingId(null);
@@ -242,11 +244,16 @@ const AdSpends = () => {
 
     try {
       setSaving(true);
+      // Garantir que Cliques seja um número válido ou 0
+      const parsedClicks = clicksCount && clicksCount.trim() !== "" ? parseInt(clicksCount, 10) : 0;
       const payload: AdSpendPayload = {
         amount: parsedAmount,
         sub_id: subId === "__all__" ? "" : subId,
         date: parsedDate,
+        clicks: !isNaN(parsedClicks) ? parsedClicks : 0,
       };
+
+      console.log("Saving AdSpend Payload:", payload);
 
       if (editingId) {
         await update(editingId, payload);
@@ -272,6 +279,7 @@ const AdSpends = () => {
   const handleEdit = (item: AdSpend) => {
     setEditingId(item.id);
     setAmount(String(item.amount));
+    setClicksCount(item.clicks !== undefined && item.clicks !== null ? String(item.clicks) : "");
     setSubId(item.sub_id ?? "__all__");
     setDate(normalizeDate(item.date) ?? new Date().toISOString().slice(0, 10));
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -294,26 +302,62 @@ const AdSpends = () => {
 
     try {
       const today = new Date().toISOString().slice(0, 10);
-      // Estrutura: Data, SubId, ValorGasto (vírgula para decimais)
-      const data = [
-        ["Data", "SubId", "ValorGasto"],
-        [today, "ASPRADOR02", "120,50"],
-        [today, "", "300,00"],
+      
+      // Criar a planilha com dados iniciais
+      // Usamos objetos de célula para definir fórmulas
+      const wsData = [
+        ["Data", "SubId", "ValorGasto", "Cliques", "CPC"],
+        [today, "EXEMPLO01", 100.00, 50, { f: "C2/D2", t: 'n' }],
+        [today, "EXEMPLO02", 250.00, 125, { f: "C3/D3", t: 'n' }],
       ];
 
-      const ws = XLSX.utils.aoa_to_sheet(data);
+      const ws = XLSX.utils.aoa_to_sheet(wsData);
 
-      // Ajustar largura das colunas para melhor visualização
+      // Aplicar formatação de moeda para ValorGasto e CPC
+      const fmtCurrency = '"R$ "#,##0.00';
+      const fmtNumber = '#,##0';
+      
+      // Percorrer as colunas para formatar
+      const range = XLSX.utils.decode_range(ws['!ref'] || "A1");
+      for (let R = range.s.r + 1; R <= range.e.r; ++R) {
+        // Coluna C (ValorGasto)
+        const amountCell = ws[XLSX.utils.encode_cell({ r: R, c: 2 })];
+        if (amountCell) amountCell.z = fmtCurrency;
+        
+        // Coluna D (Cliques)
+        const clicksCell = ws[XLSX.utils.encode_cell({ r: R, c: 3 })];
+        if (clicksCell) clicksCell.z = fmtNumber;
+
+        // Coluna E (CPC)
+        const cpcCell = ws[XLSX.utils.encode_cell({ r: R, c: 4 })];
+        if (cpcCell) {
+          cpcCell.z = fmtCurrency;
+          cpcCell.t = 'n'; // Garantir que é número
+        }
+      }
+
+      // Adicionar mais algumas linhas com a fórmula pronta (vazias)
+      for (let i = 4; i <= 50; i++) {
+        const row = i;
+        const cpcRef = XLSX.utils.encode_cell({ r: row - 1, c: 4 });
+        ws[cpcRef] = { f: `IF(D${row}>0, C${row}/D${row}, 0)`, t: 'n', z: fmtCurrency };
+      }
+      
+      // Atualizar o range da planilha
+      ws['!ref'] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: 49, c: 4 } });
+
+      // Ajustar largura das colunas
       ws['!cols'] = [
         { wch: 12 }, // Data
         { wch: 15 }, // SubId
-        { wch: 12 }, // ValorGasto
+        { wch: 15 }, // ValorGasto
+        { wch: 10 }, // Cliques
+        { wch: 12 }, // CPC
       ];
 
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, "Modelo");
 
-      // Usar XLSX.writeFile diretamente - método nativo da biblioteca
       const fileName = "modelo-investimentos.xlsx";
       XLSX.writeFile(wb, fileName);
 
@@ -484,6 +528,10 @@ const AdSpends = () => {
           const rawSubId = findColumn(row, ["subid", "sub_id", "sub id", "canal", "channel"]);
           const sid = rawSubId ? String(rawSubId).trim() : "";
 
+          // Busca flexível por coluna de cliques
+          const rawClicks = findColumn(row, ["cliques", "clicks", "clique", "click"]);
+          const clks = rawClicks ? parseInt(String(rawClicks).replace(/\D/g, ""), 10) : undefined;
+
           // Normalize sub_id to lowercase for comparison with existing sub_ids
           const normalizedSubId = sid.toLowerCase();
 
@@ -492,9 +540,9 @@ const AdSpends = () => {
             return null;
           }
           // Use normalized sub_id for storage, but keep original for display if needed
-          return { amount: amt, date: dt, sub_id: normalizedSubId || "" };
+          return { amount: amt, date: dt, sub_id: normalizedSubId || "", clicks: isNaN(clks as number) ? undefined : clks };
         })
-        .filter(Boolean) as { amount: number; date: string; sub_id: string }[];
+        .filter(Boolean) as { amount: number; date: string; sub_id: string; clicks?: number }[];
 
       if (!payloads.length) {
         toast({ title: "Planilha vazia ou inválida", variant: "destructive" });
@@ -749,7 +797,7 @@ const AdSpends = () => {
               </div>
             )}
           </div>
-          <div className="grid gap-4 md:grid-cols-3">
+          <div className="grid gap-4 md:grid-cols-4">
             <div className="space-y-2">
               <Label htmlFor="amount">Valor gasto (R$)</Label>
               <Input
@@ -758,6 +806,20 @@ const AdSpends = () => {
                 placeholder="0,00"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
+                className="text-foreground"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="clicks">Cliques</Label>
+              <Input
+                id="clicks"
+                type="number"
+                placeholder="0"
+                value={clicksCount}
+                onChange={(e) => {
+                  console.log("Clicks Input Change:", e.target.value);
+                  setClicksCount(e.target.value);
+                }}
                 className="text-foreground"
               />
             </div>
@@ -833,13 +895,15 @@ const AdSpends = () => {
                   <TableHead>Data</TableHead>
                   <TableHead>Sub ID</TableHead>
                   <TableHead>Valor</TableHead>
+                  <TableHead>Cliques</TableHead>
+                  <TableHead>CPC</TableHead>
                   <TableHead className="w-28 text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {(refreshing || importing || saving || adLoading) && (
                   <TableRow>
-                    <TableCell colSpan={4} className="text-center text-muted-foreground py-4">
+                    <TableCell colSpan={6} className="text-center text-muted-foreground py-4">
                       <div className="inline-flex items-center gap-2">
                         <RefreshCw className="w-4 h-4 animate-spin" />
                         <span>Carregando...</span>
@@ -849,28 +913,33 @@ const AdSpends = () => {
                 )}
                 {!refreshing && !importing && !saving && !adLoading && paginated.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={4} className="text-center text-muted-foreground py-6">
+                    <TableCell colSpan={6} className="text-center text-muted-foreground py-6">
                       Nenhum investimento registrado ainda.
                     </TableCell>
                   </TableRow>
                 )}
-                {paginated.map((item) => (
-                  <TableRow key={item.id}>
-                    <TableCell>{formatDateSafe(item.date)}</TableCell>
-                    <TableCell>{item.sub_id || "Geral"}</TableCell>
-                    <TableCell>{currency(item.amount)}</TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => handleEdit(item)}>
-                          <Edit3 className="w-4 h-4" />
-                        </Button>
-                        <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={() => handleDelete(item.id)}>
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {paginated.map((item) => {
+                  const cpc = item.clicks && item.clicks > 0 ? item.amount / item.clicks : 0;
+                  return (
+                    <TableRow key={item.id}>
+                      <TableCell>{formatDateSafe(item.date)}</TableCell>
+                      <TableCell>{item.sub_id || "Geral"}</TableCell>
+                      <TableCell>{currency(item.amount)}</TableCell>
+                      <TableCell>{(item.clicks !== undefined && item.clicks !== null) ? Number(item.clicks).toLocaleString("pt-BR") : "0"}</TableCell>
+                      <TableCell>{cpc > 0 ? currency(cpc) : "-"}</TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-2">
+                          <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => handleEdit(item)}>
+                            <Edit3 className="w-4 h-4" />
+                          </Button>
+                          <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={() => handleDelete(item.id)}>
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
             {(refreshing || adLoading) && (

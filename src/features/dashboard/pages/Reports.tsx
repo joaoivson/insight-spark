@@ -36,7 +36,7 @@ import type { DatasetRow } from "@/components/dashboard/DataTable";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useDatasetStore } from "@/stores/datasetStore";
 import { useAdSpendsStore } from "@/stores/adSpendsStore";
-import { toDateKey, isBeforeDateKey, isAfterDateKey } from "@/shared/lib/date";
+import { toDateKey, isBeforeDateKey, isAfterDateKey, parseDateOnly } from "@/shared/lib/date";
 import { calcTotals, getFaturamento, getComissaoAfiliado } from "@/shared/lib/kpi";
 
 const formatCurrency = (value: number) =>
@@ -89,7 +89,10 @@ const ReportsPage = () => {
 
   const years = useMemo(() => {
     const set = new Set<string>();
-    rows.forEach((r) => set.add(new Date(r.date).getFullYear().toString()));
+    rows.forEach((r) => {
+      const d = parseDateOnly(r.date);
+      if (d) set.add(d.getFullYear().toString());
+    });
     return Array.from(set).sort();
   }, [rows]);
 
@@ -120,7 +123,8 @@ const ReportsPage = () => {
     >();
 
     filteredRows.forEach((r) => {
-      const d = new Date(r.date);
+      const d = parseDateOnly(r.date);
+      if (!d) return;
       const year = d.getFullYear().toString();
       if (yearFilter !== "all" && year !== yearFilter) return;
       const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
