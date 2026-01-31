@@ -2,22 +2,12 @@ import { getApiUrl, fetchWithAuth } from "@/core/config/api.config";
 
 export interface ClickRow {
   id: number;
-  date: string;
-  time: string;
-  channel: string;
-  clicks: number;
-  sub_id: string;
   dataset_id: number;
   user_id: number;
-  raw_data: {
-    Canal?: string;
-    Cliques?: string;
-    "Sub ID"?: string;
-    Data?: string;
-    Referenciador?: string;
-    "Tempo dos Cliques"?: string;
-    [key: string]: any;
-  };
+  date: string;
+  channel: string;
+  sub_id: string;
+  clicks: number;
 }
 
 export type ClickQuery = {
@@ -41,7 +31,7 @@ export const fetchClickRows = async (query: ClickQuery = {}): Promise<ClickRow[]
     throw new Error(text || "Falha ao carregar dados de cliques");
   }
   const data = await res.json();
-  return Array.isArray(data?.rows) ? (data.rows as ClickRow[]) : (data as ClickRow[]);
+  return data as ClickRow[];
 };
 
 export const deleteAllClicks = async (): Promise<void> => {
