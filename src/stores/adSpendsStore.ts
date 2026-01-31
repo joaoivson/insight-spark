@@ -73,30 +73,41 @@ export const useAdSpendsStore = create<AdSpendsState>((set, get) => {
       const cacheKey = getCacheKey(userId);
       const { fullAdSpends, hydrated, loading } = get();
 
-      // 1. Fetch from API if needed (force or initial empty)
-      if (opts.force || (!hydrated && fullAdSpends.length === 0)) {
-        if (loading) return get().adSpends;
-        set({ loading: true, error: null });
-        
-        try {
-          // ALWAYS fetch all ad spends for the cache
-          const apiData = await listAdSpends(); // Sem parâmetros para pegar tudo
-
-          const now = Date.now();
-          set({ adSpends: apiData, fullAdSpends: apiData, hydrated: true, lastUpdated: now });
-          safeSetJSON(cacheKey, { adSpends: apiData, lastUpdated: now });
-          return apiData;
-        } catch (error: any) {
-          set({ error: error?.message || "Erro ao carregar investimentos" });
-          return get().adSpends;
-        } finally {
-          set({ loading: false });
-        }
+      // 1. Se já temos dados na memória e não foi forçado, apenas retorna
+      if (hydrated && fullAdSpends.length > 0 && !opts.force) {
+        set({ adSpends: fullAdSpends });
+        return fullAdSpends;
       }
 
-      // 2. Return fullAdSpends (Dashboard handles filtering)
-      set({ adSpends: fullAdSpends });
-      return fullAdSpends;
+      // 2. Busca da API
+      if (loading) return get().adSpends;
+      set({ loading: true, error: null });
+      
+      try {
+        // ALWAYS fetch all ad spends for the cache
+        const apiData = await listAdSpends(); 
+
+        const now = Date.now();
+        // GARANTIA: Seta no estado e NO localStorage IMEDIATAMENTE após o retorno
+        set({ 
+          adSpends: apiData, 
+          fullAdSpends: apiData, 
+          hydrated: true, 
+          lastUpdated: now 
+        });
+
+        localStorage.setItem(cacheKey, JSON.stringify({ 
+          adSpends: apiData, 
+          lastUpdated: now 
+        }));
+
+        return apiData;
+      } catch (error: any) {
+        set({ error: error?.message || "Erro ao carregar investimentos" });
+        return get().adSpends;
+      } finally {
+        set({ loading: false });
+      }
     },
 
     create: async (payload) => {

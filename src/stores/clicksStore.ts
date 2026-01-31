@@ -78,32 +78,43 @@ export const useClicksStore = create<ClicksState>((set, get) => {
       const cacheKey = getCacheKey(userId);
       const { fullClicks, hydrated, loading } = get();
 
-      // 1. Fetch from API if needed (force or initial empty)
-      if (opts.force || (!hydrated && fullClicks.length === 0)) {
-        if (loading) return get().clicks;
-        set({ loading: true, error: null });
-        
-        try {
-          const apiRows = await fetchClickRows({
-            limit: opts.limit,
-            offset: opts.offset,
-          });
-
-          const now = Date.now();
-          set({ clicks: apiRows, fullClicks: apiRows, hydrated: true, lastUpdated: now });
-          safeSetJSON(cacheKey, { clicks: apiRows, lastUpdated: now });
-          return apiRows;
-        } catch (error: any) {
-          set({ error: error?.message || "Erro ao carregar dados de cliques" });
-          return get().clicks;
-        } finally {
-          set({ loading: false });
-        }
+      // 1. Se já temos dados na memória e não foi forçado, apenas retorna
+      if (hydrated && fullClicks.length > 0 && !opts.force) {
+        set({ clicks: fullClicks });
+        return fullClicks;
       }
 
-      // 2. Return fullClicks (Dashboard handles filtering)
-      set({ clicks: fullClicks });
-      return fullClicks;
+      // 2. Busca da API
+      if (loading) return get().clicks;
+      set({ loading: true, error: null });
+      
+      try {
+        const apiRows = await fetchClickRows({
+          limit: opts.limit,
+          offset: opts.offset,
+        });
+
+        const now = Date.now();
+        // GARANTIA: Seta no estado e NO localStorage IMEDIATAMENTE após o retorno
+        set({ 
+          clicks: apiRows, 
+          fullClicks: apiRows, 
+          hydrated: true, 
+          lastUpdated: now 
+        });
+
+        localStorage.setItem(cacheKey, JSON.stringify({ 
+          clicks: apiRows, 
+          lastUpdated: now 
+        }));
+
+        return apiRows;
+      } catch (error: any) {
+        set({ error: error?.message || "Erro ao carregar dados de cliques" });
+        return get().clicks;
+      } finally {
+        set({ loading: false });
+      }
     },
   };
 });

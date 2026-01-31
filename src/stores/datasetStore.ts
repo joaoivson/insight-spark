@@ -79,32 +79,42 @@ export const useDatasetStore = create<DatasetState>((set, get) => {
       const cacheKey = getCacheKey(userId);
       const { fullRows, hydrated, loading } = get();
 
-      // 1. Fetch from API if needed (force or initial empty)
-      if (opts.force || (!hydrated && fullRows.length === 0)) {
-        if (loading) return get().rows;
-        set({ loading: true, error: null });
-        
-        try {
-          // ALWAYS fetch all rows for the cache when forcing or initial load
-          const apiRows = await fetchDatasetRows({
-            includeRawData: opts.includeRawData,
-          });
-
-          const now = Date.now();
-          set({ rows: apiRows, fullRows: apiRows, hydrated: true, lastUpdated: now });
-          safeSetJSON(cacheKey, { rows: apiRows, lastUpdated: now });
-          return apiRows;
-        } catch (error: any) {
-          set({ error: error?.message || "Erro ao carregar dados" });
-          return get().rows;
-        } finally {
-          set({ loading: false });
-        }
+      // 1. Se já temos dados na memória e não foi forçado, apenas retorna
+      if (hydrated && fullRows.length > 0 && !opts.force) {
+        set({ rows: fullRows });
+        return fullRows;
       }
 
-      // 2. Return fullRows (Dashboard handles filtering)
-      set({ rows: fullRows });
-      return fullRows;
+      // 2. Busca da API
+      if (loading) return get().rows;
+      set({ loading: true, error: null });
+      
+      try {
+        const apiRows = await fetchDatasetRows({
+          includeRawData: opts.includeRawData,
+        });
+
+        const now = Date.now();
+        // GARANTIA: Seta no estado e NO localStorage IMEDIATAMENTE após o retorno
+        set({ 
+          rows: apiRows, 
+          fullRows: apiRows, 
+          hydrated: true, 
+          lastUpdated: now 
+        });
+        
+        localStorage.setItem(cacheKey, JSON.stringify({ 
+          rows: apiRows, 
+          lastUpdated: now 
+        }));
+
+        return apiRows;
+      } catch (error: any) {
+        set({ error: error?.message || "Erro ao carregar dados" });
+        return get().rows;
+      } finally {
+        set({ loading: false });
+      }
     },
   };
 });
