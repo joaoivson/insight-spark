@@ -16,9 +16,10 @@ const Header = () => {
   const { handleSubscribe, loading } = useSubscribe();
 
   const navItems = [
+    { label: "O Problema", href: "#problem" },
+    { label: "A Solução", href: "#solution" },
     { label: "Funcionalidades", href: "#features" },
     { label: "Preços", href: "#pricing" },
-    { label: "Como Funciona", href: "#how-it-works" },
   ];
 
   return (
