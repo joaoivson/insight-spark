@@ -285,7 +285,7 @@ const UploadCSV = () => {
                     Arraste e solte seu arquivo CSV aqui
                   </h3>
                   <p className="text-muted-foreground mb-6 max-w-md mx-auto leading-relaxed">
-                    Solte o arquivo CSV nesta área para fazer o upload... {isClicksMode ? "Relatório de cliques." : "Suporta Shopee."}
+                    Solte o arquivo CSV nesta área para fazer o upload... {isClicksMode ? "Relatório de cliques." : "Relatório de vendas."}
                   </p>
                   
                   <Button
@@ -301,13 +301,6 @@ const UploadCSV = () => {
                     <Upload className="w-4 h-4 mr-2" />
                     Selecionar arquivo CSV
                   </Button>
-                  
-                  {!isClicksMode && (
-                    <div className="inline-flex items-center gap-2 px-4 py-2 bg-background/50 rounded-full border border-border text-xs font-medium text-muted-foreground mt-4">
-                      <FileSpreadsheet className="w-4 h-4" />
-                      <span>Suporta Shopee</span>
-                    </div>
-                  )}
                 </div>
               </div>
 

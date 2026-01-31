@@ -304,16 +304,15 @@ const AdSpends = () => {
       const today = new Date().toISOString().slice(0, 10);
       
       // Criar a planilha com dados iniciais
-      // Usamos objetos de célula para definir fórmulas
       const wsData = [
-        ["Data", "SubId", "ValorGasto", "Cliques", "CPC"],
-        [today, "EXEMPLO01", 100.00, 50, { f: "C2/D2", t: 'n' }],
-        [today, "EXEMPLO02", 250.00, 125, { f: "C3/D3", t: 'n' }],
+        ["Data", "SubId", "ValorGasto", "Cliques"],
+        [today, "EXEMPLO01", 100.00, 50],
+        [today, "EXEMPLO02", 250.00, 125],
       ];
 
       const ws = XLSX.utils.aoa_to_sheet(wsData);
 
-      // Aplicar formatação de moeda para ValorGasto e CPC
+      // Aplicar formatação de moeda para ValorGasto
       const fmtCurrency = '"R$ "#,##0.00';
       const fmtNumber = '#,##0';
       
@@ -327,24 +326,10 @@ const AdSpends = () => {
         // Coluna D (Cliques)
         const clicksCell = ws[XLSX.utils.encode_cell({ r: R, c: 3 })];
         if (clicksCell) clicksCell.z = fmtNumber;
-
-        // Coluna E (CPC)
-        const cpcCell = ws[XLSX.utils.encode_cell({ r: R, c: 4 })];
-        if (cpcCell) {
-          cpcCell.z = fmtCurrency;
-          cpcCell.t = 'n'; // Garantir que é número
-        }
-      }
-
-      // Adicionar mais algumas linhas com a fórmula pronta (vazias)
-      for (let i = 4; i <= 50; i++) {
-        const row = i;
-        const cpcRef = XLSX.utils.encode_cell({ r: row - 1, c: 4 });
-        ws[cpcRef] = { f: `IF(D${row}>0, C${row}/D${row}, 0)`, t: 'n', z: fmtCurrency };
       }
       
-      // Atualizar o range da planilha
-      ws['!ref'] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: 49, c: 4 } });
+      // Atualizar o range da planilha (50 linhas)
+      ws['!ref'] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: 49, c: 3 } });
 
       // Ajustar largura das colunas
       ws['!cols'] = [
@@ -352,7 +337,6 @@ const AdSpends = () => {
         { wch: 15 }, // SubId
         { wch: 15 }, // ValorGasto
         { wch: 10 }, // Cliques
-        { wch: 12 }, // CPC
       ];
 
       const wb = XLSX.utils.book_new();
@@ -668,11 +652,11 @@ const AdSpends = () => {
             </p>
             <p className="text-xs text-muted-foreground mb-4 max-w-xs">
               Use o modelo para garantir as colunas corretas: <strong>Data</strong>, <strong>SubId</strong>,{" "}
-              <strong>ValorGasto</strong> (R$). Suporta Excel (.xlsx/.xls) ou CSV.
+              <strong>ValorGasto</strong> (R$) e <strong>Cliques</strong>. Suporta Excel (.xlsx/.xls) ou CSV.
             </p>
 
-            <div className="flex gap-2">
-              <Button variant="secondary" onClick={handleDownloadTemplate} disabled={blocking}>
+            <div className="flex flex-wrap items-center justify-center gap-3 mt-2">
+              <Button variant="secondary" onClick={handleDownloadTemplate} disabled={blocking} className="h-10">
                 <Download className="w-4 h-4 mr-2" />
                 Baixar modelo (.xlsx)
               </Button>
@@ -680,7 +664,6 @@ const AdSpends = () => {
               <Button
                 type="button"
                 variant="outline"
-                size="sm"
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
@@ -689,7 +672,7 @@ const AdSpends = () => {
                   }
                 }}
                 disabled={blocking}
-                className="mt-2 mb-4"
+                className="h-10"
               >
                 <UploadCloud className="w-4 h-4 mr-2" />
                 Selecionar arquivo

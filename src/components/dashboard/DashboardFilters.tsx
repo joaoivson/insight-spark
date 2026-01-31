@@ -45,6 +45,13 @@ interface DashboardFiltersProps {
   statusOptions?: string[];
   categoryOptions?: string[];
   subIdOptions?: string[];
+  // Year and Mes/Ano
+  yearFilter?: string;
+  onYearFilterChange?: (value: string) => void;
+  yearOptions?: string[];
+  mesAnoFilter?: string;
+  onMesAnoFilterChange?: (value: string) => void;
+  mesAnoOptions?: string[];
   // Data for calculating max date
   rows?: Array<{ date: string }>;
   adSpends?: Array<{ date: string }>;
@@ -66,6 +73,12 @@ const DashboardFilters = ({
   statusOptions = [],
   categoryOptions = [],
   subIdOptions = [],
+  yearFilter = "",
+  onYearFilterChange,
+  yearOptions = [],
+  mesAnoFilter = "",
+  onMesAnoFilterChange,
+  mesAnoOptions = [],
   rows = [],
   adSpends = [],
   clicks = [],
@@ -341,6 +354,46 @@ const DashboardFilters = ({
               <SelectItem value="all">Todos</SelectItem>
               {subIdOptions.map((s) => (
                 <SelectItem key={s} value={s || "unknown"}>{s}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+
+      {/* Year Filter */}
+      {onYearFilterChange && (
+        <div className="flex items-center gap-1.5">
+          <Label htmlFor="year-filter" className="text-xs font-medium text-muted-foreground whitespace-nowrap">
+            Ano:
+          </Label>
+          <Select value={yearFilter || "all"} onValueChange={(v) => onYearFilterChange(v === "all" ? "" : v)}>
+            <SelectTrigger id="year-filter" className="w-full sm:w-[100px] h-9">
+              <SelectValue placeholder="Todos" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos</SelectItem>
+              {yearOptions.map((y) => (
+                <SelectItem key={y} value={y}>{y}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+
+      {/* Mes/Ano Filter */}
+      {onMesAnoFilterChange && (
+        <div className="flex items-center gap-1.5">
+          <Label htmlFor="mes-ano-filter" className="text-xs font-medium text-muted-foreground whitespace-nowrap">
+            Mês/Ano:
+          </Label>
+          <Select value={mesAnoFilter || "all"} onValueChange={(v) => onMesAnoFilterChange(v === "all" ? "" : v)}>
+            <SelectTrigger id="mes-ano-filter" className="w-full sm:w-[120px] h-9">
+              <SelectValue placeholder="Todos" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos</SelectItem>
+              {mesAnoOptions.map((ma) => (
+                <SelectItem key={ma} value={ma}>{ma}</SelectItem>
               ))}
             </SelectContent>
           </Select>
