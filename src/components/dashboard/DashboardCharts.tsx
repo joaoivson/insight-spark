@@ -22,7 +22,14 @@ import { toDateKey, isBeforeDateKey, isAfterDateKey, parseDateOnly } from "@/sha
 import { getComissaoAfiliado } from "@/shared/lib/kpi";
 import { cn } from "@/shared/lib/utils";
 
-const PIE_COLORS = ["hsl(210, 80%, 55%)", "hsl(222, 47%, 25%)", "hsl(24, 90%, 55%)", "hsl(273, 65%, 60%)"];
+const PIE_COLORS = [
+  "hsl(210, 80%, 55%)", // Blue
+  "hsl(173, 80%, 40%)", // Teal/Success
+  "hsl(38, 92%, 50%)",  // Orange/Warning
+  "hsl(273, 65%, 60%)", // Purple
+  "hsl(340, 75%, 55%)", // Pink
+  "hsl(222, 47%, 25%)", // Navy
+];
 const BAR_COLOR = "hsl(210, 80%, 55%)";
 const PROFIT_COLOR = "hsl(173, 80%, 40%)";
 const COST_COLOR = "hsl(38, 92%, 50%)";
@@ -50,6 +57,8 @@ const tooltipStyle = {
   backgroundColor: "hsl(var(--card))",
   borderColor: "hsl(var(--border))",
   color: "hsl(var(--foreground))",
+  borderRadius: "8px",
+  fontSize: "12px",
 };
 const tooltipCursor = { fill: "transparent" };
 
@@ -228,6 +237,7 @@ const ChannelPieChart = ({
   data: any[];
   onDrillDown?: (value: string) => void;
 }) => {
+  const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const total = data.reduce((sum, item) => sum + (item.value || 0), 0);
   const pieData = data.slice(0, 6);
 
@@ -246,34 +256,60 @@ const ChannelPieChart = ({
         </h3>
         <p className="text-sm text-muted-foreground">Distribuição percentual</p>
       </div>
-      <div className="h-80 sm:h-96 flex items-center justify-center overflow-x-auto -mx-2 sm:mx-0 px-2 sm:px-0">
-        <ResponsiveContainer width="100%" height="100%" minWidth={280}>
-          <PieChart>
+      <div className="h-80 sm:h-96 flex items-center justify-center -mx-2 sm:mx-0 px-2 sm:px-0">
+        <ResponsiveContainer width="100%" height="100%">
+          <PieChart margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
             <Pie
               data={pieData}
               cx="50%"
-              cy="50%"
-              innerRadius={60}
-              outerRadius={100}
+              cy="45%"
+              innerRadius="60%"
+              outerRadius="85%"
               paddingAngle={5}
               dataKey="value"
               cursor="pointer"
+              stroke="none"
+              onMouseEnter={(_, index) => setActiveIndex(index)}
+              onMouseLeave={() => setActiveIndex(null)}
               onClick={(d) => onDrillDown?.(d.name)}
+              animationBegin={200}
+              animationDuration={1200}
+              animationEasing="ease-out"
             >
               {pieData.map((entry, index) => (
                 <Cell
                   key={`cell-${index}`}
                   fill={PIE_COLORS[index % PIE_COLORS.length]}
-                  stroke="transparent"
+                  style={{
+                    filter: activeIndex === index ? `drop-shadow(0px 0px 8px ${PIE_COLORS[index % PIE_COLORS.length]})` : 'none',
+                    transition: 'all 0.3s ease'
+                  }}
+                  className="transition-all duration-300"
                 />
               ))}
             </Pie>
             <Tooltip
               contentStyle={tooltipStyle}
+              itemStyle={{ color: "hsl(var(--foreground))" }}
               cursor={tooltipCursor}
               formatter={(value: number) => {
                 const percent = total ? (value / total) * 100 : 0;
                 return [`${formatCurrency(value)} (${percent.toFixed(2)}%)`, "Valor"];
+              }}
+            />
+            <Legend 
+              verticalAlign="bottom" 
+              align="center"
+              iconType="circle"
+              wrapperStyle={{ paddingTop: "20px" }}
+              formatter={(value, entry: any) => {
+                const item = data.find(d => d.name === value);
+                const percent = total && item ? (item.value / total) * 100 : 0;
+                return (
+                  <span className="text-[10px] sm:text-xs font-medium text-foreground">
+                    {value} <span className="text-muted-foreground ml-1">({percent.toFixed(1)}%)</span>
+                  </span>
+                );
               }}
             />
           </PieChart>
@@ -289,56 +325,78 @@ const CategoryBarChart = ({
 }: {
   data: any[];
   onDrillDown?: (value: string) => void;
-}) => (
-  <motion.div
-    variants={chartItemVariants}
-    initial="hidden"
-    animate="show"
-    whileHover={{ scale: 1.01 }}
-    transition={{ type: "spring", stiffness: 300, damping: 20 }}
-    className="bg-card rounded-xl border border-border p-6"
-  >
-    <div className="mb-4">
-      <h3 className="font-display font-semibold text-lg text-foreground">
-        Comissão Pendente + Concluída por Categoria
-      </h3>
-      <p className="text-sm text-muted-foreground">Top 12 categorias</p>
-    </div>
-    <div className="h-96 overflow-x-auto -mx-2 sm:mx-0 px-2 sm:px-0">
-      <ResponsiveContainer width="100%" height="100%" minWidth={320}>
-        <BarChart
-          data={data}
-          layout="vertical"
-          margin={{ top: 24, right: 20, left: 80, bottom: 16 }}
-        >
-          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-          <XAxis type="number" hide />
-          <YAxis
-            dataKey="name"
-            type="category"
-            width={80}
-            stroke="hsl(var(--muted-foreground))"
-            tick={{ fill: "hsl(var(--foreground))", fontSize: 11 }}
-            axisLine={false}
-            tickLine={false}
-          />
-          <Tooltip
-            contentStyle={tooltipStyle}
-            cursor={tooltipCursor}
-            formatter={(v: number) => [formatK(v), "Valor"]}
-          />
-          <Bar
-            dataKey="value"
-            fill={BAR_COLOR}
-            radius={[0, 8, 8, 0]}
-            cursor="pointer"
-            onClick={(d) => onDrillDown?.(d.name)}
-          />
-        </BarChart>
-      </ResponsiveContainer>
-    </div>
-  </motion.div>
-);
+}) => {
+  const [activeIndex, setActiveIndex] = useState<number | null>(null);
+
+  return (
+    <motion.div
+      variants={chartItemVariants}
+      initial="hidden"
+      animate="show"
+      whileHover={{ scale: 1.01 }}
+      transition={{ type: "spring", stiffness: 300, damping: 20 }}
+      className="bg-card rounded-xl border border-border p-6"
+    >
+      <div className="mb-4">
+        <h3 className="font-display font-semibold text-lg text-foreground">
+          Comissão Pendente + Concluída por Categoria
+        </h3>
+        <p className="text-sm text-muted-foreground">Top 12 categorias</p>
+      </div>
+      <div className="h-96 overflow-x-auto -mx-2 sm:mx-0 px-2 sm:px-0">
+        <ResponsiveContainer width="100%" height="100%" minWidth={320}>
+          <BarChart
+            data={data}
+            layout="vertical"
+            margin={{ top: 24, right: 20, left: 80, bottom: 16 }}
+          >
+            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={false} />
+            <XAxis type="number" hide />
+            <YAxis
+              dataKey="name"
+              type="category"
+              width={80}
+              stroke="hsl(var(--muted-foreground))"
+              tick={{ fill: "hsl(var(--foreground))", fontSize: 11 }}
+              axisLine={false}
+              tickLine={false}
+            />
+            <Tooltip
+              contentStyle={tooltipStyle}
+              itemStyle={{ color: "hsl(var(--foreground))" }}
+              cursor={tooltipCursor}
+              formatter={(v: number) => [formatK(v), "Valor"]}
+            />
+            <Bar
+              dataKey="value"
+              fill={BAR_COLOR}
+              radius={[0, 8, 8, 0]}
+              cursor="pointer"
+              onClick={(d) => onDrillDown?.(d.name)}
+              onMouseEnter={(_, index) => setActiveIndex(index)}
+              onMouseLeave={() => setActiveIndex(null)}
+              animationBegin={300}
+              animationDuration={1000}
+              animationEasing="ease-out"
+            >
+              {data.map((entry, index) => (
+                <Cell 
+                  key={`cell-${index}`} 
+                  fill={BAR_COLOR}
+                  style={{
+                    filter: activeIndex === index ? `drop-shadow(0px 0px 6px ${BAR_COLOR})` : 'none',
+                    transition: 'all 0.3s ease',
+                    opacity: activeIndex === null || activeIndex === index ? 1 : 0.6
+                  }}
+                />
+              ))}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+    </motion.div>
+  );
+};
 
 const MesAnoChart = ({
   data,
@@ -420,6 +478,7 @@ const MesAnoChart = ({
             <YAxis stroke="hsl(var(--muted-foreground))" hide />
             <Tooltip
               contentStyle={tooltipStyle}
+              itemStyle={{ color: "hsl(var(--foreground))" }}
               cursor={{ fill: "hsl(var(--accent)/0.05)" }}
               formatter={(v: number) => [formatCurrency(v), "Comissão"]}
             />
@@ -522,6 +581,7 @@ const RevenueProfitArea = ({ data, onDrillDown }: { data: any[]; onDrillDown?: (
             <YAxis hide />
             <Tooltip
               contentStyle={tooltipStyle}
+              itemStyle={{ color: "hsl(var(--foreground))" }}
               cursor={{ stroke: "hsl(var(--accent))", strokeWidth: 1 }}
               formatter={(v: number, _name: string, ctx) => {
                 const key = ctx?.dataKey;
