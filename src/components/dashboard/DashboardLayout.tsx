@@ -1,6 +1,9 @@
 import { ReactNode, useState } from "react";
 import DashboardSidebar from "./DashboardSidebar";
 import DashboardHeader from "./DashboardHeader";
+import { useGlobalDataLoading } from "@/shared/hooks/useGlobalDataLoading";
+import { LoadingDataOverlay } from "./LoadingDataOverlay";
+import { AnimatePresence } from "framer-motion";
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -12,9 +15,14 @@ interface DashboardLayoutProps {
 
 const DashboardLayout = ({ children, title, subtitle, subtitleSize, action }: DashboardLayoutProps) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { showInitialOverlay } = useGlobalDataLoading();
 
   return (
     <div className="min-h-screen bg-background flex flex-col md:flex-row">
+      <AnimatePresence>
+        {showInitialOverlay && <LoadingDataOverlay />}
+      </AnimatePresence>
+
       {/* Sidebar - Renders as aside on desktop, Sheet on mobile */}
       <DashboardSidebar mobileMenuOpen={mobileMenuOpen} onMobileMenuClose={() => setMobileMenuOpen(false)} />
       
