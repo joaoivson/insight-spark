@@ -73,8 +73,6 @@ export const useAdSpendsStore = create<AdSpendsState>((set, get) => {
       const cacheKey = getCacheKey(userId);
       const { fullAdSpends, hydrated, loading } = get();
 
-      const { startDate, endDate } = rangeToParams(opts.range);
-
       // 1. Fetch from API if needed (force or initial empty)
       if (opts.force || (!hydrated && fullAdSpends.length === 0)) {
         if (loading) return get().adSpends;
@@ -85,8 +83,9 @@ export const useAdSpendsStore = create<AdSpendsState>((set, get) => {
           const apiData = await listAdSpends(); // Sem parâmetros para pegar tudo
 
           const now = Date.now();
-          set({ fullAdSpends: apiData, hydrated: true, lastUpdated: now });
+          set({ adSpends: apiData, fullAdSpends: apiData, hydrated: true, lastUpdated: now });
           safeSetJSON(cacheKey, { adSpends: apiData, lastUpdated: now });
+          return apiData;
         } catch (error: any) {
           set({ error: error?.message || "Erro ao carregar investimentos" });
           return get().adSpends;
@@ -95,20 +94,9 @@ export const useAdSpendsStore = create<AdSpendsState>((set, get) => {
         }
       }
 
-      // 2. Perform client-side filtering on fullAdSpends
-      const { fullAdSpends: sourceOfTruth } = get();
-      
-      let filtered = sourceOfTruth;
-      if (startDate || endDate) {
-        filtered = sourceOfTruth.filter(spend => {
-          if (startDate && spend.date < startDate) return false;
-          if (endDate && spend.date > endDate) return false;
-          return true;
-        });
-      }
-
-      set({ adSpends: filtered });
-      return filtered;
+      // 2. Return fullAdSpends (Dashboard handles filtering)
+      set({ adSpends: fullAdSpends });
+      return fullAdSpends;
     },
 
     create: async (payload) => {

@@ -79,8 +79,6 @@ export const useDatasetStore = create<DatasetState>((set, get) => {
       const cacheKey = getCacheKey(userId);
       const { fullRows, hydrated, loading } = get();
 
-      const { startDate, endDate } = rangeToParams(opts.range);
-
       // 1. Fetch from API if needed (force or initial empty)
       if (opts.force || (!hydrated && fullRows.length === 0)) {
         if (loading) return get().rows;
@@ -93,8 +91,9 @@ export const useDatasetStore = create<DatasetState>((set, get) => {
           });
 
           const now = Date.now();
-          set({ fullRows: apiRows, hydrated: true, lastUpdated: now });
+          set({ rows: apiRows, fullRows: apiRows, hydrated: true, lastUpdated: now });
           safeSetJSON(cacheKey, { rows: apiRows, lastUpdated: now });
+          return apiRows;
         } catch (error: any) {
           set({ error: error?.message || "Erro ao carregar dados" });
           return get().rows;
@@ -103,20 +102,9 @@ export const useDatasetStore = create<DatasetState>((set, get) => {
         }
       }
 
-      // 2. Perform client-side filtering on fullRows
-      const { fullRows: sourceOfTruth } = get();
-      
-      let filtered = sourceOfTruth;
-      if (startDate || endDate) {
-        filtered = sourceOfTruth.filter(row => {
-          if (startDate && row.date < startDate) return false;
-          if (endDate && row.date > endDate) return false;
-          return true;
-        });
-      }
-
-      set({ rows: filtered });
-      return filtered;
+      // 2. Return fullRows (Dashboard handles filtering)
+      set({ rows: fullRows });
+      return fullRows;
     },
   };
 });

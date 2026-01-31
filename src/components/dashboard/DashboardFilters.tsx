@@ -48,6 +48,7 @@ interface DashboardFiltersProps {
   // Data for calculating max date
   rows?: Array<{ date: string }>;
   adSpends?: Array<{ date: string }>;
+  clicks?: Array<{ date: string }>;
 }
 
 const DashboardFilters = ({
@@ -67,6 +68,7 @@ const DashboardFilters = ({
   subIdOptions = [],
   rows = [],
   adSpends = [],
+  clicks = [],
 }: DashboardFiltersProps) => {
   const isMobile = useIsMobile();
   const [open, setOpen] = useState(false);
@@ -77,7 +79,7 @@ const DashboardFilters = ({
   const minDate = new Date(today);
   minDate.setDate(today.getDate() - (maxDays - 1));
   
-  // Calculate max date from available data (rows and adSpends)
+  // Calculate max date from available data (rows, adSpends, clicks)
   const maxDate = useMemo(() => {
     const dates: Date[] = [];
     
@@ -100,13 +102,23 @@ const DashboardFilters = ({
         }
       }
     });
+
+    // Get dates from clicks
+    clicks.forEach((click) => {
+      if (click.date) {
+        const date = parseDateOnly(click.date);
+        if (date && !isNaN(date.getTime())) {
+          dates.push(date);
+        }
+      }
+    });
     
     if (dates.length === 0) return today;
     
     // Return the maximum date, but not less than today
     const max = new Date(Math.max(...dates.map(d => d.getTime())));
     return max > today ? max : today;
-  }, [rows, adSpends]);
+  }, [rows, adSpends, clicks]);
   
   // Calculate previous month for defaultMonth (to show "Previous Month | Current Month")
   const previousMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);

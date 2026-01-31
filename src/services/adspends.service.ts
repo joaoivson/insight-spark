@@ -5,6 +5,7 @@ export type AdSpendPayload = {
   date: string;
   amount: number;
   sub_id?: string | null;
+  clicks?: number;
 };
 
 export const bulkCreateAdSpends = async (items: AdSpendPayload[]): Promise<AdSpend[]> => {

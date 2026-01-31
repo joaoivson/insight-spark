@@ -5,14 +5,14 @@ type Theme = "dark" | "light";
 const STORAGE_KEY = "marketdash-theme";
 
 const readStoredTheme = (): Theme => {
-  if (typeof window === "undefined") return "light";
+  if (typeof window === "undefined") return "dark";
   try {
     const stored = window.localStorage.getItem(STORAGE_KEY);
     if (stored === "light" || stored === "dark") return stored;
   } catch {
     // ignore storage errors
   }
-  return "light";
+  return "dark";
 };
 
 const applyThemeClass = (theme: Theme) => {

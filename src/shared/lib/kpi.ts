@@ -1,6 +1,7 @@
 import type { DatasetRow } from "@/components/dashboard/DataTable";
 import type { AdSpend } from "@/shared/types/adspend";
 import { toDateKey } from "@/shared/lib/date";
+import { normalizeSubId } from "@/shared/lib/utils";
 
 export const cleanNumber = (value: any): number => {
   if (value === null || value === undefined) return 0;
@@ -38,7 +39,7 @@ export const calcTotals = (
   const faturamento = rows.reduce((acc, r) => acc + getFaturamento(r), 0);
   const comissao = rows.reduce((acc, r) => acc + getComissaoAfiliado(r), 0);
   const gastoAnuncios = adSpends.reduce((acc, spend) => {
-    if (opts.subIdFilter && spend.sub_id !== opts.subIdFilter) return acc;
+    if (opts.subIdFilter && normalizeSubId(spend.sub_id).toLowerCase() !== opts.subIdFilter.toLowerCase()) return acc;
     const spendDate = toDateKey(spend.date);
     if (opts.dateRange?.from && spendDate < toDateKey(opts.dateRange.from)) return acc;
     if (opts.dateRange?.to && spendDate > toDateKey(opts.dateRange.to)) return acc;

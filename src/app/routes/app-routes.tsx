@@ -154,6 +154,7 @@ export const AppRoutes = () => {
         {/* Protected Routes */}
         <Route path="/dashboard" element={<ProtectedRoute element={<Dashboard />} />} />
         <Route path="/dashboard/upload" element={<ProtectedRoute element={<UploadCSV />} />} />
+        <Route path="/dashboard/upload-cliques" element={<ProtectedRoute element={<UploadCSV />} />} />
         <Route path="/dashboard/reports" element={<ProtectedRoute element={<Reports />} />} />
         <Route path="/dashboard/modules" element={<ProtectedRoute element={<Modules />} />} />
         <Route path="/dashboard/settings" element={<ProtectedRoute element={<Settings />} />} />
