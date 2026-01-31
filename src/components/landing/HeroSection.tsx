@@ -42,10 +42,9 @@ const HeroSection = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.1 }}
-            className="font-display text-4xl md:text-5xl lg:text-6xl font-bold text-foreground leading-tight mb-6"
+            className="font-display text-4xl md:text-5xl lg:text-7xl font-bold text-foreground leading-tight mb-6"
           >
-            Aumente seus ganhos como{" "}
-            <span className="gradient-text">afiliado</span> com análises inteligentes
+            Pare de adivinhar. Veja exatamente quais links da Shopee estão te dando <span className="gradient-text">lucro real.</span>
           </motion.h1>
 
           {/* Subheadline */}
@@ -53,53 +52,38 @@ const HeroSection = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.2 }}
-            className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-8"
+            className="text-lg md:text-2xl text-muted-foreground max-w-3xl mx-auto mb-10"
           >
-            Analise seus ganhos com precisão, identifique as melhores oportunidades e maximize seus resultados como afiliado Shopee com nossa ferramenta inteligente.
+            O MarketDash transforma seus CSVs de cliques e comissões em insights claros para você escalar o que funciona e cortar o que dá prejuízo.
           </motion.p>
-
-          {/* Prova Social */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.25 }}
-            className="flex items-center justify-center gap-2 mb-8 text-sm text-muted-foreground"
-          >
-            <TrendingUp className="w-4 h-4 text-accent" />
-            <span>Mais de <strong className="text-foreground">300 afiliados</strong> já transformaram seus resultados</span>
-          </motion.div>
 
           {/* CTA Buttons */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.3 }}
-            className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-4"
+            transition={{ duration: 0.5, delay: 0.25 }}
+            className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-6"
           >
             <Button 
               variant="hero" 
               size="xl" 
+              className="px-10 py-8 text-xl"
               onClick={() => handleSubscribe(true)}
               disabled={loading}
-              aria-label="Adquirir ferramenta"
+              aria-label="Ver meu lucro real agora"
             >
               {loading ? (
                 <>
-                  <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                  <Loader2 className="w-6 h-6 mr-2 animate-spin" />
                   Carregando...
                 </>
               ) : (
                 <>
-                  Adquirir Ferramenta
-                  <ArrowRight className="w-5 h-5" />
+                  👉 Ver meu lucro real agora
+                  <ArrowRight className="w-6 h-6 ml-2" />
                 </>
               )}
             </Button>
-            <Link to="/demo">
-              <Button variant="hero-outline" size="xl" aria-label="Ver demonstração">
-                Ver Demonstração
-              </Button>
-            </Link>
           </motion.div>
 
           {/* Garantia */}

@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, ShieldCheck, Users, Clock, Loader2 } from "lucide-react";
+import { ArrowRight, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useSubscribe } from "@/shared/hooks/useSubscribe";
 
@@ -20,54 +20,34 @@ const FinalCTASection = () => {
           <div className="absolute inset-0 bg-gradient-to-br from-accent/5 to-transparent pointer-events-none" />
           
           <div className="relative z-10">
-            <h2 className="font-display text-3xl md:text-4xl font-bold text-foreground mb-4">
-              Pronto para aumentar suas comissões?
+            <h2 className="font-display text-4xl md:text-6xl font-bold text-foreground mb-6">
+              Suba seus CSVs e descubra hoje onde está seu lucro real.
             </h2>
-            <p className="text-muted-foreground text-lg mb-6 max-w-2xl mx-auto">
-              Junte-se a mais de 300 afiliados que já transformaram seus resultados
+            <p className="text-muted-foreground text-xl mb-10 max-w-2xl mx-auto">
+              Pare de queimar dinheiro com achismo. Tenha a clareza que os grandes afiliados da Shopee usam para escalar.
             </p>
 
-            {/* Prova Social */}
-            <div className="flex flex-wrap items-center justify-center gap-6 mb-8 text-sm text-muted-foreground">
-              <div className="flex items-center gap-2">
-                <Users className="w-4 h-4 text-accent" />
-                <span>+300 afiliados ativos</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Clock className="w-4 h-4 text-accent" />
-                <span>Setup em 2 minutos</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <ShieldCheck className="w-4 h-4 text-accent" />
-                <span>7 dias de Garantia</span>
-              </div>
-            </div>
-
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-6">
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-6 mb-10">
               <Button 
                 variant="hero" 
                 size="xl" 
+                className="px-12 py-8 text-2xl"
                 onClick={() => handleSubscribe(true)}
                 disabled={loading}
-                aria-label="Adquirir ferramenta agora"
+                aria-label="Começar agora"
               >
                 {loading ? (
                   <>
-                    <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                    <Loader2 className="w-6 h-6 mr-2 animate-spin" />
                     Carregando...
                   </>
                 ) : (
                   <>
-                    Adquirir Ferramenta Agora
-                    <ArrowRight className="w-5 h-5" />
+                    🚀 Começar agora
+                    <ArrowRight className="w-6 h-6 ml-2" />
                   </>
                 )}
               </Button>
-              <Link to="/demo">
-                <Button variant="hero-outline" size="xl" aria-label="Ver demonstração">
-                  Ver Demonstração
-                </Button>
-              </Link>
             </div>
 
             {/* Garantia e Benefícios */}

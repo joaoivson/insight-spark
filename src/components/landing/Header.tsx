@@ -16,9 +16,10 @@ const Header = () => {
   const { handleSubscribe, loading } = useSubscribe();
 
   const navItems = [
+    { label: "O Problema", href: "#problem" },
+    { label: "A Solução", href: "#solution" },
     { label: "Funcionalidades", href: "#features" },
     { label: "Preços", href: "#pricing" },
-    { label: "Como Funciona", href: "#how-it-works" },
   ];
 
   return (
@@ -63,7 +64,7 @@ const Header = () => {
               <Button variant="ghost">Entrar</Button>
             </Link>
             <Button variant="accent" onClick={handleSubscribe}>
-              Assinar
+              Ver Lucro Real
             </Button>
           </div>
 
@@ -136,7 +137,7 @@ const Header = () => {
                     handleSubscribe(true);
                   }}
                   disabled={loading}
-                  aria-label="Assinar plano"
+                  aria-label="Ver Lucro Real"
                 >
                   {loading ? (
                     <>
@@ -144,7 +145,7 @@ const Header = () => {
                       Carregando...
                     </>
                   ) : (
-                    "Assinar"
+                    "Ver Lucro Real"
                   )}
                 </Button>
               </div>
