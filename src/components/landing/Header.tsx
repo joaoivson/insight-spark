@@ -63,7 +63,7 @@ const Header = () => {
               <Button variant="ghost">Entrar</Button>
             </Link>
             <Button variant="accent" onClick={handleSubscribe}>
-              Assinar
+              Ver Lucro Real
             </Button>
           </div>
 
@@ -136,7 +136,7 @@ const Header = () => {
                     handleSubscribe(true);
                   }}
                   disabled={loading}
-                  aria-label="Assinar plano"
+                  aria-label="Ver Lucro Real"
                 >
                   {loading ? (
                     <>
@@ -144,7 +144,7 @@ const Header = () => {
                       Carregando...
                     </>
                   ) : (
-                    "Assinar"
+                    "Ver Lucro Real"
                   )}
                 </Button>
               </div>
