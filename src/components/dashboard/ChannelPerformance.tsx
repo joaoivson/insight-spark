@@ -10,7 +10,7 @@ import {
   BarChart3,
   ArrowUpDown,
 } from "lucide-react";
-import { isBeforeDateKey, isAfterDateKey } from "@/shared/lib/date";
+import { isBeforeDateKey, isAfterDateKey, parseDateOnly } from "@/shared/lib/date";
 import {
   Table,
   TableBody,
@@ -385,7 +385,8 @@ const ChannelPerformance = ({
                   });
                 });
                 filteredAdSpends.forEach((spend) => {
-                  const day = spend.date ? new Date(spend.date).toISOString().slice(0, 10) : "Sem data";
+                  const d = parseDateOnly(spend.date);
+                  const day = d ? d.toISOString().slice(0, 10) : "Sem data";
                   const cur = dayMap.get(day) || { commission: 0, spend: 0, orders: 0 };
                   dayMap.set(day, {
                     ...cur,
@@ -442,10 +443,13 @@ const ChannelPerformance = ({
                           <TableCell className="font-medium text-foreground">
                             {(() => {
                               const m = d.day.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-                              if (!m) return new Date(d.day).toLocaleDateString("pt-BR");
+                              if (!m) {
+                                const parsed = parseDateOnly(d.day);
+                                return parsed ? parsed.toLocaleDateString("pt-BR") : d.day;
+                              }
                               const local = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
                               return isNaN(local.getTime())
-                                ? new Date(d.day).toLocaleDateString("pt-BR")
+                                ? (parseDateOnly(d.day)?.toLocaleDateString("pt-BR") ?? d.day)
                                 : local.toLocaleDateString("pt-BR");
                             })()}
                             <span className="block text-xs text-muted-foreground font-normal">{d.orders} pedidos</span>

@@ -1,5 +1,10 @@
-import { Calendar, Filter, X } from "lucide-react";
+import { Calendar, Filter, X, FilterX } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
   Popover,
   PopoverContent,
@@ -19,6 +24,7 @@ import { Label } from "@/components/ui/label";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useState, useMemo } from "react";
+import { parseDateOnly } from "@/shared/lib/date";
 import { useIsMobile } from "@/shared/hooks/use-mobile";
 
 type DateRange = { from?: Date; to?: Date };
@@ -78,8 +84,8 @@ const DashboardFilters = ({
     // Get dates from rows
     rows.forEach((row) => {
       if (row.date) {
-        const date = new Date(row.date);
-        if (!isNaN(date.getTime())) {
+        const date = parseDateOnly(row.date);
+        if (date && !isNaN(date.getTime())) {
           dates.push(date);
         }
       }
@@ -88,8 +94,8 @@ const DashboardFilters = ({
     // Get dates from adSpends
     adSpends.forEach((spend) => {
       if (spend.date) {
-        const date = new Date(spend.date);
-        if (!isNaN(date.getTime())) {
+        const date = parseDateOnly(spend.date);
+        if (date && !isNaN(date.getTime())) {
           dates.push(date);
         }
       }
@@ -242,10 +248,10 @@ const DashboardFilters = ({
   );
 
   return (
-    <div className="bg-card rounded-xl border border-border p-4 mb-6 flex flex-wrap items-center gap-4">
+    <div className="bg-card rounded-xl border border-border p-3 mb-6 flex flex-wrap items-center gap-x-3 gap-y-2 overflow-x-auto lg:overflow-x-visible">
       {/* Date Range - Mobile uses Sheet, Desktop uses Popover */}
-      <div className="flex items-center gap-2">
-        <Label htmlFor="period-filter" className="text-sm font-medium text-muted-foreground whitespace-nowrap">
+      <div className="flex items-center gap-1.5">
+        <Label htmlFor="period-filter" className="text-xs font-medium text-muted-foreground whitespace-nowrap">
           Período:
         </Label>
         {isMobile ? (
@@ -271,12 +277,12 @@ const DashboardFilters = ({
 
       {/* Status Filter */}
       {onStatusFilterChange && (
-        <div className="flex items-center gap-2">
-          <Label htmlFor="status-filter" className="text-sm font-medium text-muted-foreground whitespace-nowrap">
+        <div className="flex items-center gap-1.5">
+          <Label htmlFor="status-filter" className="text-xs font-medium text-muted-foreground whitespace-nowrap">
             Status:
           </Label>
           <Select value={statusFilter || "all"} onValueChange={(v) => onStatusFilterChange(v === "all" ? "" : v)}>
-            <SelectTrigger id="status-filter" className="w-full sm:w-[200px]" aria-label="Filtrar por status do pedido">
+            <SelectTrigger id="status-filter" className="w-full sm:w-[140px] h-9" aria-label="Filtrar por status do pedido">
               <SelectValue placeholder="Todos" />
             </SelectTrigger>
             <SelectContent>
@@ -291,12 +297,12 @@ const DashboardFilters = ({
 
       {/* Category Filter */}
       {onCategoryFilterChange && (
-        <div className="flex items-center gap-2">
-          <Label htmlFor="category-filter" className="text-sm font-medium text-muted-foreground whitespace-nowrap">
+        <div className="flex items-center gap-1.5">
+          <Label htmlFor="category-filter" className="text-xs font-medium text-muted-foreground whitespace-nowrap">
             Categoria:
           </Label>
           <Select value={categoryFilter || "all"} onValueChange={(v) => onCategoryFilterChange(v === "all" ? "" : v)}>
-            <SelectTrigger id="category-filter" className="w-full sm:w-[200px]" aria-label="Filtrar por categoria global">
+            <SelectTrigger id="category-filter" className="w-full sm:w-[140px] h-9" aria-label="Filtrar por categoria global">
               <SelectValue placeholder="Todas" />
             </SelectTrigger>
             <SelectContent>
@@ -311,12 +317,12 @@ const DashboardFilters = ({
 
       {/* Sub ID Filter */}
       {onSubIdFilterChange && (
-        <div className="flex items-center gap-2">
-          <Label htmlFor="subid-filter" className="text-sm font-medium text-muted-foreground whitespace-nowrap">
+        <div className="flex items-center gap-1.5">
+          <Label htmlFor="subid-filter" className="text-xs font-medium text-muted-foreground whitespace-nowrap">
             SubId:
           </Label>
           <Select value={subIdFilter || "all"} onValueChange={(v) => onSubIdFilterChange(v === "all" ? "" : v)}>
-            <SelectTrigger id="subid-filter" className="w-full sm:w-[200px]" aria-label="Filtrar por canal ou sub ID">
+            <SelectTrigger id="subid-filter" className="w-full sm:w-[140px] h-9" aria-label="Filtrar por canal ou sub ID">
               <SelectValue placeholder="Todos" />
             </SelectTrigger>
             <SelectContent>
@@ -330,10 +336,27 @@ const DashboardFilters = ({
       )}
 
       {/* Clear */}
-      <Button variant="ghost" size="sm" onClick={onClear} disabled={loading} className="w-full sm:w-auto" aria-label="Limpar filtros">
-        <X className="w-4 h-4 mr-1" aria-hidden="true" />
-        <span className="sm:inline">Limpar filtros</span>
-      </Button>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button 
+            variant={hasActive ? "destructive" : "ghost"} 
+            size="icon" 
+            onClick={onClear} 
+            disabled={loading || !hasActive} 
+            className={`h-10 w-10 rounded-lg shrink-0 transition-all duration-300 ${
+              hasActive 
+                ? "shadow-sm shadow-destructive/20 animate-in fade-in zoom-in duration-300" 
+                : "text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+            }`}
+            aria-label="Limpar filtros"
+          >
+            <FilterX className={`${hasActive ? "w-5 h-5" : "w-4 h-4"} transition-all`} aria-hidden="true" />
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>
+          <p>Limpar filtros</p>
+        </TooltipContent>
+      </Tooltip>
     </div>
   );
 };

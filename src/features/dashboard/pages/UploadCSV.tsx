@@ -45,7 +45,7 @@ const UploadCSV = () => {
   const [error, setError] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const { toast } = useToast();
-  const { fetchRows, persist, invalidate } = useDatasetStore();
+  const { fetchRows, invalidate } = useDatasetStore();
 
   const handleDrag = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -144,11 +144,7 @@ const UploadCSV = () => {
         duration: 5000,
       });
 
-      const updated = await fetchRows({ force: true, includeRawData: true });
-      // reforça persistência em cache/localStorage
-      if (Array.isArray(updated)) {
-        persist(updated);
-      }
+      await fetchRows({ force: true, includeRawData: true });
       clearFile();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro desconhecido no upload.");

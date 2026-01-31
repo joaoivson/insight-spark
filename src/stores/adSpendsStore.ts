@@ -1,13 +1,14 @@
 import { create } from "zustand";
 import type { AdSpend } from "@/shared/types/adspend";
-import { userStorage, getUserId } from "@/shared/lib/storage";
+import { getUserId } from "@/shared/lib/storage";
 import { safeGetJSON, safeRemove, safeSetJSON } from "@/utils/storage";
 import { createAdSpend, deleteAdSpend, listAdSpends, updateAdSpend, type AdSpendPayload } from "@/services/adspends.service";
 
 type DateRange = { from?: Date | string | null; to?: Date | string | null };
 
 type AdSpendsState = {
-  adSpends: AdSpend[];
+  adSpends: AdSpend[]; // The filtered ad spends currently displayed
+  fullAdSpends: AdSpend[]; // The source of truth (complete dataset)
   loading: boolean;
   error: string | null;
   hydrated: boolean;
@@ -21,12 +22,10 @@ type AdSpendsState = {
 
 const getCacheKey = (userId?: string | number | null) => {
   if (userId) {
-    // Se já estiver no formato user_X, usar como está
     const idStr = String(userId);
     if (idStr.startsWith('user_')) {
       return `adspends-cache:${idStr}`;
     }
-    // Caso contrário, adicionar prefixo user_
     return `adspends-cache:user_${idStr}`;
   }
   return `adspends-cache:anon`;
@@ -38,68 +37,93 @@ const rangeToParams = (range?: DateRange) => {
   return { startDate, endDate };
 };
 
-export const useAdSpendsStore = create<AdSpendsState>((set, get) => ({
-  adSpends: [],
-  loading: false,
-  error: null,
-  hydrated: false,
-  lastUpdated: null,
+const getInitialState = () => {
+  const userId = getUserId();
+  const cacheKey = getCacheKey(userId);
+  const cached = safeGetJSON<{ adSpends: AdSpend[]; lastUpdated?: number }>(cacheKey);
+  if (cached && Array.isArray(cached.adSpends)) {
+    return {
+      adSpends: cached.adSpends,
+      fullAdSpends: cached.adSpends,
+      hydrated: true,
+      lastUpdated: cached.lastUpdated ?? Date.now(),
+    };
+  }
+  return { adSpends: [], fullAdSpends: [], hydrated: false, lastUpdated: null };
+};
 
-  invalidate: () => {
-    const userId = getUserId(); // Usar formato user_4
-    safeRemove(getCacheKey(userId));
-    set({ adSpends: [], hydrated: false, lastUpdated: null });
-  },
+export const useAdSpendsStore = create<AdSpendsState>((set, get) => {
+  const initial = getInitialState();
+  return {
+    adSpends: initial.adSpends,
+    fullAdSpends: initial.fullAdSpends,
+    loading: false,
+    error: null,
+    hydrated: initial.hydrated,
+    lastUpdated: initial.lastUpdated,
 
-  fetchAdSpends: async (opts = {}) => {
-    const userId = getUserId(); // Usar formato user_4
-    const cacheKey = getCacheKey(userId);
-    const { adSpends, hydrated, loading } = get();
+    invalidate: () => {
+      const userId = getUserId();
+      safeRemove(getCacheKey(userId));
+      set({ adSpends: [], fullAdSpends: [], hydrated: false, lastUpdated: null });
+    },
 
-    if (hydrated && !opts.force) return adSpends;
+    fetchAdSpends: async (opts = {}) => {
+      const userId = getUserId();
+      const cacheKey = getCacheKey(userId);
+      const { fullAdSpends, hydrated, loading } = get();
 
-    if (!hydrated && !opts.force) {
-      const cached = safeGetJSON<{ adSpends: AdSpend[]; lastUpdated?: number }>(cacheKey);
-      if (cached && Array.isArray(cached.adSpends)) {
-        set({ adSpends: cached.adSpends, hydrated: true, lastUpdated: cached.lastUpdated ?? Date.now() });
-        return cached.adSpends;
-      }
-    }
-
-    if (loading) return adSpends;
-
-    set({ loading: true, error: null });
-    try {
       const { startDate, endDate } = rangeToParams(opts.range);
-      // userId removido - agora vem do token JWT
-      const apiData = await listAdSpends({ startDate, endDate });
-      const next = apiData.length === 0 && adSpends.length ? adSpends : apiData;
-      set({ adSpends: next, hydrated: true, lastUpdated: Date.now() });
-      safeSetJSON(cacheKey, { adSpends: next, lastUpdated: Date.now() });
-      return next;
-    } catch (error: any) {
-      set({ error: error?.message || "Erro ao carregar investimentos" });
-      return adSpends;
-    } finally {
-      set({ loading: false });
-    }
-  },
 
-  create: async (payload) => {
-    // userId removido - agora vem do token JWT
-    await createAdSpend(payload);
-    await get().fetchAdSpends({ force: true });
-  },
+      // 1. Fetch from API if needed (force or initial empty)
+      if (opts.force || (!hydrated && fullAdSpends.length === 0)) {
+        if (loading) return get().adSpends;
+        set({ loading: true, error: null });
+        
+        try {
+          // ALWAYS fetch all ad spends for the cache
+          const apiData = await listAdSpends(); // Sem parâmetros para pegar tudo
 
-  update: async (id, payload) => {
-    // userId removido - agora vem do token JWT
-    await updateAdSpend(id, payload);
-    await get().fetchAdSpends({ force: true });
-  },
+          const now = Date.now();
+          set({ fullAdSpends: apiData, hydrated: true, lastUpdated: now });
+          safeSetJSON(cacheKey, { adSpends: apiData, lastUpdated: now });
+        } catch (error: any) {
+          set({ error: error?.message || "Erro ao carregar investimentos" });
+          return get().adSpends;
+        } finally {
+          set({ loading: false });
+        }
+      }
 
-  remove: async (id) => {
-    // userId removido - agora vem do token JWT
-    await deleteAdSpend(id);
-    await get().fetchAdSpends({ force: true });
-  },
-}));
+      // 2. Perform client-side filtering on fullAdSpends
+      const { fullAdSpends: sourceOfTruth } = get();
+      
+      let filtered = sourceOfTruth;
+      if (startDate || endDate) {
+        filtered = sourceOfTruth.filter(spend => {
+          if (startDate && spend.date < startDate) return false;
+          if (endDate && spend.date > endDate) return false;
+          return true;
+        });
+      }
+
+      set({ adSpends: filtered });
+      return filtered;
+    },
+
+    create: async (payload) => {
+      await createAdSpend(payload);
+      await get().fetchAdSpends({ force: true });
+    },
+
+    update: async (id, payload) => {
+      await updateAdSpend(id, payload);
+      await get().fetchAdSpends({ force: true });
+    },
+
+    remove: async (id) => {
+      await deleteAdSpend(id);
+      await get().fetchAdSpends({ force: true });
+    },
+  };
+});

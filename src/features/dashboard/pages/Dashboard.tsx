@@ -199,10 +199,6 @@ const Dashboard = () => {
           <DashboardSkeleton />
         ) : (
           <>
-            <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground mb-3">
-              <span>{rangeLabel}</span>
-            </div>
-
             <DashboardFilters
               dateRange={dateRange}
               onDateRangeApply={(range) => {

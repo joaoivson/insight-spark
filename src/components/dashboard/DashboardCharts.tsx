@@ -18,7 +18,7 @@ import type { DatasetRow } from "./DataTable";
 import { useMemo, useState, ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
-import { toDateKey, isBeforeDateKey, isAfterDateKey } from "@/shared/lib/date";
+import { toDateKey, isBeforeDateKey, isAfterDateKey, parseDateOnly } from "@/shared/lib/date";
 import { getComissaoAfiliado } from "@/shared/lib/kpi";
 
 const PIE_COLORS = ["hsl(210, 80%, 55%)", "hsl(222, 47%, 25%)", "hsl(24, 90%, 55%)", "hsl(273, 65%, 60%)"];
@@ -115,8 +115,8 @@ const groupCommissionByDay = (rows: DatasetRow[], dateRange?: { from?: Date; to?
   });
   return Array.from(map.entries())
     .map(([key, value]) => {
-      const d = new Date(key);
-      const label = !isNaN(d.getTime()) ? d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }) : key;
+      const d = parseDateOnly(key);
+      const label = d && !isNaN(d.getTime()) ? d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }) : key;
       return { key, label, value };
     })
     .sort((a, b) => a.key.localeCompare(b.key));
@@ -130,8 +130,8 @@ const groupRevenueProfitByMes = (rows: DatasetRow[], adSpends: any[] = [], dateR
     // Calculate mes_ano from date if not present
     let key = r.mes_ano;
     if (!key && r.date) {
-      const date = new Date(r.date);
-      if (!isNaN(date.getTime())) {
+      const date = parseDateOnly(r.date);
+      if (date && !isNaN(date.getTime())) {
         key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
       }
     }
@@ -157,8 +157,8 @@ const groupRevenueProfitByMes = (rows: DatasetRow[], adSpends: any[] = [], dateR
     if (dateRange?.from && spendDate < toDateKey(dateRange.from)) return;
     if (dateRange?.to && spendDate > toDateKey(dateRange.to)) return;
     
-    const date = new Date(spend.date);
-    const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+    const date = parseDateOnly(spend.date);
+    const key = date ? `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}` : "Sem Mês";
     const prev = map.get(key) || { commission: 0, cost: 0, profit: 0 };
     map.set(key, {
       ...prev,
@@ -471,7 +471,7 @@ const MesAnoChart = ({
     </div>
     <div className="h-80 sm:h-96 overflow-x-auto -mx-2 sm:mx-0 px-2 sm:px-0">
       <ResponsiveContainer width="100%" height="100%" minWidth={280}>
-        <BarChart data={data} margin={{ top: 10, right: 10, left: 10, bottom: 40 }}>
+        <BarChart data={data} margin={{ top: 30, right: 10, left: 10, bottom: 40 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
           <XAxis 
             dataKey="label" 
@@ -556,7 +556,7 @@ const RevenueProfitArea = ({ data, onDrillDown }: { data: any[]; onDrillDown?: (
       <ResponsiveContainer width="100%" height="100%" minWidth={320}>
         <AreaChart
           data={data}
-          margin={{ top: 10, right: 20, left: 0, bottom: 0 }}
+          margin={{ top: 30, right: 20, left: 0, bottom: 0 }}
           onClick={(d: any) => {
             if (d && d.activePayload && d.activePayload[0]) {
               onDrillDown?.(d.activePayload[0].payload.mes_ano);
