@@ -2,20 +2,16 @@ import { getApiUrl, fetchWithAuth } from "@/core/config/api.config";
 import type { DatasetRow } from "@/components/dashboard/DataTable";
 
 export type DatasetQuery = {
-  userId?: string | number | null;
   startDate?: string;
   endDate?: string;
-  includeRawData?: boolean;
   limit?: number;
   offset?: number;
 };
 
 export const fetchDatasetRows = async (query: DatasetQuery = {}): Promise<DatasetRow[]> => {
   const params = new URLSearchParams();
-  // Removido user_id da query - agora vem do token
   if (query.startDate) params.set("start_date", query.startDate);
   if (query.endDate) params.set("end_date", query.endDate);
-  if (query.includeRawData) params.set("include_raw_data", "true");
   if (query.limit !== undefined) params.set("limit", String(query.limit));
   if (query.offset !== undefined) params.set("offset", String(query.offset));
 

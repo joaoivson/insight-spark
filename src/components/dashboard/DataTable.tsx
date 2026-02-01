@@ -28,24 +28,20 @@ import {
 
 export interface DatasetRow {
   id: number;
+  dataset_id: number;
+  user_id: number;
   date: string;
-  time?: string | null;
-  mes_ano?: string | null;
   product: string;
-  product_name?: string | null;
-  platform?: string | null;
+  platform: string;
+  category: string;
+  status: string;
+  sub_id1: string;
   revenue: number;
-  cost: number;
   commission: number;
+  cost: number;
+  quantity: number;
   profit: number;
-  status?: string | null;
-  category?: string | null;
-  sub_id1?: string | null;
-   gross_value?: number | null;
-   commission_value?: number | null;
-   net_value?: number | null;
-   quantity?: number | null;
-   raw_data?: any;
+  mes_ano?: string | null;
 }
 
 interface DataTableProps {
@@ -54,37 +50,28 @@ interface DataTableProps {
 
 type ColumnId =
   | "date"
-  | "time"
   | "product"
-  | "product_name"
   | "platform"
   | "status"
   | "category"
   | "sub_id1"
   | "revenue"
-  | "cost"
   | "commission"
   | "profit"
-  | "gross_value"
-  | "net_value"
   | "quantity"
   | "mes_ano"
   | "ad_spend";
 
 const ALL_COLUMNS: { id: ColumnId; label: string; numeric?: boolean }[] = [
   { id: "date", label: "Data" },
-  { id: "time", label: "Hora" },
   { id: "product", label: "Produto" },
-  { id: "product_name", label: "Nome do Produto" },
   { id: "platform", label: "Plataforma" },
   { id: "status", label: "Status" },
   { id: "category", label: "Categoria" },
   { id: "sub_id1", label: "Sub ID" },
-  { id: "revenue", label: "Receita", numeric: true },
+  { id: "revenue", label: "Faturamento", numeric: true },
   { id: "commission", label: "Comissão", numeric: true },
   { id: "profit", label: "Lucro", numeric: true },
-  { id: "gross_value", label: "Valor Bruto", numeric: true },
-  { id: "net_value", label: "Valor Líquido", numeric: true },
   { id: "quantity", label: "Qtd", numeric: true },
   { id: "mes_ano", label: "Mês/Ano" },
   { id: "ad_spend", label: "Gasto Anúncios", numeric: true },
@@ -105,49 +92,6 @@ const DataTable = ({ rows }: DataTableProps) => {
   };
   const tooltipCursor = { fill: "transparent" };
 
-  const cleanNumber = (value: any): number | null => {
-    if (value === null || value === undefined) return null;
-    if (typeof value === "number" && Number.isFinite(value)) return value;
-    if (typeof value === "string") {
-      const cleaned = value
-        .replace(/R\$/gi, "")
-        .replace(/\s+/g, "")
-        .replace(/\./g, "")
-        .replace(/,/g, ".");
-      const num = Number(cleaned);
-      return Number.isFinite(num) ? num : null;
-    }
-    const num = Number(value);
-    return Number.isFinite(num) ? num : null;
-  };
-
-  const getCommissionDisplay = (row: DatasetRow) => {
-    const raw = row.raw_data || {};
-    const direct =
-      cleanNumber(row.commission) ??
-      cleanNumber((row as any).commission_value);
-
-    const fromRawScan = (() => {
-      for (const key of Object.keys(raw)) {
-        const lower = key.toLowerCase();
-        if (lower.includes("comissao") || lower.includes("comissão")) {
-          const maybe = cleanNumber(raw[key]);
-          if (maybe !== null) return maybe;
-        }
-      }
-      return null;
-    })();
-
-    return direct ?? fromRawScan ?? 0;
-  };
-
-  const getAffiliateCommission = (row: DatasetRow) => {
-    const raw = row.raw_data || {};
-    const direct = cleanNumber(raw["Comissão líquida do afiliado(R$)"]);
-    if (direct !== null && direct !== undefined) return direct;
-    return getCommissionDisplay(row);
-  };
-
   const formatDate = (dateString: string) => {
     const d = parseDateOnly(dateString);
     return d ? d.toLocaleDateString("pt-BR") : dateString;
@@ -158,7 +102,7 @@ const DataTable = ({ rows }: DataTableProps) => {
   const [sortBy, setSortBy] = useState<ColumnId>("date");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [visibleColumns, setVisibleColumns] = useState<ColumnId[]>(() =>
-    ["product", "product_name", "platform", "status", "category", "sub_id1", "revenue", "commission", "profit", "net_value", "quantity", "mes_ano", "ad_spend"]
+    ["product", "platform", "status", "category", "sub_id1", "revenue", "commission", "profit", "quantity", "mes_ano", "ad_spend"]
   );
 
   const toggleColumn = (col: ColumnId) => {
@@ -210,15 +154,7 @@ const DataTable = ({ rows }: DataTableProps) => {
   };
 
   const getAdSpend = (row: DatasetRow) => {
-    const raw = (row as any).raw_data || {};
-    for (const key of Object.keys(raw)) {
-      const lower = key.toLowerCase();
-      if (lower.includes("valor gasto") && lower.includes("anuncio")) {
-        const num = cleanNumber(raw[key]);
-        if (num !== null && num !== undefined) return num;
-      }
-    }
-    return 0;
+    return 0; // Not available in individual row anymore, handled by global adSpends
   };
 
   const commissionSeries = useMemo(() => {
@@ -251,7 +187,7 @@ const DataTable = ({ rows }: DataTableProps) => {
       const d = parseDateOnly(r.date);
       if (!d) return;
       const key = fmtKey(d);
-      const com = getAffiliateCommission(r);
+      const com = r.commission || 0;
       map.set(key, (map.get(key) || 0) + com);
     });
 
@@ -361,21 +297,14 @@ const DataTable = ({ rows }: DataTableProps) => {
               const value = (row as any)[col.id];
               let content: any = value ?? "-";
               if (col.id === "date" && value) content = formatDate(value);
-              if (col.id === "product") content = <Badge variant="secondary">{value}</Badge>;
+              if (col.id === "product") content = <Badge variant="secondary" className="max-w-[150px] truncate">{value}</Badge>;
               if (col.numeric) {
-                if (["revenue", "commission", "profit", "gross_value", "net_value"].includes(col.id)) {
-                  if (col.id === "commission") {
-                    content = formatCurrency(getCommissionDisplay(row));
-                  } else if (col.id === "profit") {
-                    const lucro = getAffiliateCommission(row) - getAdSpend(row);
-                    content = formatCurrency(lucro);
-                  } else {
-                    content = formatCurrency(value || 0);
-                  }
+                if (["revenue", "commission", "profit"].includes(col.id)) {
+                  content = formatCurrency(value || 0);
                 } else if (col.id === "ad_spend") {
-                  content = formatCurrency(getAdSpend(row));
+                  content = formatCurrency(0);
                 } else {
-                  content = value ?? "-";
+                  content = value?.toLocaleString("pt-BR") ?? "-";
                 }
               }
               return { label: col.label, content };
@@ -473,17 +402,10 @@ const DataTable = ({ rows }: DataTableProps) => {
                       if (col.id === "product")
                         content = <Badge variant="secondary">{value}</Badge>;
                       if (col.numeric) {
-                        if (["revenue", "commission", "profit", "gross_value", "net_value"].includes(col.id)) {
-                          if (col.id === "commission") {
-                            content = formatCurrency(getCommissionDisplay(row));
-                          } else if (col.id === "profit") {
-                            const lucro = getAffiliateCommission(row) - getAdSpend(row);
-                            content = formatCurrency(lucro);
-                          } else {
-                            content = formatCurrency(value || 0);
-                          }
+                        if (["revenue", "commission", "profit"].includes(col.id)) {
+                          content = formatCurrency(value || 0);
                         } else if (col.id === "ad_spend") {
-                          content = formatCurrency(getAdSpend(row));
+                          content = formatCurrency(0);
                         } else {
                           content = value ?? "-";
                         }

@@ -3,30 +3,12 @@ import type { AdSpend } from "@/shared/types/adspend";
 import { toDateKey } from "@/shared/lib/date";
 import { normalizeSubId } from "@/shared/lib/utils";
 
-export const cleanNumber = (value: any): number => {
-  if (value === null || value === undefined) return 0;
-  if (typeof value === "number" && Number.isFinite(value)) return value;
-  if (typeof value === "string") {
-    let cleaned = value.replace(/R\$/gi, "").replace(/\s+/g, "");
-    const hasComma = cleaned.includes(",");
-    const hasDot = cleaned.includes(".");
-    if (hasComma && hasDot) cleaned = cleaned.replace(/\./g, "").replace(/,/g, ".");
-    else if (hasComma) cleaned = cleaned.replace(/\./g, "").replace(/,/g, ".");
-    const num = Number(cleaned);
-    return Number.isFinite(num) ? num : 0;
-  }
-  const num = Number(value);
-  return Number.isFinite(num) ? num : 0;
-};
-
 export const getFaturamento = (row: DatasetRow) => {
-  const raw = (row as any).raw_data || {};
-  return cleanNumber(raw["Valor de Compra(R$)"]);
+  return row.revenue || 0;
 };
 
 export const getComissaoAfiliado = (row: DatasetRow) => {
-  const raw = (row as any).raw_data || {};
-  return cleanNumber(raw["Comissão líquida do afiliado(R$)"]);
+  return row.commission || 0;
 };
 
 type DateRange = { from?: Date | string | null; to?: Date | string | null };
