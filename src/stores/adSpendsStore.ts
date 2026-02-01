@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import type { AdSpend } from "@/shared/types/adspend";
-import { getUserId } from "@/shared/lib/storage";
+import { getScopedKey } from "@/shared/lib/storage";
 import { safeGetJSON, safeRemove, safeSetJSON } from "@/utils/storage";
 import { createAdSpend, deleteAdSpend, listAdSpends, updateAdSpend, type AdSpendPayload } from "@/services/adspends.service";
 
@@ -20,16 +20,7 @@ type AdSpendsState = {
   invalidate: () => void;
 };
 
-const getCacheKey = (userId?: string | number | null) => {
-  if (userId) {
-    const idStr = String(userId);
-    if (idStr.startsWith('user_')) {
-      return `adspends-cache:${idStr}`;
-    }
-    return `adspends-cache:user_${idStr}`;
-  }
-  return `adspends-cache:anon`;
-};
+const CACHE_KEY_BASE = "adspends-cache";
 
 const rangeToParams = (range?: DateRange) => {
   const startDate = range?.from ? new Date(range.from as any).toISOString().slice(0, 10) : undefined;
@@ -38,8 +29,7 @@ const rangeToParams = (range?: DateRange) => {
 };
 
 const getInitialState = () => {
-  const userId = getUserId();
-  const cacheKey = getCacheKey(userId);
+  const cacheKey = getScopedKey(CACHE_KEY_BASE);
   const cached = safeGetJSON<{ adSpends: AdSpend[]; lastUpdated?: number }>(cacheKey);
   if (cached && Array.isArray(cached.adSpends)) {
     return {
@@ -63,14 +53,12 @@ export const useAdSpendsStore = create<AdSpendsState>((set, get) => {
     lastUpdated: initial.lastUpdated,
 
     invalidate: () => {
-      const userId = getUserId();
-      safeRemove(getCacheKey(userId));
+      safeRemove(getScopedKey(CACHE_KEY_BASE));
       set({ adSpends: [], fullAdSpends: [], hydrated: false, lastUpdated: null });
     },
 
     fetchAdSpends: async (opts = {}) => {
-      const userId = getUserId();
-      const cacheKey = getCacheKey(userId);
+      const cacheKey = getScopedKey(CACHE_KEY_BASE);
       const { fullAdSpends, hydrated, loading } = get();
 
       // 1. Se já temos dados na memória e não foi forçado, apenas retorna

@@ -51,11 +51,7 @@ const Login = () => {
       if (result.success && result.token) {
         // Se o backend retornou o usuário junto com o token, usamos diretamente.
         if (result.user) {
-          tokenStorage.set(result.token);
-          // Marcar quando o token foi criado para evitar remoção prematura
-          if (typeof window !== 'undefined') {
-            sessionStorage.setItem('token_created_at', Date.now().toString());
-          }
+          // Define o usuário primeiro para que getUserId() funcione em tokenStorage.set
           userStorage.set({
             id: String(result.user.id ?? ""),
             nome: (result.user as any).name ?? (result.user as any).nome ?? "",
@@ -65,20 +61,26 @@ const Login = () => {
             created_at: (result.user as any).created_at,
             updated_at: (result.user as any).updated_at,
           });
-        } else {
-          // Fallback: buscar perfil usando o token recém-recebido
-          // Temporariamente definir o token no storage para fetchWithAuth funcionar
+
           tokenStorage.set(result.token);
           // Marcar quando o token foi criado para evitar remoção prematura
           if (typeof window !== 'undefined') {
             sessionStorage.setItem('token_created_at', Date.now().toString());
           }
+        } else {
+          // Fallback: buscar perfil usando o token recém-recebido
+          // Temporariamente definir o token no storage para fetchWithAuth funcionar
+          // Aqui salvamos apenas na global inicialmente para o fetch funcionar
+          localStorage.setItem(APP_CONFIG.STORAGE_KEYS.TOKEN, result.token);
+          
           const meResponse = await fetchWithAuth(getApiUrl("/api/v1/auth/me"));
           const me = await meResponse.json().catch(() => null);
+          
           if (!meResponse.ok || !me) {
             throw new Error(me?.detail || me?.error || "Não foi possível obter o perfil");
           }
-          tokenStorage.set(result.token);
+
+          // Define o usuário para escopar o token
           userStorage.set({
             id: String(me.id ?? ""),
             nome: me.name ?? me.nome ?? "",
@@ -88,6 +90,14 @@ const Login = () => {
             created_at: me.created_at,
             updated_at: me.updated_at,
           });
+
+          // Agora salva o token com o escopo correto
+          tokenStorage.set(result.token);
+          
+          // Marcar quando o token foi criado para evitar remoção prematura
+          if (typeof window !== 'undefined') {
+            sessionStorage.setItem('token_created_at', Date.now().toString());
+          }
         }
 
         toast({

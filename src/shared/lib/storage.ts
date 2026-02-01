@@ -43,14 +43,41 @@ export const storage = {
 // Helpers específicos para dados da aplicação
 export const userStorage = {
   get: () => storage.get(APP_CONFIG.STORAGE_KEYS.USER),
-  set: (user: unknown) => storage.set(APP_CONFIG.STORAGE_KEYS.USER, user),
+  set: (user: any) => {
+    // 1. Salva na chave global (quem está logado agora)
+    storage.set(APP_CONFIG.STORAGE_KEYS.USER, user);
+    
+    // 2. Salva na chave escopada se tiver ID
+    if (user && user.id) {
+      const id = String(user.id).startsWith('user_') ? user.id : `user_${user.id}`;
+      storage.set(`${APP_CONFIG.STORAGE_KEYS.USER}:${id}`, user);
+    }
+  },
   remove: () => storage.remove(APP_CONFIG.STORAGE_KEYS.USER),
 };
 
 export const tokenStorage = {
   get: () => localStorage.getItem(APP_CONFIG.STORAGE_KEYS.TOKEN),
-  set: (token: string) => localStorage.setItem(APP_CONFIG.STORAGE_KEYS.TOKEN, token),
+  set: (token: string) => {
+    // 1. Salva na chave global
+    localStorage.setItem(APP_CONFIG.STORAGE_KEYS.TOKEN, token);
+    
+    // 2. Salva na chave escopada se tiver usuário ativo
+    const userId = getUserId();
+    if (userId) {
+      localStorage.setItem(`${APP_CONFIG.STORAGE_KEYS.TOKEN}:${userId}`, token);
+    }
+  },
   remove: () => storage.remove(APP_CONFIG.STORAGE_KEYS.TOKEN),
+};
+
+/**
+ * Gera uma chave de cache escopada pelo usuário atual.
+ * Ex: getScopedKey('clicks-cache') -> 'clicks-cache:user_4'
+ */
+export const getScopedKey = (baseKey: string): string => {
+  const userId = getUserId();
+  return userId ? `${baseKey}:${userId}` : `${baseKey}:anon`;
 };
 
 /**

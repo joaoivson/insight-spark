@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { getUserId } from "@/shared/lib/storage";
+import { getScopedKey } from "@/shared/lib/storage";
 import { fetchClickRows, ClickRow } from "@/services/clicks.service";
 import { safeGetJSON, safeRemove, safeSetJSON } from "@/utils/storage";
 
@@ -17,16 +17,7 @@ type ClicksState = {
   persist: (clicks: ClickRow[]) => void;
 };
 
-const getCacheKey = (userId?: string | number | null) => {
-  if (userId) {
-    const idStr = String(userId);
-    if (idStr.startsWith('user_')) {
-      return `clicks-cache:${idStr}`;
-    }
-    return `clicks-cache:user_${idStr}`;
-  }
-  return `clicks-cache:anon`;
-};
+const CACHE_KEY_BASE = "clicks-cache";
 
 const rangeToParams = (range?: DateRange) => {
   const startDate = range?.from ? new Date(range.from as any).toISOString().slice(0, 10) : undefined;
@@ -35,8 +26,7 @@ const rangeToParams = (range?: DateRange) => {
 };
 
 const getInitialState = () => {
-  const userId = getUserId();
-  const cacheKey = getCacheKey(userId);
+  const cacheKey = getScopedKey(CACHE_KEY_BASE);
   const cached = safeGetJSON<{ clicks: ClickRow[]; lastUpdated?: number }>(cacheKey);
   if (cached && Array.isArray(cached.clicks)) {
     return {
@@ -60,22 +50,19 @@ export const useClicksStore = create<ClicksState>((set, get) => {
     lastUpdated: initial.lastUpdated,
 
     invalidate: () => {
-      const userId = getUserId();
-      safeRemove(getCacheKey(userId));
+      safeRemove(getScopedKey(CACHE_KEY_BASE));
       set({ clicks: [], fullClicks: [], hydrated: false, lastUpdated: null });
     },
 
     persist: (newClicks: ClickRow[]) => {
-      const userId = getUserId();
-      const cacheKey = getCacheKey(userId);
+      const cacheKey = getScopedKey(CACHE_KEY_BASE);
       const now = Date.now();
       set({ clicks: newClicks, fullClicks: newClicks, hydrated: true, lastUpdated: now });
       safeSetJSON(cacheKey, { clicks: newClicks, lastUpdated: now });
     },
 
     fetchClicks: async (opts = {}) => {
-      const userId = getUserId();
-      const cacheKey = getCacheKey(userId);
+      const cacheKey = getScopedKey(CACHE_KEY_BASE);
       const { fullClicks, hydrated, loading } = get();
 
       // 1. Se já temos dados na memória e não foi forçado, apenas retorna
