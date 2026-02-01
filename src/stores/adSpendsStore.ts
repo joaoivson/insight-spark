@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import type { AdSpend } from "@/shared/types/adspend";
-import { getScopedKey } from "@/shared/lib/storage";
+import { getScopedKey, getUserId } from "@/shared/lib/storage";
 import { safeGetJSON, safeRemove, safeSetJSON } from "@/utils/storage";
 import { createAdSpend, deleteAdSpend, listAdSpends, updateAdSpend, type AdSpendPayload } from "@/services/adspends.service";
 
