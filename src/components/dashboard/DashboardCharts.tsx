@@ -17,7 +17,7 @@ import {
 import type { DatasetRow } from "./DataTable";
 import { useMemo, useState, ReactNode } from "react";
 import { Button } from "@/components/ui/button";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, Variants } from "framer-motion";
 import { toDateKey, isBeforeDateKey, isAfterDateKey, parseDateOnly } from "@/shared/lib/date";
 import { getComissaoAfiliado } from "@/shared/lib/kpi";
 import { cn } from "@/shared/lib/utils";
@@ -61,22 +61,6 @@ const tooltipStyle = {
   fontSize: "12px",
 };
 const tooltipCursor = { fill: "transparent" };
-
-const cleanNumber = (value: unknown): number | undefined => {
-  if (value === null || value === undefined) return undefined;
-  if (typeof value === "number" && Number.isFinite(value)) return value;
-  if (typeof value === "string") {
-    const cleaned = value
-      .replace(/R\$/gi, "")
-      .replace(/\s+/g, "")
-      .replace(/\./g, "")
-      .replace(/,/g, ".");
-    const num = Number(cleaned);
-    if (Number.isFinite(num)) return num;
-  }
-  const num = Number(value);
-  return Number.isFinite(num) ? num : undefined;
-};
 
 // Use the same function as kpi.ts to ensure consistency with cards
 const getAffiliateCommissionValue = (row: DatasetRow): number => {
@@ -218,7 +202,7 @@ const groupByCategory = (rows: DatasetRow[], dateRange?: { from?: Date; to?: Dat
     .slice(0, 12);
 };
 
-const chartItemVariants = {
+const chartItemVariants: Variants = {
   hidden: { opacity: 0, scale: 0.95 },
   show: {
     opacity: 1,
@@ -462,7 +446,11 @@ const MesAnoChart = ({
       </div>
       <div className="h-80 sm:h-96 overflow-x-auto -mx-2 sm:mx-0 px-2 sm:px-0 scrollbar-thin scrollbar-thumb-accent/20">
         <ResponsiveContainer width={mode === "day" && data.length > 15 ? undefined : "100%"} height="100%" minWidth={dynamicMinWidth}>
-          <BarChart data={data} margin={{ top: 30, right: 10, left: 10, bottom: 40 }}>
+          <BarChart 
+            data={data} 
+            margin={{ top: 30, right: 10, left: 10, bottom: 40 }}
+            barCategoryGap={mode === "month" ? (data.length === 1 ? "5%" : 18) : "10%"}
+          >
             <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
             <XAxis 
               dataKey="label" 
@@ -486,7 +474,7 @@ const MesAnoChart = ({
               dataKey="value"
               fill={BAR_COLOR}
               radius={[4, 4, 0, 0]}
-              maxBarSize={50}
+              maxBarSize={mode === "month" ? (data.length === 1 ? 400 : 120) : 50}
               cursor="pointer"
               onClick={(d) => onDrillDown?.(d.key)}
             >

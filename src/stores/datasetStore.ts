@@ -13,7 +13,7 @@ type DatasetState = {
   error: string | null;
   hydrated: boolean;
   lastUpdated: number | null;
-  fetchRows: (opts?: { range?: DateRange; force?: boolean; includeRawData?: boolean; limit?: number; offset?: number }) => Promise<DatasetRow[]>;
+  fetchRows: (opts?: { range?: DateRange; force?: boolean; limit?: number; offset?: number }) => Promise<DatasetRow[]>;
   invalidate: () => void;
   persist: (rows: DatasetRow[]) => void;
 };
@@ -90,9 +90,7 @@ export const useDatasetStore = create<DatasetState>((set, get) => {
       set({ loading: true, error: null });
       
       try {
-        const apiRows = await fetchDatasetRows({
-          includeRawData: opts.includeRawData,
-        });
+        const apiRows = await fetchDatasetRows({});
 
         const now = Date.now();
         // GARANTIA: Seta no estado e NO localStorage IMEDIATAMENTE após o retorno
