@@ -14,7 +14,7 @@ import {
 import { cn } from "@/shared/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
-import { tokenStorage, userStorage } from "@/shared/lib/storage";
+import { tokenStorage, userStorage, storage } from "@/shared/lib/storage";
 import { APP_CONFIG } from "@/core/config/app.config";
 import logoIcon from "@/assets/logo/logo.png";
 import logoName from "@/assets/logo/logo_name.png";
@@ -49,11 +49,11 @@ const DashboardSidebar = ({ mobileMenuOpen = false, onMobileMenuClose }: Dashboa
   const isMobile = useIsMobile();
 
   const handleLogout = () => {
-    // Remover token e dados do usuário
-    tokenStorage.remove();
-    userStorage.remove();
-    // Navegar para a página inicial
-    navigate(APP_CONFIG.ROUTES.HOME);
+    // Apagar absolutamente todos os dados do localStorage (Caches, Token, User, etc)
+    storage.clear();
+    
+    // Forçar redirecionamento limpando qualquer estado restante em memória
+    window.location.href = APP_CONFIG.ROUTES.HOME;
     onMobileMenuClose?.();
   };
 
