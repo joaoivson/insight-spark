@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import type { DatasetRow } from "@/components/dashboard/DataTable";
-import { getScopedKey } from "@/shared/lib/storage";
+import { getScopedKey, getUserId } from "@/shared/lib/storage";
 import { fetchDatasetRows } from "@/services/datasets.service";
 import { safeGetJSON, safeRemove, safeSetJSON } from "@/utils/storage";
 
@@ -13,6 +13,7 @@ type DatasetState = {
   error: string | null;
   hydrated: boolean;
   lastUpdated: number | null;
+  loadedUserId: string | null; // ID do usuário que carregou os dados em memória
   fetchRows: (opts?: { range?: DateRange; force?: boolean; limit?: number; offset?: number }) => Promise<DatasetRow[]>;
   invalidate: () => void;
   persist: (rows: DatasetRow[]) => void;
@@ -27,6 +28,7 @@ const rangeToParams = (range?: DateRange) => {
 };
 
 const getInitialState = () => {
+  const userId = getUserId();
   const cacheKey = getScopedKey(CACHE_KEY_BASE);
   const cached = safeGetJSON<{ rows: DatasetRow[]; lastUpdated?: number }>(cacheKey);
   if (cached && Array.isArray(cached.rows)) {
@@ -35,9 +37,10 @@ const getInitialState = () => {
       fullRows: cached.rows,
       hydrated: true,
       lastUpdated: cached.lastUpdated ?? Date.now(),
+      loadedUserId: userId,
     };
   }
-  return { rows: [], fullRows: [], hydrated: false, lastUpdated: null };
+  return { rows: [], fullRows: [], hydrated: false, lastUpdated: null, loadedUserId: userId };
 };
 
 export const useDatasetStore = create<DatasetState>((set, get) => {
@@ -49,22 +52,37 @@ export const useDatasetStore = create<DatasetState>((set, get) => {
     error: null,
     hydrated: initial.hydrated,
     lastUpdated: initial.lastUpdated,
+    loadedUserId: initial.loadedUserId,
 
     invalidate: () => {
       safeRemove(getScopedKey(CACHE_KEY_BASE));
-      set({ rows: [], fullRows: [], hydrated: false, lastUpdated: null });
+      set({ rows: [], fullRows: [], hydrated: false, lastUpdated: null, loadedUserId: getUserId() });
     },
 
     persist: (newRows: DatasetRow[]) => {
+      const userId = getUserId();
       const cacheKey = getScopedKey(CACHE_KEY_BASE);
       const now = Date.now();
-      set({ rows: newRows, fullRows: newRows, hydrated: true, lastUpdated: now });
+      set({ rows: newRows, fullRows: newRows, hydrated: true, lastUpdated: now, loadedUserId: userId });
       safeSetJSON(cacheKey, { rows: newRows, lastUpdated: now });
     },
 
     fetchRows: async (opts = {}) => {
+      const userId = getUserId();
       const cacheKey = getScopedKey(CACHE_KEY_BASE);
-      const { fullRows, hydrated, loading } = get();
+      const { fullRows, hydrated, loading, loadedUserId } = get();
+
+      // Garantia: Se o usuário logado mudou, recarrega do cache dele ou limpa a memória
+      if (userId !== loadedUserId) {
+        const cached = safeGetJSON<{ rows: DatasetRow[]; lastUpdated?: number }>(cacheKey);
+        if (cached && Array.isArray(cached.rows)) {
+          const now = cached.lastUpdated ?? Date.now();
+          set({ rows: cached.rows, fullRows: cached.rows, hydrated: true, lastUpdated: now, loadedUserId: userId });
+          if (!opts.force) return cached.rows;
+        } else {
+          set({ rows: [], fullRows: [], hydrated: false, lastUpdated: null, loadedUserId: userId });
+        }
+      }
 
       // 1. Se já temos dados na memória e não foi forçado, apenas retorna
       if (hydrated && fullRows.length > 0 && !opts.force) {
@@ -85,7 +103,8 @@ export const useDatasetStore = create<DatasetState>((set, get) => {
           rows: apiRows, 
           fullRows: apiRows, 
           hydrated: true, 
-          lastUpdated: now 
+          lastUpdated: now,
+          loadedUserId: userId
         });
         
         localStorage.setItem(cacheKey, JSON.stringify({ 

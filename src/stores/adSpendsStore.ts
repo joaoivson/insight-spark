@@ -13,6 +13,7 @@ type AdSpendsState = {
   error: string | null;
   hydrated: boolean;
   lastUpdated: number | null;
+  loadedUserId: string | null; // ID do usuário que carregou os dados em memória
   fetchAdSpends: (opts?: { range?: DateRange; force?: boolean }) => Promise<AdSpend[]>;
   create: (payload: AdSpendPayload) => Promise<void>;
   update: (id: number, payload: Partial<AdSpendPayload>) => Promise<void>;
@@ -29,6 +30,7 @@ const rangeToParams = (range?: DateRange) => {
 };
 
 const getInitialState = () => {
+  const userId = getUserId();
   const cacheKey = getScopedKey(CACHE_KEY_BASE);
   const cached = safeGetJSON<{ adSpends: AdSpend[]; lastUpdated?: number }>(cacheKey);
   if (cached && Array.isArray(cached.adSpends)) {
@@ -37,9 +39,10 @@ const getInitialState = () => {
       fullAdSpends: cached.adSpends,
       hydrated: true,
       lastUpdated: cached.lastUpdated ?? Date.now(),
+      loadedUserId: userId,
     };
   }
-  return { adSpends: [], fullAdSpends: [], hydrated: false, lastUpdated: null };
+  return { adSpends: [], fullAdSpends: [], hydrated: false, lastUpdated: null, loadedUserId: userId };
 };
 
 export const useAdSpendsStore = create<AdSpendsState>((set, get) => {
@@ -51,15 +54,29 @@ export const useAdSpendsStore = create<AdSpendsState>((set, get) => {
     error: null,
     hydrated: initial.hydrated,
     lastUpdated: initial.lastUpdated,
+    loadedUserId: initial.loadedUserId,
 
     invalidate: () => {
       safeRemove(getScopedKey(CACHE_KEY_BASE));
-      set({ adSpends: [], fullAdSpends: [], hydrated: false, lastUpdated: null });
+      set({ adSpends: [], fullAdSpends: [], hydrated: false, lastUpdated: null, loadedUserId: getUserId() });
     },
 
     fetchAdSpends: async (opts = {}) => {
+      const userId = getUserId();
       const cacheKey = getScopedKey(CACHE_KEY_BASE);
-      const { fullAdSpends, hydrated, loading } = get();
+      const { fullAdSpends, hydrated, loading, loadedUserId } = get();
+
+      // Garantia: Se o usuário logado mudou, recarrega do cache dele ou limpa a memória
+      if (userId !== loadedUserId) {
+        const cached = safeGetJSON<{ adSpends: AdSpend[]; lastUpdated?: number }>(cacheKey);
+        if (cached && Array.isArray(cached.adSpends)) {
+          const now = cached.lastUpdated ?? Date.now();
+          set({ adSpends: cached.adSpends, fullAdSpends: cached.adSpends, hydrated: true, lastUpdated: now, loadedUserId: userId });
+          if (!opts.force) return cached.adSpends;
+        } else {
+          set({ adSpends: [], fullAdSpends: [], hydrated: false, lastUpdated: null, loadedUserId: userId });
+        }
+      }
 
       // 1. Se já temos dados na memória e não foi forçado, apenas retorna
       if (hydrated && fullAdSpends.length > 0 && !opts.force) {
@@ -81,7 +98,8 @@ export const useAdSpendsStore = create<AdSpendsState>((set, get) => {
           adSpends: apiData, 
           fullAdSpends: apiData, 
           hydrated: true, 
-          lastUpdated: now 
+          lastUpdated: now,
+          loadedUserId: userId
         });
 
         localStorage.setItem(cacheKey, JSON.stringify({ 
