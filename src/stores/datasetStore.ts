@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import type { DatasetRow } from "@/components/dashboard/DataTable";
-import { getUserId } from "@/shared/lib/storage";
+import { getScopedKey } from "@/shared/lib/storage";
 import { fetchDatasetRows } from "@/services/datasets.service";
 import { safeGetJSON, safeRemove, safeSetJSON } from "@/utils/storage";
 
@@ -18,16 +18,7 @@ type DatasetState = {
   persist: (rows: DatasetRow[]) => void;
 };
 
-const getCacheKey = (userId?: string | number | null) => {
-  if (userId) {
-    const idStr = String(userId);
-    if (idStr.startsWith('user_')) {
-      return `dataset-cache:${idStr}`;
-    }
-    return `dataset-cache:user_${idStr}`;
-  }
-  return `dataset-cache:anon`;
-};
+const CACHE_KEY_BASE = "dataset-cache";
 
 const rangeToParams = (range?: DateRange) => {
   const startDate = range?.from ? new Date(range.from as any).toISOString().slice(0, 10) : undefined;
@@ -36,8 +27,7 @@ const rangeToParams = (range?: DateRange) => {
 };
 
 const getInitialState = () => {
-  const userId = getUserId();
-  const cacheKey = getCacheKey(userId);
+  const cacheKey = getScopedKey(CACHE_KEY_BASE);
   const cached = safeGetJSON<{ rows: DatasetRow[]; lastUpdated?: number }>(cacheKey);
   if (cached && Array.isArray(cached.rows)) {
     return {
@@ -61,22 +51,19 @@ export const useDatasetStore = create<DatasetState>((set, get) => {
     lastUpdated: initial.lastUpdated,
 
     invalidate: () => {
-      const userId = getUserId();
-      safeRemove(getCacheKey(userId));
+      safeRemove(getScopedKey(CACHE_KEY_BASE));
       set({ rows: [], fullRows: [], hydrated: false, lastUpdated: null });
     },
 
     persist: (newRows: DatasetRow[]) => {
-      const userId = getUserId();
-      const cacheKey = getCacheKey(userId);
+      const cacheKey = getScopedKey(CACHE_KEY_BASE);
       const now = Date.now();
       set({ rows: newRows, fullRows: newRows, hydrated: true, lastUpdated: now });
       safeSetJSON(cacheKey, { rows: newRows, lastUpdated: now });
     },
 
     fetchRows: async (opts = {}) => {
-      const userId = getUserId();
-      const cacheKey = getCacheKey(userId);
+      const cacheKey = getScopedKey(CACHE_KEY_BASE);
       const { fullRows, hydrated, loading } = get();
 
       // 1. Se já temos dados na memória e não foi forçado, apenas retorna
