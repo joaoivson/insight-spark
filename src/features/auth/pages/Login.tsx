@@ -70,17 +70,16 @@ const Login = () => {
         } else {
           // Fallback: buscar perfil usando o token recém-recebido
           // Temporariamente definir o token no storage para fetchWithAuth funcionar
-          // Aqui salvamos apenas na global inicialmente para o fetch funcionar
+          // Token temporário só para o fetch /me (removido logo após escopar)
           localStorage.setItem(APP_CONFIG.STORAGE_KEYS.TOKEN, result.token);
-          
           const meResponse = await fetchWithAuth(getApiUrl("/api/v1/auth/me"));
           const me = await meResponse.json().catch(() => null);
-          
+
           if (!meResponse.ok || !me) {
+            localStorage.removeItem(APP_CONFIG.STORAGE_KEYS.TOKEN);
             throw new Error(me?.detail || me?.error || "Não foi possível obter o perfil");
           }
 
-          // Define o usuário para escopar o token
           userStorage.set({
             id: String(me.id ?? ""),
             nome: me.name ?? me.nome ?? "",
@@ -91,12 +90,11 @@ const Login = () => {
             updated_at: me.updated_at,
           });
 
-          // Agora salva o token com o escopo correto
           tokenStorage.set(result.token);
-          
-          // Marcar quando o token foi criado para evitar remoção prematura
-          if (typeof window !== 'undefined') {
-            sessionStorage.setItem('token_created_at', Date.now().toString());
+          localStorage.removeItem(APP_CONFIG.STORAGE_KEYS.TOKEN);
+
+          if (typeof window !== "undefined") {
+            sessionStorage.setItem("token_created_at", Date.now().toString());
           }
         }
 
