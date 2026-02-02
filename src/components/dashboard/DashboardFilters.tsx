@@ -87,51 +87,50 @@ const DashboardFilters = ({
   const [open, setOpen] = useState(false);
   const [localRange, setLocalRange] = useState<DateRange>({ from: dateRange.from, to: dateRange.to });
 
-  const maxDays = 90;
   const today = new Date();
-  const minDate = new Date(today);
-  minDate.setDate(today.getDate() - (maxDays - 1));
   
-  // Calculate max date from available data (rows, adSpends, clicks)
-  const maxDate = useMemo(() => {
+  // Calculate min and max dates from available data (rows, adSpends, clicks)
+  const { minDate, maxDate } = useMemo(() => {
     const dates: Date[] = [];
     
-    // Get dates from rows
-    rows.forEach((row) => {
-      if (row.date) {
-        const date = parseDateOnly(row.date);
-        if (date && !isNaN(date.getTime())) {
-          dates.push(date);
+    const processItems = (items: any[]) => {
+      items.forEach((item) => {
+        if (item.date) {
+          const date = parseDateOnly(item.date);
+          if (date && !isNaN(date.getTime())) {
+            dates.push(date);
+          }
         }
-      }
-    });
-    
-    // Get dates from adSpends
-    adSpends.forEach((spend) => {
-      if (spend.date) {
-        const date = parseDateOnly(spend.date);
-        if (date && !isNaN(date.getTime())) {
-          dates.push(date);
-        }
-      }
-    });
+      });
+    };
 
-    // Get dates from clicks
-    clicks.forEach((click) => {
-      if (click.date) {
-        const date = parseDateOnly(click.date);
-        if (date && !isNaN(date.getTime())) {
-          dates.push(date);
-        }
-      }
-    });
+    processItems(rows);
+    processItems(adSpends);
+    processItems(clicks);
     
-    if (dates.length === 0) return today;
+    if (dates.length === 0) {
+      const defaultMin = new Date(today);
+      defaultMin.setDate(today.getDate() - 89); // Default to last 90 days if no data
+      return { minDate: defaultMin, maxDate: today };
+    }
     
-    // Return the maximum date, but not less than today
+    const min = new Date(Math.min(...dates.map(d => d.getTime())));
     const max = new Date(Math.max(...dates.map(d => d.getTime())));
-    return max > today ? max : today;
+    
+    // Ensure minDate is at least 90 days ago if the oldest data is more recent
+    const ninetyDaysAgo = new Date(today);
+    ninetyDaysAgo.setDate(today.getDate() - 89);
+    
+    return {
+      minDate: min < ninetyDaysAgo ? min : ninetyDaysAgo,
+      maxDate: max > today ? max : today
+    };
   }, [rows, adSpends, clicks]);
+  
+  const maxDays = useMemo(() => {
+    if (!minDate || !maxDate) return 90;
+    return Math.ceil(Math.abs(maxDate.getTime() - minDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+  }, [minDate, maxDate]);
   
   // Calculate previous month for defaultMonth (to show "Previous Month | Current Month")
   const previousMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);

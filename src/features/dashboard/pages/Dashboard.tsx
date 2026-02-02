@@ -298,12 +298,6 @@ const Dashboard = () => {
                       <DataTable rows={tableRows} />
                     </motion.div>
                   )}
-
-                  {!drillDown && (
-                    <div className="mt-8 text-center p-8 border-2 border-dashed border-border rounded-xl bg-secondary/20">
-                      <p className="text-muted-foreground">Clique em um Card ou Gráfico para ver os detalhes na tabela.</p>
-                    </div>
-                  )}
                 </>
               )}
             </TabsContent>

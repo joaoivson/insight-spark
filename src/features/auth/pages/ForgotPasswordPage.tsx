@@ -49,37 +49,7 @@ const ForgotPasswordPage = () => {
     setLoading(true);
 
     try {
-      let emailCheck: Awaited<ReturnType<typeof passwordService.checkEmailExists>> = {
-        exists: true,
-      };
-
-      try {
-        emailCheck = await passwordService.checkEmailExists(trimmedEmail);
-      } catch (checkError) {
-        if (checkError instanceof Error && checkError.message === "CHECK_ENDPOINT_UNAVAILABLE") {
-          emailCheck = { exists: true };
-        } else {
-          const checkMessage = checkError instanceof Error ? checkError.message : 'Erro ao verificar email.';
-          setError(checkMessage || 'Erro ao verificar email.');
-          return;
-        }
-      }
-
-      if (!emailCheck.exists) {
-        setError('Email não cadastrado. Verifique e tente novamente.');
-        return;
-      }
-
-      if (emailCheck.matchedEmail) {
-        const normalizedInput = trimmedEmail.toLowerCase();
-        const normalizedMatch = emailCheck.matchedEmail.trim().toLowerCase();
-
-        if (normalizedInput !== normalizedMatch) {
-          setError('Email não cadastrado. Verifique e tente novamente.');
-          return;
-        }
-      }
-
+      // O endpoint de reset (forgotPassword) agora será o único responsável por validar a existência do e-mail.
       await passwordService.forgotPassword(trimmedEmail);
       setSuccess(true);
       setLastSent(now);
@@ -89,6 +59,7 @@ const ForgotPasswordPage = () => {
         description: "Verifique sua caixa de entrada para redefinir sua senha.",
       });
     } catch (err) {
+      // Garantir que qualquer erro retornado pela API (como "Usuário não encontrado") seja exibido
       const errorMessage = err instanceof Error ? err.message : 'Erro ao solicitar reset de senha. Tente novamente.';
       setError(errorMessage);
     } finally {

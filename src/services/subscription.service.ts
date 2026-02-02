@@ -14,6 +14,7 @@ export interface SubscriptionStatus {
   cakto_subscription_status: string | null;
   cakto_payment_status: string | null;
   cakto_payment_method: string | null;
+  cakto_next_payment_date: string | null;
 }
 
 // GET /api/v1/subscription/status

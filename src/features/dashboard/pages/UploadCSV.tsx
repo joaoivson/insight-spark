@@ -160,13 +160,26 @@ const UploadCSV = () => {
 
       const result = await res.json().catch(() => ({}));
       if (!res.ok) {
-        throw new Error(result.detail || result.error || "Falha no servidor");
+        // Se for erro 400 (Bad Request), geralmente é erro de validação ou duplicados
+        const detail = result.detail || result.error || "Falha no processamento";
+        setError(detail);
+        return; // Sai sem limpar o arquivo para o usuário ver o erro
+      }
+
+      const count = result.count || result.imported_count || 0;
+      const ignored = result.ignored_count || 0;
+      const total = count + ignored;
+
+      let msg = config.successMessage;
+      if (ignored > 0) {
+        msg = `${count} itens importados. ${ignored} itens foram ignorados por já existirem no banco de dados.`;
       }
 
       toast({
-        title: "Processamento concluído!",
-        description: config.successMessage,
-        duration: 5000,
+        title: ignored > 0 && count === 0 ? "Aviso: Nenhum item novo" : "Processamento concluído!",
+        description: msg,
+        variant: ignored > 0 && count === 0 ? "destructive" : "default",
+        duration: 7000,
       });
 
       await config.fetchAction({ force: true });

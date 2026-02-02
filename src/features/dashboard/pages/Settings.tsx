@@ -206,13 +206,17 @@ const SettingsPage = () => {
 
                 <div className="space-y-2">
                   <Label htmlFor="email">Email de Acesso</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="bg-background"
-                  />
+                  <div className="relative">
+                    <Input
+                      id="email"
+                      type="email"
+                      value={email}
+                      readOnly
+                      className="bg-secondary/20 pr-10"
+                    />
+                    <Shield className="absolute right-3 top-2.5 w-4 h-4 text-muted-foreground" />
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">O e-mail de acesso não pode ser alterado.</p>
                 </div>
 
                 <div className="pt-4 flex justify-end">
@@ -271,13 +275,13 @@ const SettingsPage = () => {
                           <span className="font-medium">{formatPaymentMethod(subscriptionStatus.cakto_payment_method)}</span>
                         </div>
                         {(
-                          subscriptionStatus.cakto_due_date || subscriptionStatus.expires_at
+                          subscriptionStatus.cakto_next_payment_date || subscriptionStatus.cakto_due_date || subscriptionStatus.expires_at
                         ) && (
                           <div className="flex items-center justify-between">
                             <span className="text-muted-foreground">Próximo vencimento</span>
                             <span className="font-medium">
                               {formatDate(
-                                subscriptionStatus.cakto_due_date || subscriptionStatus.expires_at
+                                subscriptionStatus.cakto_next_payment_date || subscriptionStatus.cakto_due_date || subscriptionStatus.expires_at
                               )}
                             </span>
                           </div>
