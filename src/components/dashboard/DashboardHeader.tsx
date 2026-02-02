@@ -8,7 +8,7 @@ import { useAdSpendsStore } from "@/stores/adSpendsStore";
 import { useIsMobile } from "@/shared/hooks/use-mobile";
 import { useNavigate, useLocation } from "react-router-dom";
 import { APP_CONFIG } from "@/core/config/app.config";
-import { safeGetJSON } from "@/utils/storage";
+import { userStorage } from "@/shared/lib/storage";
 import { User as UserType } from "@/shared/types";
 
 interface DashboardHeaderProps {
@@ -31,13 +31,11 @@ const DashboardHeader = ({ title, subtitle, subtitleSize = "sm", action, onMobil
   const isDemo = location.pathname.startsWith("/demo");
 
   useEffect(() => {
-    const user = safeGetJSON<UserType>(APP_CONFIG.STORAGE_KEYS.USER);
-    if (user && user.nome) {
-      // Pega os dois primeiros nomes
-      const names = user.nome.trim().split(/\s+/);
-      const displayName = names.length > 1 
-        ? `${names[0]} ${names[1]}` 
-        : names[0];
+    const user = userStorage.get() as (UserType & { name?: string }) | null;
+    const rawName = user?.nome ?? user?.name ?? "";
+    if (rawName && typeof rawName === "string") {
+      const names = rawName.trim().split(/\s+/);
+      const displayName = names.length > 1 ? `${names[0]} ${names[1]}` : names[0];
       setUserName(displayName);
     }
   }, []);
