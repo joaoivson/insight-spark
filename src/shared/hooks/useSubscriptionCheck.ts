@@ -2,10 +2,10 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { getSubscriptionStatus, SubscriptionStatus } from "@/services/subscription.service";
 import { useToast } from "@/hooks/use-toast";
-import { tokenStorage, storage, userStorage } from "@/shared/lib/storage";
+import { tokenStorage, storage, userStorage, getScopedKey } from "@/shared/lib/storage";
 import { caktoService } from "@/services/cakto.service";
 
-const SUBSCRIPTION_CACHE_KEY = 'subscription-status-cache';
+const SUBSCRIPTION_CACHE_BASE = 'subscription-status-cache';
 
 interface SubscriptionCache {
   status: SubscriptionStatus;
@@ -44,10 +44,11 @@ export const useSubscriptionCheck = (options?: {
   // Verificar se está navegando dentro do dashboard
   const isDashboardRoute = location.pathname.startsWith('/dashboard');
 
-  // Carregar status do cache
+  // Carregar status do cache (chave vinculada ao usuário: subscription-status-cache:user_4)
   const loadCachedStatus = useCallback((): SubscriptionStatus | null => {
     try {
-      const cached = storage.get<SubscriptionCache>(SUBSCRIPTION_CACHE_KEY);
+      const cacheKey = getScopedKey(SUBSCRIPTION_CACHE_BASE);
+      const cached = storage.get<SubscriptionCache>(cacheKey);
       if (cached && cached.status) {
         const currentDate = getCurrentDate();
         const cachedDate = cached.date || new Date(cached.timestamp).toISOString().split('T')[0];
@@ -66,10 +67,11 @@ export const useSubscriptionCheck = (options?: {
     return null;
   }, []);
 
-  // Salvar status no cache
+  // Salvar status no cache (chave vinculada ao usuário)
   const saveCachedStatus = useCallback((status: SubscriptionStatus) => {
     try {
-      storage.set(SUBSCRIPTION_CACHE_KEY, {
+      const cacheKey = getScopedKey(SUBSCRIPTION_CACHE_BASE);
+      storage.set(cacheKey, {
         status,
         timestamp: Date.now(),
         date: getCurrentDate(),

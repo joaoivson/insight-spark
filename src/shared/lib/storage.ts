@@ -1,9 +1,12 @@
 /**
  * LocalStorage utilities
- * Funções auxiliares para gerenciar localStorage de forma type-safe
+ * Token e user são sempre escopados por usuário (token:user_4, user:user_4).
+ * Nenhuma chave global "token" ou "user" — apenas current_user_id indica quem está logado.
  */
 
 import { APP_CONFIG } from "@/core/config/app.config";
+
+const CURRENT_USER_ID_KEY = "current_user_id";
 
 export const storage = {
   get: <T>(key: string): T | null => {
@@ -40,35 +43,83 @@ export const storage = {
   },
 };
 
-// Helpers específicos para dados da aplicação
+function getCurrentUserId(): string | null {
+  return localStorage.getItem(CURRENT_USER_ID_KEY);
+}
+
+function normalizeUserId(id: string | number): string {
+  const s = String(id).trim();
+  return s.startsWith("user_") ? s : `user_${s}`;
+}
+
+// Migração: legado "user" (objeto) → current_user_id + user:user_4
+function migrateLegacyUser(): void {
+  const legacy = storage.get<{ id?: string | number } | null>(APP_CONFIG.STORAGE_KEYS.USER);
+  if (!legacy || typeof legacy !== "object" || legacy.id == null) return;
+  const id = normalizeUserId(legacy.id);
+  storage.set(`${APP_CONFIG.STORAGE_KEYS.USER}:${id}`, legacy);
+  localStorage.setItem(CURRENT_USER_ID_KEY, id);
+  storage.remove(APP_CONFIG.STORAGE_KEYS.USER);
+}
+
+// Migração: legado "token" → token:user_4 (quando já temos current_user_id)
+function migrateLegacyToken(): string | null {
+  const currentId = getCurrentUserId();
+  if (!currentId) return null;
+  const legacy = localStorage.getItem(APP_CONFIG.STORAGE_KEYS.TOKEN);
+  if (!legacy) return localStorage.getItem(`${APP_CONFIG.STORAGE_KEYS.TOKEN}:${currentId}`);
+  localStorage.setItem(`${APP_CONFIG.STORAGE_KEYS.TOKEN}:${currentId}`, legacy);
+  localStorage.removeItem(APP_CONFIG.STORAGE_KEYS.TOKEN);
+  return legacy;
+}
+
 export const userStorage = {
-  get: () => storage.get(APP_CONFIG.STORAGE_KEYS.USER),
+  get: () => {
+    let currentId = getCurrentUserId();
+    if (!currentId) {
+      migrateLegacyUser();
+      currentId = getCurrentUserId();
+    }
+    if (!currentId) return null;
+    return storage.get(`${APP_CONFIG.STORAGE_KEYS.USER}:${currentId}`);
+  },
   set: (user: any) => {
-    // 1. Salva na chave global (quem está logado agora)
-    storage.set(APP_CONFIG.STORAGE_KEYS.USER, user);
-    
-    // 2. Salva na chave escopada se tiver ID
-    if (user && user.id) {
-      const id = String(user.id).startsWith('user_') ? user.id : `user_${user.id}`;
-      storage.set(`${APP_CONFIG.STORAGE_KEYS.USER}:${id}`, user);
+    if (!user || user.id == null) return;
+    const id = normalizeUserId(user.id);
+    storage.set(`${APP_CONFIG.STORAGE_KEYS.USER}:${id}`, user);
+    localStorage.setItem(CURRENT_USER_ID_KEY, id);
+  },
+  remove: () => {
+    const currentId = getCurrentUserId();
+    if (currentId) {
+      storage.remove(`${APP_CONFIG.STORAGE_KEYS.USER}:${currentId}`);
+      localStorage.removeItem(`${APP_CONFIG.STORAGE_KEYS.TOKEN}:${currentId}`);
+      localStorage.removeItem(CURRENT_USER_ID_KEY);
     }
   },
-  remove: () => storage.remove(APP_CONFIG.STORAGE_KEYS.USER),
 };
 
 export const tokenStorage = {
-  get: () => localStorage.getItem(APP_CONFIG.STORAGE_KEYS.TOKEN),
-  set: (token: string) => {
-    // 1. Salva na chave global
-    localStorage.setItem(APP_CONFIG.STORAGE_KEYS.TOKEN, token);
-    
-    // 2. Salva na chave escopada se tiver usuário ativo
-    const userId = getUserId();
-    if (userId) {
-      localStorage.setItem(`${APP_CONFIG.STORAGE_KEYS.TOKEN}:${userId}`, token);
+  get: () => {
+    let currentId = getCurrentUserId();
+    if (!currentId) {
+      migrateLegacyUser();
+      currentId = getCurrentUserId();
     }
+    if (!currentId) return null;
+    const token = localStorage.getItem(`${APP_CONFIG.STORAGE_KEYS.TOKEN}:${currentId}`);
+    if (token) return token;
+    return migrateLegacyToken();
   },
-  remove: () => storage.remove(APP_CONFIG.STORAGE_KEYS.TOKEN),
+  set: (token: string) => {
+    const currentId = getCurrentUserId();
+    if (!currentId) return;
+    localStorage.setItem(`${APP_CONFIG.STORAGE_KEYS.TOKEN}:${currentId}`, token);
+  },
+  remove: () => {
+    const currentId = getCurrentUserId();
+    if (currentId) localStorage.removeItem(`${APP_CONFIG.STORAGE_KEYS.TOKEN}:${currentId}`);
+  },
 };
 
 /**
