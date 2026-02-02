@@ -113,7 +113,7 @@ const DashboardClicks = ({ clicks, adSpends = [] }: DashboardClicksProps) => {
     let data = allSubIds.map(subId => {
       const csvClicks = csvStats[subId] || 0;
       const adsClicks = adsStats[subId] || 0;
-      const diff = adsClicks - csvClicks;
+      const diff = csvClicks - adsClicks;
       const diffPercent = csvClicks > 0 ? (diff / csvClicks) * 100 : 0;
 
       return {
@@ -173,6 +173,18 @@ const DashboardClicks = ({ clicks, adSpends = [] }: DashboardClicksProps) => {
     }));
   }, [clicks, totalClicks]);
 
+  // API envia date como DD-MM-YYYY na string "YYYY-MM-DD" (ex: "2025-07-11" = 07/11/2025)
+  const formatDateLabelDDMM = (dateStr: string): string => {
+    if (!dateStr || dateStr === "Sem data") return dateStr;
+    const parts = dateStr.split("-");
+    if (parts.length !== 3) return dateStr;
+    const [year, day, month] = parts;
+    if (year.length === 4 && Number(year) > 1900) {
+      return `${day.padStart(2, "0")}/${month.padStart(2, "0")}`;
+    }
+    return dateStr;
+  };
+
   const dailyStats = useMemo(() => {
     const stats = clicks.reduce((acc, item) => {
       const day = item.date || "Sem data";
@@ -180,15 +192,11 @@ const DashboardClicks = ({ clicks, adSpends = [] }: DashboardClicksProps) => {
       return acc;
     }, {} as Record<string, number>);
 
-    const data = Object.entries(stats).map(([day, count]) => {
-      const parts = day.split("-");
-      const label = parts.length === 3 ? `${parts[2]}/${parts[1]}` : day;
-      return {
-        day,
-        label,
-        value: count,
-      };
-    });
+    const data = Object.entries(stats).map(([day, count]) => ({
+      day,
+      label: formatDateLabelDDMM(day),
+      value: count,
+    }));
 
     data.sort((a, b) => a.day.localeCompare(b.day));
     return data;
