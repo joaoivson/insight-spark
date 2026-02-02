@@ -251,11 +251,11 @@ const ChannelPieChart = ({
               outerRadius="85%"
               paddingAngle={5}
               dataKey="value"
-              cursor="pointer"
+              cursor={onDrillDown ? "pointer" : undefined}
               stroke="none"
               onMouseEnter={(_, index) => setActiveIndex(index)}
               onMouseLeave={() => setActiveIndex(null)}
-              onClick={(d) => onDrillDown?.(d.name)}
+              {...(onDrillDown && { onClick: (d: any) => onDrillDown(d.name) })}
               animationBegin={200}
               animationDuration={1200}
               animationEasing="ease-out"
@@ -355,8 +355,8 @@ const CategoryBarChart = ({
               dataKey="value"
               fill={BAR_COLOR}
               radius={[0, 8, 8, 0]}
-              cursor="pointer"
-              onClick={(d) => onDrillDown?.(d.name)}
+              cursor={onDrillDown ? "pointer" : undefined}
+              {...(onDrillDown && { onClick: (d: any) => onDrillDown(d.name) })}
               onMouseEnter={(_, index) => setActiveIndex(index)}
               onMouseLeave={() => setActiveIndex(null)}
               animationBegin={300}
@@ -475,8 +475,8 @@ const MesAnoChart = ({
               fill={BAR_COLOR}
               radius={[4, 4, 0, 0]}
               maxBarSize={mode === "month" ? (data.length === 1 ? 400 : 120) : 50}
-              cursor="pointer"
-              onClick={(d) => onDrillDown?.(d.key)}
+              cursor={onDrillDown ? "pointer" : undefined}
+              {...(onDrillDown && { onClick: (d: any) => onDrillDown(d.key) })}
             >
               {showLabels && (
                 <LabelList 
@@ -534,11 +534,13 @@ const RevenueProfitArea = ({ data, onDrillDown }: { data: any[]; onDrillDown?: (
           <AreaChart
             data={data}
             margin={{ top: 30, right: 20, left: 10, bottom: 20 }}
-            onClick={(d: any) => {
-              if (d && d.activePayload && d.activePayload[0]) {
-                onDrillDown?.(d.activePayload[0].payload.mes_ano);
-              }
-            }}
+            {...(onDrillDown && {
+              onClick: (d: any) => {
+                if (d && d.activePayload && d.activePayload[0]) {
+                  onDrillDown(d.activePayload[0].payload.mes_ano);
+                }
+              },
+            })}
           >
             <defs>
               <linearGradient id="rev" x1="0" y1="0" x2="0" y2="1">
