@@ -113,7 +113,7 @@ const ReportsPage = () => {
         iconColor: "text-primary",
       },
       {
-        title: "Valor Gasto Anúncios",
+        title: "Custos de Anúncios",
         value: formatCurrency(totals.gastoAnuncios),
         icon: ShoppingCart,
         iconColor: "text-warning",
@@ -138,7 +138,7 @@ const ReportsPage = () => {
 
   const handleExportExcel = () => {
     const wsData = [
-      ["Mês", "Faturamento", "Comissão", "Gasto Anúncios", "Lucro", "ROAS"],
+      ["Mês", "Faturamento", "Comissão", "Custos de Anúncios", "Lucro", "ROAS"],
       ...monthly.map((row) => [
         row.month,
         row.revenue,
@@ -211,7 +211,7 @@ const ReportsPage = () => {
                       <TableHead className="w-[200px]">Mês</TableHead>
                       <TableHead className="text-right">Faturamento</TableHead>
                       <TableHead className="text-right">Comissão</TableHead>
-                      <TableHead className="text-right">Gasto Anúncios</TableHead>
+                      <TableHead className="text-right">Custos de Anúncios</TableHead>
                       <TableHead className="text-right">Lucro (Comissão - Gasto)</TableHead>
                       <TableHead className="text-right">ROAS</TableHead>
                     </TableRow>

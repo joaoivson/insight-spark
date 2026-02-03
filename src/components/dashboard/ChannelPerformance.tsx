@@ -155,13 +155,13 @@ const ChannelPerformance = ({
         <div className="bg-card border border-border rounded-xl overflow-hidden">
           <div className="p-6 border-b border-border">
             <h3 className="font-display font-semibold text-lg">Performance Detalhada por Sub ID</h3>
-            <p className="text-sm text-muted-foreground">Análise de investimento vs retorno real. (máx. {MAX_ROWS} linhas)</p>
+            <p className="text-sm text-muted-foreground">Análise de custos de anúncios vs retorno real. (máx. {MAX_ROWS} linhas)</p>
           </div>
           <Table>
             <TableHeader className="bg-muted/50">
               <TableRow>
                 <TableHead>Sub ID</TableHead>
-                <TableHead className="text-right">Investimento (Gasto Anúncio)</TableHead>
+                <TableHead className="text-right">Custos de Anúncios</TableHead>
                 <TableHead className="text-right">Receita (Comissão)</TableHead>
                 <TableHead className="text-right">Lucro (Comissão - Gasto)</TableHead>
                 <TableHead className="text-center">ROAS</TableHead>
@@ -265,7 +265,7 @@ const ChannelPerformance = ({
         <div className="bg-card border border-border rounded-xl overflow-hidden">
           <div className="p-6 border-b border-border">
             <h3 className="font-display font-semibold text-lg">Performance por Dia</h3>
-            <p className="text-sm text-muted-foreground">Investimento vs comissão diária.</p>
+            <p className="text-sm text-muted-foreground">Custos de anúncios vs comissão diária.</p>
           </div>
           <Table>
             <TableHeader className="bg-muted/50">
@@ -298,7 +298,7 @@ const ChannelPerformance = ({
                       }
                     }}
                   >
-                    Investimento (Gasto Anúncio)
+                    Custos de Anúncios
                     <ArrowUpDown className="w-3 h-3" />
                   </button>
                 </TableHead>

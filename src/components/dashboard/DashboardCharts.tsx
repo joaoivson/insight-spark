@@ -526,7 +526,7 @@ const RevenueProfitArea = ({ data, onDrillDown }: { data: any[]; onDrillDown?: (
       className="bg-card rounded-xl border border-border p-6"
     >
       <div className="mb-4">
-        <h3 className="font-display font-semibold text-lg text-foreground">Comissão x Valor Gasto em Ads x Lucro</h3>
+        <h3 className="font-display font-semibold text-lg text-foreground">Comissão x Custos de Anúncios x Lucro</h3>
         <p className="text-sm text-muted-foreground">{periodLabel}</p>
       </div>
       <div className="h-80 sm:h-96 overflow-x-auto -mx-2 sm:mx-0 px-2 sm:px-0 scrollbar-thin scrollbar-thumb-accent/20">
@@ -580,7 +580,7 @@ const RevenueProfitArea = ({ data, onDrillDown }: { data: any[]; onDrillDown?: (
                     ? "Comissão"
                     : key === "profit"
                     ? "Lucro"
-                    : "Gasto Anúncios";
+                    : "Custos de Anúncios";
                 return [formatCurrency(v), label];
               }}
             />
@@ -597,7 +597,7 @@ const RevenueProfitArea = ({ data, onDrillDown }: { data: any[]; onDrillDown?: (
             <Area
               type="monotone"
               dataKey="cost"
-              name="Gasto Anúncios"
+              name="Custos de Anúncios"
               stroke={COST_COLOR}
               fillOpacity={0.25}
               fill="url(#prof)"

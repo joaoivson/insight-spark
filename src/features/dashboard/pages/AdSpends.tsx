@@ -223,8 +223,8 @@ const AdSpends = () => {
       invalidate(); // Limpar localStorage
       await refreshData();
       toast({
-        title: "Investimentos excluídos",
-        description: "Todos os investimentos foram removidos com sucesso.",
+        title: "Custos de Anúncios excluídos",
+        description: "Todos os custos de anúncios foram removidos com sucesso.",
       });
     } catch (err) {
       toast({
@@ -275,7 +275,7 @@ const AdSpends = () => {
       }
 
       toast({
-        title: editingId ? "Investimento atualizado" : "Investimento registrado",
+        title: editingId ? "Custos de Anúncios atualizados" : "Custos de Anúncios registrados",
         description: `${currency(parsedAmount)} em ${subId === "__all__" ? "Geral" : subId} na data ${format(
           parseDateOnly(parsedDate) ?? new Date(parsedDate),
           "dd/MM/yyyy"
@@ -301,7 +301,7 @@ const AdSpends = () => {
   const handleDelete = async (id: number) => {
     try {
       await remove(id);
-      toast({ title: "Investimento removido" });
+      toast({ title: "Custos de Anúncios removidos" });
     } catch (err) {
       toast({ title: "Erro ao remover", variant: "destructive" });
     }
@@ -355,12 +355,12 @@ const AdSpends = () => {
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, "Modelo");
 
-      const fileName = "modelo-investimentos.xlsx";
+      const fileName = "modelo-custos-anuncios.xlsx";
       XLSX.writeFile(wb, fileName);
 
       toast({
         title: "Download iniciado",
-        description: "Modelo de investimentos baixado com sucesso.",
+        description: "Modelo de custos de anúncios baixado com sucesso.",
       });
     } catch (error) {
       toast({
@@ -585,7 +585,7 @@ const AdSpends = () => {
 
   return (
     <DashboardLayout
-      title="Investimentos em Ads"
+      title="Custos de Anúncios"
       subtitle="Cadastre manualmente ou importe via planilha para alimentar os KPIs e ROAS."
       subtitleSize="xs"
       action={
@@ -600,7 +600,7 @@ const AdSpends = () => {
             <AlertDialogHeader>
               <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
               <AlertDialogDescription>
-                Esta ação irá excluir permanentemente todos os investimentos.
+                Esta ação irá excluir permanentemente todos os custos de anúncios.
                 Esta ação não pode ser desfeita.
               </AlertDialogDescription>
             </AlertDialogHeader>
@@ -706,7 +706,7 @@ const AdSpends = () => {
               }}
               disabled={blocking}
               style={{ display: 'none' }}
-              aria-label="Selecionar arquivo de investimentos"
+              aria-label="Selecionar arquivo de custos de anúncios"
             />
             <p className="text-xs text-muted-foreground">
               Datas em yyyy-mm-dd ou dd/mm/aaaa. Valores com vírgula ou ponto.
@@ -849,7 +849,7 @@ const AdSpends = () => {
           <div className="flex items-center gap-2 mt-4">
             <Button onClick={handleSave} disabled={blocking}>
               <PlusCircle className="w-4 h-4 mr-2" />
-              {saving ? "Salvando..." : editingId ? "Salvar alteração" : "Registrar investimento"}
+              {saving ? "Salvando..." : editingId ? "Salvar alteração" : "Registrar custos de anúncios"}
             </Button>
             {editingId && (
               <Button variant="ghost" onClick={resetForm}>
@@ -865,7 +865,7 @@ const AdSpends = () => {
           <div className="flex items-center justify-between gap-3 flex-wrap mb-4">
             <div>
               <p className="text-sm text-muted-foreground">Histórico</p>
-              <h3 className="text-lg font-semibold text-foreground">Investimentos cadastrados</h3>
+              <h3 className="text-lg font-semibold text-foreground">Custos de Anúncios cadastrados</h3>
             </div>
             <div className="flex items-center gap-2">
               <Label className="text-xs text-muted-foreground">Linhas por página</Label>
@@ -910,7 +910,7 @@ const AdSpends = () => {
                 {!refreshing && !importing && !saving && !adLoading && paginated.length === 0 && (
                   <TableRow>
                     <TableCell colSpan={6} className="text-center text-muted-foreground py-6">
-                      Nenhum investimento registrado ainda.
+                      Nenhum custo de anúncio registrado ainda.
                     </TableCell>
                   </TableRow>
                 )}

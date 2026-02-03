@@ -92,7 +92,7 @@ const Dashboard = () => {
       iconColor: "text-primary",
     },
     {
-      title: "Valor Gasto Anúncios",
+      title: "Custos de Anúncios",
       value: formatCurrency(totals.gastoAnuncios),
       icon: ShoppingCart,
       iconColor: "text-warning",
