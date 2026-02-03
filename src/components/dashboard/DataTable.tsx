@@ -74,7 +74,7 @@ const ALL_COLUMNS: { id: ColumnId; label: string; numeric?: boolean }[] = [
   { id: "profit", label: "Lucro", numeric: true },
   { id: "quantity", label: "Qtd", numeric: true },
   { id: "mes_ano", label: "Mês/Ano" },
-  { id: "ad_spend", label: "Gasto Anúncios", numeric: true },
+  { id: "ad_spend", label: "Custos de Anúncios", numeric: true },
 ];
 
 const DataTable = ({ rows }: DataTableProps) => {
