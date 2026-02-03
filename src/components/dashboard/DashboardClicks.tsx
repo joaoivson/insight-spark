@@ -114,7 +114,7 @@ const DashboardClicks = ({ clicks, adSpends = [] }: DashboardClicksProps) => {
       const csvClicks = csvStats[subId] || 0;
       const adsClicks = adsStats[subId] || 0;
       const diff = csvClicks - adsClicks;
-      const diffPercent = csvClicks > 0 ? (diff / csvClicks) * 100 : 0;
+      const diffPercent = csvClicks > 0 ? ((csvClicks - adsClicks) / adsClicks) * 100 : 0;
 
       return {
         subId,
@@ -178,9 +178,9 @@ const DashboardClicks = ({ clicks, adSpends = [] }: DashboardClicksProps) => {
     if (!dateStr || dateStr === "Sem data") return dateStr;
     const parts = dateStr.split("-");
     if (parts.length !== 3) return dateStr;
-    const [year, day, month] = parts;
+    const [year, month, day] = parts;
     if (year.length === 4 && Number(year) > 1900) {
-      return `${day.padStart(2, "0")}/${month.padStart(2, "0")}`;
+      return `${month.padStart(2, "0")}/${day.padStart(2, "0")}`;
     }
     return dateStr;
   };
