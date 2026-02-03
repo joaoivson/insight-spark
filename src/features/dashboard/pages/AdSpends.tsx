@@ -41,14 +41,16 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useDatasetStore } from "@/stores/datasetStore";
 import { useAdSpendsStore } from "@/stores/adSpendsStore";
+import { useClicksStore } from "@/stores/clicksStore";
 import { bulkCreateAdSpends, createAdSpend, deleteAllAdSpends, type AdSpendPayload } from "@/services/adspends.service";
 import { userStorage } from "@/shared/lib/storage";
+import { normalizeSubId } from "@/shared/lib/utils";
 import type { AdSpend } from "@/shared/types/adspend";
 
 const currency = (v: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v || 0);
 
-const parseDateOnly = (dateStr: string) => {
+const parseDateOnly = (dateStr: string | Date | null | undefined) => {
   if (!dateStr) return null;
   if (dateStr instanceof Date && !isNaN(dateStr.getTime())) return dateStr;
   if (typeof dateStr !== "string") return null;
@@ -159,6 +161,7 @@ const AdSpends = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { rows, fetchRows } = useDatasetStore();
   const { adSpends, loading: adLoading, fetchAdSpends, create, update, remove, invalidate } = useAdSpendsStore();
+  const { clicks, loading: clicksLoading, fetchClicks } = useClicksStore();
   const { toast } = useToast();
 
   const [amount, setAmount] = useState("");
@@ -172,15 +175,20 @@ const AdSpends = () => {
   const [previewData, setPreviewData] = useState<{ headers: string[]; rows: any[] } | null>(null);
   const [previewFile, setPreviewFile] = useState<File | null>(null);
   const [isDeletingAll, setIsDeletingAll] = useState(false);
-  const blocking = saving || importing || refreshing || adLoading || isDeletingAll;
+  const blocking = saving || importing || refreshing || adLoading || clicksLoading || isDeletingAll;
 
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState(5);
 
-  const subIds = useMemo(
-    () => Array.from(new Set(rows.map((r) => r.sub_id1).filter(Boolean))).sort(),
-    [rows]
-  );
+  const subIds = useMemo(() => {
+    const fromSales = rows.map((r) => normalizeSubId(r.sub_id1));
+    const fromAdSpends = adSpends.map((a) => normalizeSubId(a.sub_id));
+    const fromClicks = clicks.map((c) => normalizeSubId(c.sub_id));
+
+    return Array.from(new Set([...fromSales, ...fromAdSpends, ...fromClicks]))
+      .filter((s) => s && s !== "Sem Sub ID")
+      .sort();
+  }, [rows, adSpends, clicks]);
 
   const sortedAdSpends = useMemo(() => {
     return [...adSpends].sort((a, b) => b.date.localeCompare(a.date) || b.id - a.id);
@@ -200,7 +208,11 @@ const AdSpends = () => {
 
   const refreshData = async () => {
     setRefreshing(true);
-    await Promise.all([fetchRows({ force: true }), fetchAdSpends({ force: true })]);
+    await Promise.all([
+      fetchRows({ force: true }),
+      fetchAdSpends({ force: true }),
+      fetchClicks({ force: true })
+    ]);
     setRefreshing(false);
   };
 
@@ -228,6 +240,7 @@ const AdSpends = () => {
   useEffect(() => {
     fetchRows({});
     fetchAdSpends({});
+    fetchClicks({});
   }, []);
 
   const handleSave = async () => {
