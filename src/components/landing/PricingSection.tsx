@@ -37,9 +37,9 @@ const PricingSection = () => {
         console.error('Erro ao carregar planos:', error);
         // Fallback: criar planos padrão se API falhar
         setPlans([
-          { id: "anual", name: "MarketDash Anual", checkout_url: "https://pay.cakto.com.br/ebrg3ir", period: "anual" },
-          { id: "principal", name: "MarketDash Mensal", checkout_url: "https://pay.cakto.com.br/8e9qxyg_742442", period: "mensal" },
-          { id: "trimestral", name: "MarketDash Trimestral", checkout_url: "https://pay.cakto.com.br/3frhhks", period: "trimestral" }
+          { id: "anual", name: "Anual", checkout_url: "https://pay.cakto.com.br/ebrg3ir", period: "anual" },
+          { id: "principal", name: "Mensal", checkout_url: "https://pay.cakto.com.br/8e9qxyg_742442", period: "mensal" },
+          { id: "trimestral", name: "Trimestral", checkout_url: "https://pay.cakto.com.br/3frhhks", period: "trimestral" }
         ]);
       } finally {
         setLoading(false);
@@ -51,6 +51,8 @@ const PricingSection = () => {
   // Separar plano anual dos outros
   const annualPlan = useMemo(() => plans.find(p => p.period === 'anual'), [plans]);
   const otherPlans = useMemo(() => plans.filter(p => p.period !== 'anual'), [plans]);
+
+  const planTitle = (period: string) => period.charAt(0).toUpperCase() + period.slice(1);
 
   const handleSubscribe = async (planId: string) => {
     try {
@@ -141,11 +143,8 @@ const PricingSection = () => {
                       <div className="relative z-10 flex-1 flex flex-col">
                         <div className="mb-5">
                           <h3 className="font-display font-bold text-xl text-foreground mb-1">
-                            {plan.name}
+                            {planTitle(plan.period)}
                           </h3>
-                          <p className="text-muted-foreground text-sm capitalize">
-                            {plan.period}
-                          </p>
                         </div>
 
                         <div className="mb-6">
@@ -206,7 +205,7 @@ const PricingSection = () => {
                         <div className="flex items-start justify-between gap-2 mb-1">
                           <div className="flex-1">
                             <h3 className="font-display font-bold text-2xl text-foreground mb-1">
-                              {annualPlan.name}
+                              {planTitle(annualPlan.period)}
                             </h3>
                           </div>
                           {/* Badge Premium - Posicionado ao lado do título */}
@@ -215,9 +214,6 @@ const PricingSection = () => {
                             MELHOR VALOR
                           </div>
                         </div>
-                        <p className="text-muted-foreground text-sm capitalize">
-                          {annualPlan.period}
-                        </p>
                       </div>
 
                       {/* Preço e Economia */}
@@ -300,7 +296,7 @@ const PricingSection = () => {
                           <div className="flex items-start justify-between gap-2 mb-1">
                             <div className="flex-1">
                               <h3 className="font-display font-bold text-xl text-foreground mb-1">
-                                {plan.name}
+                                {planTitle(plan.period)}
                               </h3>
                             </div>
                             {isBest && (
@@ -309,9 +305,6 @@ const PricingSection = () => {
                               </div>
                             )}
                           </div>
-                          <p className="text-muted-foreground text-sm capitalize">
-                            {plan.period}
-                          </p>
                         </div>
 
                         <div className="mb-6">
