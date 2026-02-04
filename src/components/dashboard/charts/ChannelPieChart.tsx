@@ -60,9 +60,9 @@ export const ChannelPieChart = ({ data, onDrillDown, variants }: ChannelPieChart
         <h3 className="font-display font-semibold text-lg text-foreground">Comissão por Canal</h3>
         <p className="text-sm text-muted-foreground">Distribuição de ganhos</p>
       </div>
-      <div className="flex-1 min-h-[400px]">
-        <ChartContainer config={chartConfig} className="mx-auto aspect-square max-h-[450px] w-full">
-          <PieChart margin={{ top: 20, right: 140, left: 140, bottom: 20 }}>
+      <div className="flex-1 min-h-[400px] overflow-visible">
+        <ChartContainer config={chartConfig} className="mx-auto aspect-square max-h-[450px] w-full overflow-visible [&_.recharts-responsive-container]:overflow-visible [&_.recharts-wrapper]:overflow-visible [&_.recharts-surface]:overflow-visible">
+          <PieChart margin={{ top: 20, right: 160, left: 160, bottom: 20 }}>
             <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel />} />
             <Pie
               data={pieData}
@@ -70,8 +70,8 @@ export const ChannelPieChart = ({ data, onDrillDown, variants }: ChannelPieChart
               nameKey="name"
               cx="50%"
               cy="50%"
-              innerRadius={80}
-              outerRadius={110}
+              innerRadius={90}
+              outerRadius={125}
               strokeWidth={8}
               stroke="hsl(var(--card))"
               paddingAngle={2}
@@ -85,18 +85,30 @@ export const ChannelPieChart = ({ data, onDrillDown, variants }: ChannelPieChart
                 const cos = Math.cos(-RADIAN * midAngle);
                 const sx = cx + (outerRadius + 5) * cos;
                 const sy = cy + (outerRadius + 5) * sin;
-                const mx = cx + (outerRadius + 20) * cos;
-                const my = cy + (outerRadius + 20) * sin;
-                const ex = mx + (cos >= 0 ? 1 : -1) * 15;
+                const mx = cx + (outerRadius + 25) * cos;
+                const my = cy + (outerRadius + 25) * sin;
+                const ex = mx + (cos >= 0 ? 1 : -1) * 20;
                 const ey = my;
                 return (
                   <g>
                     <path d={`M${sx},${sy}L${mx},${my}L${ex},${ey}`} stroke={fill} fill="none" strokeWidth={2} />
                     <circle cx={ex} cy={ey} r={3} fill={fill} stroke="none" />
-                    <foreignObject x={ex + (cos >= 0 ? 8 : -118)} y={ey - 30} width="110" height="60">
-                      <div className="flex flex-col justify-center px-4 h-full rounded-2xl border-2 bg-card/95 shadow-xl" style={{ borderColor: fill }}>
-                        <span className="text-[10px] font-bold text-muted-foreground uppercase truncate leading-tight">{name}</span>
-                        <span className="text-xl font-black text-foreground leading-none mt-1">{(percent * 100).toFixed(0)}%</span>
+                    <foreignObject
+                      x={ex + (cos >= 0 ? 8 : -118)}
+                      y={ey - 30}
+                      width="110"
+                      height="60"
+                    >
+                      <div
+                        className="flex flex-col justify-center px-4 h-full rounded-2xl border-2 bg-card/95 shadow-xl"
+                        style={{ borderColor: fill }}
+                      >
+                        <span className="text-[10px] font-bold text-muted-foreground uppercase truncate leading-tight">
+                          {name}
+                        </span>
+                        <span className="text-xl font-black text-foreground leading-none mt-1">
+                          {(percent * 100).toFixed(0)}%
+                        </span>
                       </div>
                     </foreignObject>
                   </g>

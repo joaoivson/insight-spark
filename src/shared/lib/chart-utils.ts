@@ -67,7 +67,7 @@ export function groupCommissionByDay(rows: DatasetRow[], dateRange: DateRange): 
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([key, value]) => {
       const d = parseDateOnly(key);
-      const label = d ? d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit" }) : key;
+      const label = d ? d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }) : key;
       return { label, value, key };
     });
 }
@@ -109,12 +109,12 @@ export function groupRevenueProfitByMes(
     });
 }
 
-/** Group by platform (sub_id1 or platform), sum commission. Returns { name, value }[] for pie chart. */
+/** Group by channel (platform), sum commission. Returns { name, value }[] for pie chart. */
 export function groupByPlatform(rows: DatasetRow[], dateRange: DateRange): { name: string; value: number }[] {
   const filtered = filterRowsByDateRange(rows, dateRange);
   const byPlatform = new Map<string, number>();
   filtered.forEach((r) => {
-    const name = normalizeSubId(r.sub_id1 || r.platform || "Outros");
+    const name = (r.platform?.trim() || "Outros");
     byPlatform.set(name, (byPlatform.get(name) ?? 0) + getComissaoAfiliado(r));
   });
   return Array.from(byPlatform.entries())

@@ -11,12 +11,19 @@ interface CategoryBarChartProps {
   variants: any;
 }
 
+const MAX_CATEGORY_LABEL_LEN = 24;
+
 export const CategoryBarChart = ({ data, onDrillDown, variants }: CategoryBarChartProps) => {
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
 
   const chartConfig = {
     value: { label: "Comissão", color: BAR_COLOR },
   } satisfies ChartConfig;
+
+  const formatTick = (name: string) => {
+    if (!name || name.length <= MAX_CATEGORY_LABEL_LEN) return name;
+    return name.slice(0, MAX_CATEGORY_LABEL_LEN - 1).trim() + "…";
+  };
 
   return (
     <motion.div
@@ -32,10 +39,19 @@ export const CategoryBarChart = ({ data, onDrillDown, variants }: CategoryBarCha
       </div>
       <div className="h-96 overflow-x-auto -mx-2 sm:mx-0 px-2 sm:px-0">
         <ChartContainer config={chartConfig} className="h-full w-full" style={{ minWidth: 320 }}>
-          <BarChart accessibilityLayer data={data} layout="vertical" margin={{ top: 24, right: 20, left: 80, bottom: 16 }}>
+          <BarChart accessibilityLayer data={data} layout="vertical" margin={{ top: 24, right: 20, left: 140, bottom: 16 }}>
             <CartesianGrid strokeDasharray="3 3" horizontal={false} />
             <XAxis type="number" hide />
-            <YAxis dataKey="name" type="category" width={80} tickLine={false} axisLine={false} tickMargin={10} tick={{ fontSize: 14 }} />
+            <YAxis
+              dataKey="name"
+              type="category"
+              width={130}
+              tickLine={false}
+              axisLine={false}
+              tickMargin={8}
+              tick={{ fontSize: 12 }}
+              tickFormatter={formatTick}
+            />
             <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel />} />
             <Bar
               dataKey="value"
