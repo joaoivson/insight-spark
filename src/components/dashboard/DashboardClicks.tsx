@@ -230,9 +230,17 @@ const DashboardClicks = ({ clicks: rawClicks, adSpends = [], dateRange, subIdFil
     return dateStr;
   };
 
+  const formatMonthLabelMMYYYY = (monthKey: string): string => {
+    const [y, m] = monthKey.split("-");
+    if (y && m) return `${m}/${y}`;
+    return monthKey;
+  };
+
   const dailyStats = useMemo(() => {
     const stats = clicks.reduce((acc, item) => {
       const day = item.date || "Sem data";
+      if (dateRange?.from && day !== "Sem data" && day < toDateKey(dateRange.from)) return acc;
+      if (dateRange?.to && day !== "Sem data" && day > toDateKey(dateRange.to)) return acc;
       acc[day] = (acc[day] || 0) + getItemClicks(item);
       return acc;
     }, {} as Record<string, number>);
@@ -245,31 +253,41 @@ const DashboardClicks = ({ clicks: rawClicks, adSpends = [], dateRange, subIdFil
 
     data.sort((a, b) => a.day.localeCompare(b.day));
     return data;
-  }, [clicks]);
+  }, [clicks, dateRange]);
 
   const monthlyStats = useMemo(() => {
     const stats = clicks.reduce((acc, item) => {
       if (!item.date || item.date === "Sem data") return acc;
       const parts = item.date.split("-");
       if (parts.length !== 3) return acc;
-      const [year, month] = parts;
+      const year = parts[0];
+      // API de cliques pode enviar YYYY-DD-MM (dia no meio): 2026-01-01 = 1º jan, 2026-07-01 = 7 jan
+      // Se o terceiro segmento for 01-12, é o mês; senão usamos o segundo (ISO YYYY-MM-DD)
+      const month = parts[2] >= "01" && parts[2] <= "12" ? parts[2] : parts[1];
       const key = `${year}-${month}`;
       acc[key] = (acc[key] || 0) + getItemClicks(item);
       return acc;
     }, {} as Record<string, number>);
 
-    const data = Object.entries(stats).map(([monthKey, count]) => {
-      const [y, m] = monthKey.split("-");
-      return {
-        monthKey,
-        label: `${m}/${y}`,
-        value: count,
-      };
-    });
+    let data = Object.entries(stats).map(([monthKey, count]) => ({
+      monthKey,
+      label: formatMonthLabelMMYYYY(monthKey),
+      value: count,
+    }));
+
+    if (dateRange?.from || dateRange?.to) {
+      const fromKey = dateRange.from ? toDateKey(dateRange.from).slice(0, 7) : null;
+      const toKey = dateRange.to ? toDateKey(dateRange.to).slice(0, 7) : null;
+      data = data.filter(({ monthKey }) => {
+        if (fromKey && monthKey < fromKey) return false;
+        if (toKey && monthKey > toKey) return false;
+        return true;
+      });
+    }
 
     data.sort((a, b) => a.monthKey.localeCompare(b.monthKey));
     return data;
-  }, [clicks]);
+  }, [clicks, dateRange]);
 
   const chartData = chartMode === "day" ? dailyStats : monthlyStats;
 
@@ -478,39 +496,27 @@ const DashboardClicks = ({ clicks: rawClicks, adSpends = [], dateRange, subIdFil
           </div>
         </motion.div>
 
-        {/* BAR CHART: Cliques por Dia/Mês */}
+        {/* BAR CHART: Cliques por Dia/Mês - mesmo layout do gráfico Comissão */}
         <motion.div
           variants={chartItemVariants}
           initial="hidden"
           animate="show"
-          className="bg-card rounded-xl border border-border p-6 shadow-sm"
+          whileHover={{ scale: 1.01 }}
+          className="bg-card rounded-xl border border-border p-6"
         >
-          <div className="mb-6 flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <Calendar className="w-4 h-4 text-accent" />
-              <h3 className="font-display font-semibold text-lg text-foreground">
-                Cliques por {chartMode === "day" ? "Dia" : "Mês"}
-              </h3>
+          <div className="mb-4 flex items-center justify-between gap-3 flex-wrap">
+            <div>
+              <h3 className="font-display font-semibold text-lg text-foreground">Cliques por Dia e Mês</h3>
+              <p className="text-sm text-muted-foreground">
+                {chartMode === "month" ? "Soma dos cliques por mês" : "Soma dos cliques por dia"}
+              </p>
             </div>
-            
-            <div className="flex items-center gap-2 bg-secondary/20 p-1 rounded-lg border border-border/50">
-              <Button
-                variant={chartMode === "day" ? "default" : "ghost"}
-                size="sm"
-                className="h-8 text-xs font-bold"
-                onClick={() => setChartMode("day")}
-              >
-                Dia
-              </Button>
-              <Button
-                variant={chartMode === "month" ? "default" : "ghost"}
-                size="sm"
-                className="h-8 text-xs font-bold"
-                onClick={() => setChartMode("month")}
-              >
-                Mês
-              </Button>
-            </div>
+            <AnimatePresence mode="wait">
+              <motion.div key={chartMode} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }} transition={{ duration: 0.2 }} className="flex items-center gap-2">
+                <Button size="sm" variant={chartMode === "month" ? "default" : "outline"} onClick={() => setChartMode("month")}>Mês</Button>
+                <Button size="sm" variant={chartMode === "day" ? "default" : "outline"} onClick={() => setChartMode("day")}>Dia</Button>
+              </motion.div>
+            </AnimatePresence>
           </div>
           <div className="h-80 sm:h-96 overflow-x-auto -mx-2 sm:mx-0 px-2 sm:px-0 scrollbar-thin scrollbar-thumb-accent/20">
             <ChartContainer
@@ -523,22 +529,23 @@ const DashboardClicks = ({ clicks: rawClicks, adSpends = [], dateRange, subIdFil
               className="h-full w-full"
               style={{ minWidth: chartMinWidth }}
             >
-              <BarChart 
+              <BarChart
+                key={chartMode}
                 accessibilityLayer
-                data={chartData} 
+                data={chartData}
                 margin={{ top: 30, right: 10, left: 10, bottom: 40 }}
                 barCategoryGap={chartMode === "month" ? (chartData.length === 1 ? "5%" : 18) : "10%"}
               >
                 <CartesianGrid vertical={false} />
-                <XAxis 
-                  dataKey="label" 
+                <XAxis
+                  dataKey="label"
                   tickLine={false}
                   axisLine={false}
                   tickMargin={10}
-                  angle={-45}
-                  textAnchor="end"
+                  angle={chartMode === "month" && chartData.length <= 6 ? 0 : -45}
+                  textAnchor={chartMode === "month" && chartData.length <= 6 ? "middle" : "end"}
                   height={60}
-                  interval={chartData.length > 30 ? "preserveStartEnd" : 0}
+                  interval={chartMode === "day" && chartData.length > 30 ? "preserveStartEnd" : 0}
                   tick={{ fontSize: 14 }}
                 />
                 <ChartTooltip
