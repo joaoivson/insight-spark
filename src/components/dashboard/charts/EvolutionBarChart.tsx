@@ -1,8 +1,9 @@
 import { useMemo } from "react";
-import { Bar, BarChart, CartesianGrid, LabelList, XAxis, ChartTooltip, ChartTooltipContent, ChartContainer, type ChartConfig } from "recharts";
+import { Bar, BarChart, CartesianGrid, LabelList, XAxis } from "recharts";
+import { ChartTooltip, ChartTooltipContent, ChartContainer, type ChartConfig } from "@/components/ui/chart";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { formatK } from "@/shared/lib/chart-utils";
+import { formatK } from "../../../shared/lib/chart-utils";
 
 const BAR_COLOR = "hsl(210, 80%, 55%)";
 

@@ -1,13 +1,13 @@
 import { useState, ReactNode } from "react";
 import { motion, Variants } from "framer-motion";
 import type { DatasetRow } from "./DataTable";
-import { 
-  groupByMesAno, 
-  groupCommissionByDay, 
-  groupRevenueProfitByMes, 
-  groupByPlatform, 
-  groupByCategory 
-} from "@/shared/lib/chart-utils";
+import {
+  groupByMesAno,
+  groupCommissionByDay,
+  groupRevenueProfitByMes,
+  groupByPlatform,
+  groupByCategory,
+} from "../../shared/lib/chart-utils";
 import { EvolutionBarChart } from "./charts/EvolutionBarChart";
 import { RevenueProfitAreaChart } from "./charts/RevenueProfitAreaChart";
 import { ChannelPieChart } from "./charts/ChannelPieChart";

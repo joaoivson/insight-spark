@@ -1,9 +1,9 @@
 import { useMemo, useState } from "react";
-import { Pie, PieChart, ChartTooltip, ChartTooltipContent, ChartContainer, type ChartConfig } from "recharts";
-import { Label } from "recharts";
+import { Pie, PieChart, Label } from "recharts";
+import { ChartTooltip, ChartTooltipContent, ChartContainer, type ChartConfig } from "@/components/ui/chart";
 import { motion } from "framer-motion";
 import { cn } from "@/shared/lib/utils";
-import { formatCurrency } from "@/shared/lib/chart-utils";
+import { formatCurrency } from "../../../shared/lib/chart-utils";
 
 const PIE_COLORS = [
   "hsl(210, 80%, 55%)",

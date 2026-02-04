@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Bar, BarChart, CartesianGrid, Cell, XAxis, YAxis, ChartTooltip, ChartTooltipContent, ChartContainer, type ChartConfig } from "recharts";
+import { Bar, BarChart, CartesianGrid, Cell, XAxis, YAxis } from "recharts";
+import { ChartTooltip, ChartTooltipContent, ChartContainer, type ChartConfig } from "@/components/ui/chart";
 import { motion } from "framer-motion";
 
 const BAR_COLOR = "hsl(210, 80%, 55%)";

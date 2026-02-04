@@ -81,14 +81,20 @@ const formatK = (value: number) => {
   return value.toLocaleString("pt-BR");
 };
 
-// API envia date como YYYY-DD-MM (ex: "2026-12-01" = dia 12, mês 01)
+// API pode enviar ISO (YYYY-MM-DD) ou YYYY-DD-MM. Detecta e normaliza para ISO.
 const normalizeDate = (dateStr?: string | null): string => {
   if (!dateStr || dateStr === "Sem data") return "Sem data";
   const parts = dateStr.split("-");
   if (parts.length !== 3) return dateStr;
-  const [year, day, month] = parts;
-  // Retorna no formato padrão ISO YYYY-MM-DD para o resto do sistema
-  return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
+  const [year, a, b] = parts;
+  const na = Number(a);
+  const nb = Number(b);
+  // Se o segundo segmento é 01-12, assume ISO (YYYY-MM-DD) e mantém como está
+  if (na >= 1 && na <= 12 && nb >= 1 && nb <= 31) return dateStr;
+  // Caso contrário assume YYYY-DD-MM: segundo = dia, terceiro = mês
+  const day = a.padStart(2, "0");
+  const month = b.padStart(2, "0");
+  return `${year}-${month}-${day}`;
 };
 
 interface DashboardClicksProps {
@@ -333,7 +339,7 @@ const DashboardClicks = ({ clicks: rawClicks, adSpends = [], dateRange, subIdFil
             <p className="text-sm text-muted-foreground">Distribuição de tráfego</p>
           </div>
           
-          <div className="flex-1 min-h-[400px]">
+          <div className="flex-1 min-h-[400px] overflow-visible">
             <ChartContainer
               config={useMemo(() => {
                 const config: ChartConfig = {
@@ -347,9 +353,9 @@ const DashboardClicks = ({ clicks: rawClicks, adSpends = [], dateRange, subIdFil
                 });
                 return config;
               }, [channelStats])}
-              className="mx-auto aspect-square max-h-[450px] w-full"
+              className="mx-auto aspect-square max-h-[450px] w-full overflow-visible [&_.recharts-responsive-container]:overflow-visible [&_.recharts-wrapper]:overflow-visible [&_.recharts-surface]:overflow-visible"
             >
-              <PieChart margin={{ top: 20, right: 140, left: 140, bottom: 20 }}>
+              <PieChart margin={{ top: 20, right: 160, left: 160, bottom: 20 }}>
                 <ChartTooltip
                   cursor={false}
                   content={<ChartTooltipContent hideLabel />}

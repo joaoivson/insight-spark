@@ -1,5 +1,6 @@
 import { useMemo } from "react";
-import { Area, AreaChart, CartesianGrid, Legend, XAxis, YAxis, ChartTooltip, ChartTooltipContent, ChartContainer, type ChartConfig } from "recharts";
+import { Area, AreaChart, CartesianGrid, Legend, XAxis, YAxis } from "recharts";
+import { ChartTooltip, ChartTooltipContent, ChartContainer, type ChartConfig } from "@/components/ui/chart";
 import { motion } from "framer-motion";
 
 const BAR_COLOR = "hsl(210, 80%, 55%)";

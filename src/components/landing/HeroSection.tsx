@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Zap, TrendingUp, Loader2 } from "lucide-react";
+import { ArrowRight, Eye, TrendingUp, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useSubscribe } from "@/shared/hooks/useSubscribe";
 
@@ -33,8 +33,8 @@ const HeroSection = () => {
             transition={{ duration: 0.5, delay: 0.05 }}
             className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-accent/10 border border-accent/20 text-accent text-sm font-medium mb-6 mt-8"
           >
-            <Zap className="w-4 h-4" />
-            Antes do painel da Shopee atualizar!
+            <Eye className="w-4 h-4" />
+            Enxergue seus resultados antes do painel oficial
           </motion.div>
 
           {/* Headline */}
