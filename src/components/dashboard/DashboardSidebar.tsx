@@ -32,7 +32,7 @@ const menuItems = [
   { icon: Upload, label: "Upload Comissão", path: "/dashboard/upload" },
   { icon: MousePointerClick, label: "Upload Cliques", path: "/dashboard/upload-cliques" },
   { icon: Wallet, label: "Custos de Anúncios", path: "/dashboard/investimentos" },
-  { icon: FileText, label: "Relatórios", path: "/dashboard/reports" },
+  { icon: FileText, label: "Relatório Dinâmico", path: "/dashboard/reports" },
   // { icon: Puzzle, label: "Módulos", path: "/dashboard/modules" }, // Temporarily hidden
 ];
 

@@ -1,4 +1,4 @@
-import { Calendar, Filter, X, FilterX } from "lucide-react";
+import { Calendar, Filter, X, FilterX, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Tooltip,
@@ -21,6 +21,7 @@ import {
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useState, useMemo } from "react";
@@ -52,6 +53,9 @@ interface DashboardFiltersProps {
   mesAnoFilter?: string;
   onMesAnoFilterChange?: (value: string) => void;
   mesAnoOptions?: string[];
+  // Search
+  searchTerm?: string;
+  onSearchChange?: (value: string) => void;
   // Data for calculating max date
   rows?: Array<{ date: string }>;
   adSpends?: Array<{ date: string }>;
@@ -82,6 +86,8 @@ const DashboardFilters = ({
   rows = [],
   adSpends = [],
   clicks = [],
+  searchTerm = "",
+  onSearchChange,
 }: DashboardFiltersProps) => {
   const isMobile = useIsMobile();
   const [open, setOpen] = useState(false);

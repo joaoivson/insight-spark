@@ -240,7 +240,12 @@ const Dashboard = () => {
                       </div>
                     </div>
                   )}
-                  <DashboardClicks clicks={filteredClicks} adSpends={adSpends} />
+                  <DashboardClicks 
+                    clicks={filteredClicks} 
+                    adSpends={adSpends} 
+                    dateRange={dateRange}
+                    subIdFilter={subIdFilter}
+                  />
                 </>
               )}
             </TabsContent>

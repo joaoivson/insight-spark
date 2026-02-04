@@ -28,9 +28,20 @@ import {
   XAxis, 
   YAxis, 
   CartesianGrid,
-  LabelList
+  LabelList,
+  AreaChart,
+  Area,
+  Label
 } from "recharts";
 import { motion, AnimatePresence, Variants } from "framer-motion";
+import { isBeforeDateKey, isAfterDateKey, toDateKey } from "@/shared/lib/date";
+import { Button } from "@/components/ui/button";
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  type ChartConfig,
+} from "@/components/ui/chart";
 
 const PIE_COLORS = [
   "hsl(210, 80%, 55%)", // Blue
@@ -66,16 +77,34 @@ const tooltipStyle = {
 const tooltipCursor = { fill: "transparent" };
 
 const formatK = (value: number) => {
-  if (Math.abs(value) >= 1000) return `${(value / 1000).toFixed(1)}k`;
+  if (Math.abs(value) >= 1000) return `${(value / 1000).toFixed(2)} Mil`;
   return value.toLocaleString("pt-BR");
+};
+
+// API envia date como YYYY-DD-MM (ex: "2026-12-01" = dia 12, mês 01)
+const normalizeDate = (dateStr?: string | null): string => {
+  if (!dateStr || dateStr === "Sem data") return "Sem data";
+  const parts = dateStr.split("-");
+  if (parts.length !== 3) return dateStr;
+  const [year, day, month] = parts;
+  // Retorna no formato padrão ISO YYYY-MM-DD para o resto do sistema
+  return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
 };
 
 interface DashboardClicksProps {
   clicks: ClickRow[];
   adSpends?: AdSpend[];
+  dateRange?: { from?: Date; to?: Date };
+  subIdFilter?: string;
 }
 
-const DashboardClicks = ({ clicks, adSpends = [] }: DashboardClicksProps) => {
+const DashboardClicks = ({ clicks: rawClicks, adSpends = [], dateRange, subIdFilter }: DashboardClicksProps) => {
+  // Normaliza as datas estranhas da API (YYYY-DD-MM -> YYYY-MM-DD) antes de qualquer processamento
+  const clicks = useMemo(() => rawClicks.map(c => ({
+    ...c,
+    date: normalizeDate(c.date)
+  })), [rawClicks]);
+
   // 1. Estados sempre no topo
   const [dayPage, setDayPage] = useState(0);
   const [dayPageSize, setDayPageSize] = useState(10);
@@ -83,6 +112,7 @@ const DashboardClicks = ({ clicks, adSpends = [] }: DashboardClicksProps) => {
   const [compSortColumn, setCompSortColumn] = useState<string>("total");
   const [compSortDirection, setCompSortDirection] = useState<"asc" | "desc">("desc");
   const [pieActiveIndex, setPieActiveIndex] = useState<number | null>(null);
+  const [chartMode, setChartMode] = useState<"day" | "month">("day");
 
   // 2. Helpers
   const getItemClicks = (item: ClickRow): number => {
@@ -103,6 +133,16 @@ const DashboardClicks = ({ clicks, adSpends = [] }: DashboardClicksProps) => {
     }, {} as Record<string, number>);
 
     const adsStats = adSpends.reduce((acc, item) => {
+      if (!item.date) return acc;
+      
+      // Filter by subIdFilter
+      if (subIdFilter && normalizeSubId(item.sub_id || "Geral") !== normalizeSubId(subIdFilter)) return acc;
+      
+      // Filter by dateRange
+      const itemDateKey = toDateKey(item.date);
+      if (dateRange?.from && itemDateKey < toDateKey(dateRange.from)) return acc;
+      if (dateRange?.to && itemDateKey > toDateKey(dateRange.to)) return acc;
+
       const subId = normalizeSubId(item.sub_id || "Geral");
       acc[subId] = (acc[subId] || 0) + (item.clicks || 0);
       return acc;
@@ -173,14 +213,13 @@ const DashboardClicks = ({ clicks, adSpends = [] }: DashboardClicksProps) => {
     }));
   }, [clicks, totalClicks]);
 
-  // API envia date como DD-MM-YYYY na string "YYYY-MM-DD" (ex: "2025-07-11" = 07/11/2025)
   const formatDateLabelDDMM = (dateStr: string): string => {
     if (!dateStr || dateStr === "Sem data") return dateStr;
     const parts = dateStr.split("-");
     if (parts.length !== 3) return dateStr;
     const [year, month, day] = parts;
     if (year.length === 4 && Number(year) > 1900) {
-      return `${month.padStart(2, "0")}/${day.padStart(2, "0")}`;
+      return `${day.padStart(2, "0")}/${month.padStart(2, "0")}`;
     }
     return dateStr;
   };
@@ -202,9 +241,36 @@ const DashboardClicks = ({ clicks, adSpends = [] }: DashboardClicksProps) => {
     return data;
   }, [clicks]);
 
+  const monthlyStats = useMemo(() => {
+    const stats = clicks.reduce((acc, item) => {
+      if (!item.date || item.date === "Sem data") return acc;
+      const parts = item.date.split("-");
+      if (parts.length !== 3) return acc;
+      const [year, month] = parts;
+      const key = `${year}-${month}`;
+      acc[key] = (acc[key] || 0) + getItemClicks(item);
+      return acc;
+    }, {} as Record<string, number>);
+
+    const data = Object.entries(stats).map(([monthKey, count]) => {
+      const [y, m] = monthKey.split("-");
+      return {
+        monthKey,
+        label: `${m}/${y}`,
+        value: count,
+      };
+    });
+
+    data.sort((a, b) => a.monthKey.localeCompare(b.monthKey));
+    return data;
+  }, [clicks]);
+
+  const chartData = chartMode === "day" ? dailyStats : monthlyStats;
+
   const chartMinWidth = useMemo(() => {
-    return Math.max(300, dailyStats.length * 35);
-  }, [dailyStats]);
+    if (chartMode === "month") return 300;
+    return Math.max(300, chartData.length * 35);
+  }, [chartData.length, chartMode]);
 
   const handleCompSort = (column: string) => {
     if (compSortColumn === column) {
@@ -228,11 +294,27 @@ const DashboardClicks = ({ clicks, adSpends = [] }: DashboardClicksProps) => {
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
       {/* Total Clicks KPI */}
       <div className="flex justify-center">
-        <div className="bg-card/50 border border-accent/20 rounded-full px-8 py-3 flex items-center gap-3 shadow-lg shadow-black/10">
-          <span className="text-foreground font-display font-bold text-xl whitespace-nowrap">
-            Total de Cliques: <span className="text-accent">{totalClicks.toLocaleString("pt-BR")}</span>
-          </span>
-        </div>
+        <motion.div 
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="relative group"
+        >
+          <div className="absolute -inset-1 bg-gradient-to-r from-primary/20 via-accent/20 to-primary/20 rounded-2xl blur-xl opacity-75 group-hover:opacity-100 transition duration-1000 group-hover:duration-200" />
+          <div className="relative bg-card/60 border border-accent/20 backdrop-blur-md rounded-2xl px-10 py-5 flex items-center gap-6 shadow-2xl shadow-black/20 ring-1 ring-white/5">
+            <div className="p-3 bg-accent/10 rounded-xl border border-accent/20">
+              <MousePointerClick className="w-8 h-8 text-accent" />
+            </div>
+            <div className="flex flex-col">
+              <span className="text-muted-foreground text-xs font-bold uppercase tracking-wider mb-1">Volume Total de Cliques</span>
+              <div className="flex items-baseline gap-2">
+                <span className="text-3xl md:text-4xl font-display font-black text-foreground tracking-tight">
+                  {totalClicks.toLocaleString("pt-BR")}
+                </span>
+                <span className="text-accent text-sm font-semibold">cliques registrados</span>
+              </div>
+            </div>
+          </div>
+        </motion.div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -241,127 +323,241 @@ const DashboardClicks = ({ clicks, adSpends = [] }: DashboardClicksProps) => {
           variants={chartItemVariants}
           initial="hidden"
           animate="show"
-          className="bg-card rounded-xl border border-border p-6 shadow-sm"
+          className="bg-card rounded-xl border border-border p-6 shadow-sm flex flex-col"
         >
-          <div className="mb-6 flex items-center gap-2">
-            <Share2 className="w-4 h-4 text-accent" />
-            <h3 className="font-display font-semibold text-lg text-foreground">
+          <div className="mb-4">
+            <h3 className="font-display font-semibold text-lg text-foreground flex items-center gap-2">
+              <Share2 className="w-4 h-4 text-accent" />
               Cliques por Canal
             </h3>
+            <p className="text-sm text-muted-foreground">Distribuição de tráfego</p>
           </div>
-          <div className="h-80 sm:h-96 flex items-center justify-center -mx-2 sm:mx-0 px-2 sm:px-0">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
+          
+          <div className="flex-1 min-h-[400px]">
+            <ChartContainer
+              config={useMemo(() => {
+                const config: ChartConfig = {
+                  value: { label: "Cliques" }
+                };
+                channelStats.forEach((item, index) => {
+                  config[item.name.replace(/\s+/g, "_")] = {
+                    label: item.name,
+                    color: PIE_COLORS[index % PIE_COLORS.length],
+                  };
+                });
+                return config;
+              }, [channelStats])}
+              className="mx-auto aspect-square max-h-[450px] w-full"
+            >
+              <PieChart margin={{ top: 20, right: 140, left: 140, bottom: 20 }}>
+                <ChartTooltip
+                  cursor={false}
+                  content={<ChartTooltipContent hideLabel />}
+                />
                 <Pie
-                  data={channelStats}
-                  cx="50%"
-                  cy="45%"
-                  innerRadius="60%"
-                  outerRadius="85%"
-                  paddingAngle={5}
+                  data={channelStats.map((item, index) => ({
+                    ...item,
+                    fill: PIE_COLORS[index % PIE_COLORS.length]
+                  }))}
                   dataKey="value"
-                  cursor="pointer"
-                  stroke="none"
+                  nameKey="name"
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={90}
+                  outerRadius={125}
+                  strokeWidth={8}
+                  stroke="hsl(var(--card))"
+                  paddingAngle={2}
                   onMouseEnter={(_, index) => setPieActiveIndex(index)}
                   onMouseLeave={() => setPieActiveIndex(null)}
-                  animationBegin={200}
-                  animationDuration={1200}
-                >
-                  {channelStats.map((entry, index) => (
-                    <Cell
-                      key={`cell-${index}`}
-                      fill={PIE_COLORS[index % PIE_COLORS.length]}
-                      style={{
-                        filter: pieActiveIndex === index ? `drop-shadow(0px 0px 8px ${PIE_COLORS[index % PIE_COLORS.length]})` : 'none',
-                        transition: 'all 0.3s ease'
-                      }}
-                      className="transition-all duration-300"
-                    />
-                  ))}
-                </Pie>
-                <Tooltip
-                  contentStyle={tooltipStyle}
-                  itemStyle={{ color: "hsl(var(--foreground))" }}
-                  cursor={tooltipCursor}
-                  formatter={(value: number) => {
-                    const percent = totalClicks ? (value / totalClicks) * 100 : 0;
-                    return [`${value.toLocaleString("pt-BR")} (${percent.toFixed(2)}%)`, "Cliques"];
-                  }}
-                />
-                <Legend 
-                  verticalAlign="bottom" 
-                  align="center"
-                  iconType="circle"
-                  wrapperStyle={{ paddingTop: "20px" }}
-                  formatter={(value) => {
-                    const item = channelStats.find(d => d.name === value);
-                    const percent = totalClicks && item ? (item.value / totalClicks) * 100 : 0;
+                  label={({ cx, cy, midAngle, outerRadius, fill, percent, name }) => {
+                    const RADIAN = Math.PI / 180;
+                    const sin = Math.sin(-RADIAN * midAngle);
+                    const cos = Math.cos(-RADIAN * midAngle);
+                    const sx = cx + (outerRadius + 5) * cos;
+                    const sy = cy + (outerRadius + 5) * sin;
+                    const mx = cx + (outerRadius + 25) * cos;
+                    const my = cy + (outerRadius + 25) * sin;
+                    const ex = mx + (cos >= 0 ? 1 : -1) * 20;
+                    const ey = my;
+                    
                     return (
-                      <span className="text-[10px] sm:text-xs font-medium text-foreground">
-                        {value} <span className="text-muted-foreground ml-1">({percent.toFixed(1)}%)</span>
-                      </span>
+                      <g>
+                        <path d={`M${sx},${sy}L${mx},${my}L${ex},${ey}`} stroke={fill} fill="none" strokeWidth={2} />
+                        <circle cx={ex} cy={ey} r={3} fill={fill} stroke="none" />
+                        <foreignObject
+                          x={ex + (cos >= 0 ? 8 : -118)}
+                          y={ey - 30}
+                          width="110"
+                          height="60"
+                        >
+                          <div 
+                            className="flex flex-col justify-center px-4 h-full rounded-2xl border-2 bg-card/95 shadow-xl"
+                            style={{ borderColor: fill }}
+                          >
+                            <span className="text-[10px] font-bold text-muted-foreground uppercase truncate leading-tight">
+                              {name}
+                            </span>
+                            <span className="text-xl font-black text-foreground leading-none mt-1">
+                              {(percent * 100).toFixed(0)}%
+                            </span>
+                          </div>
+                        </foreignObject>
+                      </g>
                     );
                   }}
-                />
+                >
+                  <Label
+                    content={({ viewBox }) => {
+                      if (viewBox && "cx" in viewBox && "cy" in viewBox) {
+                        const topPerformer = channelStats.reduce((max, curr) => (curr.value > max.value ? curr : max), channelStats[0]);
+                        const activeItem = pieActiveIndex !== null ? channelStats[pieActiveIndex] : topPerformer;
+                        const activeColor = PIE_COLORS[channelStats.indexOf(activeItem) % PIE_COLORS.length];
+                        
+                        return (
+                          <text
+                            x={viewBox.cx}
+                            y={viewBox.cy}
+                            textAnchor="middle"
+                            dominantBaseline="middle"
+                          >
+                            <tspan
+                              x={viewBox.cx}
+                              y={(viewBox.cy || 0) - 12}
+                              className="fill-muted-foreground text-[10px] uppercase font-bold tracking-wider"
+                            >
+                              {pieActiveIndex !== null ? "Canal Focado" : "Principal"}
+                            </tspan>
+                            <tspan
+                              x={viewBox.cx}
+                              y={(viewBox.cy || 0) + 10}
+                              className="text-lg font-black transition-colors duration-300"
+                              style={{ fill: activeColor }}
+                            >
+                              {activeItem?.name}
+                            </tspan>
+                          </text>
+                        )
+                      }
+                    }}
+                  />
+                </Pie>
               </PieChart>
-            </ResponsiveContainer>
+            </ChartContainer>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4 mt-4">
+            {channelStats.map((item, index) => (
+              <div 
+                key={item.name} 
+                className={cn(
+                  "flex items-center gap-2 p-2 rounded-lg transition-colors",
+                  pieActiveIndex === index ? "bg-accent/10 ring-1 ring-accent/20" : "bg-secondary/5"
+                )}
+              >
+                <div 
+                  className="w-3 h-3 rounded-full shrink-0" 
+                  style={{ backgroundColor: PIE_COLORS[index % PIE_COLORS.length] }}
+                />
+                <div className="flex flex-col min-w-0">
+                  <span className="text-[11px] text-muted-foreground truncate font-medium">
+                    {item.name}
+                  </span>
+                  <span className="text-xs font-bold text-foreground">
+                    {item.value.toLocaleString("pt-BR")}
+                  </span>
+                </div>
+              </div>
+            ))}
           </div>
         </motion.div>
 
-        {/* BAR CHART: Cliques por Dia */}
+        {/* BAR CHART: Cliques por Dia/Mês */}
         <motion.div
           variants={chartItemVariants}
           initial="hidden"
           animate="show"
           className="bg-card rounded-xl border border-border p-6 shadow-sm"
         >
-          <div className="mb-6 flex items-center gap-2">
-            <Calendar className="w-4 h-4 text-accent" />
-            <h3 className="font-display font-semibold text-lg text-foreground">
-              Cliques por Dia
-            </h3>
+          <div className="mb-6 flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <Calendar className="w-4 h-4 text-accent" />
+              <h3 className="font-display font-semibold text-lg text-foreground">
+                Cliques por {chartMode === "day" ? "Dia" : "Mês"}
+              </h3>
+            </div>
+            
+            <div className="flex items-center gap-2 bg-secondary/20 p-1 rounded-lg border border-border/50">
+              <Button
+                variant={chartMode === "day" ? "default" : "ghost"}
+                size="sm"
+                className="h-8 text-xs font-bold"
+                onClick={() => setChartMode("day")}
+              >
+                Dia
+              </Button>
+              <Button
+                variant={chartMode === "month" ? "default" : "ghost"}
+                size="sm"
+                className="h-8 text-xs font-bold"
+                onClick={() => setChartMode("month")}
+              >
+                Mês
+              </Button>
+            </div>
           </div>
           <div className="h-80 sm:h-96 overflow-x-auto -mx-2 sm:mx-0 px-2 sm:px-0 scrollbar-thin scrollbar-thumb-accent/20">
-            <ResponsiveContainer width={dailyStats.length > 10 ? undefined : "100%"} height="100%" minWidth={chartMinWidth}>
-              <BarChart data={dailyStats} margin={{ top: 30, right: 10, left: 10, bottom: 40 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+            <ChartContainer
+              config={{
+                value: {
+                  label: "Cliques",
+                  color: BAR_COLOR,
+                },
+              }}
+              className="h-full w-full"
+              style={{ minWidth: chartMinWidth }}
+            >
+              <BarChart 
+                accessibilityLayer
+                data={chartData} 
+                margin={{ top: 30, right: 10, left: 10, bottom: 40 }}
+                barCategoryGap={chartMode === "month" ? (chartData.length === 1 ? "5%" : 18) : "10%"}
+              >
+                <CartesianGrid vertical={false} />
                 <XAxis 
                   dataKey="label" 
-                  stroke="hsl(var(--muted-foreground))" 
-                  tick={{ fill: "hsl(var(--foreground))", fontSize: 10 }}
                   tickLine={false}
-                  axisLine={{ stroke: "hsl(var(--border))" }}
+                  axisLine={false}
+                  tickMargin={10}
                   angle={-45}
                   textAnchor="end"
                   height={60}
-                  interval={dailyStats.length > 30 ? "preserveStartEnd" : 0}
+                  interval={chartData.length > 30 ? "preserveStartEnd" : 0}
+                  tick={{ fontSize: 14 }}
                 />
-                <YAxis hide />
-                <Tooltip
-                  contentStyle={tooltipStyle}
-                  itemStyle={{ color: "hsl(var(--foreground))" }}
-                  cursor={{ fill: "hsl(var(--accent)/0.05)" }}
-                  formatter={(v: number) => [v.toLocaleString("pt-BR"), "Cliques"]}
+                <ChartTooltip
+                  cursor={false}
+                  content={<ChartTooltipContent hideLabel />}
                 />
                 <Bar
                   dataKey="value"
-                  fill={BAR_COLOR}
+                  fill="var(--color-value)"
                   radius={[4, 4, 0, 0]}
-                  maxBarSize={50}
+                  maxBarSize={chartMode === "month" ? (chartData.length === 1 ? 400 : 120) : 50}
                 >
-                  {dailyStats.length <= 20 && (
+                  {chartData.length <= 20 && (
                     <LabelList 
                       dataKey="value" 
                       position="top" 
                       formatter={(v: number) => formatK(v)} 
                       fill="hsl(var(--foreground))" 
-                      fontSize={10}
+                      fontSize={14}
                       offset={10}
                     />
                   )}
                 </Bar>
               </BarChart>
-            </ResponsiveContainer>
+            </ChartContainer>
           </div>
         </motion.div>
       </div>

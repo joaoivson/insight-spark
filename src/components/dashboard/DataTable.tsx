@@ -42,6 +42,8 @@ export interface DatasetRow {
   quantity: number;
   profit: number;
   mes_ano?: string | null;
+  shop_id?: string | number | null;
+  item_id?: string | number | null;
 }
 
 interface DataTableProps {
