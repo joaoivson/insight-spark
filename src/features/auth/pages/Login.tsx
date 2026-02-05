@@ -48,54 +48,22 @@ const Login = () => {
         senha: password,
       });
 
-      if (result.success && result.token) {
-        // Se o backend retornou o usuário junto com o token, usamos diretamente.
-        if (result.user) {
-          // Define o usuário primeiro para que getUserId() funcione em tokenStorage.set
-          userStorage.set({
-            id: String(result.user.id ?? ""),
-            nome: (result.user as any).name ?? (result.user as any).nome ?? "",
-            name: (result.user as any).name ?? (result.user as any).nome ?? "",
-            cpf_cnpj: (result.user as any).cpf_cnpj,
-            email: result.user.email,
-            created_at: (result.user as any).created_at,
-            updated_at: (result.user as any).updated_at,
-          });
+      if (result.success && result.token && result.user) {
+        // Define o usuário e o token
+        userStorage.set({
+          id: String(result.user.id ?? ""),
+          nome: (result.user as any).name ?? (result.user as any).nome ?? "",
+          name: (result.user as any).name ?? (result.user as any).nome ?? "",
+          cpf_cnpj: (result.user as any).cpf_cnpj,
+          email: result.user.email,
+          created_at: (result.user as any).created_at,
+          updated_at: (result.user as any).updated_at,
+        });
 
-          tokenStorage.set(result.token);
-          // Marcar quando o token foi criado para evitar remoção prematura
-          if (typeof window !== 'undefined') {
-            sessionStorage.setItem('token_created_at', Date.now().toString());
-          }
-        } else {
-          // Fallback: buscar perfil usando o token recém-recebido
-          // Temporariamente definir o token no storage para fetchWithAuth funcionar
-          // Token temporário só para o fetch /me (removido logo após escopar)
-          localStorage.setItem(APP_CONFIG.STORAGE_KEYS.TOKEN, result.token);
-          const meResponse = await fetchWithAuth(getApiUrl("/api/v1/auth/me"));
-          const me = await meResponse.json().catch(() => null);
+        tokenStorage.set(result.token);
 
-          if (!meResponse.ok || !me) {
-            localStorage.removeItem(APP_CONFIG.STORAGE_KEYS.TOKEN);
-            throw new Error(me?.detail || me?.error || "Não foi possível obter o perfil");
-          }
-
-          userStorage.set({
-            id: String(me.id ?? ""),
-            nome: me.name ?? me.nome ?? "",
-            name: me.name ?? me.nome ?? "",
-            cpf_cnpj: me.cpf_cnpj,
-            email: me.email,
-            created_at: me.created_at,
-            updated_at: me.updated_at,
-          });
-
-          tokenStorage.set(result.token);
-          localStorage.removeItem(APP_CONFIG.STORAGE_KEYS.TOKEN);
-
-          if (typeof window !== "undefined") {
-            sessionStorage.setItem("token_created_at", Date.now().toString());
-          }
+        if (typeof window !== 'undefined') {
+          sessionStorage.setItem('token_created_at', Date.now().toString());
         }
 
         toast({
@@ -227,7 +195,7 @@ const Login = () => {
         <div className="auth-decorative-gradient" />
         <div className="auth-decorative-blob auth-decorative-blob--large auth-decorative-blob--top-right" />
         <div className="auth-decorative-blob auth-decorative-blob--small auth-decorative-blob--bottom-left" />
-        
+
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
