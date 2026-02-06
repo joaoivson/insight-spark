@@ -32,15 +32,18 @@ import { useClicksStore } from "@/stores/clicksStore";
 import { deleteAllDatasets } from "@/services/datasets.service";
 import { deleteAllClicks } from "@/services/clicks.service";
 
+import { useQueryClient } from "@tanstack/react-query";
+
 interface CSVData {
   headers: string[];
   rows: string[][];
 }
 
 const UploadCSV = () => {
+  const queryClient = useQueryClient();
   const location = useLocation();
   const isClicksMode = location.pathname.includes("upload-cliques");
-  
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [dragActive, setDragActive] = useState(false);
   const [file, setFile] = useState<File | null>(null);
@@ -50,7 +53,7 @@ const UploadCSV = () => {
   const [error, setError] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const { toast } = useToast();
-  
+
   const { fetchRows, invalidate: invalidateSales } = useDatasetStore();
   const { fetchClicks, invalidate: invalidateClicks } = useClicksStore();
 
@@ -62,11 +65,19 @@ const UploadCSV = () => {
     invalidate: isClicksMode ? invalidateClicks : invalidateSales,
     fetchAction: isClicksMode ? fetchClicks : fetchRows,
     deleteLabel: isClicksMode ? "Excluir Todos os Cliques" : "Excluir Todas as Vendas",
-    deleteDescription: isClicksMode 
+    deleteDescription: isClicksMode
       ? "Esta ação irá excluir permanentemente todos os dados de cliques. Esta ação não pode ser desfeita."
       : "Esta ação irá excluir permanentemente todos os dados de vendas. Esta ação não pode ser desfeita.",
     successMessage: isClicksMode ? "Cliques importados com sucesso." : "Seus dados foram importados com sucesso.",
     icon: isClicksMode ? MousePointerClick : CloudUploadIcon,
+  };
+
+  const invalidateAllQueries = async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["dataset-rows"] }),
+      queryClient.invalidateQueries({ queryKey: ["ad-spends"] }),
+      queryClient.invalidateQueries({ queryKey: ["clicks"] }),
+    ]);
   };
 
   // Limpar estado quando mudar de rota
@@ -183,6 +194,7 @@ const UploadCSV = () => {
       });
 
       await config.fetchAction({ force: true });
+      await invalidateAllQueries();
       clearFile();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro desconhecido no upload.");
@@ -204,6 +216,7 @@ const UploadCSV = () => {
     try {
       await config.deleteAction();
       config.invalidate();
+      await invalidateAllQueries();
       toast({
         title: "Dados excluídos",
         description: isClicksMode ? "Todos os dados de cliques foram removidos." : "Todos os dados de vendas foram removidos.",
@@ -222,8 +235,8 @@ const UploadCSV = () => {
   const IconComponent = config.icon;
 
   return (
-    <DashboardLayout 
-      title={config.title} 
+    <DashboardLayout
+      title={config.title}
       subtitle={config.subtitle}
       action={
         <AlertDialog>
@@ -269,11 +282,10 @@ const UploadCSV = () => {
               exit={{ opacity: 0 }}
             >
               <div
-                className={`relative group cursor-pointer border-2 border-dashed rounded-3xl p-16 text-center transition-all duration-300 ease-out ${
-                  dragActive
-                    ? "border-primary bg-primary/5 scale-[1.02]"
-                    : "border-border hover:border-primary/50 hover:bg-secondary/30"
-                }`}
+                className={`relative group cursor-pointer border-2 border-dashed rounded-3xl p-16 text-center transition-all duration-300 ease-out ${dragActive
+                  ? "border-primary bg-primary/5 scale-[1.02]"
+                  : "border-border hover:border-primary/50 hover:bg-secondary/30"
+                  }`}
                 onDragEnter={handleDrag}
                 onDragLeave={handleDrag}
                 onDragOver={handleDrag}
@@ -288,19 +300,19 @@ const UploadCSV = () => {
                   id="csv-upload-input"
                   aria-label="Selecionar arquivo CSV"
                 />
-                
+
                 <div className="relative z-0">
                   <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center mx-auto mb-8 shadow-inner group-hover:scale-110 transition-transform duration-300">
                     <IconComponent className="w-10 h-10 text-primary" />
                   </div>
-                  
+
                   <h3 className="font-display font-bold text-2xl text-foreground mb-3 group-hover:text-primary transition-colors">
                     Arraste e solte seu arquivo CSV aqui
                   </h3>
                   <p className="text-muted-foreground mb-6 max-w-md mx-auto leading-relaxed">
                     Solte o arquivo CSV nesta área para fazer o upload... {isClicksMode ? "Relatório de cliques." : "Relatório de vendas."}
                   </p>
-                  
+
                   <Button
                     type="button"
                     variant="outline"
@@ -372,8 +384,8 @@ const UploadCSV = () => {
 
                 {!isProcessing && csvData && (
                   <div className="flex gap-3 justify-end">
-                    <Button 
-                      variant="outline" 
+                    <Button
+                      variant="outline"
                       onClick={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
@@ -383,7 +395,7 @@ const UploadCSV = () => {
                     >
                       Cancelar
                     </Button>
-                    <Button 
+                    <Button
                       onClick={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
