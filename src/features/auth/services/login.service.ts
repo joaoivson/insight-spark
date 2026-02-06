@@ -15,7 +15,13 @@ export const loginService = async (data: LoginData): Promise<LoginResponse> => {
       const token = authData.session.access_token;
       localStorage.setItem(APP_CONFIG.STORAGE_KEYS.TOKEN, token);
 
-      const response = await fetchWithAuth(getApiUrl('/api/v1/auth/me'));
+      // Passar o token explicitamente, pois o current_user_id ainda não está no storage
+      // e o fetchWithAuth depende dele para recuperar o token do localStorage.
+      const response = await fetchWithAuth(getApiUrl('/api/v1/auth/me'), {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
       const userResult = await response.json();
 
       if (response.ok) {
