@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
+import { LoadingDataOverlay } from "@/components/dashboard/LoadingDataOverlay";
 import { motion, AnimatePresence } from "framer-motion";
 import { Upload, FileText, Check, AlertCircle, X, Eye, FileSpreadsheet, Trash2, MousePointerClick } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -40,6 +41,7 @@ interface CSVData {
 }
 
 const UploadCSV = () => {
+  const { toast } = useToast();
   const queryClient = useQueryClient();
   const location = useLocation();
   const isClicksMode = location.pathname.includes("upload-cliques");
@@ -49,10 +51,11 @@ const UploadCSV = () => {
   const [file, setFile] = useState<File | null>(null);
   const [csvData, setCsvData] = useState<CSVData | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
-  const [error, setError] = useState<string | null>(null);
+  const [datasetId, setDatasetId] = useState<number | null>(null);
+  const [showOverlay, setShowOverlay] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-  const { toast } = useToast();
+  const [error, setError] = useState<string | null>(null);
+  const [uploadProgress, setUploadProgress] = useState(0);
 
   const { fetchRows, invalidate: invalidateSales } = useDatasetStore();
   const { fetchClicks, invalidate: invalidateClicks } = useClicksStore();
@@ -150,58 +153,82 @@ const UploadCSV = () => {
   const handleUpload = async () => {
     if (!file) return;
     setIsProcessing(true);
-    setUploadProgress(20); // Fake progress start
+    // Não usamos mais setUploadProgress como antes, pois vamos mostrar o overlay
 
     try {
       const formData = new FormData();
       formData.append("file", file);
 
-      // Simulate progress for UX
-      const interval = setInterval(() => {
-        setUploadProgress((prev) => Math.min(prev + 10, 90));
-      }, 500);
-
+      // Enviamos o arquivo para obter o dataset_id
       const res = await fetchWithAuth(getApiUrl(config.uploadUrl), {
         method: "POST",
         body: formData,
       });
 
-      clearInterval(interval);
-      setUploadProgress(100);
-
       const result = await res.json().catch(() => ({}));
+
       if (!res.ok) {
         // Se for erro 400 (Bad Request), geralmente é erro de validação ou duplicados
         const detail = result.detail || result.error || "Falha no processamento";
         setError(detail);
-        return; // Sai sem limpar o arquivo para o usuário ver o erro
+        setIsProcessing(false);
+        return;
       }
 
-      const count = result.count || result.imported_count || 0;
-      const ignored = result.ignored_count || 0;
-      const total = count + ignored;
-
-      let msg = config.successMessage;
-      if (ignored > 0) {
-        msg = `${count} itens importados. ${ignored} itens foram ignorados por já existirem no banco de dados.`;
+      // IMPORTANTE: Agora pegamos o dataset_id e mostramos o overlay
+      if (result.dataset_id) {
+        setDatasetId(result.dataset_id);
+        setShowOverlay(true);
+        // O resto será tratado no handleComplete
+      } else {
+        // Fallback para caso raro onde não veio dataset_id (talvez rota síncrona?)
+        handleComplete({});
       }
 
-      toast({
-        title: ignored > 0 && count === 0 ? "Aviso: Nenhum item novo" : "Processamento concluído!",
-        description: msg,
-        variant: ignored > 0 && count === 0 ? "destructive" : "default",
-        duration: 7000,
-      });
-
-      await config.fetchAction({ force: true });
-      await invalidateAllQueries();
-      clearFile();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro desconhecido no upload.");
       setUploadProgress(0);
-    } finally {
       setIsProcessing(false);
     }
+  };
+
+  const handleComplete = async (completedData?: any) => {
+    // Quando o polling terminar com sucesso
+    setShowOverlay(false);
+    setDatasetId(null);
+    setIsProcessing(false);
+    setUploadProgress(100);
+
+    const count = completedData?.row_count ?? 0;
+    // O backend pode retornar ignored_count se implementarmos, mas o endpoint de status básico foca no row_count
+    const ignored = 0;
+
+    let msg = config.successMessage;
+    if (count > 0) {
+      msg = `${count} linhas processadas com sucesso.`;
+    }
+
+    toast({
+      title: "Processamento concluído!",
+      description: msg,
+      duration: 7000,
+    });
+
+    await config.fetchAction({ force: true });
+    await invalidateAllQueries();
+    clearFile();
+  };
+
+  const handleError = (errorMessage: string) => {
+    setShowOverlay(false);
+    setDatasetId(null);
+    setIsProcessing(false);
+    setError(errorMessage);
+    toast({
+      title: "Erro no processamento",
+      description: errorMessage,
+      variant: "destructive"
+    });
   };
 
   const clearFile = () => {
@@ -209,6 +236,8 @@ const UploadCSV = () => {
     setCsvData(null);
     setError(null);
     setUploadProgress(0);
+    setDatasetId(null);
+    setShowOverlay(false);
   };
 
   const handleDeleteAll = async () => {
@@ -267,6 +296,15 @@ const UploadCSV = () => {
         </AlertDialog>
       }
     >
+      <AnimatePresence>
+        {showOverlay && datasetId && (
+          <LoadingDataOverlay
+            datasetId={datasetId}
+            onComplete={handleComplete}
+            onError={handleError}
+          />
+        )}
+      </AnimatePresence>
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}

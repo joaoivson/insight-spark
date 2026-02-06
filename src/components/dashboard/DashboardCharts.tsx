@@ -79,18 +79,25 @@ const DashboardCharts = ({ rows, adSpends = [], dateRange, subIdFilter, onDrillD
         variants={chartItemVariants}
       />
       {belowRevenueContent}
-      <div className="grid lg:grid-cols-2 gap-6">
-        <ChannelPieChart 
-          data={channelData} 
-          onDrillDown={(v) => onDrillDown?.("platform", v)} 
-          variants={chartItemVariants}
-        />
-        <CategoryBarChart 
-          data={categoryData} 
-          onDrillDown={(v) => onDrillDown?.("category", v)} 
-          variants={chartItemVariants}
-        />
-      </div>
+      <section
+        aria-label="Comissão por canal e categoria"
+        className="grid grid-cols-1 gap-6 items-stretch min-w-0 sm:gap-6 lg:grid-cols-2 lg:gap-8"
+      >
+        <div className="min-w-0">
+          <ChannelPieChart
+            data={channelData}
+            onDrillDown={(v) => onDrillDown?.("platform", v)}
+            variants={chartItemVariants}
+          />
+        </div>
+        <div className="min-w-0">
+          <CategoryBarChart
+            data={categoryData}
+            onDrillDown={(v) => onDrillDown?.("category", v)}
+            variants={chartItemVariants}
+          />
+        </div>
+      </section>
     </motion.div>
   );
 };
