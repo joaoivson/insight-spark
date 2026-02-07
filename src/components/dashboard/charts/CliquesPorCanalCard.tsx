@@ -96,7 +96,12 @@ export const CliquesPorCanalCard = ({
               />
               <ChartTooltip
                 cursor={false}
-                content={<ChartTooltipContent hideLabel />}
+                content={<ChartTooltipContent hideLabel formatter={(v, name) => (
+                <span className="flex justify-between items-center gap-4 w-full min-w-[140px]">
+                  <span className="text-muted-foreground">{(name === "value" || !name) ? "Cliques" : name}</span>
+                  <span className="font-medium tabular-nums">{Number(v).toLocaleString("pt-BR")}</span>
+                </span>
+              )} />}
               />
               <Bar
                 dataKey="value"

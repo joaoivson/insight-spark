@@ -6,7 +6,7 @@ import { Upload, FileText, Check, AlertCircle, X, Eye, FileSpreadsheet, Trash2, 
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import Papa from "papaparse";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
   Table,
   TableBody,
@@ -44,6 +44,7 @@ const UploadCSV = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const location = useLocation();
+  const navigate = useNavigate();
   const isClicksMode = location.pathname.includes("upload-cliques");
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -217,6 +218,7 @@ const UploadCSV = () => {
     await config.fetchAction({ force: true });
     await invalidateAllQueries();
     clearFile();
+    navigate("/dashboard");
   };
 
   const handleError = (errorMessage: string) => {

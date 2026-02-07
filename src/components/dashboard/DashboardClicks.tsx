@@ -307,16 +307,20 @@ const DashboardClicks = ({ clicks: rawClicks, adSpends = [], dateRange, subIdFil
     return <Link2 className="w-4 h-4 mr-2" />;
   };
 
-  if (!clicks.length) return null;
-
-  if (filteredClicks.length === 0) {
+  if (!clicks.length || filteredClicks.length === 0) {
     return (
       <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
         <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 rounded-xl p-4 flex items-start gap-3" role="alert">
           <AlertTriangle className="w-5 h-5 mt-0.5 text-amber-700 dark:text-amber-200 shrink-0" />
           <div className="space-y-1 text-amber-900 dark:text-amber-50">
-            <p className="font-semibold text-sm">Sem cliques no período selecionado</p>
-            <p className="text-sm">Certifique-se de que o filtro de data cobre o período do seu upload de cliques.</p>
+            <p className="font-semibold text-sm">
+              {!clicks.length ? "Nenhum dado de cliques disponível" : "Sem cliques no período selecionado"}
+            </p>
+            <p className="text-sm">
+              {!clicks.length
+                ? "Importe seus relatórios de cliques em Upload Cliques para visualizar os dados."
+                : "Certifique-se de que o filtro de data cobre o período do seu upload de cliques."}
+            </p>
           </div>
         </div>
       </div>
@@ -413,7 +417,12 @@ const DashboardClicks = ({ clicks: rawClicks, adSpends = [], dateRange, subIdFil
                 />
                 <ChartTooltip
                   cursor={false}
-                  content={<ChartTooltipContent hideLabel />}
+                  content={<ChartTooltipContent indicator="dot" formatter={(v, name) => (
+                  <span className="flex justify-between items-center gap-4 w-full min-w-[140px]">
+                    <span className="text-muted-foreground">{(name === "value" || !name) ? "Cliques" : name}</span>
+                    <span className="font-medium tabular-nums">{Number(v).toLocaleString("pt-BR")}</span>
+                  </span>
+                )} />}
                 />
                 <Bar
                   dataKey="value"
