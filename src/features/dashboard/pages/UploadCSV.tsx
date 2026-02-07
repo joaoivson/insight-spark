@@ -194,19 +194,20 @@ const UploadCSV = () => {
   };
 
   const handleComplete = async (completedData?: any) => {
-    // Quando o polling terminar com sucesso
-    setShowOverlay(false);
-    setDatasetId(null);
-    setIsProcessing(false);
-    setUploadProgress(100);
-
     const count = completedData?.row_count ?? 0;
-    // O backend pode retornar ignored_count se implementarmos, mas o endpoint de status básico foca no row_count
-    const ignored = 0;
-
     let msg = config.successMessage;
     if (count > 0) {
       msg = `${count} linhas processadas com sucesso.`;
+    }
+
+    try {
+      await config.fetchAction({ force: true });
+      await invalidateAllQueries();
+    } finally {
+      setShowOverlay(false);
+      setDatasetId(null);
+      setIsProcessing(false);
+      setUploadProgress(100);
     }
 
     toast({
@@ -215,8 +216,6 @@ const UploadCSV = () => {
       duration: 7000,
     });
 
-    await config.fetchAction({ force: true });
-    await invalidateAllQueries();
     clearFile();
     navigate("/dashboard");
   };
