@@ -84,12 +84,13 @@ const normalizeDate = (dateStr?: string | null): string => {
 
 interface DashboardClicksProps {
   clicks: ClickRow[];
+  totalClicksFromApi?: number | null;
   adSpends?: AdSpend[];
   dateRange?: { from?: Date; to?: Date };
   subIdFilter?: string;
 }
 
-const DashboardClicks = ({ clicks: rawClicks, adSpends = [], dateRange, subIdFilter }: DashboardClicksProps) => {
+const DashboardClicks = ({ clicks: rawClicks, totalClicksFromApi, adSpends = [], dateRange, subIdFilter }: DashboardClicksProps) => {
   // Normaliza as datas estranhas da API (YYYY-DD-MM -> YYYY-MM-DD) antes de qualquer processamento
   const clicks = useMemo(() => rawClicks.map(c => ({
     ...c,
@@ -119,13 +120,28 @@ const DashboardClicks = ({ clicks: rawClicks, adSpends = [], dateRange, subIdFil
 
   // 2. Helpers
   const getItemClicks = (item: ClickRow): number => {
-    return Number(item.clicks) || 0;
+    return Number(item.clicks) ?? Number((item as any).click) ?? 0;
+  };
+
+  /** Normaliza canal para agrupar (ex: Instagram, instagram, INSTAGRAM -> mesma soma) */
+  const normalizeChannelKey = (channel: string): string => (channel || "Outros").trim().toLowerCase();
+  const getChannelDisplayName = (channel: string): string => {
+    const t = (channel || "Outros").trim();
+    if (!t) return "Outros";
+    return t.charAt(0).toUpperCase() + t.slice(1).toLowerCase();
   };
 
   // 3. Cálculos Memorizados
-  const totalClicks = useMemo(() => 
-    filteredClicks.reduce((acc, curr) => acc + getItemClicks(curr), 0), 
-  [filteredClicks]);
+  // Usa total_clicks da API quando disponível e sem filtro de sub_id; caso contrário, soma das rows filtradas
+  const totalClicks = useMemo(() => {
+    if (subIdFilter) {
+      return filteredClicks.reduce((acc, curr) => acc + getItemClicks(curr), 0);
+    }
+    if (totalClicksFromApi != null && totalClicksFromApi >= 0) {
+      return totalClicksFromApi;
+    }
+    return filteredClicks.reduce((acc, curr) => acc + getItemClicks(curr), 0);
+  }, [filteredClicks, subIdFilter, totalClicksFromApi]);
 
   // Comparação: Cliques Manuais (Ads) vs Cliques CSV por Sub ID
   const comparisonStats = useMemo(() => {
@@ -185,14 +201,19 @@ const DashboardClicks = ({ clicks: rawClicks, adSpends = [], dateRange, subIdFil
   }, [filteredClicks, adSpends, compSortColumn, compSortDirection]);
 
   const channelStats = useMemo(() => {
-    const stats = filteredClicks.reduce((acc, item) => {
-      const channel = (item.channel || "Others").trim();
-      acc[channel] = (acc[channel] || 0) + getItemClicks(item);
-      return acc;
-    }, {} as Record<string, number>);
+    const byChannel = filteredClicks.reduce(
+      (acc, item) => {
+        const key = normalizeChannelKey(item.channel);
+        const displayName = getChannelDisplayName(item.channel);
+        if (!acc[key]) acc[key] = { displayName, value: 0 };
+        acc[key].value += getItemClicks(item);
+        return acc;
+      },
+      {} as Record<string, { displayName: string; value: number }>
+    );
 
-    const sortedEntries = Object.entries(stats)
-      .map(([name, value]) => ({ name, value }))
+    const sortedEntries = Object.entries(byChannel)
+      .map(([, { displayName, value }]) => ({ name: displayName, value }))
       .sort((a, b) => b.value - a.value);
 
     if (sortedEntries.length <= 6) {

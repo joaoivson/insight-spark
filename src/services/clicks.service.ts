@@ -17,7 +17,12 @@ export type ClickQuery = {
   offset?: number;
 };
 
-export const fetchClickRows = async (query: ClickQuery = {}): Promise<ClickRow[]> => {
+export type ClicksApiResponse = {
+  total_clicks: number;
+  rows: ClickRow[];
+};
+
+export const fetchClickRows = async (query: ClickQuery = {}): Promise<ClicksApiResponse> => {
   const params = new URLSearchParams();
   if (query.startDate) params.set("start_date", query.startDate);
   if (query.endDate) params.set("end_date", query.endDate);
@@ -31,7 +36,16 @@ export const fetchClickRows = async (query: ClickQuery = {}): Promise<ClickRow[]
     throw new Error(text || "Falha ao carregar dados de cliques");
   }
   const data = await res.json();
-  return data as ClickRow[];
+
+  if (data && typeof data.total_clicks === "number" && Array.isArray(data.rows)) {
+    return { total_clicks: data.total_clicks, rows: data.rows };
+  }
+  if (Array.isArray(data)) {
+    const rows = data as ClickRow[];
+    const total_clicks = rows.reduce((acc, r) => acc + (Number(r.clicks) || 0), 0);
+    return { total_clicks, rows };
+  }
+  return { total_clicks: 0, rows: [] };
 };
 
 export const deleteAllClicks = async (): Promise<void> => {
