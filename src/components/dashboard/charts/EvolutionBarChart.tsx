@@ -3,7 +3,7 @@ import { Bar, BarChart, CartesianGrid, LabelList, XAxis } from "recharts";
 import { ChartTooltip, ChartTooltipContent, ChartContainer, type ChartConfig } from "@/components/ui/chart";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { formatK } from "../../../shared/lib/chart-utils";
+import { formatK, formatCurrency } from "../../../shared/lib/chart-utils";
 
 const BAR_COLOR = "hsl(210, 80%, 55%)";
 
@@ -52,7 +52,12 @@ export const EvolutionBarChart = ({ data, mode, onModeChange, onDrillDown, varia
           <BarChart accessibilityLayer data={data} margin={{ top: 30, right: 10, left: 10, bottom: 40 }} barCategoryGap={mode === "month" ? (data.length === 1 ? "5%" : 18) : "10%"}>
             <CartesianGrid vertical={false} />
             <XAxis dataKey="label" tickLine={false} axisLine={false} tickMargin={10} angle={-45} textAnchor="end" height={60} interval={mode === "day" && data.length > 30 ? "preserveStartEnd" : 0} tick={{ fontSize: 14 }} />
-            <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel />} />
+            <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel formatter={(v, name) => (
+            <span className="flex justify-between items-center gap-4 w-full min-w-[140px]">
+              <span className="text-muted-foreground">{(name === "value" || !name) ? "Comissão" : name}</span>
+              <span className="font-medium tabular-nums">{formatCurrency(Number(v))}</span>
+            </span>
+          )} />} />
             <Bar
               dataKey="value"
               fill="var(--color-value)"

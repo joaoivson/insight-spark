@@ -90,7 +90,12 @@ export const CategoryBarChart = ({ data, onDrillDown, variants }: CategoryBarCha
               />
               <ChartTooltip
                 cursor={false}
-                content={<ChartTooltipContent hideLabel formatter={(v) => [formatCurrency(Number(v)), "Comissão"]} />}
+                content={<ChartTooltipContent hideLabel formatter={(v, name) => (
+                <span className="flex justify-between items-center gap-4 w-full min-w-[140px]">
+                  <span className="text-muted-foreground">{(name === "value" || !name) ? "Comissão" : name}</span>
+                  <span className="font-medium tabular-nums">{formatCurrency(Number(v))}</span>
+                </span>
+              )} />}
               />
               <Bar
                 dataKey="value"

@@ -103,21 +103,6 @@ const Dashboard = () => {
     }, 120);
   };
 
-  const handleCardClick = (kpi: KPIData) => {
-    setDrillDown({
-      type: "all",
-      value: "all",
-      label: `Detalhes de: ${kpi.title}`,
-    });
-    setTimeout(() => {
-      const target = document.getElementById("detail-table");
-      if (target) {
-        const y = target.getBoundingClientRect().top + window.scrollY - 100;
-        window.scrollTo({ top: y, behavior: "smooth" });
-      }
-    }, 120);
-  };
-
   const totals = useMemo(() => {
     const { faturamento, comissao, gastoAnuncios, lucro, roas } = calcTotals(filteredRows, adSpends, {
       dateRange,
@@ -247,7 +232,7 @@ const Dashboard = () => {
                     </div>
                   )}
 
-                  <KPICards kpis={kpis} onCardClick={handleCardClick} />
+                  <KPICards kpis={kpis} />
                   
                   <DashboardCharts
                     rows={filteredRows}
@@ -289,11 +274,6 @@ const Dashboard = () => {
                     </motion.div>
                   )}
 
-                  {!drillDown && (
-                    <div className="mt-8 text-center p-8 border-2 border-dashed border-border rounded-xl bg-secondary/20">
-                      <p className="text-muted-foreground">Clique em um Card ou Gráfico para ver os detalhes na tabela.</p>
-                    </div>
-                  )}
                 </>
               )}
             </TabsContent>

@@ -109,10 +109,10 @@ export const FeedbackFloatingButton = () => {
         onClick={() => setOpen(true)}
         aria-label="Enviar feedback"
         className={cn(
-          "fixed bottom-6 right-24 z-40 flex h-12 items-center gap-2 rounded-full px-4 py-2",
-          "bg-primary text-primary-foreground text-sm font-medium shadow-lg shadow-primary/30",
-          "transition-all duration-300 hover:scale-105 hover:shadow-xl hover:shadow-primary/40",
-          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+          "fixed bottom-6 right-6 z-40 flex h-12 items-center gap-2 rounded-full px-4 py-2",
+          "bg-secondary text-secondary-foreground border border-border text-sm font-medium",
+          "transition-all duration-300 hover:scale-105 hover:bg-secondary/80",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
         )}
       >
         <span>Enviar feedback</span>
