@@ -44,6 +44,7 @@ export interface DatasetRow {
   mes_ano?: string | null;
   shop_id?: string | number | null;
   item_id?: string | number | null;
+  time?: string | null;
 }
 
 interface DataTableProps {

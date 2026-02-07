@@ -2,25 +2,25 @@ import { useMemo } from "react";
 import { DatasetRow } from "../../DataTable";
 import { AdSpend } from "@/shared/types/adspend";
 import { isBeforeDateKey, isAfterDateKey, parseDateOnly } from "@/shared/lib/date";
+import { filterKpiRows, getComissaoCents } from "@/shared/lib/kpi";
 import { DateRange, ChannelMetric, DayMetric } from "../types";
-
-const getAffiliateCommission = (row: DatasetRow) => {
-    return row.commission || 0;
-};
 
 export const useChannelMetrics = (
     rows: DatasetRow[],
     adSpends: AdSpend[],
     dateRange?: DateRange
 ) => {
-    // Filter rows by dateRange
+    // Filter rows by dateRange and KPI status (Pendente, Concluído) — mesma fonte que kpi.ts
     const filteredRows = useMemo(() => {
-        if (!dateRange?.from && !dateRange?.to) return rows;
-        return rows.filter((r) => {
-            if (dateRange.from && isBeforeDateKey(r.date, dateRange.from)) return false;
-            if (dateRange.to && isAfterDateKey(r.date, dateRange.to)) return false;
-            return true;
-        });
+        let dateFiltered = rows;
+        if (dateRange?.from || dateRange?.to) {
+            dateFiltered = rows.filter((r) => {
+                if (dateRange.from && isBeforeDateKey(r.date, dateRange.from)) return false;
+                if (dateRange.to && isAfterDateKey(r.date, dateRange.to)) return false;
+                return true;
+            });
+        }
+        return filterKpiRows(dateFiltered);
     }, [rows, dateRange]);
 
     // Filter adSpends by dateRange
@@ -42,7 +42,7 @@ export const useChannelMetrics = (
             const channel = row.sub_id1 || "Orgânico/Outros";
             const current = channelMap.get(channel) || { commission: 0, spend: 0, orders: 0 };
 
-            const commission = getAffiliateCommission(row);
+            const commission = getComissaoCents(row) / 100;
 
             channelMap.set(channel, {
                 ...current,
@@ -103,7 +103,7 @@ export const useChannelMetrics = (
 
         filteredRows.forEach((row) => {
             const day = row.date || "Sem data";
-            const commission = getAffiliateCommission(row);
+            const commission = getComissaoCents(row) / 100;
             const cur = dayMap.get(day) || { commission: 0, spend: 0, orders: 0 };
             dayMap.set(day, {
                 commission: cur.commission + commission,

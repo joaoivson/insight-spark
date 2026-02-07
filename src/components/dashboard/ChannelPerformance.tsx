@@ -11,6 +11,7 @@ import {
   ArrowUpDown,
 } from "lucide-react";
 import { isBeforeDateKey, isAfterDateKey, parseDateOnly } from "@/shared/lib/date";
+import { filterKpiRows, getComissaoCents } from "@/shared/lib/kpi";
 import {
   Table,
   TableBody,
@@ -35,10 +36,6 @@ interface ChannelPerformanceProps {
 const formatCurrency = (value: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value || 0);
 
-const getAffiliateCommission = (row: DatasetRow) => {
-  return row.commission || 0;
-};
-
 const ChannelPerformance = ({
   rows,
   adSpends,
@@ -47,14 +44,17 @@ const ChannelPerformance = ({
   showDayTable = true,
   showHighlights = true,
 }: ChannelPerformanceProps) => {
-  // Filter rows by dateRange
+  // Filter rows by dateRange and KPI status (Pendente, Concluído) — mesma fonte que kpi.ts
   const filteredRows = useMemo(() => {
-    if (!dateRange?.from && !dateRange?.to) return rows;
-    return rows.filter((r) => {
-      if (dateRange.from && isBeforeDateKey(r.date, dateRange.from)) return false;
-      if (dateRange.to && isAfterDateKey(r.date, dateRange.to)) return false;
-      return true;
-    });
+    let dateFiltered = rows;
+    if (dateRange?.from || dateRange?.to) {
+      dateFiltered = rows.filter((r) => {
+        if (dateRange.from && isBeforeDateKey(r.date, dateRange.from)) return false;
+        if (dateRange.to && isAfterDateKey(r.date, dateRange.to)) return false;
+        return true;
+      });
+    }
+    return filterKpiRows(dateFiltered);
   }, [rows, dateRange]);
 
   // Filter adSpends by dateRange
@@ -76,7 +76,7 @@ const ChannelPerformance = ({
       const channel = row.sub_id1 || "Orgânico/Outros";
       const current = channelMap.get(channel) || { commission: 0, spend: 0, orders: 0 };
       
-      const commission = getAffiliateCommission(row);
+      const commission = getComissaoCents(row) / 100;
 
       channelMap.set(channel, {
         ...current,
@@ -262,7 +262,7 @@ const ChannelPerformance = ({
 
       {/* Performance por Dia */}
       {showDayTable && (
-        <div className="bg-card border border-border rounded-xl overflow-hidden">
+        <div className="bg-card border border-border rounded-xl overflow-hidden min-h-[320px]">
           <div className="p-6 border-b border-border">
             <h3 className="font-display font-semibold text-lg">Performance por Dia</h3>
             <p className="text-sm text-muted-foreground">Custos de anúncios vs comissão diária.</p>
@@ -357,7 +357,7 @@ const ChannelPerformance = ({
                 const dayMap = new Map<string, { commission: number; spend: number; orders: number }>();
                 filteredRows.forEach((row) => {
                   const day = row.date || "Sem data";
-                  const commission = getAffiliateCommission(row);
+                  const commission = getComissaoCents(row) / 100;
                   const cur = dayMap.get(day) || { commission: 0, spend: 0, orders: 0 };
                   dayMap.set(day, {
                     commission: cur.commission + commission,
