@@ -13,21 +13,37 @@ export const getComissaoAfiliado = (row: DatasetRow) => {
 
 type DateRange = { from?: Date | string | null; to?: Date | string | null };
 
+const KPI_STATUSES = ["pendente", "concluído", "concluido"];
+const isKpiStatus = (s: string) => KPI_STATUSES.includes((s || "").toLowerCase());
+
+/** Filtra linhas por status (Pendente, Concluído) — mesma fonte usada nos KPIs e gráficos. */
+export const filterKpiRows = (rows: DatasetRow[]): DatasetRow[] =>
+  rows.filter((r) => isKpiStatus(r.status || ""));
+
+/** Contribuição em centavos (inteiro) para agregação. Dividir por 100 para obter valor final. */
+export const getComissaoCents = (row: DatasetRow) =>
+  Math.floor(getComissaoAfiliado(row) * 100);
+
 export const calcTotals = (
   rows: DatasetRow[],
   adSpends: AdSpend[],
   opts: { dateRange?: DateRange; subIdFilter?: string }
 ) => {
-  const faturamento = rows.reduce((acc, r) => acc + getFaturamento(r), 0);
-  const comissao = rows.reduce((acc, r) => acc + getComissaoAfiliado(r), 0);
-  const gastoAnuncios = adSpends.reduce((acc, spend) => {
+  const kpiRows = filterKpiRows(rows);
+  // Trunca (sem arredondar) por linha e soma — alinha ao relatório Shopee
+  const faturamento = Math.round(rows.reduce((acc, r) => acc + getFaturamento(r), 0) * 100) / 100;
+  const comissao =
+    kpiRows.reduce((acc, r) => acc + Math.floor(getComissaoAfiliado(r) * 100), 0) / 100;
+  const gastoAnunciosRaw = adSpends.reduce((acc, spend) => {
     if (opts.subIdFilter && normalizeSubId(spend.sub_id).toLowerCase() !== opts.subIdFilter.toLowerCase()) return acc;
     const spendDate = toDateKey(spend.date);
     if (opts.dateRange?.from && spendDate < toDateKey(opts.dateRange.from)) return acc;
     if (opts.dateRange?.to && spendDate > toDateKey(opts.dateRange.to)) return acc;
     return acc + (spend.amount || 0);
   }, 0);
-  const lucro = comissao - gastoAnuncios;
+
+  const gastoAnuncios = Math.round(gastoAnunciosRaw * 100) / 100;
+  const lucro = Math.round((comissao - gastoAnuncios) * 100) / 100;
   const roas = gastoAnuncios > 0 ? comissao / gastoAnuncios : 0;
 
   return { faturamento, comissao, gastoAnuncios, lucro, roas };

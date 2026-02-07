@@ -1,58 +1,62 @@
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import KPICards, { KPIData } from "@/components/dashboard/KPICards";
+import DashboardCharts, { DrillDownType } from "@/components/dashboard/DashboardCharts";
 import DashboardFilters from "@/components/dashboard/DashboardFilters";
+import DataTable, { DatasetRow } from "@/components/dashboard/DataTable";
+import ChannelPerformance from "@/components/dashboard/ChannelPerformance";
+import DashboardClicks from "@/components/dashboard/DashboardClicks";
 import { motion } from "framer-motion";
-import { useMemo, useState, lazy, Suspense } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   DollarSign,
   ShoppingCart,
   Target,
   BarChart2,
   AlertTriangle,
+  X,
   TrendingUp,
   MousePointerClick,
   LayoutDashboard
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
+import { useDatasetStore } from "@/stores/datasetStore";
+import { useAdSpendsStore } from "@/stores/adSpendsStore";
+import { useClicksStore } from "@/stores/clicksStore";
 import { isBeforeDateKey, isAfterDateKey } from "@/shared/lib/date";
 import { calcTotals } from "@/shared/lib/kpi";
 import { normalizeSubId } from "@/shared/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useDatasetRows } from "@/hooks/queries/useDatasetRows";
-import { useAdSpends } from "@/hooks/queries/useAdSpends";
-import { useClicks } from "@/hooks/queries/useClicks";
-
-// Lazy loaded heavy components
-const DashboardCharts = lazy(() => import("@/components/dashboard/DashboardCharts"));
-const ChannelPerformance = lazy(() => import("@/components/dashboard/ChannelPerformance"));
-const DashboardClicks = lazy(() => import("@/components/dashboard/DashboardClicks"));
 
 const formatCurrency = (value: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value || 0);
 
+type DrillDownFilter = {
+  type: DrillDownType | "all";
+  value: string;
+  label: string;
+} | null;
+
 const Dashboard = () => {
+  const { rows, loading: rowsLoading, fetchRows } = useDatasetStore();
+  const { adSpends, loading: spendsLoading, fetchAdSpends } = useAdSpendsStore();
+  const { clicks, loading: clicksLoading, fetchClicks } = useClicksStore();
+  
   const [activeTab, setActiveTab] = useState("comissao");
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [categoryFilter, setCategoryFilter] = useState<string>("");
   const [subIdFilter, setSubIdFilter] = useState<string>("");
   const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({});
-
-  const { data: rows = [], isLoading: rowsLoading } = useDatasetRows({
-    startDate: dateRange.from?.toISOString().slice(0, 10),
-    endDate: dateRange.to?.toISOString().slice(0, 10)
-  });
-
-  const { data: adSpends = [], isLoading: spendsLoading } = useAdSpends({
-    startDate: dateRange.from?.toISOString().slice(0, 10),
-    endDate: dateRange.to?.toISOString().slice(0, 10)
-  });
-
-  const { data: clicks = [], isLoading: clicksLoading } = useClicks({
-    startDate: dateRange.from?.toISOString().slice(0, 10),
-    endDate: dateRange.to?.toISOString().slice(0, 10)
-  });
+  
+  const [drillDown, setDrillDown] = useState<DrillDownFilter>(null);
 
   const loading = rowsLoading || spendsLoading || clicksLoading;
+
+  useEffect(() => {
+    fetchRows({ range: dateRange });
+    fetchAdSpends({ range: dateRange });
+    fetchClicks({ range: dateRange });
+  }, []);
 
   const filteredRows = useMemo(() => {
     return rows.filter((r) => {
@@ -66,15 +70,53 @@ const Dashboard = () => {
     });
   }, [rows, statusFilter, categoryFilter, subIdFilter, dateRange]);
 
-  const filteredClicks = useMemo(() => {
-    return clicks.filter((c) => {
-      if (subIdFilter && normalizeSubId(c.sub_id).toLowerCase() !== subIdFilter.toLowerCase()) return false;
+  const tableRows = useMemo(() => {
+    if (!drillDown) return [];
+    if (drillDown.type === "all") return filteredRows;
 
-      if (dateRange.from && isBeforeDateKey(c.date, dateRange.from)) return false;
-      if (dateRange.to && isAfterDateKey(c.date, dateRange.to)) return false;
-      return true;
+    return filteredRows.filter((r) => {
+      const val = (r as any)[drillDown.type];
+      return String(val) === String(drillDown.value);
     });
-  }, [clicks, subIdFilter, dateRange]);
+  }, [filteredRows, drillDown]);
+
+  const handleDrillDown = (type: DrillDownType, value: string) => {
+    setDrillDown({
+      type,
+      value,
+      label: `${type === "mes_ano"
+        ? "Mês/Ano"
+        : type === "category"
+        ? "Categoria"
+        : type === "sub_id1"
+        ? "Canal"
+        : type === "platform"
+        ? "Plataforma"
+        : "Produto"}: ${value}`,
+    });
+    setTimeout(() => {
+      const target = document.getElementById("detail-table");
+      if (target) {
+        const y = target.getBoundingClientRect().top + window.scrollY - 100;
+        window.scrollTo({ top: y, behavior: "smooth" });
+      }
+    }, 120);
+  };
+
+  const handleCardClick = (kpi: KPIData) => {
+    setDrillDown({
+      type: "all",
+      value: "all",
+      label: `Detalhes de: ${kpi.title}`,
+    });
+    setTimeout(() => {
+      const target = document.getElementById("detail-table");
+      if (target) {
+        const y = target.getBoundingClientRect().top + window.scrollY - 100;
+        window.scrollTo({ top: y, behavior: "smooth" });
+      }
+    }, 120);
+  };
 
   const totals = useMemo(() => {
     const { faturamento, comissao, gastoAnuncios, lucro, roas } = calcTotals(filteredRows, adSpends, {
@@ -98,7 +140,7 @@ const Dashboard = () => {
       iconColor: "text-primary",
     },
     {
-      title: "Custos de Anúncios",
+      title: "Valor Gasto Anúncios",
       value: formatCurrency(totals.gastoAnuncios),
       icon: ShoppingCart,
       iconColor: "text-warning",
@@ -126,8 +168,8 @@ const Dashboard = () => {
   }, [rows, clicks]);
 
   return (
-    <DashboardLayout
-      title="Dashboard"
+    <DashboardLayout 
+      title="Dashboard" 
       subtitle="Visão geral dos seus dados"
     >
       <motion.div
@@ -139,15 +181,15 @@ const Dashboard = () => {
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full md:w-auto">
               <TabsList className="grid w-full grid-cols-2 md:w-[400px] bg-secondary/40 border border-accent/20 p-1 h-12 shadow-2xl shadow-black/40 rounded-xl backdrop-blur-sm ring-1 ring-white/5">
-                <TabsTrigger
-                  value="comissao"
+                <TabsTrigger 
+                  value="comissao" 
                   className="flex items-center gap-2 h-full rounded-lg transition-all duration-300 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg data-[state=active]:shadow-primary/20 font-bold"
                 >
                   <LayoutDashboard className="w-4 h-4" />
                   Comissão
                 </TabsTrigger>
-                <TabsTrigger
-                  value="cliques"
+                <TabsTrigger 
+                  value="cliques" 
                   className="flex items-center gap-2 h-full rounded-lg transition-all duration-300 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg data-[state=active]:shadow-primary/20 font-bold"
                 >
                   <MousePointerClick className="w-4 h-4" />
@@ -161,12 +203,17 @@ const Dashboard = () => {
             dateRange={dateRange}
             onDateRangeApply={(range) => {
               setDateRange(range);
+              fetchRows({ range });
+              fetchAdSpends({ range });
+              fetchClicks({ range });
             }}
             onClear={() => {
               setStatusFilter("");
               setCategoryFilter("");
               setSubIdFilter("");
               setDateRange({});
+              setDrillDown(null);
+              // Não recarrega a API, apenas reseta os estados locais que o useMemo usa para filtrar
             }}
             hasActive={!!dateRange.from || !!dateRange.to || !!statusFilter || !!categoryFilter || !!subIdFilter}
             loading={loading}
@@ -200,36 +247,53 @@ const Dashboard = () => {
                     </div>
                   )}
 
-                  <KPICards kpis={kpis} />
-
-                  <Suspense fallback={<DashboardSkeleton />}>
-                    <DashboardCharts
-                      rows={filteredRows}
-                      adSpends={adSpends}
-                      dateRange={dateRange}
-                      subIdFilter={subIdFilter}
-                      belowRevenueContent={
-                        <div className="mt-2">
-                          <Suspense fallback={<div className="h-64 bg-muted animate-pulse rounded-xl" />}>
-                            <ChannelPerformance
-                              rows={filteredRows}
-                              adSpends={adSpends}
-                              dateRange={dateRange}
-                              showSubTable={false}
-                              showDayTable
-                              showHighlights={false}
-                            />
-                          </Suspense>
-                        </div>
-                      }
-                    />
-                  </Suspense>
+                  <KPICards kpis={kpis} onCardClick={handleCardClick} />
+                  
+                  <DashboardCharts
+                    rows={filteredRows}
+                    adSpends={adSpends}
+                    dateRange={dateRange}
+                    subIdFilter={subIdFilter}
+                    onDrillDown={handleDrillDown}
+                    belowRevenueContent={
+                      <div className="mt-2">
+                        <ChannelPerformance
+                          rows={filteredRows}
+                          adSpends={adSpends}
+                          dateRange={dateRange}
+                          showSubTable={false}
+                          showDayTable
+                          showHighlights={false}
+                        />
+                      </div>
+                    }
+                  />
 
                   <div className="mt-8">
-                    <Suspense fallback={<div className="h-64 bg-muted animate-pulse rounded-xl" />}>
-                      <ChannelPerformance rows={filteredRows} adSpends={adSpends} dateRange={dateRange} showDayTable={false} showHighlights />
-                    </Suspense>
+                    <ChannelPerformance rows={filteredRows} adSpends={adSpends} dateRange={dateRange} showDayTable={false} showHighlights />
                   </div>
+                      
+                  {drillDown && (
+                    <motion.div id="detail-table" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className="mt-8">
+                      <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-xl font-bold flex items-center gap-2">
+                          <span className="text-primary">Dados Detalhados</span>
+                          <span className="text-sm font-normal text-muted-foreground bg-secondary px-3 py-1 rounded-full">{drillDown.label}</span>
+                        </h3>
+                        <Button variant="ghost" size="sm" onClick={() => setDrillDown(null)}>
+                          <X className="w-4 h-4 mr-2" />
+                          Fechar Tabela
+                        </Button>
+                      </div>
+                      <DataTable rows={tableRows} />
+                    </motion.div>
+                  )}
+
+                  {!drillDown && (
+                    <div className="mt-8 text-center p-8 border-2 border-dashed border-border rounded-xl bg-secondary/20">
+                      <p className="text-muted-foreground">Clique em um Card ou Gráfico para ver os detalhes na tabela.</p>
+                    </div>
+                  )}
                 </>
               )}
             </TabsContent>
@@ -238,25 +302,7 @@ const Dashboard = () => {
               {loading ? (
                 <DashboardSkeleton />
               ) : (
-                <>
-                  {!filteredClicks.length && (
-                    <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 rounded-xl p-4 mb-4 flex items-start gap-3" role="alert">
-                      <AlertTriangle className="w-5 h-5 mt-0.5 text-amber-700 dark:text-amber-200" />
-                      <div className="space-y-1 text-amber-900 dark:text-amber-50">
-                        <p className="font-semibold text-sm">Sem cliques no período selecionado</p>
-                        <p className="text-sm">Certifique-se de que o filtro de data cobre o período do seu upload de cliques.</p>
-                      </div>
-                    </div>
-                  )}
-                  <Suspense fallback={<DashboardSkeleton />}>
-                    <DashboardClicks
-                      clicks={filteredClicks}
-                      adSpends={adSpends}
-                      dateRange={dateRange}
-                      subIdFilter={subIdFilter}
-                    />
-                  </Suspense>
-                </>
+                <DashboardClicks clicks={clicks} adSpends={adSpends} dateRange={dateRange} subIdFilter={subIdFilter} />
               )}
             </TabsContent>
           </Tabs>
