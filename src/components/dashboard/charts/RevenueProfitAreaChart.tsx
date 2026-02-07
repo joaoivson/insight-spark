@@ -98,7 +98,7 @@ export const RevenueProfitAreaChart = ({ data, onDrillDown, variants }: RevenueP
             <YAxis hide />
             <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="dot" />} />
             <Area type="monotone" dataKey="commission" name="Comissão" stroke="var(--color-commission)" fillOpacity={1} fill="url(#fillCommission)" strokeWidth={2} stackId="a" />
-            <Area type="monotone" dataKey="cost" name="Custos de Anúncios" stroke="var(--color-cost)" fillOpacity={1} fill="url(#fillCost)" strokeWidth={2} stackId="b" />
+            <Area type="monotone" dataKey="cost" name="Anúncios" stroke="var(--color-cost)" fillOpacity={1} fill="url(#fillCost)" strokeWidth={2} stackId="b" />
             <Area type="monotone" dataKey="profit" name="Lucro" stroke="var(--color-profit)" fillOpacity={1} fill="url(#fillProfit)" strokeWidth={3} stackId="c" />
             <Legend verticalAlign="top" height={36}/>
           </AreaChart>

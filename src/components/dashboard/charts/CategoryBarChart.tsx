@@ -1,9 +1,25 @@
-import { useState } from "react";
-import { Bar, BarChart, CartesianGrid, Cell, XAxis, YAxis } from "recharts";
-import { ChartTooltip, ChartTooltipContent, ChartContainer, type ChartConfig } from "@/components/ui/chart";
-import { motion } from "framer-motion";
+"use client";
 
-const BAR_COLOR = "hsl(210, 80%, 55%)";
+import { useMemo } from "react";
+import { Bar, BarChart, CartesianGrid, Cell, LabelList, XAxis, YAxis } from "recharts";
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  type ChartConfig,
+} from "@/components/ui/chart";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { motion } from "framer-motion";
+import { formatCurrency } from "../../../shared/lib/chart-utils";
+
+const BAR_COLORS = [
+  "hsl(210, 80%, 55%)",
+  "hsl(173, 80%, 40%)",
+  "hsl(38, 92%, 50%)",
+  "hsl(273, 65%, 60%)",
+  "hsl(340, 75%, 55%)",
+  "hsl(222, 47%, 25%)",
+];
 
 interface CategoryBarChartProps {
   data: any[];
@@ -11,72 +27,92 @@ interface CategoryBarChartProps {
   variants: any;
 }
 
-const MAX_CATEGORY_LABEL_LEN = 24;
+const MAX_CATEGORY_LABEL_LEN = 22;
 
 export const CategoryBarChart = ({ data, onDrillDown, variants }: CategoryBarChartProps) => {
-  const [activeIndex, setActiveIndex] = useState<number | null>(null);
-
-  const chartConfig = {
-    value: { label: "Comissão", color: BAR_COLOR },
-  } satisfies ChartConfig;
-
   const formatTick = (name: string) => {
     if (!name || name.length <= MAX_CATEGORY_LABEL_LEN) return name;
     return name.slice(0, MAX_CATEGORY_LABEL_LEN - 1).trim() + "…";
   };
 
+  const chartData = useMemo(
+    () =>
+      data.map((item, index) => ({
+        ...item,
+        fill: BAR_COLORS[index % BAR_COLORS.length],
+        nameKey: item.name.replace(/\s+/g, "_"),
+      })),
+    [data],
+  );
+
+  const chartConfig = useMemo(() => {
+    const config: ChartConfig = { value: { label: "Comissão" } };
+    chartData.forEach((item) => {
+      config[item.nameKey] = { label: item.name, color: item.fill };
+    });
+    return config;
+  }, [chartData]);
+
+  const barSize = useMemo(() => {
+    const count = chartData.length;
+    return Math.max(28, Math.min(48, 400 / count));
+  }, [chartData.length]);
+
   return (
-    <motion.div
-      variants={variants}
-      initial="hidden"
-      animate="show"
-      whileHover={{ scale: 1.01 }}
-      className="bg-card rounded-xl border border-border p-6"
-    >
-      <div className="mb-4">
-        <h3 className="font-display font-semibold text-lg text-foreground">Comissão por Categoria</h3>
-        <p className="text-sm text-muted-foreground">Top 12 categorias</p>
-      </div>
-      <div className="h-96 overflow-x-auto -mx-2 sm:mx-0 px-2 sm:px-0">
-        <ChartContainer config={chartConfig} className="h-full w-full" style={{ minWidth: 320 }}>
-          <BarChart accessibilityLayer data={data} layout="vertical" margin={{ top: 24, right: 20, left: 140, bottom: 16 }}>
-            <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-            <XAxis type="number" hide />
-            <YAxis
-              dataKey="name"
-              type="category"
-              width={130}
-              tickLine={false}
-              axisLine={false}
-              tickMargin={8}
-              tick={{ fontSize: 12 }}
-              tickFormatter={formatTick}
-            />
-            <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel />} />
-            <Bar
-              dataKey="value"
-              fill="var(--color-value)"
-              radius={[0, 8, 8, 0]}
-              cursor={onDrillDown ? "pointer" : undefined}
-              {...(onDrillDown && { onClick: (d: any) => onDrillDown(d.name) })}
-              onMouseEnter={(_, index) => setActiveIndex(index)}
-              onMouseLeave={() => setActiveIndex(null)}
+    <motion.div variants={variants} initial="hidden" animate="show" whileHover={{ scale: 1.01 }} className="h-full min-w-0">
+      <Card className="flex h-full min-h-[480px] flex-col overflow-hidden rounded-xl border border-border">
+        <CardHeader className="space-y-1 pb-3">
+          <CardTitle className="text-lg font-semibold">Comissão por Categoria</CardTitle>
+          <CardDescription>Top 12 categorias</CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-1 flex-col pt-0 pb-4">
+          <ChartContainer config={chartConfig} className="h-[420px] w-full" style={{ minWidth: 320 }}>
+            <BarChart
+              accessibilityLayer
+              data={chartData}
+              layout="vertical"
+              margin={{ top: 8, right: 72, left: 8, bottom: 20 }}
+              barSize={barSize}
+              barCategoryGap="40%"
+              barGap={4}
             >
-              {data.map((entry, index) => (
-                <Cell 
-                  key={`cell-${index}`} 
-                  fill="var(--color-value)"
-                  style={{
-                    filter: activeIndex === index ? `drop-shadow(0px 0px 6px ${BAR_COLOR})` : 'none',
-                    transition: 'all 0.3s ease',
-                    opacity: activeIndex === null || activeIndex === index ? 1 : 0.6
-                  }}
+              <CartesianGrid horizontal={false} strokeDasharray="3 3" className="stroke-border/50" />
+              <XAxis type="number" hide />
+              <YAxis
+                dataKey="name"
+                type="category"
+                width={120}
+                tick={{ fontSize: 12 }}
+                tickLine={false}
+                axisLine={false}
+                tickMargin={10}
+                tickFormatter={formatTick}
+              />
+              <ChartTooltip
+                cursor={false}
+                content={<ChartTooltipContent hideLabel formatter={(v) => [formatCurrency(Number(v)), "Comissão"]} />}
+              />
+              <Bar
+                dataKey="value"
+                nameKey="name"
+                radius={[0, 4, 4, 0]}
+                cursor={onDrillDown ? "pointer" : undefined}
+                {...(onDrillDown && { onClick: (d: { name?: string }) => d?.name && onDrillDown(d.name) })}
+              >
+                {chartData.map((entry) => (
+                  <Cell key={entry.name} fill={entry.fill} />
+                ))}
+                <LabelList
+                  dataKey="value"
+                  position="right"
+                  formatter={(v: number) => formatCurrency(v)}
+                  className="fill-foreground text-xs font-medium"
                 />
-              ))}
-            </Bar>
-          </BarChart>
-        </ChartContainer>
-      </div>
+              </Bar>
+            </BarChart>
+          </ChartContainer>
+        </CardContent>
+      </Card>
     </motion.div>
   );
 };

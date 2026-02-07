@@ -94,7 +94,10 @@ export const useClicksStore = create<ClicksState>((set, get) => {
       set({ loading: true, error: null });
       
       try {
+        const { startDate, endDate } = rangeToParams(opts.range);
         const apiRows = await fetchClickRows({
+          startDate,
+          endDate,
           limit: opts.limit,
           offset: opts.offset,
         });
