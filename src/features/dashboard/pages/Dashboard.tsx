@@ -40,7 +40,7 @@ type DrillDownFilter = {
 const Dashboard = () => {
   const { rows, loading: rowsLoading, fetchRows } = useDatasetStore();
   const { adSpends, loading: spendsLoading, fetchAdSpends } = useAdSpendsStore();
-  const { clicks, loading: clicksLoading, fetchClicks } = useClicksStore();
+  const { clicks, totalClicks: apiTotalClicks, loading: clicksLoading, fetchClicks } = useClicksStore();
   
   const [activeTab, setActiveTab] = useState("comissao");
   const [statusFilter, setStatusFilter] = useState<string>("");
@@ -282,7 +282,7 @@ const Dashboard = () => {
               {loading ? (
                 <DashboardSkeleton />
               ) : (
-                <DashboardClicks clicks={clicks} adSpends={adSpends} dateRange={dateRange} subIdFilter={subIdFilter} />
+                <DashboardClicks clicks={clicks} totalClicksFromApi={apiTotalClicks} adSpends={adSpends} dateRange={dateRange} subIdFilter={subIdFilter} />
               )}
             </TabsContent>
           </Tabs>
