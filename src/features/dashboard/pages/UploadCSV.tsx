@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
-import { LoadingDataOverlay } from "@/components/dashboard/LoadingDataOverlay";
+import { JobProgressOverlay } from "@/components/dashboard/JobProgressOverlay";
 import { motion, AnimatePresence } from "framer-motion";
 import { Upload, FileText, Check, AlertCircle, X, Eye, FileSpreadsheet, Trash2, MousePointerClick } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -26,12 +26,18 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { getApiUrl, fetchWithAuth } from "@/core/config/api.config";
 import { Progress } from "@/components/ui/progress";
 import { useDatasetStore } from "@/stores/datasetStore";
 import { useClicksStore } from "@/stores/clicksStore";
 import { deleteAllDatasets } from "@/services/datasets.service";
 import { deleteAllClicks } from "@/services/clicks.service";
+import {
+  createJob,
+  uploadToPresignedUrl,
+  commitJob,
+  uploadMultipart,
+  type JobType,
+} from "@/services/jobs.service";
 
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -52,7 +58,7 @@ const UploadCSV = () => {
   const [file, setFile] = useState<File | null>(null);
   const [csvData, setCsvData] = useState<CSVData | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [datasetId, setDatasetId] = useState<number | null>(null);
+  const [jobId, setJobId] = useState<string | null>(null);
   const [showOverlay, setShowOverlay] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -61,10 +67,10 @@ const UploadCSV = () => {
   const { fetchRows, invalidate: invalidateSales } = useDatasetStore();
   const { fetchClicks, invalidate: invalidateClicks } = useClicksStore();
 
+  const jobType: JobType = isClicksMode ? "click" : "transaction";
   const config = {
     title: isClicksMode ? "Importar Cliques" : "Importar Dados",
     subtitle: isClicksMode ? "Carregue seus relatórios de cliques" : "Carregue seus relatórios de vendas",
-    uploadUrl: isClicksMode ? "/api/v1/clicks/upload" : "/api/v1/datasets/upload",
     deleteAction: isClicksMode ? deleteAllClicks : deleteAllDatasets,
     invalidate: isClicksMode ? invalidateClicks : invalidateSales,
     fetchAction: isClicksMode ? fetchClicks : fetchRows,
@@ -154,46 +160,39 @@ const UploadCSV = () => {
   const handleUpload = async () => {
     if (!file) return;
     setIsProcessing(true);
-    // Não usamos mais setUploadProgress como antes, pois vamos mostrar o overlay
+    setError(null);
 
     try {
-      const formData = new FormData();
-      formData.append("file", file);
+      let resolvedJobId: string;
 
-      // Enviamos o arquivo para obter o dataset_id
-      const res = await fetchWithAuth(getApiUrl(config.uploadUrl), {
-        method: "POST",
-        body: formData,
-      });
-
-      const result = await res.json().catch(() => ({}));
-
-      if (!res.ok) {
-        // Se for erro 400 (Bad Request), geralmente é erro de validação ou duplicados
-        const detail = result.detail || result.error || "Falha no processamento";
-        setError(detail);
-        setIsProcessing(false);
-        return;
+      try {
+        const create = await createJob(file.name, jobType);
+        const putRes = await uploadToPresignedUrl(file, create.upload_url);
+        if (!putRes.ok) {
+          throw new Error(`Upload falhou: ${putRes.status}`);
+        }
+        await commitJob(create.job_id);
+        resolvedJobId = create.job_id;
+      } catch (presignedErr) {
+        const fallback = await uploadMultipart(file, jobType);
+        resolvedJobId = fallback.job_id;
       }
 
-      // IMPORTANTE: Agora pegamos o dataset_id e mostramos o overlay
-      if (result.dataset_id) {
-        setDatasetId(result.dataset_id);
-        setShowOverlay(true);
-        // O resto será tratado no handleComplete
-      } else {
-        // Fallback para caso raro onde não veio dataset_id (talvez rota síncrona?)
-        handleComplete({});
-      }
-
+      setJobId(resolvedJobId);
+      setShowOverlay(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Erro desconhecido no upload.");
-      setUploadProgress(0);
+      const message = err instanceof Error ? err.message : "Erro desconhecido no upload.";
+      setError(message);
+      toast({
+        title: "Erro no upload",
+        description: message,
+        variant: "destructive",
+      });
       setIsProcessing(false);
     }
   };
 
-  const handleComplete = async (completedData?: any) => {
+  const handleComplete = async (completedData?: { row_count?: number }) => {
     const count = completedData?.row_count ?? 0;
     let msg = config.successMessage;
     if (count > 0) {
@@ -205,7 +204,7 @@ const UploadCSV = () => {
       await invalidateAllQueries();
     } finally {
       setShowOverlay(false);
-      setDatasetId(null);
+      setJobId(null);
       setIsProcessing(false);
       setUploadProgress(100);
     }
@@ -222,7 +221,7 @@ const UploadCSV = () => {
 
   const handleError = (errorMessage: string) => {
     setShowOverlay(false);
-    setDatasetId(null);
+    setJobId(null);
     setIsProcessing(false);
     setError(errorMessage);
     toast({
@@ -237,7 +236,7 @@ const UploadCSV = () => {
     setCsvData(null);
     setError(null);
     setUploadProgress(0);
-    setDatasetId(null);
+    setJobId(null);
     setShowOverlay(false);
   };
 
@@ -298,9 +297,9 @@ const UploadCSV = () => {
       }
     >
       <AnimatePresence>
-        {showOverlay && datasetId && (
-          <LoadingDataOverlay
-            datasetId={datasetId}
+        {showOverlay && jobId && (
+          <JobProgressOverlay
+            jobId={jobId}
             onComplete={handleComplete}
             onError={handleError}
           />
@@ -406,15 +405,15 @@ const UploadCSV = () => {
                       </p>
                     </div>
                   </div>
-                  <Button variant="ghost" size="icon" onClick={clearFile} disabled={isProcessing}>
+                  <Button variant="ghost" size="icon" onClick={clearFile} disabled={isProcessing || showOverlay}>
                     <X className="w-5 h-5 text-muted-foreground hover:text-destructive" />
                   </Button>
                 </div>
 
-                {isProcessing && (
+                {isProcessing && !showOverlay && (
                   <div className="space-y-2 mb-6">
                     <div className="flex justify-between text-xs font-medium">
-                      <span className="text-primary">Processando...</span>
+                      <span className="text-primary">Enviando arquivo…</span>
                       <span className="text-muted-foreground">{uploadProgress}%</span>
                     </div>
                     <Progress value={uploadProgress} className="h-2" />
@@ -442,6 +441,7 @@ const UploadCSV = () => {
                       }}
                       className="bg-primary hover:bg-primary/90 min-w-[140px]"
                       type="button"
+                      disabled={isProcessing || showOverlay}
                     >
                       Confirmar Upload
                     </Button>
