@@ -70,6 +70,13 @@ const getBaseUrl = (): string => {
     }
   }
 
+  // Se o host for produção, garantir HTTPS mesmo que a env venha com HTTP
+  if (typeof window !== 'undefined' && window.location.hostname.includes('marketdash.com.br')) {
+    if (envUrl && envUrl.startsWith('http://')) {
+      return envUrl.replace('http://', 'https://');
+    }
+  }
+
   return envUrl;
 };
 
