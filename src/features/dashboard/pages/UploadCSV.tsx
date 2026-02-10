@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
-import { JobProgressOverlay } from "@/components/dashboard/JobProgressOverlay";
+import { LoadingDataOverlay } from "@/components/dashboard/LoadingDataOverlay";
 import { motion, AnimatePresence } from "framer-motion";
 import { Upload, FileText, Check, AlertCircle, X, Eye, FileSpreadsheet, Trash2, MousePointerClick } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -58,8 +58,9 @@ const UploadCSV = () => {
   const [file, setFile] = useState<File | null>(null);
   const [csvData, setCsvData] = useState<CSVData | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [jobId, setJobId] = useState<string | null>(null);
-  const [showOverlay, setShowOverlay] = useState(false);
+
+  const [datasetId, setDatasetId] = useState<number | null>(null);
+  const [showDatasetPolling, setShowDatasetPolling] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -163,7 +164,7 @@ const UploadCSV = () => {
     setError(null);
 
     try {
-      let resolvedJobId: string;
+      let response: { job_id: string; dataset_id: number; status: string };
 
       try {
         const create = await createJob(file.name, jobType);
@@ -172,14 +173,23 @@ const UploadCSV = () => {
           throw new Error(`Upload falhou: ${putRes.status}`);
         }
         await commitJob(create.job_id);
-        resolvedJobId = create.job_id;
+        response = {
+          job_id: create.job_id,
+          dataset_id: create.dataset_id,
+          status: "processing"
+        };
       } catch (presignedErr) {
         const fallback = await uploadMultipart(file, jobType);
-        resolvedJobId = fallback.job_id;
+        response = fallback;
       }
 
-      setJobId(resolvedJobId);
-      setShowOverlay(true);
+      console.log('[UploadCSV] Upload initiated:', response);
+      console.log('[UploadCSV] Dataset ID:', response.dataset_id);
+      console.log('[UploadCSV] Mode:', isClicksMode ? 'CLICKS' : 'TRANSACTIONS');
+
+      // Start dataset polling overlay immediately
+      setDatasetId(response.dataset_id);
+      setShowDatasetPolling(true);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Erro desconhecido no upload.";
       setError(message);
@@ -192,25 +202,33 @@ const UploadCSV = () => {
     }
   };
 
-  const handleComplete = async (completedData?: { row_count?: number }) => {
-    const count = completedData?.row_count ?? 0;
-    let msg = config.successMessage;
-    if (count > 0) {
-      msg = `${count} linhas processadas com sucesso.`;
-    }
+  const handleDatasetComplete = async () => {
+    setShowDatasetPolling(false);
+    setDatasetId(null);
+    await finalizeUpload(config.successMessage);
+  };
 
+  const handleDatasetError = (errorMessage: string) => {
+    setShowDatasetPolling(false);
+    setDatasetId(null);
+    toast({
+      title: "Erro ao processar dados",
+      description: errorMessage,
+      variant: "destructive"
+    });
+  };
+
+  const finalizeUpload = async (msg: string) => {
     try {
       await config.fetchAction({ force: true });
       await invalidateAllQueries();
     } finally {
-      setShowOverlay(false);
-      setJobId(null);
       setIsProcessing(false);
       setUploadProgress(100);
     }
 
     toast({
-      title: "Processamento concluído!",
+      title: "✅ Processamento concluído!",
       description: msg,
       duration: 7000,
     });
@@ -219,25 +237,13 @@ const UploadCSV = () => {
     navigate("/dashboard");
   };
 
-  const handleError = (errorMessage: string) => {
-    setShowOverlay(false);
-    setJobId(null);
-    setIsProcessing(false);
-    setError(errorMessage);
-    toast({
-      title: "Erro no processamento",
-      description: errorMessage,
-      variant: "destructive"
-    });
-  };
-
   const clearFile = () => {
     setFile(null);
     setCsvData(null);
     setError(null);
     setUploadProgress(0);
-    setJobId(null);
-    setShowOverlay(false);
+    setDatasetId(null);
+    setShowDatasetPolling(false);
   };
 
   const handleDeleteAll = async () => {
@@ -297,11 +303,11 @@ const UploadCSV = () => {
       }
     >
       <AnimatePresence>
-        {showOverlay && jobId && (
-          <JobProgressOverlay
-            jobId={jobId}
-            onComplete={handleComplete}
-            onError={handleError}
+        {showDatasetPolling && datasetId && (
+          <LoadingDataOverlay
+            datasetId={datasetId}
+            onComplete={handleDatasetComplete}
+            onError={handleDatasetError}
           />
         )}
       </AnimatePresence>
@@ -405,12 +411,12 @@ const UploadCSV = () => {
                       </p>
                     </div>
                   </div>
-                  <Button variant="ghost" size="icon" onClick={clearFile} disabled={isProcessing || showOverlay}>
+                  <Button variant="ghost" size="icon" onClick={clearFile} disabled={isProcessing || showDatasetPolling}>
                     <X className="w-5 h-5 text-muted-foreground hover:text-destructive" />
                   </Button>
                 </div>
 
-                {isProcessing && !showOverlay && (
+                {isProcessing && !showDatasetPolling && (
                   <div className="space-y-2 mb-6">
                     <div className="flex justify-between text-xs font-medium">
                       <span className="text-primary">Enviando arquivo…</span>
@@ -441,7 +447,7 @@ const UploadCSV = () => {
                       }}
                       className="bg-primary hover:bg-primary/90 min-w-[140px]"
                       type="button"
-                      disabled={isProcessing || showOverlay}
+                      disabled={isProcessing || showDatasetPolling}
                     >
                       Confirmar Upload
                     </Button>
