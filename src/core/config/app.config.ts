@@ -14,6 +14,12 @@ export const APP_CONFIG = {
     DASHBOARD_REPORTS: '/dashboard/reports',
     DASHBOARD_MODULES: '/dashboard/modules',
     DASHBOARD_SETTINGS: '/dashboard/settings',
+    SUBSCRIPTION: '/assinatura',
+    SUBSCRIPTION_SUCCESS: '/assinatura/sucesso',
+    SUBSCRIPTION_ERROR: '/assinatura/erro',
+    SUBSCRIPTION_CALLBACK: '/assinatura/callback',
+    SET_PASSWORD: '/auth/set-password',
+    FORGOT_PASSWORD: '/auth/forgot-password',
   },
   EXTERNALS: {
     SUBSCRIBE_URL: 'https://www.cakto.com.br/#integracoes',

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
   DollarSign,
@@ -7,6 +7,7 @@ import {
   BarChart2,
   TrendingUp,
   X,
+  AlertTriangle,
 } from "lucide-react";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import KPICards, { KPIData } from "@/components/dashboard/KPICards";
@@ -15,10 +16,12 @@ import DashboardFilters from "@/components/dashboard/DashboardFilters";
 import DataTable, { DatasetRow } from "@/components/dashboard/DataTable";
 import ChannelPerformance from "@/components/dashboard/ChannelPerformance";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { calcTotals } from "@/shared/lib/kpi";
 import { isBeforeDateKey, isAfterDateKey } from "@/shared/lib/date";
 import type { AdSpend } from "@/shared/types/adspend";
-import { APP_CONFIG } from "@/core/config/app.config";
+import { userStorage } from "@/shared/lib/storage";
+import { SubscriptionPlanModal } from "@/features/subscription/components/SubscriptionPlanModal";
 
 const demoRows: DatasetRow[] = [
   {
@@ -40,7 +43,7 @@ const demoRows: DatasetRow[] = [
       "Valor de Compra(R$)": "R$ 4.200,00",
       "Comissão do Item da Shopee(R$)": "R$ 320,00",
       "Comissão líquida do afiliado(R$)": "R$ 280,00",
-      "Valor gasto anuncios": "R$ 120,00",
+      "Custos de Anúncios": "R$ 120,00",
       "ID do pedido": "A-1001",
     },
   },
@@ -63,7 +66,7 @@ const demoRows: DatasetRow[] = [
       "Valor de Compra(R$)": "R$ 8.600,00",
       "Comissão do Item da Shopee(R$)": "R$ 640,00",
       "Comissão líquida do afiliado(R$)": "R$ 520,00",
-      "Valor gasto anuncios": "R$ 200,00",
+      "Custos de Anúncios": "R$ 200,00",
       "ID do pedido": "A-1002",
     },
   },
@@ -86,7 +89,7 @@ const demoRows: DatasetRow[] = [
       "Valor de Compra(R$)": "R$ 5.100,00",
       "Comissão do Item da Shopee(R$)": "R$ 420,00",
       "Comissão líquida do afiliado(R$)": "R$ 380,00",
-      "Valor gasto anuncios": "R$ 160,00",
+      "Custos de Anúncios": "R$ 160,00",
       "ID do pedido": "A-1003",
     },
   },
@@ -132,7 +135,7 @@ const demoRows: DatasetRow[] = [
       "Valor de Compra(R$)": "R$ 7.800,00",
       "Comissão do Item da Shopee(R$)": "R$ 540,00",
       "Comissão líquida do afiliado(R$)": "R$ 480,00",
-      "Valor gasto anuncios": "R$ 240,00",
+      "Custos de Anúncios": "R$ 240,00",
       "ID do pedido": "A-1005",
     },
   },
@@ -155,7 +158,7 @@ const demoRows: DatasetRow[] = [
       "Valor de Compra(R$)": "R$ 2.600,00",
       "Comissão do Item da Shopee(R$)": "R$ 190,00",
       "Comissão líquida do afiliado(R$)": "R$ 160,00",
-      "Valor gasto anuncios": "R$ 100,00",
+      "Custos de Anúncios": "R$ 100,00",
       "ID do pedido": "A-1006",
     },
   },
@@ -178,7 +181,7 @@ const demoRows: DatasetRow[] = [
       "Valor de Compra(R$)": "R$ 6.900,00",
       "Comissão do Item da Shopee(R$)": "R$ 480,00",
       "Comissão líquida do afiliado(R$)": "R$ 430,00",
-      "Valor gasto anuncios": "R$ 230,00",
+      "Custos de Anúncios": "R$ 230,00",
       "ID do pedido": "A-1007",
     },
   },
@@ -201,7 +204,7 @@ const demoRows: DatasetRow[] = [
       "Valor de Compra(R$)": "R$ 1.400,00",
       "Comissão do Item da Shopee(R$)": "R$ 110,00",
       "Comissão líquida do afiliado(R$)": "R$ 90,00",
-      "Valor gasto anuncios": "R$ 60,00",
+      "Custos de Anúncios": "R$ 60,00",
       "ID do pedido": "A-1008",
     },
   },
@@ -255,6 +258,26 @@ const Demo = () => {
   const [subIdFilter, setSubIdFilter] = useState<string>("");
   const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({});
   const [drillDown, setDrillDown] = useState<DrillDownFilter>(null);
+  const [loading, setLoading] = useState(false);
+  const [showPlanModal, setShowPlanModal] = useState(false);
+  const [checkoutPrefill, setCheckoutPrefill] = useState<{ name?: string; email?: string; cpf_cnpj?: string } | null>(null);
+
+  // Scroll to top when component mounts
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, []);
+
+  const handleSubscribe = () => {
+    const storedUser = userStorage.get() as { email?: string; name?: string; cpf_cnpj?: string } | null;
+
+    if (storedUser) {
+      setCheckoutPrefill({ name: storedUser.name, email: storedUser.email, cpf_cnpj: storedUser.cpf_cnpj });
+    } else {
+      setCheckoutPrefill(null);
+    }
+
+    setShowPlanModal(true);
+  };
 
   const rangeLabel = useMemo(() => {
     if (dateRange.from || dateRange.to) {
@@ -290,7 +313,7 @@ const Demo = () => {
     return [
       { title: "Faturamento (Pend. + Concl.)", value: formatCurrency(totals.faturamento), icon: DollarSign, iconColor: "text-success" },
       { title: "Comissão (Pend. + Concl.)", value: formatCurrency(totals.comissao), icon: BarChart2, iconColor: "text-primary" },
-      { title: "Valor Gasto Anúncios", value: formatCurrency(totals.gastoAnuncios), icon: ShoppingCart, iconColor: "text-warning" },
+      { title: "Custos de Anúncios", value: formatCurrency(totals.gastoAnuncios), icon: ShoppingCart, iconColor: "text-warning" },
       { title: "Lucro", value: formatCurrency(totals.lucro), icon: Target, iconColor: "text-accent" },
       { title: "ROAS (Retorno)", value: `${totals.roas.toFixed(2)}x`, icon: TrendingUp, iconColor: "text-success" },
     ];
@@ -335,113 +358,180 @@ const Demo = () => {
   };
 
   return (
-    <DashboardLayout
-      title="Demo"
-      subtitle="Dashboard completo com dados simulados"
-      action={
-        <Button asChild>
-          <a href={APP_CONFIG.EXTERNALS.SUBSCRIBE_URL} target="_blank" rel="noreferrer">
-            Assinar
-          </a>
-        </Button>
-      }
-    >
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-        <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground mb-3">
-          <span>{rangeLabel}</span>
-        </div>
+    <>
+      <DashboardLayout
+        title="Demo"
+        subtitle="Dashboard completo com dados simulados"
+        action={
+          <Button onClick={handleSubscribe} variant="hero">
+            Assinar Agora
+          </Button>
+        }
+      >
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+        >
+          {loading ? (
+            <DashboardSkeleton />
+          ) : (
+            <>
+              <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground mb-3">
+                <span>{rangeLabel}</span>
+              </div>
 
-        <DashboardFilters
-          dateRange={dateRange}
-          onDateRangeApply={(range) => setDateRange(range)}
-          onClear={() => {
-            setStatusFilter("");
-            setCategoryFilter("");
-            setSubIdFilter("");
-            setDateRange({});
-            setDrillDown(null);
-          }}
-          hasActive={!!dateRange.from || !!dateRange.to || !!statusFilter || !!categoryFilter || !!subIdFilter}
-          loading={false}
-        />
+              <DashboardFilters
+                dateRange={dateRange}
+                onDateRangeApply={(range) => setDateRange(range)}
+                onClear={() => {
+                  setStatusFilter("");
+                  setCategoryFilter("");
+                  setSubIdFilter("");
+                  setDateRange({});
+                  setDrillDown(null);
+                }}
+                hasActive={!!dateRange.from || !!dateRange.to || !!statusFilter || !!categoryFilter || !!subIdFilter}
+                loading={loading}
+                statusFilter={statusFilter}
+                categoryFilter={categoryFilter}
+                subIdFilter={subIdFilter}
+                onStatusFilterChange={setStatusFilter}
+                onCategoryFilterChange={setCategoryFilter}
+                onSubIdFilterChange={setSubIdFilter}
+                statusOptions={statusOptions}
+                categoryOptions={categoryOptions}
+                subIdOptions={subIdOptions}
+                rows={demoRows}
+                adSpends={demoAdSpends}
+              />
 
-        <div className="bg-card border border-border rounded-xl p-4 mb-4 flex flex-wrap gap-3 items-center">
-          <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="bg-background border border-border rounded px-2 py-1 text-foreground w-full sm:w-auto">
-            <option value="">Status do Pedido (todos)</option>
-            {statusOptions.map((s) => (
-              <option key={s} value={s || ""}>{s}</option>
-            ))}
-          </select>
-          <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} className="bg-background border border-border rounded px-2 py-1 text-foreground w-full sm:w-auto">
-            <option value="">Categoria Global L1 (todas)</option>
-            {categoryOptions.map((c) => (
-              <option key={c} value={c || ""}>{c}</option>
-            ))}
-          </select>
-          <select value={subIdFilter} onChange={(e) => setSubIdFilter(e.target.value)} className="bg-background border border-border rounded px-2 py-1 text-foreground w-full sm:w-auto">
-            <option value="">Sub_id1 (todos)</option>
-            {subIdOptions.map((s) => (
-              <option key={s} value={s || ""}>{s}</option>
-            ))}
-          </select>
-        </div>
+              {/* Aviso quando zerado */}
+              {(!filteredRows.length || totals.faturamento === 0) && (
+                <div
+                  className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 rounded-xl p-4 mb-4 flex items-start gap-3"
+                  role="alert"
+                  aria-live="polite"
+                >
+                  <AlertTriangle className="w-5 h-5 mt-0.5 text-amber-700 dark:text-amber-200" aria-hidden="true" />
+                  <div className="space-y-1 text-amber-900 dark:text-amber-50">
+                    <p className="font-semibold text-sm">Sem valores no período selecionado</p>
+                    <p className="text-sm text-amber-800 dark:text-amber-100">
+                      Ajuste o intervalo de datas ou filtros de status/canal/categoria para visualizar os KPIs. Assim que houver dados, os cards e gráficos serão preenchidos automaticamente.
+                    </p>
+                  </div>
+                </div>
+              )}
 
-        <KPICards kpis={kpis} onCardClick={handleCardClick} />
+              <KPICards kpis={kpis} onCardClick={handleCardClick} />
 
-        <DashboardCharts
-          rows={filteredRows}
-          onDrillDown={handleDrillDown}
-          belowRevenueContent={
-            <div className="mt-2">
-              <ChannelPerformance
+              <DashboardCharts
                 rows={filteredRows}
                 adSpends={demoAdSpends}
-                showSubTable={false}
-                showDayTable
-                showHighlights={false}
+                dateRange={dateRange}
+                subIdFilter={subIdFilter}
+                onDrillDown={handleDrillDown}
+                belowRevenueContent={
+                  <div className="mt-2">
+                    <ChannelPerformance
+                      rows={filteredRows}
+                      adSpends={demoAdSpends}
+                      dateRange={dateRange}
+                      showSubTable={false}
+                      showDayTable
+                      showHighlights={false}
+                    />
+                  </div>
+                }
               />
-            </div>
-          }
-        />
 
-        <div className="mt-8">
-          <ChannelPerformance rows={filteredRows} adSpends={demoAdSpends} showDayTable={false} showHighlights />
-        </div>
+              <div className="mt-8">
+                <ChannelPerformance
+                  rows={filteredRows}
+                  adSpends={demoAdSpends}
+                  dateRange={dateRange}
+                  showDayTable={false}
+                  showHighlights
+                />
+              </div>
 
-        {drillDown && (
-          <motion.div
-            id="detail-table"
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            transition={{ duration: 0.5 }}
-            className="mt-8"
-          >
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xl font-bold flex items-center gap-2">
-                <span className="text-primary">Dados Detalhados</span>
-                <span className="text-sm font-normal text-muted-foreground bg-secondary px-3 py-1 rounded-full">
-                  {drillDown.label}
-                </span>
-              </h3>
-              <Button variant="ghost" size="sm" onClick={() => setDrillDown(null)}>
-                <X className="w-4 h-4 mr-2" />
-                Fechar Tabela
-              </Button>
-            </div>
-            <DataTable rows={tableRows} />
-          </motion.div>
-        )}
+              {drillDown ? (
+                <motion.div
+                  id="detail-table"
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  transition={{ duration: 0.5 }}
+                  className="mt-8"
+                >
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-xl font-bold flex items-center gap-2">
+                      <span className="text-primary">Dados Detalhados</span>
+                      <span className="text-sm font-normal text-muted-foreground bg-secondary px-3 py-1 rounded-full">
+                        {drillDown.label}
+                      </span>
+                    </h3>
+                    <Button variant="ghost" size="sm" onClick={() => setDrillDown(null)}>
+                      <X className="w-4 h-4 mr-2" />
+                      Fechar Tabela
+                    </Button>
+                  </div>
+                  <DataTable rows={tableRows} />
+                </motion.div>
+              ) : (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="mt-8 text-center p-8 border-2 border-dashed border-border rounded-xl bg-secondary/20"
+                  role="status"
+                  aria-live="polite"
+                >
+                  <p className="text-muted-foreground">
+                    Clique em um Card ou Gráfico para ver os detalhes na tabela.
+                  </p>
+                </motion.div>
+              )}
+            </>
+          )}
+        </motion.div>
+      </DashboardLayout>
 
-        {!drillDown && (
-          <div className="mt-8 text-center p-8 border-2 border-dashed border-border rounded-xl bg-secondary/20">
-            <p className="text-muted-foreground">
-              Clique em um Card ou Gráfico para ver os detalhes na tabela.
-            </p>
-          </div>
-        )}
-      </motion.div>
-    </DashboardLayout>
+      <SubscriptionPlanModal
+        open={showPlanModal}
+        onOpenChange={setShowPlanModal}
+        customerData={checkoutPrefill ?? undefined}
+      />
+    </>
   );
 };
 
 export default Demo;
+
+const DashboardSkeleton = () => {
+  return (
+    <div className="space-y-4" role="status" aria-label="Carregando dashboard">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+        {[...Array(5)].map((_, i) => (
+          <div key={i} className="bg-card border border-border rounded-xl p-4">
+            <Skeleton className="h-4 w-24 mb-2" />
+            <Skeleton className="h-8 w-32" />
+            <Skeleton className="h-3 w-20 mt-2" />
+          </div>
+        ))}
+      </div>
+      <div className="bg-card border border-border rounded-xl p-6">
+        <Skeleton className="h-5 w-48 mb-2" />
+        <Skeleton className="h-4 w-32 mb-4" />
+        <Skeleton className="h-72 w-full rounded-lg" />
+      </div>
+      <div className="bg-card border border-border rounded-xl p-6">
+        <Skeleton className="h-5 w-40 mb-2" />
+        <Skeleton className="h-4 w-28 mb-4" />
+        <div className="space-y-2">
+          {[...Array(5)].map((_, i) => (
+            <Skeleton key={i} className="h-12 w-full rounded-md" />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};

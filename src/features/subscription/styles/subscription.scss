@@ -1,0 +1,11 @@
+/**
+ * Subscription Feature Styles
+ * Estilos específicos para o módulo de assinatura
+ * Reutiliza estilos do auth para manter consistência
+ */
+
+@use '../../../shared/styles/variables' as *;
+@use '../../../shared/styles/mixins' as *;
+
+// Reutiliza estilos do auth usando @use ao invés de @import
+@use '../../../features/auth/styles/auth.scss';

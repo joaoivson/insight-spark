@@ -1,26 +1,20 @@
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
-import KPICards, { KPIData } from "@/components/dashboard/KPICards";
-import { motion } from "framer-motion";
+import DashboardFilters from "@/components/dashboard/DashboardFilters";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   FileText,
   Download,
-  TrendingUp,
-  Sparkles,
-  ArrowUpRight,
-  CalendarRange,
-  DollarSign,
-  ShoppingCart,
-  Target,
-  BarChart2,
+  ExternalLink,
+  Search,
+  ArrowUpDown,
+  MousePointerClick,
+  FilterX,
+  X,
+  Filter,
+  Settings2,
+  Check,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -29,15 +23,56 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import DashboardFilters from "@/components/dashboard/DashboardFilters";
+import { Input } from "@/components/ui/input";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import { useEffect, useMemo, useState } from "react";
 import type { DatasetRow } from "@/components/dashboard/DataTable";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useDatasetStore } from "@/stores/datasetStore";
 import { useAdSpendsStore } from "@/stores/adSpendsStore";
-import { toDateKey, parseDateOnly, isBeforeDateKey, isAfterDateKey } from "@/shared/lib/date";
-import { calcTotals, getFaturamento, getComissaoAfiliado } from "@/shared/lib/kpi";
+import { useClicksStore } from "@/stores/clicksStore";
+import { toDateKey, parseDateOnly, isBeforeDateKey, isAfterDateKey, formatHourRange } from "@/shared/lib/date";
+import { getComissaoAfiliado } from "@/shared/lib/kpi";
+import { normalizeSubId, cn } from "@/shared/lib/utils";
+import { Badge } from "@/components/ui/badge";
+import * as XLSX from "xlsx";
+
+// Pivot Definitions
+type DimensionKey = "date" | "product" | "category" | "status" | "sub_id1" | "platform" | "time";
+type MetricKey = "revenue" | "commission" | "associatedClicks" | "associatedCost" | "profit" | "quantity";
+
+interface PivotConfig {
+  dimensions: DimensionKey[];
+  metrics: MetricKey[];
+}
+
+const DIMENSIONS: { key: DimensionKey; label: string }[] = [
+  { key: "date", label: "Data" },
+  { key: "product", label: "Produto" },
+  { key: "category", label: "Categoria" },
+  { key: "status", label: "Status" },
+  { key: "sub_id1", label: "Sub ID" },
+  { key: "platform", label: "Canal" },
+  { key: "time", label: "Horário" },
+];
+
+const METRICS: { key: MetricKey; label: string }[] = [
+  { key: "quantity", label: "Quantidade" },
+  { key: "revenue", label: "Faturamento" },
+  { key: "commission", label: "Comissão" },
+  { key: "associatedClicks", label: "Cliques" },
+  { key: "associatedCost", label: "Custos de anúncios" },
+  { key: "profit", label: "Lucro" },
+];
 
 const formatCurrency = (value: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value || 0);
@@ -46,394 +81,648 @@ const formatPercent = (value: number) =>
   new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 1, minimumFractionDigits: 1 }).format(value || 0) + "%";
 
 const ReportsPage = () => {
-  const { rows, loading, fetchRows } = useDatasetStore();
+  const { rows, loading: rowsLoading, fetchRows } = useDatasetStore();
   const { adSpends, loading: spendsLoading, fetchAdSpends } = useAdSpendsStore();
-  const [yearFilter, setYearFilter] = useState<string>("all");
-  const [mesAno, setMesAno] = useState<string>("all");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [categoryFilter, setCategoryFilter] = useState<string>("all");
-  const [subIdFilter, setSubIdFilter] = useState<string>("all");
+  const { clicks, loading: clicksLoading, fetchClicks } = useClicksStore();
+
+  const [statusFilter, setStatusFilter] = useState<string>("");
+  const [categoryFilter, setCategoryFilter] = useState<string>("");
+  const [subIdFilter, setSubIdFilter] = useState<string>("");
   const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({});
+  const [searchTerm, setSearchTerm] = useState("");
+  const [sortBy, setSortBy] = useState<string>("commission");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  const [isConfigOpen, setIsConfigOpen] = useState(false);
+
+  // Pivot Config State
+  const [pivotConfig, setPivotConfig] = useState<PivotConfig>(() => {
+    const saved = localStorage.getItem("reports_pivot_config");
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error("Failed to parse pivot config", e);
+      }
+    }
+    return { dimensions: [], metrics: ["quantity", "revenue", "commission"] as MetricKey[] };
+  });
 
   useEffect(() => {
-    fetchRows({});
-    fetchAdSpends({});
+    localStorage.setItem("reports_pivot_config", JSON.stringify(pivotConfig));
+  }, [pivotConfig]);
+
+  const toggleDimension = (key: DimensionKey) => {
+    setPivotConfig(prev => ({
+      ...prev,
+      dimensions: prev.dimensions.includes(key)
+        ? prev.dimensions.filter(d => d !== key)
+        : [...prev.dimensions, key]
+    }));
+  };
+
+  const toggleMetric = (key: MetricKey) => {
+    setPivotConfig(prev => ({
+      ...prev,
+      metrics: prev.metrics.includes(key)
+        ? prev.metrics.filter(m => m !== key)
+        : [...prev.metrics, key]
+    }));
+  };
+
+  useEffect(() => {
+    fetchRows({ range: dateRange });
+    fetchAdSpends({ range: dateRange });
+    fetchClicks({ range: dateRange });
   }, []);
 
-  const rangeLabel = useMemo(() => {
-    if (dateRange.from || dateRange.to) {
-      const from = dateRange.from ? new Date(dateRange.from).toLocaleDateString("pt-BR") : "início";
-      const to = dateRange.to ? new Date(dateRange.to).toLocaleDateString("pt-BR") : "hoje";
-      return `Período: ${from} a ${to}`;
-    }
-    return "Período: todo período";
-  }, [dateRange]);
+  const isLoading = rowsLoading || spendsLoading || clicksLoading;
 
   const filteredRows = useMemo(() => {
     return rows.filter((r) => {
-      if (mesAno !== "all" && r.mes_ano !== mesAno) return false;
-      if (statusFilter !== "all" && (r.status || "").toLowerCase() !== statusFilter.toLowerCase()) return false;
-      if (categoryFilter !== "all" && (r.category || "").toLowerCase() !== categoryFilter.toLowerCase()) return false;
-      if (subIdFilter !== "all" && (r.sub_id1 || "").toLowerCase() !== subIdFilter.toLowerCase()) return false;
-      if (dateRange.from) {
-        if (isBeforeDateKey(r.date, dateRange.from)) return false;
-      }
-      if (dateRange.to) {
-        if (isAfterDateKey(r.date, dateRange.to)) return false;
-      }
+      if (statusFilter && (r.status || "").toLowerCase() !== statusFilter.toLowerCase()) return false;
+      if (categoryFilter && (r.category || "").toLowerCase() !== categoryFilter.toLowerCase()) return false;
+      if (subIdFilter && normalizeSubId(r.sub_id1).toLowerCase() !== subIdFilter.toLowerCase()) return false;
+      if (searchTerm && !r.product.toLowerCase().includes(searchTerm.toLowerCase())) return false;
+
+      if (dateRange.from && isBeforeDateKey(r.date, dateRange.from)) return false;
+      if (dateRange.to && isAfterDateKey(r.date, dateRange.to)) return false;
       return true;
     });
-  }, [rows, mesAno, statusFilter, categoryFilter, subIdFilter, dateRange]);
+  }, [rows, statusFilter, categoryFilter, subIdFilter, dateRange, searchTerm]);
 
-  const getComissao = (row: DatasetRow) => getComissaoAfiliado(row);
-
-  const years = useMemo(() => {
-    const set = new Set<string>();
-    rows.forEach((r) => {
-      const d = parseDateOnly(r.date);
-      if (d) set.add(d.getFullYear().toString());
-    });
-    return Array.from(set).sort();
-  }, [rows]);
-
-  const mesAnoOptions = useMemo(() => Array.from(new Set(rows.map((r) => r.mes_ano).filter(Boolean))).sort(), [rows]);
-  const statusOptions = useMemo(() => Array.from(new Set(rows.map((r) => r.status).filter(Boolean))).sort(), [rows]);
-  const categoryOptions = useMemo(() => Array.from(new Set(rows.map((r) => r.category).filter(Boolean))).sort(), [rows]);
-  const subIdOptions = useMemo(() => Array.from(new Set(rows.map((r) => r.sub_id1).filter(Boolean))).sort(), [rows]);
-
-  const monthly = useMemo(() => {
-    const spendByMonth = new Map<string, number>();
-    adSpends.forEach((spend) => {
-      if (subIdFilter !== "all" && spend.sub_id && spend.sub_id !== subIdFilter) return;
-      const spendDateKey = toDateKey(spend.date);
-      if (dateRange.from && spendDateKey && spendDateKey < toDateKey(dateRange.from)) return;
-      if (dateRange.to && spendDateKey && spendDateKey > toDateKey(dateRange.to)) return;
-      const monthKey = spendDateKey ? spendDateKey.slice(0, 7) : "";
-      if (!monthKey) return;
-      spendByMonth.set(monthKey, (spendByMonth.get(monthKey) || 0) + (spend.amount || 0));
+  // Join logic: Group clicks and ads by date and sub_id
+  const joinedData = useMemo(() => {
+    // 1. Map clicks: date_subid -> clicks
+    const clicksMap = new Map<string, number>();
+    clicks.forEach((c) => {
+      const key = `${c.date}_${normalizeSubId(c.sub_id).toLowerCase()}`;
+      clicksMap.set(key, (clicksMap.get(key) || 0) + (Number(c.clicks) || 0));
     });
 
-    const map = new Map<
-      string,
-      {
-        revenue: number;
-        commission: number;
-        monthDate: Date;
-      }
-    >();
+    // 2. Map ad spends: date_subid -> amount
+    const adsMap = new Map<string, number>();
+    adSpends.forEach((s) => {
+      const key = `${toDateKey(s.date)}_${normalizeSubId(s.sub_id || "Geral").toLowerCase()}`;
+      adsMap.set(key, (adsMap.get(key) || 0) + (Number(s.amount) || 0));
+    });
 
-    filteredRows.forEach((r) => {
-      const d = parseDateOnly(r.date);
-      if (!d) return;
-      const year = d.getFullYear().toString();
-      if (yearFilter !== "all" && year !== yearFilter) return;
-      const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-      const prev = map.get(monthKey) || { revenue: 0, commission: 0, monthDate: d };
-      const faturamento = getFaturamento(r);
-      const comissao = getComissao(r);
-      map.set(monthKey, {
-        revenue: prev.revenue + faturamento,
-        commission: prev.commission + comissao,
-        monthDate: d,
+    // 3. Enrich filteredRows
+    return filteredRows.map((row) => {
+      const dateKey = row.date;
+      const subIdKey = normalizeSubId(row.sub_id1).toLowerCase();
+      const lookupKey = `${dateKey}_${subIdKey}`;
+
+      const associatedClicks = clicksMap.get(lookupKey) || 0;
+      const associatedCost = adsMap.get(lookupKey) || 0;
+      const comissao = getComissaoAfiliado(row);
+      const profit = comissao - associatedCost;
+
+      return {
+        ...row,
+        associatedClicks,
+        associatedCost,
+        profit,
+      };
+    }).sort((a, b) => {
+      const factor = sortDir === "asc" ? 1 : -1;
+      const valA = (a as any)[sortBy];
+      const valB = (b as any)[sortBy];
+      if (typeof valA === "number" && typeof valB === "number") return (valA - valB) * factor;
+      return String(valA || "").localeCompare(String(valB || "")) * factor;
+    });
+  }, [filteredRows, clicks, adSpends, sortBy, sortDir]);
+
+  const hasAssociatedData = useMemo(() => {
+    const hasClicks = joinedData.some(r => (r.associatedClicks ?? 0) > 0);
+    const hasCosts = joinedData.some(r => (r.associatedCost ?? 0) > 0);
+    return { hasClicks, hasCosts, showProfit: hasClicks || hasCosts };
+  }, [joinedData]);
+
+  // Pivot Logic Hook
+  const pivotData = useMemo(() => {
+    const isPivotMode = pivotConfig.dimensions.length > 0;
+
+    if (!isPivotMode) return joinedData;
+
+    const groups = new Map<string, any>();
+
+    joinedData.forEach(row => {
+      const getDimValue = (dim: DimensionKey) => {
+        if (dim === "time") return formatHourRange(row.time);
+        if (dim === "platform") return row.platform || "—";
+        return row[dim] ?? "N/A";
+      };
+      const key = pivotConfig.dimensions.map(dim => String(getDimValue(dim))).join("_");
+      const prev = groups.get(key) || {
+        ...pivotConfig.dimensions.reduce((acc, dim) => ({ ...acc, [dim]: getDimValue(dim) }), {}),
+        quantity: 0,
+        revenue: 0,
+        commission: 0,
+        associatedClicks: 0,
+        associatedCost: 0,
+        profit: 0,
+        salesCount: 0,
+      };
+
+      groups.set(key, {
+        ...prev,
+        quantity: prev.quantity + (Number(row.quantity) || 0),
+        revenue: prev.revenue + (Number(row.revenue) || 0),
+        commission: prev.commission + (Number(row.commission) || 0),
+        associatedClicks: prev.associatedClicks + (Number(row.associatedClicks) || 0),
+        associatedCost: prev.associatedCost + (Number(row.associatedCost) || 0),
+        profit: prev.profit + (Number(row.profit) || 0),
+        salesCount: prev.salesCount + 1,
       });
     });
 
-    return Array.from(map.entries())
-      .map(([monthKey, vals]) => {
-        const spend = spendByMonth.get(monthKey) || 0;
-        const profit = vals.commission - spend;
-        return {
-          monthKey,
-          month: vals.monthDate.toLocaleDateString("pt-BR", { month: "long", year: "numeric" }),
-          revenue: vals.revenue,
-          commission: vals.commission,
-          spend,
-          profit,
-        };
-      })
-      .sort((a, b) => a.monthKey.localeCompare(b.monthKey));
-  }, [filteredRows, yearFilter, adSpends, dateRange, subIdFilter]);
+    return Array.from(groups.values()).sort((a, b) => {
+      const factor = sortDir === "asc" ? 1 : -1;
+      const valA = (a as any)[sortBy];
+      const valB = (b as any)[sortBy];
+      if (typeof valA === "number" && typeof valB === "number") return (valA - valB) * factor;
+      return String(valA || "").localeCompare(String(valB || "")) * factor;
+    });
+  }, [joinedData, pivotConfig, sortBy, sortDir]);
 
-  const totals = useMemo(
-    () =>
-      calcTotals(filteredRows, adSpends, {
-        dateRange,
-        subIdFilter: subIdFilter !== "all" ? subIdFilter : "",
-      }),
-    [filteredRows, adSpends, dateRange, subIdFilter]
-  );
-  const ticketMedio = filteredRows.length ? totals.faturamento / filteredRows.length : 0;
+  const statusOptions = useMemo(() => Array.from(new Set(rows.map((r) => r.status).filter(Boolean))).sort(), [rows]);
+  const categoryOptions = useMemo(() => Array.from(new Set(rows.map((r) => r.category).filter(Boolean))).sort(), [rows]);
+  const subIdOptions = useMemo(() => {
+    const fromSales = rows.map((r) => normalizeSubId(r.sub_id1)).filter(s => s !== "Sem Sub ID");
+    const fromClicks = clicks.map((c) => normalizeSubId(c.sub_id)).filter(s => s !== "Sem Sub ID");
+    return Array.from(new Set([...fromSales, ...fromClicks])).sort();
+  }, [rows, clicks]);
 
+  const handleSort = (column: string) => {
+    if (sortBy === column) {
+      setSortDir(sortDir === "asc" ? "desc" : "asc");
+    } else {
+      setSortBy(column);
+      setSortDir("desc");
+    }
+  };
 
-  const kpis: KPIData[] = useMemo(() => {
-    const baseKpis = [
-      {
-        title: "Faturamento (Pend. + Concl.)",
-        value: formatCurrency(totals.faturamento),
-        icon: DollarSign,
-        iconColor: "text-success",
-      },
-      {
-        title: "Comissão (Pend. + Concl.)",
-        value: formatCurrency(totals.comissao),
-        icon: BarChart2,
-        iconColor: "text-primary",
-      },
-      {
-        title: "Valor Gasto Anúncios",
-        value: formatCurrency(totals.gastoAnuncios),
-        icon: ShoppingCart,
-        iconColor: "text-warning",
-      },
-      {
-        title: "Lucro",
-        value: formatCurrency(totals.lucro),
-        icon: Target,
-        iconColor: "text-accent",
-      },
+  const getShopeeLink = (row: any) => {
+    if (row.shop_id && row.item_id) {
+      return `https://shopee.com.br/product/${row.shop_id}/${row.item_id}`;
+    }
+    return null;
+  };
+
+  const renderCell = (row: any, key: string) => {
+    const val = row[key];
+    
+    if (key === "date") {
+      return parseDateOnly(val)?.toLocaleDateString("pt-BR") || val;
+    }
+    
+    if (key === "product") {
+      const shopeeLink = getShopeeLink(row);
+      return (
+        <div className="flex flex-col gap-1">
+          <span className="font-medium text-sm line-clamp-2 leading-tight group-hover:text-primary transition-colors">
+            {val}
+          </span>
+          {shopeeLink && (
+            <a 
+              href={shopeeLink} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-[10px] text-accent flex items-center gap-1 hover:underline"
+            >
+              Ver na Shopee <ExternalLink className="w-2.5 h-2.5" />
+            </a>
+          )}
+        </div>
+      );
+    }
+
+    if (key === "revenue" || key === "commission" || key === "associatedCost" || key === "profit") {
+      return (
+        <span className={cn(
+          "font-mono",
+          key === "profit" && val > 0 ? "text-success font-bold" : key === "profit" && val < 0 ? "text-destructive font-bold" : ""
+        )}>
+          {formatCurrency(val)}
+        </span>
+      );
+    }
+
+    if (key === "associatedClicks") {
+      return val > 0 ? (
+        <div className="flex items-center justify-end gap-1 text-accent font-mono">
+          <MousePointerClick className="w-3 h-3" />
+          {val.toLocaleString("pt-BR")}
+        </div>
+      ) : "-";
+    }
+
+    if (key === "quantity") {
+      return <span className="font-mono">{val}</span>;
+    }
+
+    if (key === "status") {
+      return (
+        <Badge variant="secondary" className="text-[10px] uppercase font-bold px-1.5 py-0">
+          {val}
+        </Badge>
+      );
+    }
+
+    if (key === "sub_id1") {
+      return <span className="text-[10px] font-mono text-muted-foreground">{val}</span>;
+    }
+
+    if (key === "platform") {
+      return <span className="text-sm text-muted-foreground">{val || "—"}</span>;
+    }
+
+    if (key === "time") {
+      const display = typeof val === "string" && /^Entre \d{2} e \d{2}:00$/.test(val) ? val : formatHourRange(val);
+      return <span className="text-xs text-muted-foreground">{display}</span>;
+    }
+
+    return val;
+  };
+
+  const handleExportExcel = () => {
+    // Determine dynamic headers based on pivot config
+    const headers: string[] = [];
+    const keys: string[] = [];
+
+    if (pivotConfig.dimensions.length > 0) {
+      pivotConfig.dimensions.forEach(dimKey => {
+        headers.push(DIMENSIONS.find(d => d.key === dimKey)?.label || "");
+        keys.push(dimKey === "platform" ? "platform" : dimKey === "time" ? "time" : dimKey);
+      });
+      pivotConfig.metrics.forEach(metricKey => {
+        headers.push(METRICS.find(m => m.key === metricKey)?.label || "");
+        keys.push(metricKey);
+      });
+    } else {
+      headers.push("Produto", "Quantidade", "Faturamento", "Comissão", "Canal", "Horário");
+      keys.push("product", "quantity", "revenue", "commission", "platform", "time");
+      if (hasAssociatedData.hasClicks) {
+        headers.push("Cliques");
+        keys.push("associatedClicks");
+      }
+      if (hasAssociatedData.hasCosts) {
+        headers.push("Custos de anúncios");
+        keys.push("associatedCost");
+      }
+      if (hasAssociatedData.showProfit) {
+        headers.push("Lucro");
+        keys.push("profit");
+      }
+    }
+
+    // Prepare data rows
+    const wsData = [
+      headers,
+      ...pivotData.map((row) => keys.map(key => {
+        const val = (row as any)[key];
+        if (key === "date") return parseDateOnly(val)?.toLocaleDateString("pt-BR") || val;
+        if (key === "time") return formatHourRange(val);
+        if (key === "platform") return val || "—";
+        return val;
+      })),
     ];
 
-    baseKpis.push({
-      title: "ROAS (Retorno)",
-      value: `${totals.roas.toFixed(2)}x`,
-      icon: TrendingUp,
-      iconColor: "text-success",
-    });
-
-    return baseKpis;
-  }, [totals]);
-
-  const insights = useMemo(() => {
-    if (!monthly.length) return null;
-    const latest = monthly[monthly.length - 1];
-    const previous = monthly.length > 1 ? monthly[monthly.length - 2] : null;
-    const growth =
-      previous && previous.revenue > 0 ? ((latest.revenue - previous.revenue) / previous.revenue) * 100 : null;
-    const best = monthly.reduce((bestRow, curr) => (curr.profit > bestRow.profit ? curr : bestRow), monthly[0]);
-    return { latest, previous, growth, best };
-  }, [monthly]);
-
-  const activeFilters = useMemo(() => {
-    const filters: { label: string; value: string }[] = [];
-    if (mesAno !== "all") filters.push({ label: "Mês/Ano", value: mesAno });
-    if (statusFilter !== "all") filters.push({ label: "Status", value: statusFilter });
-    if (categoryFilter !== "all") filters.push({ label: "Categoria", value: categoryFilter });
-    if (subIdFilter !== "all") filters.push({ label: "Canal", value: subIdFilter });
-    if (dateRange.from || dateRange.to) filters.push({ label: "Período", value: rangeLabel.replace("Período: ", "") });
-    if (yearFilter !== "all") filters.push({ label: "Ano", value: yearFilter });
-    return filters;
-  }, [mesAno, statusFilter, categoryFilter, subIdFilter, dateRange, rangeLabel, yearFilter]);
-
-  const isLoading = loading || spendsLoading;
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+    const wb = XLSX.utils.book_new();
+    const sheetName = pivotConfig.dimensions.length > 0 ? "Relatório Consolidado" : "Relatório Detalhado";
+    XLSX.utils.book_append_sheet(wb, ws, sheetName);
+    XLSX.writeFile(wb, `relatorio_${new Date().toISOString().slice(0, 10)}.xlsx`);
+  };
 
   return (
-    <DashboardLayout title="Relatórios" subtitle="Análise detalhada dos seus dados">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-      >
+    <DashboardLayout 
+      title="Relatório Dinâmico" 
+      subtitle="Análise personalizada de vendas, cliques e anúncios"
+      action={
+        <Button onClick={handleExportExcel} className="gap-2" variant="accent">
+          <Download className="w-4 h-4" />
+          Exportar Excel
+        </Button>
+      }
+    >
+      <div className="space-y-6">
+        <DashboardFilters
+          dateRange={dateRange}
+          onDateRangeApply={(range) => {
+            setDateRange(range);
+            fetchRows({ range });
+            fetchAdSpends({ range });
+            fetchClicks({ range });
+          }}
+          onClear={() => {
+            setStatusFilter("");
+            setCategoryFilter("");
+            setSubIdFilter("");
+            setSearchTerm("");
+            setDateRange({});
+          }}
+          hasActive={!!dateRange.from || !!dateRange.to || !!statusFilter || !!categoryFilter || !!subIdFilter || !!searchTerm}
+          loading={isLoading}
+          statusFilter={statusFilter}
+          categoryFilter={categoryFilter}
+          subIdFilter={subIdFilter}
+          onStatusFilterChange={setStatusFilter}
+          onCategoryFilterChange={setCategoryFilter}
+          onSubIdFilterChange={setSubIdFilter}
+          statusOptions={statusOptions}
+          categoryOptions={categoryOptions}
+          subIdOptions={subIdOptions}
+          rows={rows}
+          adSpends={adSpends}
+          clicks={clicks}
+        />
+
+        <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-4">
+          <div className="flex-1 bg-card border border-border rounded-xl p-3 flex items-center gap-3 shadow-sm focus-within:ring-2 focus-within:ring-primary/20 transition-all group">
+            <div className="p-2 bg-secondary/50 rounded-lg group-focus-within:bg-primary/10 transition-colors">
+              <Search className="w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
+            </div>
+            <Input 
+              placeholder="Buscar por nome do produto na lista..." 
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="border-none focus-visible:ring-0 bg-transparent h-9 p-0 text-sm placeholder:text-muted-foreground/60"
+            />
+            {searchTerm && (
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-8 w-8 hover:bg-destructive/10 hover:text-destructive rounded-lg transition-colors" 
+                onClick={() => setSearchTerm("")}
+              >
+                <X className="w-4 h-4" />
+              </Button>
+            )}
+            <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 shadow-sm shadow-primary/10">
+              <Filter className="w-4 h-4 text-primary" />
+            </div>
+          </div>
+
+          <Sheet open={isConfigOpen} onOpenChange={setIsConfigOpen}>
+            <SheetTrigger asChild>
+              <Button variant="outline" className="h-[60px] lg:h-auto lg:py-4 gap-3 border-primary/20 bg-primary/5 hover:bg-primary/10 text-primary font-bold px-8 rounded-xl border-2 shadow-sm transition-all hover:scale-[1.01] active:scale-[0.99]">
+                <Settings2 className="w-5 h-5" />
+                <span className="text-base uppercase tracking-wider">Criar Tabela Dinâmica</span>
+              </Button>
+            </SheetTrigger>
+            <SheetContent className="w-[300px] sm:w-[400px]">
+              <SheetHeader>
+                <SheetTitle>Configuração da Tabela</SheetTitle>
+                <SheetDescription>
+                  Personalize como os dados são exibidos e agrupados.
+                </SheetDescription>
+              </SheetHeader>
+              <div className="py-6 space-y-8">
+                <div className="space-y-4">
+                  <h4 className="font-medium text-sm flex items-center gap-2">
+                    <div className="w-1.5 h-1.5 rounded-full bg-primary" />
+                    Agrupar por (Linhas)
+                  </h4>
+                  <p className="text-xs text-muted-foreground">Selecione os campos para consolidar os dados. Se nenhum for selecionado, a tabela exibirá a lista detalhada venda a venda.</p>
+                  <div className="grid grid-cols-1 gap-3 pt-2">
+                    {DIMENSIONS.map((dim) => (
+                      <div key={dim.key} className="flex items-center space-x-3 p-2 rounded-lg hover:bg-muted/50 transition-colors cursor-pointer" onClick={() => toggleDimension(dim.key)}>
+                        <Checkbox 
+                          id={`dim-${dim.key}`} 
+                          checked={pivotConfig.dimensions.includes(dim.key)}
+                          onCheckedChange={() => toggleDimension(dim.key)}
+                        />
+                        <Label htmlFor={`dim-${dim.key}`} className="text-sm font-medium leading-none cursor-pointer flex-1">
+                          {dim.label}
+                        </Label>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-4 pt-4 border-t border-border">
+                  <h4 className="font-medium text-sm flex items-center gap-2">
+                    <div className="w-1.5 h-1.5 rounded-full bg-accent" />
+                    Valores (Colunas)
+                  </h4>
+                  <p className="text-xs text-muted-foreground">Selecione as métricas que deseja visualizar.</p>
+                  <div className="grid grid-cols-2 gap-3 pt-2">
+                    {METRICS.map((metric) => (
+                      <div key={metric.key} className="flex items-center space-x-3 p-2 rounded-lg hover:bg-muted/50 transition-colors cursor-pointer" onClick={() => toggleMetric(metric.key)}>
+                        <Checkbox 
+                          id={`met-${metric.key}`} 
+                          checked={pivotConfig.metrics.includes(metric.key)}
+                          onCheckedChange={() => toggleMetric(metric.key)}
+                        />
+                        <Label htmlFor={`met-${metric.key}`} className="text-sm font-medium leading-none cursor-pointer flex-1">
+                          {metric.label}
+                        </Label>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </SheetContent>
+          </Sheet>
+        </div>
+
         {isLoading && !rows.length ? (
           <ReportsSkeleton />
         ) : (
-          <>
-            <div className="relative overflow-hidden rounded-2xl border border-border bg-gradient-to-br from-background via-card to-secondary/30 p-6 mb-6">
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.08),_transparent_45%)] pointer-events-none" />
-              <div className="flex flex-wrap items-center justify-between gap-4 relative z-10">
-                <div>
-                  <div className="flex items-center gap-2 text-xs uppercase text-muted-foreground tracking-wide">
-                    <Sparkles className="w-4 h-4" />
-                    Relatórios inteligentes
-                  </div>
-                  <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
-                    <span className="px-2 py-1 bg-secondary rounded-md border border-secondary/30 flex items-center gap-2">
-                      <CalendarRange className="w-4 h-4" />
-                      {rangeLabel}
-                    </span>
-                    <span className="text-xs text-foreground/50">Máx: 60 dias</span>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button variant="outline" size="sm" disabled className="gap-2">
-                    <Download className="w-4 h-4" />
-                    Exportar CSV
-                  </Button>
-                </div>
-              </div>
-              {activeFilters.length > 0 && (
-                <div className="mt-4 flex flex-wrap items-center gap-2">
-                  {activeFilters.map((f) => (
-                    <Badge key={f.label + f.value} variant="secondary" className="flex items-center gap-2">
-                      <span className="text-muted-foreground text-xs">{f.label}:</span>
-                      <span className="font-medium">{f.value}</span>
-                    </Badge>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Filters Bar */}
-            <div className="bg-card rounded-xl border border-border p-4 mb-8 flex flex-wrap items-center gap-3 shadow-sm">
-              <DashboardFilters
-                mesAnoOptions={mesAnoOptions}
-                mesAno={mesAno}
-                onMesAnoChange={setMesAno}
-                dateRange={dateRange}
-                onDateRangeApply={(range) => {
-                  setDateRange(range);
-                  fetchRows({ range });
-                  fetchAdSpends({ range });
-                }}
-                onClear={() => {
-                  setMesAno("all");
-                  setDateRange({});
-                  fetchRows({ range: {} });
-                  fetchAdSpends({ range: {} });
-                }}
-                hasActive={
-                  (mesAno !== "all") || !!dateRange.from || !!dateRange.to ||
-                  statusFilter !== "all" || categoryFilter !== "all" || subIdFilter !== "all"
-                }
-                loading={isLoading}
-              />
-
-              <div className="h-8 w-px bg-border mx-1 hidden md:block" />
-
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-[180px] bg-background">
-                  <SelectValue placeholder="Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos os Status</SelectItem>
-                  {statusOptions.map((s) => (
-                    <SelectItem key={s} value={s || "unknown"}>{s || "Sem status"}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                <SelectTrigger className="w-[180px] bg-background">
-                  <SelectValue placeholder="Categoria" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todas as Categorias</SelectItem>
-                  {categoryOptions.map((c) => (
-                    <SelectItem key={c} value={c || "unknown"}>{c || "Sem categoria"}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              <Select value={subIdFilter} onValueChange={setSubIdFilter}>
-                <SelectTrigger className="w-[180px] bg-background">
-                  <SelectValue placeholder="Canal (Sub ID)" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos os Canais</SelectItem>
-                  {subIdOptions.map((s) => (
-                    <SelectItem key={s} value={s || "unknown"}>{s || "Sem ID"}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              <Select value={yearFilter} onValueChange={setYearFilter}>
-                <SelectTrigger className="w-[100px] bg-background">
-                  <SelectValue placeholder="Ano" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos</SelectItem>
-                  {years.map((y) => (
-                    <SelectItem key={y} value={y}>{y}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <KPICards kpis={kpis} />
-
-            {/* Insights text block */}
-            <div className="bg-card rounded-xl border border-border p-4 mb-8 flex flex-wrap items-center gap-3 shadow-sm">
-              <div className="p-2 rounded-lg bg-secondary/20 border border-secondary/30">
-                <Sparkles className="w-5 h-5 text-secondary-foreground" />
-              </div>
-              <div className="flex-1">
-                <p className="text-sm text-muted-foreground">
-                  Utilize os filtros para comparar períodos e canais. Foque nos meses de melhor margem para repetir a estratégia vencedora
-                  e observe rapidamente o crescimento mês a mês.
-                </p>
-              </div>
-            </div>
-
-            {/* Evidência de dados vazios */}
-            {(!monthly.length || totals.faturamento === 0) && (
-              <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 rounded-xl p-4 mb-8 flex items-start gap-3">
-                <div className="mt-0.5 text-amber-700 dark:text-amber-200">
-                  <FileText className="w-5 h-5" />
-                </div>
-                <div className="space-y-1 text-amber-900 dark:text-amber-50">
-                  <p className="font-semibold text-sm">Nenhum valor encontrado nesse período</p>
-                  <p className="text-sm text-amber-800 dark:text-amber-100">
-                    Ajuste o intervalo de datas ou selecione outro canal/status para visualizar resultados. Quando houver dados, os cards e a tabela serão preenchidos automaticamente.
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {/* Report Table */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="space-y-8"
+          >
             <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
-              <div className="p-6 border-b border-border flex items-center gap-3 bg-secondary/5">
-                <div className="p-2 bg-background rounded-lg border border-border">
-                  <FileText className="w-5 h-5 text-muted-foreground" />
-                </div>
-                <div>
-                  <h3 className="font-display font-semibold text-foreground">Relatório Mensal</h3>
-                  <p className="text-xs text-muted-foreground">Comparativo de performance por mês</p>
-                </div>
-              </div>
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="bg-secondary/20 hover:bg-secondary/20">
-                      <TableHead className="w-[200px]">Mês</TableHead>
-                      <TableHead className="text-right">Faturamento</TableHead>
-                      <TableHead className="text-right">Comissão</TableHead>
-                      <TableHead className="text-right">Gasto Anúncios</TableHead>
-                      <TableHead className="text-right">Lucro (Comissão - Gasto)</TableHead>
-                      <TableHead className="text-right">ROAS</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {monthly.map((row) => (
-                      <TableRow key={row.month} className="hover:bg-muted/30 transition-colors">
-                        <TableCell className="font-medium text-foreground">{row.month}</TableCell>
-                        <TableCell className="text-right text-muted-foreground">{formatCurrency(row.revenue)}</TableCell>
-                        <TableCell className="text-right text-muted-foreground">{formatCurrency(row.commission)}</TableCell>
-                        <TableCell className="text-right text-muted-foreground">{formatCurrency(row.spend)}</TableCell>
-                        <TableCell
-                          className={`text-right font-bold ${row.profit < 0 ? "text-red-500" : "text-emerald-500"}`}
-                        >
-                          {formatCurrency(row.profit)}
-                        </TableCell>
-                        <TableCell
-                          className={`text-right font-medium ${row.spend > 0 && row.revenue / row.spend >= 1 ? "text-emerald-500" : "text-red-500"}`}
-                        >
-                          {`${(row.spend > 0 ? row.revenue / row.spend : 0).toFixed(2)}x`}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                    {!monthly.length && (
-                      <TableRow>
-                        <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
-                        {isLoading ? "Carregando dados..." : "Nenhum dado encontrado para os filtros selecionados."}
-                        </TableCell>
-                      </TableRow>
+                <div className="p-6 border-b border-border flex items-center justify-between bg-secondary/5">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-background rounded-lg border border-border">
+                      <FileText className="w-5 h-5 text-muted-foreground" />
+                    </div>
+                    <div>
+                      <h3 className="font-display font-semibold text-foreground">
+                        {pivotConfig.dimensions.length > 0 ? "Tabela Dinâmica Consolidada" : "Relatório Detalhado"}
+                      </h3>
+                      <p className="text-xs text-muted-foreground">
+                        {pivotConfig.dimensions.length > 0 
+                          ? `Agrupado por: ${pivotConfig.dimensions.map(d => DIMENSIONS.find(dim => dim.key === d)?.label).join(", ")}`
+                          : "Vendas associadas a cliques e custos por Sub ID e Data"}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    {pivotConfig.dimensions.length > 0 && (
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="text-xs text-muted-foreground hover:text-primary gap-2"
+                        onClick={() => setPivotConfig({ dimensions: [], metrics: ["quantity", "revenue", "commission"] as MetricKey[] })}
+                      >
+                        <X className="w-3 h-3" />
+                        Limpar Tabela
+                      </Button>
                     )}
-                  </TableBody>
-                </Table>
+                    <Badge variant="outline" className="font-mono">
+                      {pivotData.length} registros
+                    </Badge>
+                  </div>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-secondary/20 hover:bg-secondary/20">
+                        {/* Render Active Dimensions Headers */}
+                        {pivotConfig.dimensions.length > 0 ? (
+                          pivotConfig.dimensions.map(dimKey => {
+                            const dim = DIMENSIONS.find(d => d.key === dimKey);
+                            return (
+                              <TableHead key={dimKey} onClick={() => handleSort(dimKey)} className="cursor-pointer">
+                                <div className="flex items-center gap-1">{dim?.label} <ArrowUpDown className="w-3 h-3" /></div>
+                              </TableHead>
+                            );
+                          })
+                        ) : (
+                          // Default Headers: Produto, Quantidade, Faturamento, Comissão, Canal, Horário + conditional
+                          <>
+                            <TableHead onClick={() => handleSort("product")} className="cursor-pointer min-w-[250px]">
+                              <div className="flex items-center gap-1">Produto <ArrowUpDown className="w-3 h-3" /></div>
+                            </TableHead>
+                            <TableHead onClick={() => handleSort("quantity")} className="text-right cursor-pointer">
+                              <div className="flex items-center justify-end gap-1">Quantidade <ArrowUpDown className="w-3 h-3" /></div>
+                            </TableHead>
+                            <TableHead onClick={() => handleSort("revenue")} className="text-right cursor-pointer">
+                              <div className="flex items-center justify-end gap-1">Faturamento <ArrowUpDown className="w-3 h-3" /></div>
+                            </TableHead>
+                            <TableHead onClick={() => handleSort("commission")} className="text-right cursor-pointer">
+                              <div className="flex items-center justify-end gap-1">Comissão <ArrowUpDown className="w-3 h-3" /></div>
+                            </TableHead>
+                            <TableHead onClick={() => handleSort("platform")} className="cursor-pointer">
+                              <div className="flex items-center gap-1">Canal <ArrowUpDown className="w-3 h-3" /></div>
+                            </TableHead>
+                            <TableHead onClick={() => handleSort("time")} className="cursor-pointer">
+                              <div className="flex items-center gap-1">Horário <ArrowUpDown className="w-3 h-3" /></div>
+                            </TableHead>
+                            {hasAssociatedData.hasClicks && (
+                              <TableHead onClick={() => handleSort("associatedClicks")} className="text-right cursor-pointer">
+                                <div className="flex items-center justify-end gap-1">Cliques <ArrowUpDown className="w-3 h-3" /></div>
+                              </TableHead>
+                            )}
+                            {hasAssociatedData.hasCosts && (
+                              <TableHead onClick={() => handleSort("associatedCost")} className="text-right cursor-pointer">
+                                <div className="flex items-center justify-end gap-1">Custos de anúncios <ArrowUpDown className="w-3 h-3" /></div>
+                              </TableHead>
+                            )}
+                            {hasAssociatedData.showProfit && (
+                              <TableHead onClick={() => handleSort("profit")} className="text-right cursor-pointer">
+                                <div className="flex items-center justify-end gap-1">Lucro <ArrowUpDown className="w-3 h-3" /></div>
+                              </TableHead>
+                            )}
+                          </>
+                        )}
+
+                        {/* Render Active Metrics Headers (only in pivot mode) */}
+                        {pivotConfig.dimensions.length > 0 && pivotConfig.metrics.map(metricKey => {
+                          const metric = METRICS.find(m => m.key === metricKey);
+                          return (
+                            <TableHead key={metricKey} onClick={() => handleSort(metricKey)} className="text-right cursor-pointer">
+                              <div className="flex items-center justify-end gap-1">{metric?.label} <ArrowUpDown className="w-3 h-3" /></div>
+                            </TableHead>
+                          );
+                        })}
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      <AnimatePresence mode="popLayout">
+                        {pivotData.slice(0, 100).map((row, idx) => {
+                          return (
+                            <motion.tr
+                              key={`${row.id || idx}-${idx}`}
+                              initial={{ opacity: 0 }}
+                              animate={{ opacity: 1 }}
+                              exit={{ opacity: 0 }}
+                              className="hover:bg-muted/30 transition-colors group"
+                            >
+                              {/* Render Dimension Cells */}
+                              {pivotConfig.dimensions.length > 0 ? (
+                                pivotConfig.dimensions.map(dimKey => (
+                                  <TableCell key={dimKey} className={cn(dimKey === "date" ? "text-xs whitespace-nowrap" : "")}>
+                                    {renderCell(row, dimKey)}
+                                  </TableCell>
+                                ))
+                              ) : (
+                                // Default Cells: Produto, Quantidade, Faturamento, Comissão, Canal, Horário + conditional
+                                <>
+                                  <TableCell className="max-w-[300px]">
+                                    {renderCell(row, "product")}
+                                  </TableCell>
+                                  <TableCell className="text-right">
+                                    {renderCell(row, "quantity")}
+                                  </TableCell>
+                                  <TableCell className="text-right">
+                                    {renderCell(row, "revenue")}
+                                  </TableCell>
+                                  <TableCell className="text-right">
+                                    {renderCell(row, "commission")}
+                                  </TableCell>
+                                  <TableCell>
+                                    {renderCell(row, "platform")}
+                                  </TableCell>
+                                  <TableCell>
+                                    {renderCell(row, "time")}
+                                  </TableCell>
+                                  {hasAssociatedData.hasClicks && (
+                                    <TableCell className="text-right">
+                                      {renderCell(row, "associatedClicks")}
+                                    </TableCell>
+                                  )}
+                                  {hasAssociatedData.hasCosts && (
+                                    <TableCell className="text-right">
+                                      {renderCell(row, "associatedCost")}
+                                    </TableCell>
+                                  )}
+                                  {hasAssociatedData.showProfit && (
+                                    <TableCell className="text-right">
+                                      {renderCell(row, "profit")}
+                                    </TableCell>
+                                  )}
+                                </>
+                              )}
+
+                              {/* Render Metric Cells (only in pivot mode) */}
+                              {pivotConfig.dimensions.length > 0 && pivotConfig.metrics.map(metricKey => (
+                                <TableCell key={metricKey} className="text-right">
+                                  {renderCell(row, metricKey)}
+                                </TableCell>
+                              ))}
+                            </motion.tr>
+                          );
+                        })}
+                      </AnimatePresence>
+                      {!pivotData.length && (
+                        <TableRow>
+                          <TableCell colSpan={12} className="h-32 text-center text-muted-foreground">
+                            {isLoading ? "Carregando dados..." : "Nenhum dado encontrado para os filtros selecionados."}
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+                {pivotData.length > 100 && (
+                  <div className="p-4 text-center border-t border-border bg-secondary/5">
+                    <p className="text-xs text-muted-foreground italic">
+                      Exibindo apenas os primeiros 100 resultados de {pivotData.length}. Use os filtros acima para refinar sua busca ou exporte para Excel para ver tudo.
+                    </p>
+                  </div>
+                )}
               </div>
-            </div>
-          </>
+          </motion.div>
         )}
-      </motion.div>
+      </div>
     </DashboardLayout>
   );
 };
@@ -443,13 +732,8 @@ export default ReportsPage;
 const ReportsSkeleton = () => {
   return (
     <div className="space-y-6">
-      <div className="bg-card rounded-xl border border-border p-4 flex flex-wrap gap-4">
-        {[...Array(4)].map((_, i) => (
-          <Skeleton key={i} className="h-10 w-44" />
-        ))}
-      </div>
-      <div className="grid md:grid-cols-2 gap-6">
-        {[...Array(2)].map((_, i) => (
+      <div className="grid md:grid-cols-2 lg:grid-cols-5 gap-6">
+        {[...Array(5)].map((_, i) => (
           <div key={i} className="bg-card rounded-xl border border-border p-6 space-y-3">
             <Skeleton className="h-4 w-32" />
             <Skeleton className="h-8 w-40" />

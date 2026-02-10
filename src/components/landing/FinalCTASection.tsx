@@ -1,10 +1,11 @@
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
-import { APP_CONFIG } from "@/core/config/app.config";
+import { useSubscribe } from "@/shared/hooks/useSubscribe";
 
 const FinalCTASection = () => {
+  const { handleSubscribe, loading } = useSubscribe();
   return (
     <section className="py-20">
       <div className="container mx-auto px-4">
@@ -13,26 +14,52 @@ const FinalCTASection = () => {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.5 }}
-          className="glass-card rounded-3xl p-10 md:p-14 border border-border text-center"
+          className="glass-card rounded-3xl p-10 md:p-14 border-2 border-accent/30 relative overflow-hidden text-center"
         >
-          <h2 className="font-display text-3xl md:text-4xl font-bold text-foreground mb-4">
-            Pronto para aumentar o ROAS e reduzir desperdícios?
-          </h2>
-          <p className="text-muted-foreground text-lg mb-8">
-            Comece agora e veja seus indicadores reais em minutos. Sem planilhas, sem ruído.
-          </p>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <a href={APP_CONFIG.EXTERNALS.SUBSCRIBE_URL} target="_blank" rel="noreferrer">
-              <Button variant="hero" size="xl">
-                Assinar agora
-                <ArrowRight className="w-5 h-5" />
+          {/* Background Glow */}
+          <div className="absolute inset-0 bg-gradient-to-br from-accent/5 to-transparent pointer-events-none" />
+          
+          <div className="relative z-10">
+            <h2 className="font-display text-4xl md:text-6xl font-bold text-foreground mb-6">
+              Suba seus CSVs e descubra hoje onde está seu lucro real.
+            </h2>
+            <p className="text-muted-foreground text-xl mb-10 max-w-2xl mx-auto">
+              Pare de queimar dinheiro com achismo. Tenha a clareza que os grandes afiliados da Shopee usam para escalar.
+            </p>
+
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-6 mb-10">
+              <Button 
+                variant="hero" 
+                size="xl" 
+                className="px-12 py-8 text-2xl"
+                onClick={() => handleSubscribe(true)}
+                disabled={loading}
+                aria-label="Começar agora"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="w-6 h-6 mr-2 animate-spin" />
+                    Carregando...
+                  </>
+                ) : (
+                  <>
+                    🚀 Começar agora
+                    <ArrowRight className="w-6 h-6 ml-2" />
+                  </>
+                )}
               </Button>
-            </a>
-            <Link to="/demo">
-              <Button variant="hero-outline" size="xl">
-                Ver demo
-              </Button>
-            </Link>
+            </div>
+
+            {/* Garantia e Benefícios */}
+            <div className="flex flex-wrap items-center justify-center gap-4 text-sm text-muted-foreground">
+              <span>✓ Setup em 2 minutos</span>
+              <span>•</span>
+              <span>✓ Suporte em português</span>
+              <span>•</span>
+              <span>✓ Todas as funcionalidades incluídas</span>
+              <span>•</span>
+              <span className="font-semibold text-accent">✓ 7 dias de Garantia</span>
+            </div>
           </div>
         </motion.div>
       </div>

@@ -1,19 +1,25 @@
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { Menu, X } from "lucide-react";
+import { Menu, X, Loader2 } from "lucide-react";
 import { useState } from "react";
 import logoName from "@/assets/logo/logo_name.png";
 import logoIcon from "@/assets/logo/logo.png";
-import { APP_CONFIG } from "@/core/config/app.config";
+import { useSubscribe } from "@/shared/hooks/useSubscribe";
+import {
+  Sheet,
+  SheetContent,
+} from "@/components/ui/sheet";
 
 const Header = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { handleSubscribe, loading } = useSubscribe();
 
   const navItems = [
+    { label: "O Problema", href: "#problem" },
+    { label: "A Solução", href: "#solution" },
     { label: "Funcionalidades", href: "#features" },
     { label: "Preços", href: "#pricing" },
-    { label: "Como Funciona", href: "#how-it-works" },
   ];
 
   return (
@@ -57,9 +63,9 @@ const Header = () => {
             <Link to="/login">
               <Button variant="ghost">Entrar</Button>
             </Link>
-            <a href={APP_CONFIG.EXTERNALS.SUBSCRIBE_URL} target="_blank" rel="noreferrer">
-              <Button variant="accent">Assinar</Button>
-            </a>
+            <Button variant="accent" onClick={handleSubscribe}>
+              Ver Lucro Real
+            </Button>
           </div>
 
           {/* Mobile Menu Toggle */}
@@ -71,41 +77,81 @@ const Header = () => {
           </button>
         </div>
 
-        {/* Mobile Menu */}
-        {mobileMenuOpen && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
-            className="md:hidden py-4 border-t border-border"
+        {/* Mobile Menu - Fullscreen Sheet */}
+        <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+          <SheetContent 
+            side="left" 
+            className="w-full sm:w-80 p-0 bg-background [&>button]:hidden"
           >
-            <nav className="flex flex-col gap-4">
-              {navItems.map((item) => (
-                <a
-                  key={item.label}
-                  href={item.href}
+            <div className="flex flex-col h-full">
+              {/* Header do menu */}
+              <div className="h-16 flex items-center justify-between border-b border-border px-4 flex-shrink-0">
+                <div className="flex items-center gap-2">
+                  <img
+                    src={logoIcon}
+                    alt="Logo MarketDash"
+                    className="w-9 h-9 rounded-lg object-contain p-1.5 brand-logo-mark"
+                  />
+                  <img
+                    src={logoName}
+                    alt="MarketDash"
+                    className="h-6 w-auto brand-logo-name"
+                  />
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
                   onClick={() => setMobileMenuOpen(false)}
-                  className="text-muted-foreground hover:text-accent transition-colors font-medium px-2"
+                  aria-label="Fechar menu"
                 >
-                  {item.label}
-                </a>
-              ))}
-              <div className="flex flex-col gap-2 pt-4 border-t border-border">
+                  <X className="w-5 h-5" />
+                </Button>
+              </div>
+
+              {/* Navigation */}
+              <nav className="flex-1 py-6 px-4 overflow-y-auto">
+                <div className="flex flex-col gap-4">
+                  {navItems.map((item) => (
+                    <a
+                      key={item.label}
+                      href={item.href}
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="text-lg font-medium text-foreground hover:text-accent transition-colors py-2"
+                    >
+                      {item.label}
+                    </a>
+                  ))}
+                </div>
+              </nav>
+
+              {/* CTA Buttons */}
+              <div className="border-t border-border p-4 flex-shrink-0 space-y-2">
                 <Link to="/login" onClick={() => setMobileMenuOpen(false)}>
                   <Button variant="ghost" className="w-full">Entrar</Button>
                 </Link>
-                <a
-                  href={APP_CONFIG.EXTERNALS.SUBSCRIBE_URL}
-                  target="_blank"
-                  rel="noreferrer"
-                  onClick={() => setMobileMenuOpen(false)}
+                <Button 
+                  variant="accent" 
+                  className="w-full"
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    handleSubscribe(true);
+                  }}
+                  disabled={loading}
+                  aria-label="Ver Lucro Real"
                 >
-                  <Button variant="accent" className="w-full">Assinar</Button>
-                </a>
+                  {loading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Carregando...
+                    </>
+                  ) : (
+                    "Ver Lucro Real"
+                  )}
+                </Button>
               </div>
-            </nav>
-          </motion.div>
-        )}
+            </div>
+          </SheetContent>
+        </Sheet>
       </div>
     </motion.header>
   );

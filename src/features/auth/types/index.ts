@@ -5,22 +5,9 @@
 
 import { User } from "@/shared/types";
 
-export interface SignupData {
-  nome: string;
-  email: string;
-  cpfCnpj: string;
-  senha: string;
-}
-
 export interface LoginData {
   email: string;
   senha: string;
-}
-
-export interface SignupResponse {
-  success: boolean;
-  user?: User;
-  error?: string;
 }
 
 export interface LoginResponse {
@@ -30,4 +17,7 @@ export interface LoginResponse {
   user?: User;
   error?: string;
 }
+
+// Tipos de senha exportados de password.service.ts
+export type { SetPasswordRequest, SetPasswordResponse, ForgotPasswordRequest, ForgotPasswordResponse } from '../services/password.service';
 

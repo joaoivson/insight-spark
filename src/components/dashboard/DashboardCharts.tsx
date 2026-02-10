@@ -1,465 +1,104 @@
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Cell,
-  Pie,
-  PieChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-  LabelList,
-  Area,
-  AreaChart,
-  Legend,
-} from "recharts";
+import { useState, ReactNode } from "react";
+import { motion, Variants } from "framer-motion";
 import type { DatasetRow } from "./DataTable";
-import { useMemo, useState, ReactNode } from "react";
-import { Button } from "@/components/ui/button";
-import { parseDateOnly, toDateKey } from "@/shared/lib/date";
-
-const PIE_COLORS = ["hsl(210, 80%, 55%)", "hsl(222, 47%, 25%)", "hsl(24, 90%, 55%)", "hsl(273, 65%, 60%)"];
-const BAR_COLOR = "hsl(210, 80%, 55%)";
-const PROFIT_COLOR = "hsl(173, 80%, 40%)";
-const COST_COLOR = "hsl(38, 92%, 50%)";
+import {
+  groupByMesAno,
+  groupCommissionByDay,
+  groupRevenueProfitByMes,
+  groupByPlatform,
+  groupByCategory,
+} from "../../shared/lib/chart-utils";
+import { EvolutionBarChart } from "./charts/EvolutionBarChart";
+import { RevenueProfitAreaChart } from "./charts/RevenueProfitAreaChart";
+import { ChannelPieChart } from "./charts/ChannelPieChart";
+import { CategoryBarChart } from "./charts/CategoryBarChart";
 
 export type DrillDownType = "mes_ano" | "category" | "sub_id1" | "product" | "platform";
 
 interface DashboardChartsProps {
   rows: DatasetRow[];
+  adSpends?: any[];
+  dateRange?: { from?: Date; to?: Date };
+  subIdFilter?: string;
   onDrillDown?: (type: DrillDownType, value: string) => void;
   belowRevenueContent?: ReactNode;
 }
 
-const formatK = (value: number) => {
-  if (Math.abs(value) >= 1000) return `${(value / 1000).toFixed(2)} Mil`;
-  return value.toLocaleString("pt-BR");
+const chartItemVariants: Variants = {
+  hidden: { opacity: 0, scale: 0.95 },
+  show: {
+    opacity: 1,
+    scale: 1,
+    transition: {
+      duration: 0.4,
+      ease: "easeOut",
+    },
+  },
 };
 
-const formatCurrency = (value: number) =>
-  new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value || 0);
-
-const tooltipStyle = {
-  backgroundColor: "hsl(var(--card))",
-  borderColor: "hsl(var(--border))",
-  color: "hsl(var(--foreground))",
-};
-const tooltipCursor = { fill: "transparent" };
-
-const cleanNumber = (value: unknown): number | undefined => {
-  if (value === null || value === undefined) return undefined;
-  if (typeof value === "number" && Number.isFinite(value)) return value;
-  if (typeof value === "string") {
-    const cleaned = value
-      .replace(/R\$/gi, "")
-      .replace(/\s+/g, "")
-      .replace(/\./g, "")
-      .replace(/,/g, ".");
-    const num = Number(cleaned);
-    if (Number.isFinite(num)) return num;
-  }
-  const num = Number(value);
-  return Number.isFinite(num) ? num : undefined;
-};
-
-const getCommissionValue = (row: DatasetRow): number => {
-  const raw = (row as any).raw_data || {};
-  const parsed = cleanNumber(raw["Comissão do Item da Shopee(R$)"]);
-  return parsed !== undefined ? parsed : 0;
-};
-
-const getAffiliateCommissionValue = (row: DatasetRow): number => {
-  const raw = (row as any).raw_data || {};
-  const parsed = cleanNumber(raw["Comissão líquida do afiliado(R$)"]);
-  if (parsed !== undefined) return parsed;
-  return getCommissionValue(row);
-};
-
-const groupByMesAno = (rows: DatasetRow[]) => {
-  const map = new Map<string, number>();
-  rows.forEach((r) => {
-    const key = r.mes_ano || (r.date ? r.date.slice(0, 7) : "Sem Mês");
-    map.set(key, (map.get(key) || 0) + getCommissionValue(r));
-  });
-  return Array.from(map.entries())
-    .map(([key, value]) => {
-      const [y, m] = key.split("-");
-      const label = m && y ? `${m}/${y}` : key;
-      return { key, label, value };
-    })
-    .sort((a, b) => a.key.localeCompare(b.key));
-};
-
-const groupCommissionByDay = (rows: DatasetRow[]) => {
-  const map = new Map<string, number>();
-  rows.forEach((r) => {
-    if (!r.date) return;
-    const key = r.date;
-    map.set(key, (map.get(key) || 0) + getCommissionValue(r));
-  });
-  return Array.from(map.entries())
-    .map(([key, value]) => {
-      const d = parseDateOnly(key);
-      const label = d ? d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }) : key;
-      return { key, label, value };
-    })
-    .sort((a, b) => {
-      const ka = parseDateOnly(a.key);
-      const kb = parseDateOnly(b.key);
-      if (!ka || !kb) return 0;
-      return toDateKey(ka).localeCompare(toDateKey(kb));
-    });
-};
-
-const groupRevenueProfitByMes = (rows: DatasetRow[]) => {
-  const map = new Map<string, { revenue: number; cost: number; profit: number }>();
-  rows.forEach((r) => {
-    const key = r.mes_ano || "Sem Mês";
-    const prev = map.get(key) || { revenue: 0, cost: 0, profit: 0 };
-    const raw = (r as any).raw_data || {};
-    const faturamento = cleanNumber(raw["Valor de Compra(R$)"]) ?? 0;
-    const comissao = getAffiliateCommissionValue(r);
-    const gasto = cleanNumber(raw["Valor gasto anuncios"]) ?? 0;
-    const lucro = comissao - gasto; // alinhado aos cards: lucro = comissão líquida - gasto anúncios
-    const custo = gasto; // exibir Gasto Anúncios
-    map.set(key, {
-      revenue: prev.revenue + faturamento,
-      cost: prev.cost + custo,
-      profit: prev.profit + lucro,
-    });
-  });
-  return Array.from(map.entries())
-    .map(([mes_ano, v]) => ({ mes_ano, ...v }))
-    .sort((a, b) => a.mes_ano.localeCompare(b.mes_ano));
-};
-
-const groupByPlatform = (rows: DatasetRow[]) => {
-  const map = new Map<string, number>();
-  rows.forEach((r) => {
-    const key = r.platform || r.sub_id1 || "Outros";
-    map.set(key, (map.get(key) || 0) + getCommissionValue(r));
-  });
-  return Array.from(map.entries())
-    .map(([name, value]) => ({ name, value }))
-    .sort((a, b) => b.value - a.value);
-};
-
-const groupByCategory = (rows: DatasetRow[]) => {
-  const map = new Map<string, number>();
-  rows.forEach((r) => {
-    const key = r.category || "Sem categoria";
-    map.set(key, (map.get(key) || 0) + getCommissionValue(r));
-  });
-  return Array.from(map.entries())
-    .map(([name, value]) => ({ name, value }))
-    .sort((a, b) => b.value - a.value)
-    .slice(0, 12);
-};
-
-const ChannelPieChart = ({
-  data,
-  onDrillDown,
-}: {
-  data: any[];
-  onDrillDown?: (value: string) => void;
-}) => {
-  const total = data.reduce((sum, item) => sum + (item.value || 0), 0);
-  const pieData = data.slice(0, 6);
-
-  return (
-    <div className="bg-card rounded-xl border border-border p-6">
-      <div className="mb-4">
-        <h3 className="font-display font-semibold text-lg text-foreground">
-          Comissão Pendente + Concluída por Canal
-        </h3>
-        <p className="text-sm text-muted-foreground">Distribuição percentual</p>
-      </div>
-      <div className="h-72 flex items-center justify-center">
-        <ResponsiveContainer width="100%" height="100%">
-          <PieChart>
-            <Pie
-              data={pieData}
-              cx="50%"
-              cy="50%"
-              innerRadius={60}
-              outerRadius={100}
-              paddingAngle={5}
-              dataKey="value"
-              cursor="pointer"
-              onClick={(d) => onDrillDown?.(d.name)}
-            >
-              {pieData.map((entry, index) => (
-                <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} stroke="transparent" />
-              ))}
-            </Pie>
-            <Tooltip
-              contentStyle={tooltipStyle}
-              cursor={tooltipCursor}
-              itemStyle={{ color: "hsl(var(--foreground))" }}
-              labelStyle={{ color: "hsl(var(--foreground))" }}
-              formatter={(value: number) => {
-                const percent = total ? (value / total) * 100 : 0;
-                return [`${formatCurrency(value)} (${percent.toFixed(2)}%)`, "Valor"];
-              }}
-              labelFormatter={(label) => (label ? String(label) : "Canal")}
-            />
-          </PieChart>
-        </ResponsiveContainer>
-      </div>
-      <div className="grid grid-cols-2 gap-2 mt-3">
-        {pieData.map((item, index) => {
-          const percent = total ? (item.value / total) * 100 : 0;
-          return (
-            <div key={item.name} className="flex items-center gap-2 text-sm">
-              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: PIE_COLORS[index % PIE_COLORS.length] }} />
-              <span className="text-muted-foreground">{item.name}</span>
-              <span className="font-medium text-foreground ml-auto">{percent.toFixed(1)}%</span>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-};
-
-const CategoryBarChart = ({
-  data,
-  onDrillDown,
-}: {
-  data: any[];
-  onDrillDown?: (value: string) => void;
-}) => (
-  <div className="bg-card rounded-xl border border-border p-6">
-    <div className="mb-4">
-      <h3 className="font-display font-semibold text-lg text-foreground">
-        Comissão Pendente + Concluída por Categoria
-      </h3>
-      <p className="text-sm text-muted-foreground">Top 12 categorias</p>
-    </div>
-    <div className="h-96">
-      <ResponsiveContainer width="100%" height="100%">
-        <BarChart
-          data={data}
-          layout="vertical"
-          margin={{ top: 24, right: 20, left: 100, bottom: 16 }}
-        >
-          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-          <XAxis type="number" stroke="hsl(var(--muted-foreground))" tick={false} tickLine={false} axisLine={false} />
-          <YAxis
-            dataKey="name"
-            type="category"
-            width={130}
-            stroke="hsl(var(--muted-foreground))"
-            tick={{ fill: "hsl(var(--foreground))", fontSize: 12 }}
-            axisLine={false}
-            tickLine={false}
-          />
-          <Tooltip contentStyle={tooltipStyle} cursor={tooltipCursor} formatter={(v: number) => [formatK(v), "Valor"]} />
-          <Bar
-            dataKey="value"
-            fill={BAR_COLOR}
-            radius={[0, 8, 8, 0]}
-            cursor="pointer"
-            onClick={(d) => onDrillDown?.(d.name)}
-          />
-        </BarChart>
-      </ResponsiveContainer>
-    </div>
-  </div>
-);
-
-const MesAnoChart = ({
-  data,
-  mode,
-  onModeChange,
-  onDrillDown,
-}: {
-  data: any[];
-  mode: "month" | "day";
-  onModeChange: (mode: "month" | "day") => void;
-  onDrillDown?: (value: string) => void;
-}) => (
-  <div className="bg-card rounded-xl border border-border p-6">
-    <div className="mb-4 flex items-center justify-between gap-3 flex-wrap">
-      <div>
-        <h3 className="font-display font-semibold text-lg text-foreground">
-          Comissão Pendente + Concluída
-        </h3>
-        <p className="text-sm text-muted-foreground">
-          {mode === "month" ? "Soma das comissões por mês" : "Soma das comissões por dia"}
-        </p>
-      </div>
-      <div className="flex items-center gap-2">
-        <Button size="sm" variant={mode === "month" ? "default" : "outline"} onClick={() => onModeChange("month")}>
-          Mês
-        </Button>
-        <Button size="sm" variant={mode === "day" ? "default" : "outline"} onClick={() => onModeChange("day")}>
-          Dia
-        </Button>
-      </div>
-    </div>
-    <div className="h-64">
-      <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={data} margin={{ top: 10, right: 10, left: 10, bottom: 10 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-          <XAxis dataKey="label" stroke="hsl(var(--muted-foreground))" tick={false} tickLine={false} />
-          <YAxis stroke="hsl(var(--muted-foreground))" tick={false} axisLine={false} tickLine={false} />
-          <Tooltip
-            contentStyle={tooltipStyle}
-            cursor={tooltipCursor}
-            formatter={(v: number) => [formatK(v), "Valor"]}
-            labelFormatter={(l) => `Período ${l}`}
-          />
-          <Bar
-            dataKey="value"
-            fill={BAR_COLOR}
-            radius={[8, 8, 0, 0]}
-            cursor="pointer"
-            onClick={(d) => onDrillDown?.(d.key)}
-          >
-            <LabelList dataKey="value" position="top" formatter={(v: number) => formatK(v)} fill="hsl(var(--foreground))" />
-          </Bar>
-        </BarChart>
-      </ResponsiveContainer>
-    </div>
-  </div>
-);
-
-const RevenueProfitArea = ({ data, onDrillDown }: { data: any[]; onDrillDown?: (value: string) => void }) => {
-  const periodLabel = useMemo(() => {
-    if (!data || !data.length) return "Período exibido";
-    const labels = data
-      .map((item: any) => item?.mes_ano || item?.label || "")
-      .filter((l: any) => typeof l === "string" && l.length >= 7);
-    if (!labels.length) return "Período exibido";
-    const toFmt = (l: string) => {
-      const [y, m] = l.split("-");
-      return y && m ? `${m}/${y}` : l;
-    };
-    const first = toFmt(labels[0]);
-    const last = toFmt(labels[labels.length - 1]);
-    return first === last ? first : `${first} a ${last}`;
-  }, [data]);
-
-  return (
-    <div className="bg-card rounded-xl border border-border p-6">
-      <div className="mb-4">
-        <h3 className="font-display font-semibold text-lg text-foreground">Comissão x Valor Gasto em Ads x Lucro</h3>
-        <p className="text-sm text-muted-foreground">{periodLabel}</p>
-      </div>
-    <div className="h-72">
-      <ResponsiveContainer width="100%" height="100%">
-        <AreaChart
-          data={data}
-          margin={{ top: 10, right: 20, left: 0, bottom: 0 }}
-          onClick={(d: any) => {
-            if (d && d.activePayload && d.activePayload[0]) {
-              onDrillDown?.(d.activePayload[0].payload.mes_ano);
-            }
-          }}
-        >
-          <defs>
-            <linearGradient id="rev" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor={BAR_COLOR} stopOpacity={0.25} />
-              <stop offset="95%" stopColor={BAR_COLOR} stopOpacity={0} />
-            </linearGradient>
-            <linearGradient id="prof" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor={PROFIT_COLOR} stopOpacity={0.25} />
-              <stop offset="95%" stopColor={PROFIT_COLOR} stopOpacity={0} />
-            </linearGradient>
-          </defs>
-          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-          <XAxis dataKey="mes_ano" stroke="hsl(var(--muted-foreground))" tickLine={false} hide />
-          <YAxis stroke="hsl(var(--muted-foreground))" tickFormatter={formatK} axisLine={false} tickLine={false} hide />
-          <Tooltip
-            contentStyle={tooltipStyle}
-            cursor={tooltipCursor}
-            formatter={(v: number, _name: string, ctx) => {
-              const key = ctx?.dataKey;
-              const label =
-                key === "revenue"
-                  ? "Faturamento"
-                  : key === "profit"
-                  ? "Lucro (Comissão - Gasto Anúncios)"
-                  : "Gasto Anúncios";
-              return [formatCurrency(v), label];
-            }}
-            labelFormatter={(label) => {
-              if (typeof label === "string" && label.length >= 7) {
-                const [year, month] = label.split("-");
-                if (year && month) return `${month}/${year}`;
-              }
-              return label;
-            }}
-          />
-          <Legend />
-          <Area
-            type="monotone"
-            dataKey="revenue"
-            name="Faturamento"
-            stroke={BAR_COLOR}
-            fillOpacity={1}
-            fill="url(#rev)"
-            cursor="pointer"
-          />
-          <Area
-            type="monotone"
-            dataKey="cost"
-            name="Gasto Anúncios"
-            stroke={COST_COLOR}
-            fillOpacity={0.25}
-            fill="url(#prof)"
-            cursor="pointer"
-          />
-          <Area
-            type="monotone"
-            dataKey="profit"
-            name="Lucro (Comissão - Gasto Anúncios)"
-            stroke={PROFIT_COLOR}
-            fillOpacity={1}
-            fill="url(#prof)"
-            cursor="pointer"
-          />
-        </AreaChart>
-      </ResponsiveContainer>
-    </div>
-    </div>
-  );
-};
-
-const DashboardCharts = ({ rows, onDrillDown, belowRevenueContent }: DashboardChartsProps) => {
+const DashboardCharts = ({ rows, adSpends = [], dateRange, subIdFilter, onDrillDown, belowRevenueContent }: DashboardChartsProps) => {
   const [commissionMode, setCommissionMode] = useState<"month" | "day">("month");
 
   if (!rows.length) {
     return (
-      <div className="mt-6 text-muted-foreground text-sm">
-        Nenhum dado disponível. Faça o upload de um CSV para visualizar gráficos.
-      </div>
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3 }}
+        className="mt-6"
+      >
+        <div className="bg-card rounded-xl border border-border p-8 text-center">
+          <p className="text-muted-foreground text-sm mb-2">Nenhum dado disponível</p>
+        </div>
+      </motion.div>
     );
   }
 
-  const mesAnoData = groupByMesAno(rows);
-  const commissionDayData = groupCommissionByDay(rows);
-  const revProfitData = groupRevenueProfitByMes(rows);
-  const channelData = groupByPlatform(rows);
-  const categoryData = groupByCategory(rows);
+  const mesAnoData = groupByMesAno(rows, dateRange);
+  const commissionDayData = groupCommissionByDay(rows, dateRange);
+  const revProfitData = groupRevenueProfitByMes(rows, adSpends, dateRange, subIdFilter);
+  const channelData = groupByPlatform(rows, dateRange);
+  const categoryData = groupByCategory(rows, dateRange);
 
   return (
-    <div className="grid grid-cols-1 gap-6 mt-6">
-      <MesAnoChart
+    <motion.div
+      initial="hidden"
+      animate="show"
+      className="grid grid-cols-1 gap-6 mt-6"
+    >
+      <EvolutionBarChart
         data={commissionMode === "month" ? mesAnoData : commissionDayData}
         mode={commissionMode}
         onModeChange={setCommissionMode}
         onDrillDown={(v) => onDrillDown?.("mes_ano", v)}
+        variants={chartItemVariants}
       />
-      <RevenueProfitArea data={revProfitData} onDrillDown={(v) => onDrillDown?.("mes_ano", v)} />
+      <RevenueProfitAreaChart 
+        data={revProfitData} 
+        onDrillDown={(v) => onDrillDown?.("mes_ano", v)} 
+        variants={chartItemVariants}
+      />
       {belowRevenueContent}
-      <div className="grid lg:grid-cols-2 gap-6">
-        <ChannelPieChart data={channelData} onDrillDown={(v) => onDrillDown?.("platform", v)} />
-        <CategoryBarChart data={categoryData} onDrillDown={(v) => onDrillDown?.("category", v)} />
-      </div>
-    </div>
+      <section
+        aria-label="Comissão por canal e categoria"
+        className="grid grid-cols-1 gap-6 items-stretch min-w-0 sm:gap-6 lg:grid-cols-2 lg:gap-8"
+      >
+        <div className="min-w-0">
+          <ChannelPieChart
+            data={channelData}
+            onDrillDown={(v) => onDrillDown?.("platform", v)}
+            variants={chartItemVariants}
+          />
+        </div>
+        <div className="min-w-0">
+          <CategoryBarChart
+            data={categoryData}
+            onDrillDown={(v) => onDrillDown?.("category", v)}
+            variants={chartItemVariants}
+          />
+        </div>
+      </section>
+    </motion.div>
   );
 };
 

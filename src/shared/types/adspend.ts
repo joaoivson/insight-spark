@@ -3,4 +3,5 @@ export interface AdSpend {
   date: string;
   amount: number;
   sub_id: string | null;
+  clicks?: number;
 }

@@ -4,6 +4,7 @@ import "./index.css";
 import "@/shared/styles/index.scss";
 import favicon from "@/assets/logo/favicon-32x32.png";
 import ogImage from "@/assets/logo/logo_name.png";
+import { setupSubscriptionListener } from "@/shared/utils/subscription-events";
 
 // Ensure the document uses the new brand assets
 const applyBranding = () => {
@@ -60,5 +61,8 @@ const applyThemePreference = () => {
 
 applyBranding();
 applyThemePreference();
+
+// Setup subscription event listener
+setupSubscriptionListener();
 
 createRoot(document.getElementById("root")!).render(<App />);

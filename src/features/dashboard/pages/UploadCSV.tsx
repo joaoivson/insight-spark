@@ -1,10 +1,12 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
+import { JobProgressOverlay } from "@/components/dashboard/JobProgressOverlay";
 import { motion, AnimatePresence } from "framer-motion";
-import { Upload, FileText, Check, AlertCircle, X, Eye, FileSpreadsheet } from "lucide-react";
+import { Upload, FileText, Check, AlertCircle, X, Eye, FileSpreadsheet, Trash2, MousePointerClick } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import Papa from "papaparse";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
   Table,
   TableBody,
@@ -13,10 +15,31 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { getApiUrl } from "@/core/config/api.config";
-import { userStorage } from "@/shared/lib/storage";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Progress } from "@/components/ui/progress";
 import { useDatasetStore } from "@/stores/datasetStore";
+import { useClicksStore } from "@/stores/clicksStore";
+import { deleteAllDatasets } from "@/services/datasets.service";
+import { deleteAllClicks } from "@/services/clicks.service";
+import {
+  createJob,
+  uploadToPresignedUrl,
+  commitJob,
+  uploadMultipart,
+  type JobType,
+} from "@/services/jobs.service";
+
+import { useQueryClient } from "@tanstack/react-query";
 
 interface CSVData {
   headers: string[];
@@ -24,14 +47,53 @@ interface CSVData {
 }
 
 const UploadCSV = () => {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const isClicksMode = location.pathname.includes("upload-cliques");
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [dragActive, setDragActive] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [csvData, setCsvData] = useState<CSVData | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
+  const [jobId, setJobId] = useState<string | null>(null);
+  const [showOverlay, setShowOverlay] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { toast } = useToast();
-  const { fetchRows, persist } = useDatasetStore();
+  const [uploadProgress, setUploadProgress] = useState(0);
+
+  const { fetchRows, invalidate: invalidateSales } = useDatasetStore();
+  const { fetchClicks, invalidate: invalidateClicks } = useClicksStore();
+
+  const jobType: JobType = isClicksMode ? "click" : "transaction";
+  const config = {
+    title: isClicksMode ? "Importar Cliques" : "Importar Dados",
+    subtitle: isClicksMode ? "Carregue seus relatórios de cliques" : "Carregue seus relatórios de vendas",
+    deleteAction: isClicksMode ? deleteAllClicks : deleteAllDatasets,
+    invalidate: isClicksMode ? invalidateClicks : invalidateSales,
+    fetchAction: isClicksMode ? fetchClicks : fetchRows,
+    deleteLabel: isClicksMode ? "Excluir Todos os Cliques" : "Excluir Todas as Vendas",
+    deleteDescription: isClicksMode
+      ? "Esta ação irá excluir permanentemente todos os dados de cliques. Esta ação não pode ser desfeita."
+      : "Esta ação irá excluir permanentemente todos os dados de vendas. Esta ação não pode ser desfeita.",
+    successMessage: isClicksMode ? "Cliques importados com sucesso." : "Seus dados foram importados com sucesso.",
+    icon: isClicksMode ? MousePointerClick : CloudUploadIcon,
+  };
+
+  const invalidateAllQueries = async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["dataset-rows"] }),
+      queryClient.invalidateQueries({ queryKey: ["ad-spends"] }),
+      queryClient.invalidateQueries({ queryKey: ["clicks"] }),
+    ]);
+  };
+
+  // Limpar estado quando mudar de rota
+  useEffect(() => {
+    clearFile();
+  }, [location.pathname]);
 
   const handleDrag = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -98,51 +160,75 @@ const UploadCSV = () => {
   const handleUpload = async () => {
     if (!file) return;
     setIsProcessing(true);
-    setUploadProgress(20); // Fake progress start
+    setError(null);
 
     try {
-      const formData = new FormData();
-      formData.append("file", file);
+      let resolvedJobId: string;
 
-      const storedUser = userStorage.get();
-      const userIdParam = storedUser?.id ? `?user_id=${storedUser.id}` : "";
-
-      // Simulate progress for UX
-      const interval = setInterval(() => {
-        setUploadProgress((prev) => Math.min(prev + 10, 90));
-      }, 500);
-
-      const res = await fetch(getApiUrl(`/api/v1/datasets/upload${userIdParam}`), {
-        method: "POST",
-        body: formData,
-      });
-
-      clearInterval(interval);
-      setUploadProgress(100);
-
-      const result = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        throw new Error(result.detail || result.error || "Falha no servidor");
+      try {
+        const create = await createJob(file.name, jobType);
+        const putRes = await uploadToPresignedUrl(file, create.upload_url);
+        if (!putRes.ok) {
+          throw new Error(`Upload falhou: ${putRes.status}`);
+        }
+        await commitJob(create.job_id);
+        resolvedJobId = create.job_id;
+      } catch (presignedErr) {
+        const fallback = await uploadMultipart(file, jobType);
+        resolvedJobId = fallback.job_id;
       }
 
-      toast({
-        title: "Processamento concluído!",
-        description: "Seus dados foram importados com sucesso.",
-        duration: 5000,
-      });
-
-      const updated = await fetchRows({ force: true, includeRawData: true });
-      // reforça persistência em cache/localStorage
-      if (Array.isArray(updated)) {
-        persist(updated);
-      }
-      clearFile();
+      setJobId(resolvedJobId);
+      setShowOverlay(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Erro desconhecido no upload.");
-      setUploadProgress(0);
-    } finally {
+      const message = err instanceof Error ? err.message : "Erro desconhecido no upload.";
+      setError(message);
+      toast({
+        title: "Erro no upload",
+        description: message,
+        variant: "destructive",
+      });
       setIsProcessing(false);
     }
+  };
+
+  const handleComplete = async (completedData?: { row_count?: number }) => {
+    const count = completedData?.row_count ?? 0;
+    let msg = config.successMessage;
+    if (count > 0) {
+      msg = `${count} linhas processadas com sucesso.`;
+    }
+
+    try {
+      await config.fetchAction({ force: true });
+      await invalidateAllQueries();
+    } finally {
+      setShowOverlay(false);
+      setJobId(null);
+      setIsProcessing(false);
+      setUploadProgress(100);
+    }
+
+    toast({
+      title: "Processamento concluído!",
+      description: msg,
+      duration: 7000,
+    });
+
+    clearFile();
+    navigate("/dashboard");
+  };
+
+  const handleError = (errorMessage: string) => {
+    setShowOverlay(false);
+    setJobId(null);
+    setIsProcessing(false);
+    setError(errorMessage);
+    toast({
+      title: "Erro no processamento",
+      description: errorMessage,
+      variant: "destructive"
+    });
   };
 
   const clearFile = () => {
@@ -150,10 +236,75 @@ const UploadCSV = () => {
     setCsvData(null);
     setError(null);
     setUploadProgress(0);
+    setJobId(null);
+    setShowOverlay(false);
   };
 
+  const handleDeleteAll = async () => {
+    setIsDeleting(true);
+    try {
+      await config.deleteAction();
+      config.invalidate();
+      await invalidateAllQueries();
+      toast({
+        title: "Dados excluídos",
+        description: isClicksMode ? "Todos os dados de cliques foram removidos." : "Todos os dados de vendas foram removidos.",
+      });
+    } catch (err) {
+      toast({
+        title: "Erro ao excluir",
+        description: err instanceof Error ? err.message : "Não foi possível excluir os dados.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const IconComponent = config.icon;
+
   return (
-    <DashboardLayout title="Importar Dados" subtitle="Carregue seus relatórios de vendas">
+    <DashboardLayout
+      title={config.title}
+      subtitle={config.subtitle}
+      action={
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button variant="destructive" size="sm" disabled={isDeleting}>
+              <Trash2 className="w-4 h-4 mr-2" />
+              {config.deleteLabel}
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
+              <AlertDialogDescription>
+                {config.deleteDescription}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleDeleteAll}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                disabled={isDeleting}
+              >
+                {isDeleting ? "Excluindo..." : "Confirmar Exclusão"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      }
+    >
+      <AnimatePresence>
+        {showOverlay && jobId && (
+          <JobProgressOverlay
+            jobId={jobId}
+            onComplete={handleComplete}
+            onError={handleError}
+          />
+        )}
+      </AnimatePresence>
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -169,39 +320,50 @@ const UploadCSV = () => {
               exit={{ opacity: 0 }}
             >
               <div
-                className={`relative group cursor-pointer border-2 border-dashed rounded-3xl p-16 text-center transition-all duration-300 ease-out ${
-                  dragActive
-                    ? "border-primary bg-primary/5 scale-[1.02]"
-                    : "border-border hover:border-primary/50 hover:bg-secondary/30"
-                }`}
+                className={`relative group cursor-pointer border-2 border-dashed rounded-3xl p-16 text-center transition-all duration-300 ease-out ${dragActive
+                  ? "border-primary bg-primary/5 scale-[1.02]"
+                  : "border-border hover:border-primary/50 hover:bg-secondary/30"
+                  }`}
                 onDragEnter={handleDrag}
                 onDragLeave={handleDrag}
                 onDragOver={handleDrag}
                 onDrop={handleDrop}
               >
                 <input
+                  ref={fileInputRef}
                   type="file"
                   accept=".csv"
                   onChange={handleChange}
-                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                  style={{ display: 'none' }}
+                  id="csv-upload-input"
+                  aria-label="Selecionar arquivo CSV"
                 />
-                
-                <div className="relative z-0 pointer-events-none">
+
+                <div className="relative z-0">
                   <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center mx-auto mb-8 shadow-inner group-hover:scale-110 transition-transform duration-300">
-                    <CloudUploadIcon className="w-10 h-10 text-primary" />
+                    <IconComponent className="w-10 h-10 text-primary" />
                   </div>
-                  
+
                   <h3 className="font-display font-bold text-2xl text-foreground mb-3 group-hover:text-primary transition-colors">
-                    Solte seu arquivo CSV aqui
+                    Arraste e solte seu arquivo CSV aqui
                   </h3>
-                  <p className="text-muted-foreground mb-8 max-w-md mx-auto leading-relaxed">
-                    Arraste e solte seu arquivo ou clique em qualquer lugar desta área para selecionar do computador.
+                  <p className="text-muted-foreground mb-6 max-w-md mx-auto leading-relaxed">
+                    Solte o arquivo CSV nesta área para fazer o upload... {isClicksMode ? "Relatório de cliques." : "Relatório de vendas."}
                   </p>
-                  
-                  <div className="inline-flex items-center gap-2 px-4 py-2 bg-background/50 rounded-full border border-border text-xs font-medium text-muted-foreground">
-                    <FileSpreadsheet className="w-4 h-4" />
-                    <span>Suporta Shopee, Amazon, e-commerce padrão</span>
-                  </div>
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      fileInputRef.current?.click();
+                    }}
+                    className="mt-4"
+                  >
+                    <Upload className="w-4 h-4 mr-2" />
+                    Selecionar arquivo CSV
+                  </Button>
                 </div>
               </div>
 
@@ -243,15 +405,15 @@ const UploadCSV = () => {
                       </p>
                     </div>
                   </div>
-                  <Button variant="ghost" size="icon" onClick={clearFile} disabled={isProcessing}>
+                  <Button variant="ghost" size="icon" onClick={clearFile} disabled={isProcessing || showOverlay}>
                     <X className="w-5 h-5 text-muted-foreground hover:text-destructive" />
                   </Button>
                 </div>
 
-                {isProcessing && (
+                {isProcessing && !showOverlay && (
                   <div className="space-y-2 mb-6">
                     <div className="flex justify-between text-xs font-medium">
-                      <span className="text-primary">Processando...</span>
+                      <span className="text-primary">Enviando arquivo…</span>
                       <span className="text-muted-foreground">{uploadProgress}%</span>
                     </div>
                     <Progress value={uploadProgress} className="h-2" />
@@ -260,8 +422,27 @@ const UploadCSV = () => {
 
                 {!isProcessing && csvData && (
                   <div className="flex gap-3 justify-end">
-                    <Button variant="outline" onClick={clearFile}>Cancelar</Button>
-                    <Button onClick={handleUpload} className="bg-primary hover:bg-primary/90 min-w-[140px]">
+                    <Button
+                      variant="outline"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        clearFile();
+                      }}
+                      type="button"
+                    >
+                      Cancelar
+                    </Button>
+                    <Button
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleUpload();
+                      }}
+                      className="bg-primary hover:bg-primary/90 min-w-[140px]"
+                      type="button"
+                      disabled={isProcessing || showOverlay}
+                    >
                       Confirmar Upload
                     </Button>
                   </div>
@@ -281,28 +462,30 @@ const UploadCSV = () => {
                     </span>
                   </div>
                   <div className="overflow-x-auto max-h-[400px]">
-                    <Table>
-                      <TableHeader className="sticky top-0 bg-card z-10 shadow-sm">
-                        <TableRow>
-                          {csvData.headers.map((h, i) => (
-                            <TableHead key={i} className="whitespace-nowrap font-bold text-xs uppercase tracking-wider">
-                              {h}
-                            </TableHead>
-                          ))}
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {csvData.rows.map((row, i) => (
-                          <TableRow key={i} className="hover:bg-secondary/30">
-                            {row.map((cell, j) => (
-                              <TableCell key={j} className="whitespace-nowrap text-sm text-muted-foreground">
-                                {cell}
-                              </TableCell>
+                    <div className="min-w-full inline-block">
+                      <Table>
+                        <TableHeader className="sticky top-0 bg-card z-10 shadow-sm">
+                          <TableRow>
+                            {csvData.headers.map((h, i) => (
+                              <TableHead key={i} className="whitespace-nowrap font-bold text-xs uppercase tracking-wider bg-card">
+                                {h}
+                              </TableHead>
                             ))}
                           </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
+                        </TableHeader>
+                        <TableBody>
+                          {csvData.rows.map((row, i) => (
+                            <TableRow key={i} className="hover:bg-secondary/30">
+                              {row.map((cell, j) => (
+                                <TableCell key={j} className="whitespace-nowrap text-sm text-muted-foreground">
+                                  {cell}
+                                </TableCell>
+                              ))}
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
                   </div>
                 </div>
               )}

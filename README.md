@@ -70,12 +70,12 @@ VITE_API_URL=http://localhost:8000
 
 ### Arquitetura
 
-Consulte `src/ARCHITECTURE.md` para detalhes sobre a arquitetura do projeto.
+Consulte `docs/ARCHITECTURE.md` para detalhes sobre a arquitetura do projeto.
 
 ## 📚 Documentação
 
-- **Arquitetura**: `src/ARCHITECTURE.md`
-- **Documentação Técnica**: `DOCUMENTATION.md`
+- **Arquitetura**: `docs/ARCHITECTURE.md`
+- **Documentacao tecnica**: `docs/architecture.md`
 
 ## 🎨 Design System
 
@@ -84,28 +84,45 @@ O projeto utiliza um design system baseado em tokens CSS:
 - Tipografia (Sora para títulos, Inter para corpo)
 - Componentes Shadcn/ui customizados
 
-## 🔐 Autenticação
+## 🔐 Autenticacao
 
-O sistema utiliza um microserviço Python com MongoDB Atlas para autenticação:
-- **Signup**: `POST /api/users/signup`
-- **Login**: `POST /api/users/login`
+O frontend consome o backend FastAPI com PostgreSQL (Supabase):
+- **Signup**: `POST /api/v1/auth/register`
+- **Login**: `POST /api/v1/auth/login`
+- **Me**: `GET /api/v1/auth/me`
+
+## 🧭 Rotas Principais
+
+- `/` - Landing page
+- `/demo` - Demo
+- `/login` - Login
+- `/dashboard` - Dashboard principal
+- `/dashboard/upload` - Upload CSV
+- `/dashboard/reports` - Relatorios
+- `/dashboard/investimentos` - Ad Spends
+- `/dashboard/settings` - Configuracoes
+- `/dashboard/modules` - Modulos (em desenvolvimento)
 
 ## 📦 Features
 
 - ✅ Landing page responsiva
-- ✅ Autenticação (Login/Signup)
-- ✅ Dashboard interativo
+- ✅ Autenticacao (Login/Signup)
+- ✅ Dashboard interativo com KPIs e graficos
 - ✅ Upload e processamento de CSV
-- ✅ Visualização de dados com gráficos
-- ✅ Relatórios detalhados
-- ✅ Sistema de módulos (em desenvolvimento)
+- ✅ Filtros avancados (periodo, status, categoria, sub_id)
+- ✅ Relatorios detalhados
+- ✅ Gestao de investimentos (Ad Spends) + importacao em lote
+- ✅ Cache local com Zustand + localStorage
+- ✅ Sistema de modulos (em desenvolvimento)
 
-## 🚧 Próximos Passos
+## 🚧 Proximos Passos
 
-- [ ] Integração com backend completo
+- [ ] Integracao completa com backend
+- [ ] Exportacao de relatorios (PDF/CSV)
+- [ ] Multiplos datasets
 - [ ] Sistema de pagamentos (Stripe)
-- [ ] Módulos avançados de IA
-- [ ] Integrações via API
+- [ ] Modulos avancados de IA
+- [ ] Integracoes via API (Hotmart, Eduzz, Kiwify, Monetizze)
 
 ## 📄 Licença
 

@@ -63,11 +63,23 @@ const formatK = (value: number) => {
   return value.toLocaleString("pt-BR");
 };
 
-// API envia DD-MM-YYYY. Repassa sem alteração; caso contrário "Sem data".
+// API pode enviar YYYY-MM-DD (ISO) ou YYYY-DD-MM (dia no meio). Converte para YYYY-MM-DD.
+// Ex: 2026-02-01 como YYYY-DD-MM = dia 02, mês 01 = 2 Jan → 2026-01-02
 const normalizeDate = (dateStr?: string | null): string => {
   if (!dateStr || dateStr === "Sem data") return "Sem data";
-  if (/^\d{2}-\d{2}-\d{4}$/.test(dateStr.trim())) return dateStr.trim();
-  return "Sem data";
+  const m = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return "Sem data";
+  const [, year, a, b] = m;
+  const na = Number(a);
+  const nb = Number(b);
+  if (na < 1 || na > 31 || nb < 1 || nb > 31) return "Sem data";
+  // Se segundo > 12 → é dia (YYY-DD-MM)
+  if (na > 12) return `${year}-${b.padStart(2, "0")}-${a.padStart(2, "0")}`;
+  // Se terceiro > 12 → é dia (YYYY-MM-DD)
+  if (nb > 12) return dateStr;
+  // Ambíguo (a,b <= 12): segundo 02-31 + terceiro 01-12 sugere YYYY-DD-MM (Jan 2–31)
+  if (na >= 2 && nb >= 1 && nb <= 12) return `${year}-${b.padStart(2, "0")}-${a.padStart(2, "0")}`;
+  return dateStr;
 };
 
 interface DashboardClicksProps {
@@ -79,7 +91,7 @@ interface DashboardClicksProps {
 }
 
 const DashboardClicks = ({ clicks: rawClicks, totalClicksFromApi, adSpends = [], dateRange, subIdFilter }: DashboardClicksProps) => {
-  // Mantém datas no formato da API (DD-MM-YYYY); inválidas viram "Sem data"
+  // Normaliza as datas estranhas da API (YYYY-DD-MM -> YYYY-MM-DD) antes de qualquer processamento
   const clicks = useMemo(() => rawClicks.map(c => ({
     ...c,
     date: normalizeDate(c.date)

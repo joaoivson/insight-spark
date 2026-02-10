@@ -8,7 +8,10 @@ import {
   Trophy,
   DollarSign,
   BarChart3,
+  ArrowUpDown,
 } from "lucide-react";
+import { isBeforeDateKey, isAfterDateKey, parseDateOnly } from "@/shared/lib/date";
+import { filterKpiRows, getComissaoCents } from "@/shared/lib/kpi";
 import {
   Table,
   TableBody,
@@ -20,9 +23,12 @@ import {
 import { cn } from "@/shared/lib/utils";
 import { toDateKey } from "@/shared/lib/date";
 
+type DateRange = { from?: Date; to?: Date };
+
 interface ChannelPerformanceProps {
   rows: DatasetRow[];
   adSpends: AdSpend[];
+  dateRange?: DateRange;
   showSubTable?: boolean;
   showDayTable?: boolean;
   showHighlights?: boolean;
@@ -31,45 +37,47 @@ interface ChannelPerformanceProps {
 const formatCurrency = (value: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value || 0);
 
-const cleanNumber = (value: any): number => {
-  if (value === null || value === undefined) return 0;
-  if (typeof value === "number" && Number.isFinite(value)) return value;
-  if (typeof value === "string") {
-    let cleaned = value.replace(/R\$/gi, "").replace(/\s+/g, "");
-    const hasComma = cleaned.includes(",");
-    const hasDot = cleaned.includes(".");
-    if (hasComma && hasDot) cleaned = cleaned.replace(/\./g, "").replace(/,/g, ".");
-    else if (hasComma) cleaned = cleaned.replace(/\./g, "").replace(/,/g, ".");
-    const num = Number(cleaned);
-    return Number.isFinite(num) ? num : 0;
-  }
-  const num = Number(value);
-  return Number.isFinite(num) ? num : 0;
-};
-
-const getAffiliateCommission = (row: DatasetRow) => {
-  const raw = (row as any).raw_data || {};
-  const affiliate = cleanNumber(raw["Comissão líquida do afiliado(R$)"]);
-  if (affiliate) return affiliate;
-  return cleanNumber(raw["Comissão do Item da Shopee(R$)"]);
-};
-
 const ChannelPerformance = ({
   rows,
   adSpends,
+  dateRange,
   showSubTable = true,
   showDayTable = true,
   showHighlights = true,
 }: ChannelPerformanceProps) => {
+  // Filter rows by dateRange and KPI status (Pendente, Concluído) — mesma fonte que kpi.ts
+  const filteredRows = useMemo(() => {
+    let dateFiltered = rows;
+    if (dateRange?.from || dateRange?.to) {
+      dateFiltered = rows.filter((r) => {
+        if (dateRange.from && isBeforeDateKey(r.date, dateRange.from)) return false;
+        if (dateRange.to && isAfterDateKey(r.date, dateRange.to)) return false;
+        return true;
+      });
+    }
+    return filterKpiRows(dateFiltered);
+  }, [rows, dateRange]);
+
+  // Filter adSpends by dateRange
+  const filteredAdSpends = useMemo(() => {
+    if (!dateRange?.from && !dateRange?.to) return adSpends;
+    return adSpends.filter((spend) => {
+      const spendDate = spend.date;
+      if (dateRange.from && isBeforeDateKey(spendDate, dateRange.from)) return false;
+      if (dateRange.to && isAfterDateKey(spendDate, dateRange.to)) return false;
+      return true;
+    });
+  }, [adSpends, dateRange]);
+
   const metrics = useMemo(() => {
     const channelMap = new Map<string, { commission: number; spend: number; orders: number }>();
 
     // 1. Processar Comissões por canal (Sub ID)
-    rows.forEach((row) => {
+    filteredRows.forEach((row) => {
       const channel = row.sub_id1 || "Orgânico/Outros";
       const current = channelMap.get(channel) || { commission: 0, spend: 0, orders: 0 };
       
-      const commission = getAffiliateCommission(row);
+      const commission = getComissaoCents(row) / 100;
 
       channelMap.set(channel, {
         ...current,
@@ -81,7 +89,7 @@ const ChannelPerformance = ({
     // 2. Processar Gastos (Ads)
     let totalGeneralSpend = 0;
     
-    adSpends.forEach((spend) => {
+    filteredAdSpends.forEach((spend) => {
       if (!spend.sub_id || spend.sub_id === "Geral/Institucional") {
         totalGeneralSpend += (spend.amount || 0);
       } else {
@@ -123,7 +131,7 @@ const ChannelPerformance = ({
     });
 
     return data.sort((a, b) => b.revenue - a.revenue); // Ordenar por receita padrão
-  }, [rows, adSpends]);
+  }, [filteredRows, filteredAdSpends]);
 
   const MAX_ROWS = 50;
   const limitedChannels = metrics.slice(0, MAX_ROWS);
@@ -131,6 +139,9 @@ const ChannelPerformance = ({
   const [subPage, setSubPage] = useState<number>(0);
   const [dayPageSize, setDayPageSize] = useState<number>(5);
   const [dayPage, setDayPage] = useState<number>(0);
+  const [daySortColumn, setDaySortColumn] = useState<string | null>(null);
+  const [daySortDirection, setDaySortDirection] = useState<"asc" | "desc">("desc");
+  
   if (!metrics.length) return null;
 
   // Encontrar destaques
@@ -140,75 +151,18 @@ const ChannelPerformance = ({
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
-      {showHighlights && (
-        <div className="grid md:grid-cols-3 gap-4">
-          {/* Card Estrela */}
-          <div className="bg-gradient-to-br from-indigo-500/10 to-purple-500/10 border border-indigo-500/20 rounded-xl p-4 flex items-center gap-4">
-            <div className="p-3 bg-indigo-500/20 rounded-lg text-indigo-500">
-              <Trophy className="w-6 h-6" />
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground font-medium">Campeão de ROAS</p>
-              <p className="text-lg font-bold text-foreground">{starChannel?.name || "N/A"}</p>
-              <p className="text-xs text-indigo-400 font-medium">
-                {starChannel?.spend > 0 ? `${starChannel.roas.toFixed(1)}x retorno` : "Sem gastos registrados"}
-              </p>
-            </div>
-          </div>
-
-          {/* Card Alerta */}
-          <div className={cn(
-            "border rounded-xl p-4 flex items-center gap-4",
-            alertChannel 
-              ? "bg-red-500/10 border-red-500/20" 
-              : "bg-green-500/10 border-green-500/20"
-          )}>
-            <div className={cn("p-3 rounded-lg", alertChannel ? "bg-red-500/20 text-red-500" : "bg-green-500/20 text-green-500")}>
-              {alertChannel ? <AlertTriangle className="w-6 h-6" /> : <TrendingUp className="w-6 h-6" />}
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground font-medium">
-                {alertChannel ? "Atenção Necessária" : "Saúde da Operação"}
-              </p>
-              <p className="text-lg font-bold text-foreground">
-                {alertChannel ? alertChannel.name : "Tudo Positivo"}
-              </p>
-              <p className={cn("text-xs font-medium", alertChannel ? "text-red-400" : "text-green-400")}>
-                {alertChannel 
-                  ? `Prejuízo de ${formatCurrency(alertChannel.profit)}` 
-                  : "Nenhum canal com prejuízo"}
-              </p>
-            </div>
-          </div>
-
-          {/* Card Volume */}
-          <div className="bg-card border border-border rounded-xl p-4 flex items-center gap-4">
-            <div className="p-3 bg-blue-500/10 rounded-lg text-blue-500">
-              <BarChart3 className="w-6 h-6" />
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground font-medium">Maior Volume</p>
-              <p className="text-lg font-bold text-foreground">{volumeChannel?.name}</p>
-              <p className="text-xs text-muted-foreground">
-                {formatCurrency(volumeChannel?.revenue)} em vendas
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Tabela Visual */}
       {showSubTable && (
         <div className="bg-card border border-border rounded-xl overflow-hidden">
           <div className="p-6 border-b border-border">
             <h3 className="font-display font-semibold text-lg">Performance Detalhada por Sub ID</h3>
-            <p className="text-sm text-muted-foreground">Análise de investimento vs retorno real. (máx. {MAX_ROWS} linhas)</p>
+            <p className="text-sm text-muted-foreground">Análise de custos de anúncios vs retorno real. (máx. {MAX_ROWS} linhas)</p>
           </div>
           <Table>
             <TableHeader className="bg-muted/50">
               <TableRow>
                 <TableHead>Sub ID</TableHead>
-                <TableHead className="text-right">Investimento (Gasto Anúncio)</TableHead>
+                <TableHead className="text-right">Custos de Anúncios</TableHead>
                 <TableHead className="text-right">Receita (Comissão)</TableHead>
                 <TableHead className="text-right">Lucro (Comissão - Gasto)</TableHead>
                 <TableHead className="text-center">ROAS</TableHead>
@@ -268,6 +222,13 @@ const ChannelPerformance = ({
                           <div className="flex items-center gap-2">
                             <button
                               className="px-2 py-1 rounded border border-border disabled:opacity-50"
+                              onClick={() => setSubPage(0)}
+                              disabled={safePage === 0}
+                            >
+                              Primeira
+                            </button>
+                            <button
+                              className="px-2 py-1 rounded border border-border disabled:opacity-50"
                               onClick={() => setSubPage((p) => Math.max(0, p - 1))}
                               disabled={safePage === 0}
                             >
@@ -280,6 +241,13 @@ const ChannelPerformance = ({
                               disabled={safePage >= totalPages - 1}
                             >
                               Próxima
+                            </button>
+                            <button
+                              className="px-2 py-1 rounded border border-border disabled:opacity-50"
+                              onClick={() => setSubPage(totalPages - 1)}
+                              disabled={safePage >= totalPages - 1}
+                            >
+                              Última
                             </button>
                           </div>
                         </div>
@@ -295,19 +263,94 @@ const ChannelPerformance = ({
 
       {/* Performance por Dia */}
       {showDayTable && (
-        <div className="bg-card border border-border rounded-xl overflow-hidden">
+        <div className="bg-card border border-border rounded-xl overflow-hidden min-h-[320px]">
           <div className="p-6 border-b border-border">
             <h3 className="font-display font-semibold text-lg">Performance por Dia</h3>
-            <p className="text-sm text-muted-foreground">Investimento vs comissão diária.</p>
+            <p className="text-sm text-muted-foreground">Custos de anúncios vs comissão diária.</p>
           </div>
           <Table>
             <TableHeader className="bg-muted/50">
               <TableRow>
-                <TableHead>Dia</TableHead>
-                <TableHead className="text-right">Investimento (Gasto Anúncio)</TableHead>
-                <TableHead className="text-right">Receita (Comissão)</TableHead>
-                <TableHead className="text-right">Lucro (Comissão - Gasto)</TableHead>
-                <TableHead className="text-center">ROAS</TableHead>
+                <TableHead>
+                  <button
+                    className="flex items-center gap-1 hover:text-foreground transition-colors"
+                    onClick={() => {
+                      if (daySortColumn === "day") {
+                        setDaySortDirection(daySortDirection === "asc" ? "desc" : "asc");
+                      } else {
+                        setDaySortColumn("day");
+                        setDaySortDirection("desc");
+                      }
+                    }}
+                  >
+                    Dia
+                    <ArrowUpDown className="w-3 h-3" />
+                  </button>
+                </TableHead>
+                <TableHead className="text-right">
+                  <button
+                    className="flex items-center gap-1 hover:text-foreground transition-colors ml-auto"
+                    onClick={() => {
+                      if (daySortColumn === "spend") {
+                        setDaySortDirection(daySortDirection === "asc" ? "desc" : "asc");
+                      } else {
+                        setDaySortColumn("spend");
+                        setDaySortDirection("desc");
+                      }
+                    }}
+                  >
+                    Custos de Anúncios
+                    <ArrowUpDown className="w-3 h-3" />
+                  </button>
+                </TableHead>
+                <TableHead className="text-right">
+                  <button
+                    className="flex items-center gap-1 hover:text-foreground transition-colors ml-auto"
+                    onClick={() => {
+                      if (daySortColumn === "commission") {
+                        setDaySortDirection(daySortDirection === "asc" ? "desc" : "asc");
+                      } else {
+                        setDaySortColumn("commission");
+                        setDaySortDirection("desc");
+                      }
+                    }}
+                  >
+                    Receita (Comissão)
+                    <ArrowUpDown className="w-3 h-3" />
+                  </button>
+                </TableHead>
+                <TableHead className="text-right">
+                  <button
+                    className="flex items-center gap-1 hover:text-foreground transition-colors ml-auto"
+                    onClick={() => {
+                      if (daySortColumn === "profit") {
+                        setDaySortDirection(daySortDirection === "asc" ? "desc" : "asc");
+                      } else {
+                        setDaySortColumn("profit");
+                        setDaySortDirection("desc");
+                      }
+                    }}
+                  >
+                    Lucro (Comissão - Gasto)
+                    <ArrowUpDown className="w-3 h-3" />
+                  </button>
+                </TableHead>
+                <TableHead className="text-center">
+                  <button
+                    className="flex items-center gap-1 hover:text-foreground transition-colors mx-auto"
+                    onClick={() => {
+                      if (daySortColumn === "roas") {
+                        setDaySortDirection(daySortDirection === "asc" ? "desc" : "asc");
+                      } else {
+                        setDaySortColumn("roas");
+                        setDaySortDirection("desc");
+                      }
+                    }}
+                  >
+                    ROAS
+                    <ArrowUpDown className="w-3 h-3" />
+                  </button>
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -331,13 +374,39 @@ const ChannelPerformance = ({
                     spend: cur.spend + (spend.amount || 0),
                   });
                 });
-                const dayData = Array.from(dayMap.entries())
+                let dayData = Array.from(dayMap.entries())
                   .map(([day, vals]) => {
                     const profit = vals.commission - vals.spend; // lucro: comissão - gasto
                     const roas = vals.spend > 0 ? vals.commission / vals.spend : vals.commission > 0 ? 999 : 0;
                     return { day, ...vals, profit, roas };
-                  })
-                  .sort((a, b) => a.day.localeCompare(b.day));
+                  });
+
+                // Apply sorting
+                if (daySortColumn) {
+                  dayData = dayData.sort((a, b) => {
+                    let aVal: any = a[daySortColumn as keyof typeof a];
+                    let bVal: any = b[daySortColumn as keyof typeof b];
+                    
+                    if (daySortColumn === "day") {
+                      aVal = a.day;
+                      bVal = b.day;
+                    }
+                    
+                    if (aVal === bVal) return 0;
+                    if (aVal === undefined || aVal === null) return 1;
+                    if (bVal === undefined || bVal === null) return -1;
+                    
+                    if (typeof aVal === "number" && typeof bVal === "number") {
+                      return daySortDirection === "asc" ? aVal - bVal : bVal - aVal;
+                    }
+                    
+                    const comparison = String(aVal).localeCompare(String(bVal));
+                    return daySortDirection === "asc" ? comparison : -comparison;
+                  });
+                } else {
+                  // Default sort by day ascending
+                  dayData = dayData.sort((a, b) => a.day.localeCompare(b.day));
+                }
 
                 const totalPages = Math.max(1, Math.ceil(dayData.length / dayPageSize));
                 const safePage = Math.min(dayPage, totalPages - 1);
@@ -355,10 +424,13 @@ const ChannelPerformance = ({
                           <TableCell className="font-medium text-foreground">
                             {(() => {
                               const m = d.day.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-                              if (!m) return new Date(d.day).toLocaleDateString("pt-BR");
+                              if (!m) {
+                                const parsed = parseDateOnly(d.day);
+                                return parsed ? parsed.toLocaleDateString("pt-BR") : d.day;
+                              }
                               const local = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
                               return isNaN(local.getTime())
-                                ? new Date(d.day).toLocaleDateString("pt-BR")
+                                ? (parseDateOnly(d.day)?.toLocaleDateString("pt-BR") ?? d.day)
                                 : local.toLocaleDateString("pt-BR");
                             })()}
                             <span className="block text-xs text-muted-foreground font-normal">{d.orders} pedidos</span>
@@ -397,6 +469,13 @@ const ChannelPerformance = ({
                           <div className="flex items-center gap-2">
                             <button
                               className="px-2 py-1 rounded border border-border disabled:opacity-50"
+                              onClick={() => setDayPage(0)}
+                              disabled={safePage === 0}
+                            >
+                              Primeira
+                            </button>
+                            <button
+                              className="px-2 py-1 rounded border border-border disabled:opacity-50"
                               onClick={() => setDayPage((p) => Math.max(0, p - 1))}
                               disabled={safePage === 0}
                             >
@@ -409,6 +488,13 @@ const ChannelPerformance = ({
                               disabled={safePage >= totalPages - 1}
                             >
                               Próxima
+                            </button>
+                            <button
+                              className="px-2 py-1 rounded border border-border disabled:opacity-50"
+                              onClick={() => setDayPage(totalPages - 1)}
+                              disabled={safePage >= totalPages - 1}
+                            >
+                              Última
                             </button>
                           </div>
                         </div>
