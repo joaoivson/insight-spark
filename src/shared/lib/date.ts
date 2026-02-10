@@ -25,7 +25,21 @@ export const parseDateOnly = (value?: string | Date | null) => {
   if (value instanceof Date && !isNaN(value.getTime())) return value;
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
-  return parseDDMMYYYY(trimmed);
+  // ISO YYYY-MM-DD
+  const iso = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (iso) {
+    const y = Number(iso[1]);
+    const m = Number(iso[2]) - 1;
+    const d = Number(iso[3]);
+    const local = new Date(y, m, d);
+    return isNaN(local.getTime()) ? null : local;
+  }
+  // DD-MM-YYYY ou DD/MM/YYYY
+  const dd = parseDDMMYYYY(trimmed);
+  if (dd) return dd;
+  // Fallback genérico do JS, se vier em outro formato entendível
+  const parsed = new Date(trimmed);
+  return isNaN(parsed.getTime()) ? null : parsed;
 };
 
 export const toDateKey = (value?: string | Date | null) => {
@@ -52,13 +66,26 @@ export const isAfterDateKey = (a?: string | Date | null, b?: string | Date | nul
 };
 
 /**
- * Parse time string (HH:mm or HH:mm:ss) and return hour range label.
- * e.g. "10:15" → "Entre 10 e 11:00", "08:30" → "Entre 08 e 09:00"
+ * Extract time part from value (HH:mm, HH:mm:ss, or ISO datetime).
+ * Returns HH:mm string or null.
+ */
+function extractTimePart(value?: string | null): string | null {
+  if (!value || typeof value !== "string") return null;
+  const trimmed = value.trim();
+  const iso = trimmed.match(/T(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+  if (iso) return `${iso[1].padStart(2, "0")}:${iso[2]}${iso[3] ? `:${iso[3]}` : ""}`;
+  if (/^\d{1,2}(:\d{2}){1,2}$/.test(trimmed)) return trimmed;
+  return null;
+}
+
+/**
+ * Parse time string (HH:mm, HH:mm:ss or ISO datetime) and return hour range label.
+ * e.g. "10:15" → "Entre 10 e 11:00", "2025-01-10T14:30:00" → "Entre 14 e 15:00"
  */
 export const formatHourRange = (time?: string | null): string => {
-  if (!time || typeof time !== "string") return "—";
-  const trimmed = time.trim();
-  const match = trimmed.match(/^(\d{1,2})(?::(\d{2}))?(?::(\d{2}))?/);
+  const timeStr = extractTimePart(time);
+  if (!timeStr) return "—";
+  const match = timeStr.match(/^(\d{1,2})(?::(\d{2}))?(?::(\d{2}))?/);
   if (!match) return "—";
   const hour = parseInt(match[1], 10);
   if (isNaN(hour) || hour < 0 || hour > 23) return "—";

@@ -247,12 +247,18 @@ const DashboardClicks = ({ clicks: rawClicks, totalClicksFromApi, adSpends = [],
     return `${day}/${month}`;
   };
 
-  // YYYY-MM -> MM/YYYY (pt-BR)
+  // YYYY-MM -> MM/YY (pt-BR)
   const formatMonthLabelMMYYYY = (monthKey: string): string => {
     const [y, m] = monthKey.split("-");
     if (!y || !m) return monthKey;
     const d = parseDateOnly(`${y}-${m}-01`);
-    return d ? `${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}` : `${m}/${y}`;
+    if (d) {
+      const mm = String(d.getMonth() + 1).padStart(2, "0");
+      const yy = String(d.getFullYear()).slice(-2);
+      return `${mm}/${yy}`;
+    }
+    const yy = y.length === 4 ? y.slice(-2) : y;
+    return `${m}/${yy}`;
   };
 
   const dailyStats = useMemo(() => {

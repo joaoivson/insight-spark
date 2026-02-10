@@ -11,7 +11,7 @@ import {
   ArrowUpDown,
 } from "lucide-react";
 import { isBeforeDateKey, isAfterDateKey, parseDateOnly } from "@/shared/lib/date";
-import { filterKpiRows, getComissaoCents } from "@/shared/lib/kpi";
+import { filterKpiRows, getComissaoCents, getComissaoAfiliado } from "@/shared/lib/kpi";
 import {
   Table,
   TableBody,
@@ -358,7 +358,7 @@ const ChannelPerformance = ({
                 const dayMap = new Map<string, { commission: number; spend: number; orders: number }>();
                 rows.forEach((row) => {
                   const day = row.date ? toDateKey(row.date) : "Sem data";
-                  const commission = getAffiliateCommission(row);
+                  const commission = getComissaoAfiliado(row);
                   const cur = dayMap.get(day) || { commission: 0, spend: 0, orders: 0 };
                   dayMap.set(day, {
                     commission: cur.commission + commission,

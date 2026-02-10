@@ -5,13 +5,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { motion } from "framer-motion";
 import { formatCurrency } from "../../../shared/lib/chart-utils";
 
+// Paleta da imagem: azul, teal (verde-água), laranja
 const BAR_COLORS = [
-  "hsl(210, 80%, 55%)",
-  "hsl(173, 80%, 40%)",
-  "hsl(38, 92%, 50%)",
-  "hsl(273, 65%, 60%)",
-  "hsl(340, 75%, 55%)",
-  "hsl(222, 47%, 25%)",
+  "hsl(210, 80%, 55%)",  // azul
+  "hsl(173, 80%, 40%)",  // teal / verde-água
+  "hsl(38, 92%, 50%)",   // laranja
 ];
 
 interface ChannelPieChartProps {
@@ -54,7 +52,7 @@ export const ChannelPieChart = ({ data, onDrillDown, variants }: ChannelPieChart
         <CardContent className="flex flex-1 flex-col pt-0">
           <ChartContainer
             config={chartConfig}
-            className="h-full w-full min-h-[280px] [&_.recharts-responsive-container]:overflow-visible [&_.recharts-wrapper]:overflow-visible [&_.recharts-surface]:overflow-visible"
+            className="h-full w-full min-h-[280px] [&_.recharts-responsive-container]:overflow-visible [&_.recharts-wrapper]:overflow-visible [&_.recharts-surface]:overflow-visible [&_.recharts-rectangle]:opacity-90 [&_.recharts-rectangle]:transition-opacity [&_.recharts-rectangle]:duration-200 [&_.recharts-rectangle:hover]:opacity-100"
           >
             <BarChart
               layout="vertical"
