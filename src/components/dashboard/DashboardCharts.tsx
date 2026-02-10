@@ -17,6 +17,7 @@ import {
 import type { DatasetRow } from "./DataTable";
 import { useMemo, useState, ReactNode } from "react";
 import { Button } from "@/components/ui/button";
+import { parseDateOnly, toDateKey } from "@/shared/lib/date";
 
 const PIE_COLORS = ["hsl(210, 80%, 55%)", "hsl(222, 47%, 25%)", "hsl(24, 90%, 55%)", "hsl(273, 65%, 60%)"];
 const BAR_COLOR = "hsl(210, 80%, 55%)";
@@ -99,11 +100,16 @@ const groupCommissionByDay = (rows: DatasetRow[]) => {
   });
   return Array.from(map.entries())
     .map(([key, value]) => {
-      const d = new Date(key);
-      const label = !isNaN(d.getTime()) ? d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }) : key;
+      const d = parseDateOnly(key);
+      const label = d ? d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }) : key;
       return { key, label, value };
     })
-    .sort((a, b) => a.key.localeCompare(b.key));
+    .sort((a, b) => {
+      const ka = parseDateOnly(a.key);
+      const kb = parseDateOnly(b.key);
+      if (!ka || !kb) return 0;
+      return toDateKey(ka).localeCompare(toDateKey(kb));
+    });
 };
 
 const groupRevenueProfitByMes = (rows: DatasetRow[]) => {

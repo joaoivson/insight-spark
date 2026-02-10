@@ -18,6 +18,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/shared/lib/utils";
+import { toDateKey } from "@/shared/lib/date";
 
 interface ChannelPerformanceProps {
   rows: DatasetRow[];
@@ -313,7 +314,7 @@ const ChannelPerformance = ({
               {(() => {
                 const dayMap = new Map<string, { commission: number; spend: number; orders: number }>();
                 rows.forEach((row) => {
-                  const day = row.date || "Sem data";
+                  const day = row.date ? toDateKey(row.date) : "Sem data";
                   const commission = getAffiliateCommission(row);
                   const cur = dayMap.get(day) || { commission: 0, spend: 0, orders: 0 };
                   dayMap.set(day, {
@@ -323,7 +324,7 @@ const ChannelPerformance = ({
                   });
                 });
                 adSpends.forEach((spend) => {
-                  const day = spend.date ? new Date(spend.date).toISOString().slice(0, 10) : "Sem data";
+                  const day = spend.date ? toDateKey(spend.date) : "Sem data";
                   const cur = dayMap.get(day) || { commission: 0, spend: 0, orders: 0 };
                   dayMap.set(day, {
                     ...cur,
