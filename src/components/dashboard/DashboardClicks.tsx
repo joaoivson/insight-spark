@@ -1,9 +1,9 @@
 import { useMemo, useState } from "react";
 import { ClickRow } from "@/services/clicks.service";
 import { AdSpend } from "@/shared/types/adspend";
-import { 
-  MousePointerClick, 
-  Tag, 
+import {
+  MousePointerClick,
+  Tag,
   Instagram,
   Facebook,
   Link2,
@@ -16,11 +16,11 @@ import {
 } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { cn, normalizeSubId } from "@/shared/lib/utils";
-import { 
-  BarChart, 
-  Bar, 
-  XAxis, 
-  YAxis, 
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
   CartesianGrid,
   LabelList
 } from "recharts";
@@ -63,22 +63,39 @@ const formatK = (value: number) => {
   return value.toLocaleString("pt-BR");
 };
 
-// API pode enviar YYYY-MM-DD (ISO) ou YYYY-DD-MM (dia no meio). Converte para YYYY-MM-DD.
-// Ex: 2026-02-01 como YYYY-DD-MM = dia 02, mês 01 = 2 Jan → 2026-01-02
+// API pode enviar DD-MM-YYYY, YYYY-MM-DD (ISO) ou YYYY-DD-MM (dia no meio). Converte tudo para YYYY-MM-DD.
+// Ex: 07-01-2026 (DD-MM-YYYY) → 2026-01-07
+// Ex: 2026-02-01 (YYYY-DD-MM ambíguo) → 2026-01-02
 const normalizeDate = (dateStr?: string | null): string => {
   if (!dateStr || dateStr === "Sem data") return "Sem data";
-  const m = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (!m) return "Sem data";
-  const [, year, a, b] = m;
+
+  // Primeiro tenta DD-MM-YYYY (formato que a API está retornando)
+  const ddmmyyyyMatch = dateStr.match(/^(\d{2})-(\d{2})-(\d{4})$/);
+  if (ddmmyyyyMatch) {
+    const [, day, month, year] = ddmmyyyyMatch;
+    // Valida dia e mês
+    const d = Number(day);
+    const m = Number(month);
+    if (d < 1 || d > 31 || m < 1 || m > 12) return "Sem data";
+    return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
+  }
+
+  // Se não for DD-MM-YYYY, tenta YYYY-MM-DD ou YYYY-DD-MM
+  const yyyyMatch = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!yyyyMatch) return "Sem data";
+
+  const [, year, a, b] = yyyyMatch;
   const na = Number(a);
   const nb = Number(b);
   if (na < 1 || na > 31 || nb < 1 || nb > 31) return "Sem data";
-  // Se segundo > 12 → é dia (YYY-DD-MM)
+
+  // Se segundo > 12 → é dia (YYYY-DD-MM)
   if (na > 12) return `${year}-${b.padStart(2, "0")}-${a.padStart(2, "0")}`;
   // Se terceiro > 12 → é dia (YYYY-MM-DD)
   if (nb > 12) return dateStr;
   // Ambíguo (a,b <= 12): segundo 02-31 + terceiro 01-12 sugere YYYY-DD-MM (Jan 2–31)
   if (na >= 2 && nb >= 1 && nb <= 12) return `${year}-${b.padStart(2, "0")}-${a.padStart(2, "0")}`;
+
   return dateStr;
 };
 
@@ -153,10 +170,10 @@ const DashboardClicks = ({ clicks: rawClicks, totalClicksFromApi, adSpends = [],
 
     const adsStats = adSpends.reduce((acc, item) => {
       if (!item.date) return acc;
-      
+
       // Filter by subIdFilter
       if (subIdFilter && normalizeSubId(item.sub_id || "Geral").toLowerCase() !== subIdFilter.toLowerCase()) return acc;
-      
+
       // Filter by dateRange
       const itemDateKey = toDateKey(item.date);
       if (dateRange?.from && itemDateKey < toDateKey(dateRange.from)) return acc;
@@ -190,7 +207,7 @@ const DashboardClicks = ({ clicks: rawClicks, totalClicksFromApi, adSpends = [],
       const factor = compSortDirection === "asc" ? 1 : -1;
       const valA = (a as any)[compSortColumn];
       const valB = (b as any)[compSortColumn];
-      
+
       if (typeof valA === "string") {
         return valA.localeCompare(valB) * factor;
       }
@@ -225,7 +242,7 @@ const DashboardClicks = ({ clicks: rawClicks, totalClicksFromApi, adSpends = [],
 
     const top5 = sortedEntries.slice(0, 5);
     const othersValue = sortedEntries.slice(5).reduce((sum, item) => sum + item.value, 0);
-    
+
     const finalData = [
       ...top5,
       { name: "Outros", value: othersValue }
@@ -363,7 +380,7 @@ const DashboardClicks = ({ clicks: rawClicks, totalClicksFromApi, adSpends = [],
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
       {/* Total Clicks KPI */}
       <div className="flex justify-center">
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           className="relative group"
@@ -450,11 +467,11 @@ const DashboardClicks = ({ clicks: rawClicks, totalClicksFromApi, adSpends = [],
                 <ChartTooltip
                   cursor={false}
                   content={<ChartTooltipContent indicator="dot" formatter={(v, name) => (
-                  <span className="flex justify-between items-center gap-4 w-full min-w-[140px]">
-                    <span className="text-muted-foreground">{(name === "value" || !name) ? "Cliques" : name}</span>
-                    <span className="font-medium tabular-nums">{Number(v).toLocaleString("pt-BR")}</span>
-                  </span>
-                )} />}
+                    <span className="flex justify-between items-center gap-4 w-full min-w-[140px]">
+                      <span className="text-muted-foreground">{(name === "value" || !name) ? "Cliques" : name}</span>
+                      <span className="font-medium tabular-nums">{Number(v).toLocaleString("pt-BR")}</span>
+                    </span>
+                  )} />}
                 />
                 <Bar
                   dataKey="value"
@@ -463,11 +480,11 @@ const DashboardClicks = ({ clicks: rawClicks, totalClicksFromApi, adSpends = [],
                   maxBarSize={chartMode === "month" ? (chartData.length === 1 ? 400 : 120) : 50}
                 >
                   {chartData.length <= 20 && (
-                    <LabelList 
-                      dataKey="value" 
-                      position="top" 
-                      formatter={(v: number) => formatK(v)} 
-                      fill="hsl(var(--foreground))" 
+                    <LabelList
+                      dataKey="value"
+                      position="top"
+                      formatter={(v: number) => formatK(v)}
+                      fill="hsl(var(--foreground))"
                       fontSize={14}
                       offset={10}
                     />
@@ -480,7 +497,7 @@ const DashboardClicks = ({ clicks: rawClicks, totalClicksFromApi, adSpends = [],
       </div>
 
       {/* Comparison: Ads vs CSV */}
-      <motion.div 
+      <motion.div
         variants={chartItemVariants}
         initial="hidden"
         animate="show"
