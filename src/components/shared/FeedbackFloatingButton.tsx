@@ -9,12 +9,12 @@ import {
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/shared/lib/utils";
-import { useNavigationTracker, getNavigationHistory } from "@/shared/hooks/useNavigationTracker";
+import { useNavigationTracker } from "@/shared/hooks/useNavigationTracker";
 import { useLocation } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
-
-const FEEDBACK_EMAIL =
-  import.meta.env.VITE_FEEDBACK_EMAIL || "relacionamento@marketdash.com.br";
+import { getApiUrl, fetchWithAuth } from "@/core/config/api.config";
+import { userStorage } from "@/shared/lib/storage";
+import type { User } from "@/shared/types";
 
 const CHALLENGE_OPTIONS = [
   "Organizar dados de vários canais",
@@ -25,6 +25,13 @@ const CHALLENGE_OPTIONS = [
   "Outro",
 ];
 
+const CATEGORY_OPTIONS: { value: string; label: string }[] = [
+  { value: "sugestao", label: "Sugestão" },
+  { value: "problema", label: "Problema" },
+  { value: "duvida", label: "Dúvida" },
+  { value: "outro", label: "Outro" },
+];
+
 export const FeedbackFloatingButton = () => {
   const { canShowFeedback } = useNavigationTracker();
   const location = useLocation();
@@ -32,6 +39,7 @@ export const FeedbackFloatingButton = () => {
 
   const [open, setOpen] = useState(false);
   const [rating, setRating] = useState<number | null>(null);
+  const [category, setCategory] = useState("sugestao");
   const [nextFeatureWish, setNextFeatureWish] = useState("");
   const [mainChallenge, setMainChallenge] = useState("");
   const [recommendationTip, setRecommendationTip] = useState("");
@@ -51,35 +59,48 @@ export const FeedbackFloatingButton = () => {
 
     setLoading(true);
     try {
-      const history = getNavigationHistory();
-      const formData = new FormData();
-      formData.append("_subject", "Feedback - MarketDash");
-      formData.append("_template", "box");
-      formData.append("_captcha", "false");
-      formData.append("rating", String(rating));
-      formData.append("next_feature_wish", nextFeatureWish || "-");
-      formData.append("main_challenge", mainChallenge || "-");
-      formData.append("recommendation_tip", recommendationTip || "-");
-      formData.append("comment", comment || "-");
-      formData.append(
-        "navigation_history",
-        history.length ? history.join(" → ") : location.pathname
-      );
-      formData.append("current_page", location.pathname);
-      formData.append(
-        "referrer",
-        typeof document !== "undefined" ? document.referrer || "(direto)" : "(direto)"
-      );
-      formData.append("timestamp", new Date().toISOString());
+      const user = userStorage.get() as User | null;
+      const pathSegments = location.pathname.split("/").filter(Boolean);
+      const page = pathSegments.length > 0 ? pathSegments[pathSegments.length - 1] : location.pathname.replace(/^\//, "") || "app";
 
-      const res = await fetch(`https://formsubmit.co/${FEEDBACK_EMAIL}`, {
+      const messageParts: string[] = [];
+      if (nextFeatureWish.trim()) messageParts.push(`Próxima funcionalidade: ${nextFeatureWish.trim()}`);
+      if (mainChallenge) messageParts.push(`Maior desafio: ${mainChallenge}`);
+      if (recommendationTip.trim()) messageParts.push(`O que faria recomendar: ${recommendationTip.trim()}`);
+      if (comment.trim()) messageParts.push(`Comentário: ${comment.trim()}`);
+      const message = messageParts.length > 0 ? messageParts.join("\n") : "Sem texto adicional.";
+
+      const payload = {
+        data: {
+          message,
+          rating,
+          category,
+          page,
+          next_feature_wish: nextFeatureWish.trim(),
+          main_challenge: mainChallenge,
+          recommendation_tip: recommendationTip.trim(),
+          comment: comment.trim(),
+        },
+        name: user?.nome ?? "",
+        email: user?.email ?? "",
+      };
+
+      const url = getApiUrl("/api/v1/feedback");
+      const res = await fetchWithAuth(url, {
         method: "POST",
-        body: formData,
+        body: JSON.stringify(payload),
       });
 
       if (!res.ok) throw new Error("Falha ao enviar");
 
+      let result: unknown;
+      const contentType = res.headers.get("Content-Type");
+      if (contentType?.includes("application/json")) {
+        result = await res.json();
+      }
+
       setRating(null);
+      setCategory("sugestao");
       setNextFeatureWish("");
       setMainChallenge("");
       setRecommendationTip("");
@@ -150,6 +171,26 @@ export const FeedbackFloatingButton = () => {
                   </button>
                 ))}
               </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="category">Tipo de feedback</Label>
+              <select
+                id="category"
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                className={cn(
+                  "flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+                  "disabled:cursor-not-allowed disabled:opacity-50"
+                )}
+              >
+                {CATEGORY_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div className="space-y-2">

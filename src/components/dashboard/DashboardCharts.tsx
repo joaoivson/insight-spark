@@ -36,6 +36,16 @@ const chartItemVariants: Variants = {
   },
 };
 
+const containerVariants: Variants = {
+  hidden: { opacity: 0 },
+  show: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.1
+    }
+  }
+};
+
 const DashboardCharts = ({ rows, adSpends = [], dateRange, subIdFilter, onDrillDown, belowRevenueContent }: DashboardChartsProps) => {
   const [commissionMode, setCommissionMode] = useState<"month" | "day">("month");
 
@@ -62,6 +72,7 @@ const DashboardCharts = ({ rows, adSpends = [], dateRange, subIdFilter, onDrillD
 
   return (
     <motion.div
+      variants={containerVariants}
       initial="hidden"
       animate="show"
       className="grid grid-cols-1 gap-6 mt-6"
@@ -73,9 +84,9 @@ const DashboardCharts = ({ rows, adSpends = [], dateRange, subIdFilter, onDrillD
         onDrillDown={(v) => onDrillDown?.("mes_ano", v)}
         variants={chartItemVariants}
       />
-      <RevenueProfitAreaChart 
-        data={revProfitData} 
-        onDrillDown={(v) => onDrillDown?.("mes_ano", v)} 
+      <RevenueProfitAreaChart
+        data={revProfitData}
+        onDrillDown={(v) => onDrillDown?.("mes_ano", v)}
         variants={chartItemVariants}
       />
       {belowRevenueContent}

@@ -35,42 +35,36 @@ export const LoadingDataOverlay = ({ datasetId, onComplete, onError }: LoadingDa
   // Polling Effect
   useEffect(() => {
     if (!datasetId) {
-      console.warn('[LoadingDataOverlay] No datasetId provided, skipping polling');
       return;
     }
 
-    console.log('[LoadingDataOverlay] Starting polling for datasetId:', datasetId);
+
     let isActive = true;
 
     const checkStatus = async () => {
       try {
-        console.log('[LoadingDataOverlay] Polling attempt', pollingAttempt, 'for dataset:', datasetId);
         const response = await fetchWithAuth(getApiUrl(`/api/v1/datasets/${datasetId}/status`));
 
         if (!response.ok) {
           // Se der 404 ou 500, continuamos tentando por um tempo (poderia ser delay de propagação), 
           // mas aqui vamos assumir erro fatal se for persistente ou se o backend retornar erro explícito.
           // Por enquanto, apenas logamos e tentamos novamente.
-          console.warn("[LoadingDataOverlay] Status check failed", response.status);
         } else {
           const data = await response.json();
-          console.log('[LoadingDataOverlay] Received status data:', data);
           // datasetId do backend pode ser string ou number, comparamos de forma segura se necessário,
           // mas aqui confiamos no endpoint.
 
           if (data.status === 'completed') {
-            console.log('[LoadingDataOverlay] Dataset completed! Calling onComplete');
             if (isActive && onComplete) onComplete(data);
             return; // Stop polling
           } else if (data.status === 'error') {
-            console.error('[LoadingDataOverlay] Dataset error:', data.error_message);
             if (isActive && onError) onError(data.error_message || "Erro no processamento do arquivo.");
             return; // Stop polling
           }
           // Se 'pending', continuamos.
         }
       } catch (err) {
-        console.error("Polling error:", err);
+        // Silent catch for polling
       }
 
       // Schedule next poll
