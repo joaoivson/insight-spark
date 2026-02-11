@@ -32,10 +32,6 @@ import { useClicksStore } from "@/stores/clicksStore";
 import { deleteAllDatasets } from "@/services/datasets.service";
 import { deleteAllClicks } from "@/services/clicks.service";
 import {
-  createJob,
-  uploadToPresignedUrl,
-  commitJob,
-  uploadMultipart,
   type JobType,
 } from "@/services/jobs.service";
 
@@ -161,33 +157,25 @@ const UploadCSV = () => {
     if (!file) return;
     setIsProcessing(true);
     setError(null);
+    setUploadProgress(0);
 
     try {
-      let response: { job_id: string; dataset_id: number; status: string };
+      // Import smartUpload
+      const { smartUpload } = await import("@/services/jobs.service");
 
-      try {
-        const create = await createJob(file.name, jobType);
-        const putRes = await uploadToPresignedUrl(file, create.upload_url);
-        if (!putRes.ok) {
-          throw new Error(`Upload falhou: ${putRes.status}`);
-        }
-        await commitJob(create.job_id);
-        response = {
-          job_id: create.job_id,
-          dataset_id: create.dataset_id,
-          status: "processing"
-        };
-      } catch (presignedErr) {
-        const fallback = await uploadMultipart(file, jobType);
-        response = fallback;
-      }
+      // Use smart upload (auto-selects multipart for files >20MB)
+      const result = await smartUpload(file, jobType, (progress) => {
+        setUploadProgress(progress);
+      });
 
-      console.log('[UploadCSV] Upload initiated:', response);
-      console.log('[UploadCSV] Dataset ID:', response.dataset_id);
+      console.log('[UploadCSV] Upload completed:', result);
+      console.log('[UploadCSV] Dataset ID:', result.dataset_id);
       console.log('[UploadCSV] Mode:', isClicksMode ? 'CLICKS' : 'TRANSACTIONS');
+      console.log('[UploadCSV] File size:', file.size, 'bytes');
+      console.log('[UploadCSV] Upload method:', file.size > 20 * 1024 * 1024 ? 'MULTIPART' : 'SINGLE PUT');
 
       // Start dataset polling overlay immediately
-      setDatasetId(response.dataset_id);
+      setDatasetId(result.dataset_id);
       setShowDatasetPolling(true);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Erro desconhecido no upload.";
@@ -198,6 +186,7 @@ const UploadCSV = () => {
         variant: "destructive",
       });
       setIsProcessing(false);
+      setUploadProgress(0);
     }
   };
 
@@ -223,16 +212,6 @@ const UploadCSV = () => {
       await invalidateAllQueries();
       await config.fetchAction({ force: true });
     } finally {
-      setIsProcessing(false);
-      setUploadProgress(100);
-    }
-
-    try {
-      await config.fetchAction({ force: true });
-      await invalidateAllQueries();
-    } finally {
-      setShowOverlay(false);
-      setDatasetId(null);
       setIsProcessing(false);
       setUploadProgress(100);
     }
