@@ -227,6 +227,16 @@ const UploadCSV = () => {
       setUploadProgress(100);
     }
 
+    try {
+      await config.fetchAction({ force: true });
+      await invalidateAllQueries();
+    } finally {
+      setShowOverlay(false);
+      setDatasetId(null);
+      setIsProcessing(false);
+      setUploadProgress(100);
+    }
+
     toast({
       title: "✅ Processamento concluído!",
       description: msg,
