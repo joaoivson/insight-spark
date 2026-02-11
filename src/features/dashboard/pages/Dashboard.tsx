@@ -1,8 +1,7 @@
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import KPICards, { KPIData } from "@/components/dashboard/KPICards";
-import DashboardCharts, { DrillDownType } from "@/components/dashboard/DashboardCharts";
+import DashboardCharts from "@/components/dashboard/DashboardCharts";
 import DashboardFilters from "@/components/dashboard/DashboardFilters";
-import DataTable, { DatasetRow } from "@/components/dashboard/DataTable";
 import ChannelPerformance from "@/components/dashboard/ChannelPerformance";
 import DashboardClicks from "@/components/dashboard/DashboardClicks";
 import { motion } from "framer-motion";
@@ -13,7 +12,6 @@ import {
   Target,
   BarChart2,
   AlertTriangle,
-  X,
   TrendingUp,
   MousePointerClick,
   LayoutDashboard
@@ -31,12 +29,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 const formatCurrency = (value: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value || 0);
 
-type DrillDownFilter = {
-  type: DrillDownType | "all";
-  value: string;
-  label: string;
-} | null;
-
 const Dashboard = () => {
   const { rows, loading: rowsLoading, fetchRows } = useDatasetStore();
   const { adSpends, loading: spendsLoading, fetchAdSpends } = useAdSpendsStore();
@@ -47,8 +39,6 @@ const Dashboard = () => {
   const [categoryFilter, setCategoryFilter] = useState<string>("");
   const [subIdFilter, setSubIdFilter] = useState<string>("");
   const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({});
-  
-  const [drillDown, setDrillDown] = useState<DrillDownFilter>(null);
 
   const loading = rowsLoading || spendsLoading || clicksLoading;
 
@@ -69,39 +59,6 @@ const Dashboard = () => {
       return true;
     });
   }, [rows, statusFilter, categoryFilter, subIdFilter, dateRange]);
-
-  const tableRows = useMemo(() => {
-    if (!drillDown) return [];
-    if (drillDown.type === "all") return filteredRows;
-
-    return filteredRows.filter((r) => {
-      const val = (r as any)[drillDown.type];
-      return String(val) === String(drillDown.value);
-    });
-  }, [filteredRows, drillDown]);
-
-  const handleDrillDown = (type: DrillDownType, value: string) => {
-    setDrillDown({
-      type,
-      value,
-      label: `${type === "mes_ano"
-        ? "Mês/Ano"
-        : type === "category"
-        ? "Categoria"
-        : type === "sub_id1"
-        ? "Canal"
-        : type === "platform"
-        ? "Plataforma"
-        : "Produto"}: ${value}`,
-    });
-    setTimeout(() => {
-      const target = document.getElementById("detail-table");
-      if (target) {
-        const y = target.getBoundingClientRect().top + window.scrollY - 100;
-        window.scrollTo({ top: y, behavior: "smooth" });
-      }
-    }, 120);
-  };
 
   const totals = useMemo(() => {
     const { faturamento, comissao, gastoAnuncios, lucro, roas } = calcTotals(filteredRows, adSpends, {
@@ -197,7 +154,6 @@ const Dashboard = () => {
               setCategoryFilter("");
               setSubIdFilter("");
               setDateRange({});
-              setDrillDown(null);
               // Não recarrega a API, apenas reseta os estados locais que o useMemo usa para filtrar
             }}
             hasActive={!!dateRange.from || !!dateRange.to || !!statusFilter || !!categoryFilter || !!subIdFilter}
@@ -239,7 +195,6 @@ const Dashboard = () => {
                     adSpends={adSpends}
                     dateRange={dateRange}
                     subIdFilter={subIdFilter}
-                    onDrillDown={handleDrillDown}
                     belowRevenueContent={
                       <div className="mt-2">
                         <ChannelPerformance
@@ -257,22 +212,6 @@ const Dashboard = () => {
                   <div className="mt-8">
                     <ChannelPerformance rows={filteredRows} adSpends={adSpends} dateRange={dateRange} showDayTable={false} showHighlights />
                   </div>
-                      
-                  {drillDown && (
-                    <motion.div id="detail-table" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className="mt-8">
-                      <div className="flex items-center justify-between mb-4">
-                        <h3 className="text-xl font-bold flex items-center gap-2">
-                          <span className="text-primary">Dados Detalhados</span>
-                          <span className="text-sm font-normal text-muted-foreground bg-secondary px-3 py-1 rounded-full">{drillDown.label}</span>
-                        </h3>
-                        <Button variant="ghost" size="sm" onClick={() => setDrillDown(null)}>
-                          <X className="w-4 h-4 mr-2" />
-                          Fechar Tabela
-                        </Button>
-                      </div>
-                      <DataTable rows={tableRows} />
-                    </motion.div>
-                  )}
 
                 </>
               )}

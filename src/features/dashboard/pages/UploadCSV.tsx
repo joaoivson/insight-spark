@@ -2,11 +2,11 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { LoadingDataOverlay } from "@/components/dashboard/LoadingDataOverlay";
 import { motion, AnimatePresence } from "framer-motion";
-import { Upload, FileText, Check, AlertCircle, X, Eye, FileSpreadsheet, Trash2, MousePointerClick } from "lucide-react";
+import { Upload, FileText, Check, AlertCircle, X, Eye, FileSpreadsheet, Trash2, MousePointerClick, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import Papa from "papaparse";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 import {
   Table,
   TableBody,
@@ -50,7 +50,6 @@ const UploadCSV = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const location = useLocation();
-  const navigate = useNavigate();
   const isClicksMode = location.pathname.includes("upload-cliques");
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -220,8 +219,9 @@ const UploadCSV = () => {
 
   const finalizeUpload = async (msg: string) => {
     try {
-      await config.fetchAction({ force: true });
+      config.invalidate();
       await invalidateAllQueries();
+      await config.fetchAction({ force: true });
     } finally {
       setIsProcessing(false);
       setUploadProgress(100);
@@ -234,7 +234,6 @@ const UploadCSV = () => {
     });
 
     clearFile();
-    navigate("/dashboard");
   };
 
   const clearFile = () => {
@@ -309,6 +308,36 @@ const UploadCSV = () => {
             onComplete={handleDatasetComplete}
             onError={handleDatasetError}
           />
+        )}
+      </AnimatePresence>
+      <AnimatePresence>
+        {isDeleting && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-background/80 backdrop-blur-md"
+            role="status"
+            aria-live="polite"
+            aria-label="Excluindo dados"
+          >
+            <div className="max-w-md w-full px-6 text-center space-y-6">
+              <div className="relative flex flex-col items-center">
+                <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-primary/20 to-destructive/20 p-0.5 shadow-xl flex items-center justify-center">
+                  <div className="w-full h-full bg-background rounded-[14px] flex items-center justify-center">
+                    <Loader2 className="w-10 h-10 text-destructive animate-spin" aria-hidden="true" />
+                  </div>
+                </div>
+                <h2 className="mt-6 text-xl font-display font-bold text-foreground">
+                  Excluindo dados
+                </h2>
+                <p className="text-muted-foreground">
+                  Os dados estão sendo apagados do banco de dados.
+                </p>
+              </div>
+            </div>
+          </motion.div>
         )}
       </AnimatePresence>
       <motion.div

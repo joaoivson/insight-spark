@@ -1,4 +1,5 @@
 import { cn } from "@/shared/lib/utils";
+import { useNavigationTracker } from "@/shared/hooks/useNavigationTracker";
 
 const WHATSAPP_NUMBER = import.meta.env.VITE_WHATSAPP_NUMBER;
 
@@ -14,6 +15,8 @@ const WhatsAppLogo = ({ className }: { className?: string }) => (
 );
 
 export const WhatsAppFloatingButton = () => {
+  const { canShowFeedback } = useNavigationTracker();
+
   if (!WHATSAPP_NUMBER || typeof WHATSAPP_NUMBER !== "string") return null;
 
   const cleanNumber = WHATSAPP_NUMBER.replace(/\D/g, "");
@@ -28,10 +31,11 @@ export const WhatsAppFloatingButton = () => {
       rel="noopener noreferrer"
       aria-label="Suporte via WhatsApp"
       className={cn(
-        "fixed bottom-20 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full",
+        "fixed right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full",
         "bg-[#25D366] text-white shadow-lg shadow-[#25D366]/30",
         "transition-all duration-300 hover:scale-110 hover:shadow-xl hover:shadow-[#25D366]/40",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#25D366] focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#25D366] focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+        canShowFeedback ? "bottom-24" : "bottom-6"
       )}
     >
       <WhatsAppLogo className="h-7 w-7" />
