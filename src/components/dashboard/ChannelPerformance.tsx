@@ -11,7 +11,7 @@ import {
   ArrowUpDown,
 } from "lucide-react";
 import { isBeforeDateKey, isAfterDateKey, parseDateOnly } from "@/shared/lib/date";
-import { filterKpiRows, getComissaoCents } from "@/shared/lib/kpi";
+import { filterKpiRows, getComissaoCents, getComissaoAfiliado } from "@/shared/lib/kpi";
 import {
   Table,
   TableBody,
@@ -21,6 +21,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/shared/lib/utils";
+import { toDateKey } from "@/shared/lib/date";
 
 type DateRange = { from?: Date; to?: Date };
 
@@ -355,9 +356,9 @@ const ChannelPerformance = ({
             <TableBody>
               {(() => {
                 const dayMap = new Map<string, { commission: number; spend: number; orders: number }>();
-                filteredRows.forEach((row) => {
-                  const day = row.date || "Sem data";
-                  const commission = getComissaoCents(row) / 100;
+                rows.forEach((row) => {
+                  const day = row.date ? toDateKey(row.date) : "Sem data";
+                  const commission = getComissaoAfiliado(row);
                   const cur = dayMap.get(day) || { commission: 0, spend: 0, orders: 0 };
                   dayMap.set(day, {
                     commission: cur.commission + commission,
@@ -365,9 +366,8 @@ const ChannelPerformance = ({
                     orders: cur.orders + 1,
                   });
                 });
-                filteredAdSpends.forEach((spend) => {
-                  const d = parseDateOnly(spend.date);
-                  const day = d ? d.toISOString().slice(0, 10) : "Sem data";
+                adSpends.forEach((spend) => {
+                  const day = spend.date ? toDateKey(spend.date) : "Sem data";
                   const cur = dayMap.get(day) || { commission: 0, spend: 0, orders: 0 };
                   dayMap.set(day, {
                     ...cur,

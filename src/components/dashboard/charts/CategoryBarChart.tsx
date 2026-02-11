@@ -12,13 +12,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { motion } from "framer-motion";
 import { formatCurrency } from "../../../shared/lib/chart-utils";
 
+// Paleta da imagem: azul, teal (verde-água), laranja
 const BAR_COLORS = [
-  "hsl(210, 80%, 55%)",
-  "hsl(173, 80%, 40%)",
-  "hsl(38, 92%, 50%)",
-  "hsl(273, 65%, 60%)",
-  "hsl(340, 75%, 55%)",
-  "hsl(222, 47%, 25%)",
+  "hsl(210, 80%, 55%)",  // azul
+  "hsl(173, 80%, 40%)",  // teal / verde-água
+  "hsl(38, 92%, 50%)",   // laranja
 ];
 
 interface CategoryBarChartProps {
@@ -66,7 +64,11 @@ export const CategoryBarChart = ({ data, onDrillDown, variants }: CategoryBarCha
           <CardDescription>Top 12 categorias</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-1 flex-col pt-0 pb-4">
-          <ChartContainer config={chartConfig} className="h-[420px] w-full" style={{ minWidth: 320 }}>
+          <ChartContainer
+            config={chartConfig}
+            className="h-[420px] w-full [&_.recharts-rectangle]:opacity-90 [&_.recharts-rectangle]:transition-opacity [&_.recharts-rectangle]:duration-200 [&_.recharts-rectangle:hover]:opacity-100"
+            style={{ minWidth: 320 }}
+          >
             <BarChart
               accessibilityLayer
               data={chartData}

@@ -3,7 +3,7 @@ import { Bar, BarChart, CartesianGrid, Cell, LabelList, XAxis, YAxis } from "rec
 import { Share2 } from "lucide-react";
 import { ChartTooltip, ChartTooltipContent, ChartContainer, type ChartConfig } from "@/components/ui/chart";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { motion } from "framer-motion";
+import { motion, type Variants } from "framer-motion";
 
 const BAR_COLORS = [
   "hsl(210, 80%, 55%)",
@@ -20,7 +20,7 @@ interface CliquesPorCanalCardProps {
   channelStats: ChannelStatItem[];
   pieActiveIndex: number | null;
   setPieActiveIndex: (index: number | null) => void;
-  variants: { hidden: object; show: object };
+  variants?: Variants;
 }
 
 export const CliquesPorCanalCard = ({

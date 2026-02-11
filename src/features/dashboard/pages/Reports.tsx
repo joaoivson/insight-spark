@@ -208,7 +208,10 @@ const ReportsPage = () => {
 
     joinedData.forEach(row => {
       const getDimValue = (dim: DimensionKey) => {
-        if (dim === "time") return formatHourRange(row.time);
+        if (dim === "time") {
+          const timeVal = row.time ?? (row as any).horario ?? null;
+          return formatHourRange(timeVal);
+        }
         if (dim === "platform") return row.platform || "—";
         return row[dim] ?? "N/A";
       };
@@ -338,7 +341,8 @@ const ReportsPage = () => {
     }
 
     if (key === "time") {
-      const display = typeof val === "string" && /^Entre \d{2} e \d{2}:00$/.test(val) ? val : formatHourRange(val);
+      const timeVal = val ?? (row as any).horario ?? null;
+      const display = typeof timeVal === "string" && /^Entre \d{2} e \d{2}:00$/.test(timeVal) ? timeVal : formatHourRange(timeVal);
       return <span className="text-xs text-muted-foreground">{display}</span>;
     }
 

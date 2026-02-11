@@ -111,6 +111,7 @@ export const FeedbackFloatingButton = () => {
         className={cn(
           "fixed bottom-6 right-6 z-40 flex h-12 items-center gap-2 rounded-full px-4 py-2",
           "bg-secondary text-secondary-foreground border border-border text-sm font-medium",
+          "ring-2 ring-white/90 shadow-lg shadow-black/10",
           "transition-all duration-300 hover:scale-105 hover:bg-secondary/80",
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
         )}
