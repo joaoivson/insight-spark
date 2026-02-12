@@ -1,7 +1,7 @@
 import type { DatasetRow } from "@/components/dashboard/DataTable";
 import type { AdSpend } from "@/shared/types/adspend";
 import { parseDateOnly, toDateKey, isBeforeDateKey, isAfterDateKey } from "@/shared/lib/date";
-import { filterKpiRows, getComissaoCents } from "@/shared/lib/kpi";
+import { filterKpiRows, getComissaoAfiliado } from "@/shared/lib/kpi";
 import { normalizeSubId } from "@/shared/lib/utils";
 
 type DateRange = { from?: Date; to?: Date } | undefined;
@@ -43,14 +43,14 @@ export function groupByMesAno(rows: DatasetRow[], dateRange: DateRange): { label
   filtered.forEach((r) => {
     const mesAno = getMesAnoFromRow(r);
     if (!mesAno) return;
-    byMonth.set(mesAno, (byMonth.get(mesAno) ?? 0) + getComissaoCents(r));
+    byMonth.set(mesAno, (byMonth.get(mesAno) ?? 0) + getComissaoAfiliado(r));
   });
   return Array.from(byMonth.entries())
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([key, value]) => {
       const [y, m] = key.split("-");
       const label = y && m ? `${m}/${y}` : key;
-      return { label, value: value / 100, key };
+      return { label, value: Math.round(value * 100) / 100, key };
     });
 }
 
@@ -61,14 +61,14 @@ export function groupCommissionByDay(rows: DatasetRow[], dateRange: DateRange): 
   filtered.forEach((r) => {
     const key = toDateKey(r.date);
     if (!key) return;
-    byDay.set(key, (byDay.get(key) ?? 0) + getComissaoCents(r));
+    byDay.set(key, (byDay.get(key) ?? 0) + getComissaoAfiliado(r));
   });
   return Array.from(byDay.entries())
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([key, value]) => {
       const d = parseDateOnly(key);
       const label = d ? d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }) : key;
-      return { label, value: value / 100, key };
+      return { label, value: Math.round(value * 100) / 100, key };
     });
 }
 
@@ -84,7 +84,7 @@ export function groupRevenueProfitByMes(
   filteredRows.forEach((r) => {
     const mesAno = getMesAnoFromRow(r);
     if (!mesAno) return;
-    byMonth.set(mesAno, (byMonth.get(mesAno) ?? 0) + getComissaoCents(r));
+    byMonth.set(mesAno, (byMonth.get(mesAno) ?? 0) + getComissaoAfiliado(r));
   });
 
   const costByMonth = new Map<string, number>();
@@ -102,10 +102,10 @@ export function groupRevenueProfitByMes(
   return Array.from(months)
     .sort()
     .map((mes_ano) => {
-      const commissionCents = byMonth.get(mes_ano) ?? 0;
-      const commission = commissionCents / 100;
+      const commissionRaw = byMonth.get(mes_ano) ?? 0;
+      const commission = Math.round(commissionRaw * 100) / 100;
       const cost = costByMonth.get(mes_ano) ?? 0;
-      const profit = commission - cost;
+      const profit = Math.round((commission - cost) * 100) / 100;
       return { mes_ano, commission, cost, profit };
     });
 }
@@ -116,10 +116,10 @@ export function groupByPlatform(rows: DatasetRow[], dateRange: DateRange): { nam
   const byPlatform = new Map<string, number>();
   filtered.forEach((r) => {
     const name = (r.platform?.trim() || "Outros");
-    byPlatform.set(name, (byPlatform.get(name) ?? 0) + getComissaoCents(r));
+    byPlatform.set(name, (byPlatform.get(name) ?? 0) + getComissaoAfiliado(r));
   });
   return Array.from(byPlatform.entries())
-    .map(([name, cents]) => ({ name, value: cents / 100 }))
+    .map(([name, value]) => ({ name, value: Math.round(value * 100) / 100 }))
     .sort((a, b) => b.value - a.value);
 }
 
@@ -129,10 +129,10 @@ export function groupByCategory(rows: DatasetRow[], dateRange: DateRange): { nam
   const byCategory = new Map<string, number>();
   filtered.forEach((r) => {
     const name = r.category?.trim() || "Sem categoria";
-    byCategory.set(name, (byCategory.get(name) ?? 0) + getComissaoCents(r));
+    byCategory.set(name, (byCategory.get(name) ?? 0) + getComissaoAfiliado(r));
   });
   return Array.from(byCategory.entries())
-    .map(([name, cents]) => ({ name, value: cents / 100 }))
+    .map(([name, value]) => ({ name, value: Math.round(value * 100) / 100 }))
     .sort((a, b) => b.value - a.value)
     .slice(0, 12);
 }
