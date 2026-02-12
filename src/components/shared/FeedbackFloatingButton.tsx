@@ -15,6 +15,7 @@ import { useToast } from "@/hooks/use-toast";
 import { getApiUrl, fetchWithAuth } from "@/core/config/api.config";
 import { userStorage } from "@/shared/lib/storage";
 import type { User } from "@/shared/types";
+import { MessageSquarePlus } from "lucide-react";
 
 const CHALLENGE_OPTIONS = [
   "Organizar dados de vários canais",
@@ -125,20 +126,29 @@ export const FeedbackFloatingButton = () => {
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        aria-label="Enviar feedback"
+      <div
         className={cn(
-          "fixed bottom-6 right-6 z-40 flex h-12 items-center gap-2 rounded-full px-4 py-2",
-          "bg-secondary text-secondary-foreground border border-border text-sm font-medium",
-          "ring-2 ring-white/90 shadow-lg shadow-black/10",
-          "transition-all duration-300 hover:scale-105 hover:bg-secondary/80",
-          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+          "fixed top-1/2 right-0 z-40 -translate-y-1/2 translate-x-0"
         )}
       >
-        <span>Enviar feedback</span>
-      </button>
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          aria-label="Enviar feedback"
+          className={cn(
+            "flex items-center gap-2 px-3 py-4 shadow-lg transition-transform duration-200 hover:-translate-x-1",
+            "bg-blue-600 text-white hover:bg-blue-700",
+            "border-y border-l border-blue-500/50",
+            "text-sm font-semibold tracking-wide",
+            "[writing-mode:vertical-rl] rotate-180",
+            "rounded-l-none rounded-r-lg", // Physical right becomes Visual left after 180 rotation
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-blue-600"
+          )}
+        >
+          <MessageSquarePlus className="h-5 w-5 rotate-90" />
+          <span>Feedback</span>
+        </button>
+      </div>
 
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetContent side="right" className="sm:max-w-md overflow-y-auto">
@@ -177,6 +187,7 @@ export const FeedbackFloatingButton = () => {
               <Label htmlFor="category">Tipo de feedback</Label>
               <select
                 id="category"
+                aria-label="Selecionar tipo de feedback"
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
                 className={cn(
@@ -217,6 +228,7 @@ export const FeedbackFloatingButton = () => {
               </Label>
               <select
                 id="mainChallenge"
+                aria-label="Selecionar principal desafio"
                 value={mainChallenge}
                 onChange={(e) => setMainChallenge(e.target.value)}
                 className={cn(

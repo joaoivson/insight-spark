@@ -137,7 +137,7 @@ const DashboardClicks = ({ clicks: rawClicks, totalClicksFromApi, adSpends = [],
 
   // 2. Helpers
   const getItemClicks = (item: ClickRow): number => {
-    return Number(item.clicks) ?? Number((item as any).click) ?? 0;
+    return Number(item.clicks || (item as any).click || 0);
   };
 
   /** Normaliza canal para agrupar (ex: Instagram, instagram, INSTAGRAM -> mesma soma) */
@@ -150,20 +150,15 @@ const DashboardClicks = ({ clicks: rawClicks, totalClicksFromApi, adSpends = [],
 
   // 3. Cálculos Memorizados
   // Usa total_clicks da API quando disponível e sem filtro de sub_id; caso contrário, soma das rows filtradas
+  // Ensure we respect filters by calculating total from filtered data
   const totalClicks = useMemo(() => {
-    if (subIdFilter) {
-      return filteredClicks.reduce((acc, curr) => acc + getItemClicks(curr), 0);
-    }
-    if (totalClicksFromApi != null && totalClicksFromApi >= 0) {
-      return totalClicksFromApi;
-    }
     return filteredClicks.reduce((acc, curr) => acc + getItemClicks(curr), 0);
-  }, [filteredClicks, subIdFilter, totalClicksFromApi]);
+  }, [filteredClicks]);
 
   // Comparação: Cliques Manuais (Ads) vs Cliques CSV por Sub ID
   const comparisonStats = useMemo(() => {
     const csvStats = filteredClicks.reduce((acc, item) => {
-      const subId = normalizeSubId(item.sub_id);
+      const subId = normalizeSubId(item.sub_id).toLowerCase();
       acc[subId] = (acc[subId] || 0) + getItemClicks(item);
       return acc;
     }, {} as Record<string, number>);
@@ -179,7 +174,7 @@ const DashboardClicks = ({ clicks: rawClicks, totalClicksFromApi, adSpends = [],
       if (dateRange?.from && itemDateKey < toDateKey(dateRange.from)) return acc;
       if (dateRange?.to && itemDateKey > toDateKey(dateRange.to)) return acc;
 
-      const subId = normalizeSubId(item.sub_id || "Geral");
+      const subId = normalizeSubId(item.sub_id || "Geral").toLowerCase();
       acc[subId] = (acc[subId] || 0) + (item.clicks || 0);
       return acc;
     }, {} as Record<string, number>);

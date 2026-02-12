@@ -62,7 +62,6 @@ const DIMENSIONS: { key: DimensionKey; label: string }[] = [
   { key: "status", label: "Status" },
   { key: "sub_id1", label: "Sub ID" },
   { key: "platform", label: "Canal" },
-  { key: "time", label: "Horário" },
 ];
 
 const METRICS: { key: MetricKey; label: string }[] = [
@@ -274,11 +273,11 @@ const ReportsPage = () => {
 
   const renderCell = (row: any, key: string) => {
     const val = row[key];
-    
+
     if (key === "date") {
       return parseDateOnly(val)?.toLocaleDateString("pt-BR") || val;
     }
-    
+
     if (key === "product") {
       const shopeeLink = getShopeeLink(row);
       return (
@@ -287,9 +286,9 @@ const ReportsPage = () => {
             {val}
           </span>
           {shopeeLink && (
-            <a 
-              href={shopeeLink} 
-              target="_blank" 
+            <a
+              href={shopeeLink}
+              target="_blank"
               rel="noopener noreferrer"
               className="text-[10px] text-accent flex items-center gap-1 hover:underline"
             >
@@ -400,8 +399,8 @@ const ReportsPage = () => {
   };
 
   return (
-    <DashboardLayout 
-      title="Relatório Dinâmico" 
+    <DashboardLayout
+      title="Relatório Dinâmico"
       subtitle="Análise personalizada de vendas, cliques e anúncios"
       action={
         <Button onClick={handleExportExcel} className="gap-2" variant="accent">
@@ -447,17 +446,17 @@ const ReportsPage = () => {
             <div className="p-2 bg-secondary/50 rounded-lg group-focus-within:bg-primary/10 transition-colors">
               <Search className="w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
             </div>
-            <Input 
-              placeholder="Buscar por nome do produto na lista..." 
+            <Input
+              placeholder="Buscar por nome do produto na lista..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="border-none focus-visible:ring-0 bg-transparent h-9 p-0 text-sm placeholder:text-muted-foreground/60"
             />
             {searchTerm && (
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className="h-8 w-8 hover:bg-destructive/10 hover:text-destructive rounded-lg transition-colors" 
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 hover:bg-destructive/10 hover:text-destructive rounded-lg transition-colors"
                 onClick={() => setSearchTerm("")}
               >
                 <X className="w-4 h-4" />
@@ -492,8 +491,8 @@ const ReportsPage = () => {
                   <div className="grid grid-cols-1 gap-3 pt-2">
                     {DIMENSIONS.map((dim) => (
                       <div key={dim.key} className="flex items-center space-x-3 p-2 rounded-lg hover:bg-muted/50 transition-colors cursor-pointer" onClick={() => toggleDimension(dim.key)}>
-                        <Checkbox 
-                          id={`dim-${dim.key}`} 
+                        <Checkbox
+                          id={`dim-${dim.key}`}
                           checked={pivotConfig.dimensions.includes(dim.key)}
                           onCheckedChange={() => toggleDimension(dim.key)}
                         />
@@ -514,8 +513,8 @@ const ReportsPage = () => {
                   <div className="grid grid-cols-2 gap-3 pt-2">
                     {METRICS.map((metric) => (
                       <div key={metric.key} className="flex items-center space-x-3 p-2 rounded-lg hover:bg-muted/50 transition-colors cursor-pointer" onClick={() => toggleMetric(metric.key)}>
-                        <Checkbox 
-                          id={`met-${metric.key}`} 
+                        <Checkbox
+                          id={`met-${metric.key}`}
                           checked={pivotConfig.metrics.includes(metric.key)}
                           onCheckedChange={() => toggleMetric(metric.key)}
                         />
@@ -541,189 +540,189 @@ const ReportsPage = () => {
             className="space-y-8"
           >
             <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
-                <div className="p-6 border-b border-border flex items-center justify-between bg-secondary/5">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-background rounded-lg border border-border">
-                      <FileText className="w-5 h-5 text-muted-foreground" />
-                    </div>
-                    <div>
-                      <h3 className="font-display font-semibold text-foreground">
-                        {pivotConfig.dimensions.length > 0 ? "Tabela Dinâmica Consolidada" : "Relatório Detalhado"}
-                      </h3>
-                      <p className="text-xs text-muted-foreground">
-                        {pivotConfig.dimensions.length > 0 
-                          ? `Agrupado por: ${pivotConfig.dimensions.map(d => DIMENSIONS.find(dim => dim.key === d)?.label).join(", ")}`
-                          : "Vendas associadas a cliques e custos por Sub ID e Data"}
-                      </p>
-                    </div>
+              <div className="p-6 border-b border-border flex items-center justify-between bg-secondary/5">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-background rounded-lg border border-border">
+                    <FileText className="w-5 h-5 text-muted-foreground" />
                   </div>
-                  <div className="flex items-center gap-3">
-                    {pivotConfig.dimensions.length > 0 && (
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        className="text-xs text-muted-foreground hover:text-primary gap-2"
-                        onClick={() => setPivotConfig({ dimensions: [], metrics: ["quantity", "revenue", "commission"] as MetricKey[] })}
-                      >
-                        <X className="w-3 h-3" />
-                        Limpar Tabela
-                      </Button>
-                    )}
-                    <Badge variant="outline" className="font-mono">
-                      {pivotData.length} registros
-                    </Badge>
-                  </div>
-                </div>
-
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="bg-secondary/20 hover:bg-secondary/20">
-                        {/* Render Active Dimensions Headers */}
-                        {pivotConfig.dimensions.length > 0 ? (
-                          pivotConfig.dimensions.map(dimKey => {
-                            const dim = DIMENSIONS.find(d => d.key === dimKey);
-                            return (
-                              <TableHead key={dimKey} onClick={() => handleSort(dimKey)} className="cursor-pointer">
-                                <div className="flex items-center gap-1">{dim?.label} <ArrowUpDown className="w-3 h-3" /></div>
-                              </TableHead>
-                            );
-                          })
-                        ) : (
-                          // Default Headers: Produto, Quantidade, Faturamento, Comissão, Canal, Horário + conditional
-                          <>
-                            <TableHead onClick={() => handleSort("product")} className="cursor-pointer min-w-[250px]">
-                              <div className="flex items-center gap-1">Produto <ArrowUpDown className="w-3 h-3" /></div>
-                            </TableHead>
-                            <TableHead onClick={() => handleSort("quantity")} className="text-right cursor-pointer">
-                              <div className="flex items-center justify-end gap-1">Quantidade <ArrowUpDown className="w-3 h-3" /></div>
-                            </TableHead>
-                            <TableHead onClick={() => handleSort("revenue")} className="text-right cursor-pointer">
-                              <div className="flex items-center justify-end gap-1">Faturamento <ArrowUpDown className="w-3 h-3" /></div>
-                            </TableHead>
-                            <TableHead onClick={() => handleSort("commission")} className="text-right cursor-pointer">
-                              <div className="flex items-center justify-end gap-1">Comissão <ArrowUpDown className="w-3 h-3" /></div>
-                            </TableHead>
-                            <TableHead onClick={() => handleSort("platform")} className="cursor-pointer">
-                              <div className="flex items-center gap-1">Canal <ArrowUpDown className="w-3 h-3" /></div>
-                            </TableHead>
-                            <TableHead onClick={() => handleSort("time")} className="cursor-pointer">
-                              <div className="flex items-center gap-1">Horário <ArrowUpDown className="w-3 h-3" /></div>
-                            </TableHead>
-                            {hasAssociatedData.hasClicks && (
-                              <TableHead onClick={() => handleSort("associatedClicks")} className="text-right cursor-pointer">
-                                <div className="flex items-center justify-end gap-1">Cliques <ArrowUpDown className="w-3 h-3" /></div>
-                              </TableHead>
-                            )}
-                            {hasAssociatedData.hasCosts && (
-                              <TableHead onClick={() => handleSort("associatedCost")} className="text-right cursor-pointer">
-                                <div className="flex items-center justify-end gap-1">Custos de anúncios <ArrowUpDown className="w-3 h-3" /></div>
-                              </TableHead>
-                            )}
-                            {hasAssociatedData.showProfit && (
-                              <TableHead onClick={() => handleSort("profit")} className="text-right cursor-pointer">
-                                <div className="flex items-center justify-end gap-1">Lucro <ArrowUpDown className="w-3 h-3" /></div>
-                              </TableHead>
-                            )}
-                          </>
-                        )}
-
-                        {/* Render Active Metrics Headers (only in pivot mode) */}
-                        {pivotConfig.dimensions.length > 0 && pivotConfig.metrics.map(metricKey => {
-                          const metric = METRICS.find(m => m.key === metricKey);
-                          return (
-                            <TableHead key={metricKey} onClick={() => handleSort(metricKey)} className="text-right cursor-pointer">
-                              <div className="flex items-center justify-end gap-1">{metric?.label} <ArrowUpDown className="w-3 h-3" /></div>
-                            </TableHead>
-                          );
-                        })}
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      <AnimatePresence mode="popLayout">
-                        {pivotData.slice(0, 100).map((row, idx) => {
-                          return (
-                            <motion.tr
-                              key={`${row.id || idx}-${idx}`}
-                              initial={{ opacity: 0 }}
-                              animate={{ opacity: 1 }}
-                              exit={{ opacity: 0 }}
-                              className="hover:bg-muted/30 transition-colors group"
-                            >
-                              {/* Render Dimension Cells */}
-                              {pivotConfig.dimensions.length > 0 ? (
-                                pivotConfig.dimensions.map(dimKey => (
-                                  <TableCell key={dimKey} className={cn(dimKey === "date" ? "text-xs whitespace-nowrap" : "")}>
-                                    {renderCell(row, dimKey)}
-                                  </TableCell>
-                                ))
-                              ) : (
-                                // Default Cells: Produto, Quantidade, Faturamento, Comissão, Canal, Horário + conditional
-                                <>
-                                  <TableCell className="max-w-[300px]">
-                                    {renderCell(row, "product")}
-                                  </TableCell>
-                                  <TableCell className="text-right">
-                                    {renderCell(row, "quantity")}
-                                  </TableCell>
-                                  <TableCell className="text-right">
-                                    {renderCell(row, "revenue")}
-                                  </TableCell>
-                                  <TableCell className="text-right">
-                                    {renderCell(row, "commission")}
-                                  </TableCell>
-                                  <TableCell>
-                                    {renderCell(row, "platform")}
-                                  </TableCell>
-                                  <TableCell>
-                                    {renderCell(row, "time")}
-                                  </TableCell>
-                                  {hasAssociatedData.hasClicks && (
-                                    <TableCell className="text-right">
-                                      {renderCell(row, "associatedClicks")}
-                                    </TableCell>
-                                  )}
-                                  {hasAssociatedData.hasCosts && (
-                                    <TableCell className="text-right">
-                                      {renderCell(row, "associatedCost")}
-                                    </TableCell>
-                                  )}
-                                  {hasAssociatedData.showProfit && (
-                                    <TableCell className="text-right">
-                                      {renderCell(row, "profit")}
-                                    </TableCell>
-                                  )}
-                                </>
-                              )}
-
-                              {/* Render Metric Cells (only in pivot mode) */}
-                              {pivotConfig.dimensions.length > 0 && pivotConfig.metrics.map(metricKey => (
-                                <TableCell key={metricKey} className="text-right">
-                                  {renderCell(row, metricKey)}
-                                </TableCell>
-                              ))}
-                            </motion.tr>
-                          );
-                        })}
-                      </AnimatePresence>
-                      {!pivotData.length && (
-                        <TableRow>
-                          <TableCell colSpan={12} className="h-32 text-center text-muted-foreground">
-                            {isLoading ? "Carregando dados..." : "Nenhum dado encontrado para os filtros selecionados."}
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
-                </div>
-                {pivotData.length > 100 && (
-                  <div className="p-4 text-center border-t border-border bg-secondary/5">
-                    <p className="text-xs text-muted-foreground italic">
-                      Exibindo apenas os primeiros 100 resultados de {pivotData.length}. Use os filtros acima para refinar sua busca ou exporte para Excel para ver tudo.
+                  <div>
+                    <h3 className="font-display font-semibold text-foreground">
+                      {pivotConfig.dimensions.length > 0 ? "Tabela Dinâmica Consolidada" : "Relatório Detalhado"}
+                    </h3>
+                    <p className="text-xs text-muted-foreground">
+                      {pivotConfig.dimensions.length > 0
+                        ? `Agrupado por: ${pivotConfig.dimensions.map(d => DIMENSIONS.find(dim => dim.key === d)?.label).join(", ")}`
+                        : "Vendas associadas a cliques e custos por Sub ID e Data"}
                     </p>
                   </div>
-                )}
+                </div>
+                <div className="flex items-center gap-3">
+                  {pivotConfig.dimensions.length > 0 && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-xs text-muted-foreground hover:text-primary gap-2"
+                      onClick={() => setPivotConfig({ dimensions: [], metrics: ["quantity", "revenue", "commission"] as MetricKey[] })}
+                    >
+                      <X className="w-3 h-3" />
+                      Limpar Tabela
+                    </Button>
+                  )}
+                  <Badge variant="outline" className="font-mono">
+                    {pivotData.length} registros
+                  </Badge>
+                </div>
               </div>
+
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-secondary/20 hover:bg-secondary/20">
+                      {/* Render Active Dimensions Headers */}
+                      {pivotConfig.dimensions.length > 0 ? (
+                        pivotConfig.dimensions.map(dimKey => {
+                          const dim = DIMENSIONS.find(d => d.key === dimKey);
+                          return (
+                            <TableHead key={dimKey} onClick={() => handleSort(dimKey)} className="cursor-pointer">
+                              <div className="flex items-center gap-1">{dim?.label} <ArrowUpDown className="w-3 h-3" /></div>
+                            </TableHead>
+                          );
+                        })
+                      ) : (
+                        // Default Headers: Produto, Quantidade, Faturamento, Comissão, Canal, Horário + conditional
+                        <>
+                          <TableHead onClick={() => handleSort("product")} className="cursor-pointer min-w-[250px]">
+                            <div className="flex items-center gap-1">Produto <ArrowUpDown className="w-3 h-3" /></div>
+                          </TableHead>
+                          <TableHead onClick={() => handleSort("quantity")} className="text-right cursor-pointer">
+                            <div className="flex items-center justify-end gap-1">Quantidade <ArrowUpDown className="w-3 h-3" /></div>
+                          </TableHead>
+                          <TableHead onClick={() => handleSort("revenue")} className="text-right cursor-pointer">
+                            <div className="flex items-center justify-end gap-1">Faturamento <ArrowUpDown className="w-3 h-3" /></div>
+                          </TableHead>
+                          <TableHead onClick={() => handleSort("commission")} className="text-right cursor-pointer">
+                            <div className="flex items-center justify-end gap-1">Comissão <ArrowUpDown className="w-3 h-3" /></div>
+                          </TableHead>
+                          <TableHead onClick={() => handleSort("platform")} className="cursor-pointer">
+                            <div className="flex items-center gap-1">Canal <ArrowUpDown className="w-3 h-3" /></div>
+                          </TableHead>
+                          <TableHead onClick={() => handleSort("time")} className="cursor-pointer">
+                            <div className="flex items-center gap-1">Horário <ArrowUpDown className="w-3 h-3" /></div>
+                          </TableHead>
+                          {hasAssociatedData.hasClicks && (
+                            <TableHead onClick={() => handleSort("associatedClicks")} className="text-right cursor-pointer">
+                              <div className="flex items-center justify-end gap-1">Cliques <ArrowUpDown className="w-3 h-3" /></div>
+                            </TableHead>
+                          )}
+                          {hasAssociatedData.hasCosts && (
+                            <TableHead onClick={() => handleSort("associatedCost")} className="text-right cursor-pointer">
+                              <div className="flex items-center justify-end gap-1">Custos de anúncios <ArrowUpDown className="w-3 h-3" /></div>
+                            </TableHead>
+                          )}
+                          {hasAssociatedData.showProfit && (
+                            <TableHead onClick={() => handleSort("profit")} className="text-right cursor-pointer">
+                              <div className="flex items-center justify-end gap-1">Lucro <ArrowUpDown className="w-3 h-3" /></div>
+                            </TableHead>
+                          )}
+                        </>
+                      )}
+
+                      {/* Render Active Metrics Headers (only in pivot mode) */}
+                      {pivotConfig.dimensions.length > 0 && pivotConfig.metrics.map(metricKey => {
+                        const metric = METRICS.find(m => m.key === metricKey);
+                        return (
+                          <TableHead key={metricKey} onClick={() => handleSort(metricKey)} className="text-right cursor-pointer">
+                            <div className="flex items-center justify-end gap-1">{metric?.label} <ArrowUpDown className="w-3 h-3" /></div>
+                          </TableHead>
+                        );
+                      })}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    <AnimatePresence mode="popLayout">
+                      {pivotData.slice(0, 100).map((row, idx) => {
+                        return (
+                          <motion.tr
+                            key={`${row.id || idx}-${idx}`}
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="hover:bg-muted/30 transition-colors group"
+                          >
+                            {/* Render Dimension Cells */}
+                            {pivotConfig.dimensions.length > 0 ? (
+                              pivotConfig.dimensions.map(dimKey => (
+                                <TableCell key={dimKey} className={cn(dimKey === "date" ? "text-xs whitespace-nowrap" : "")}>
+                                  {renderCell(row, dimKey)}
+                                </TableCell>
+                              ))
+                            ) : (
+                              // Default Cells: Produto, Quantidade, Faturamento, Comissão, Canal, Horário + conditional
+                              <>
+                                <TableCell className="max-w-[300px]">
+                                  {renderCell(row, "product")}
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  {renderCell(row, "quantity")}
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  {renderCell(row, "revenue")}
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  {renderCell(row, "commission")}
+                                </TableCell>
+                                <TableCell>
+                                  {renderCell(row, "platform")}
+                                </TableCell>
+                                <TableCell>
+                                  {renderCell(row, "time")}
+                                </TableCell>
+                                {hasAssociatedData.hasClicks && (
+                                  <TableCell className="text-right">
+                                    {renderCell(row, "associatedClicks")}
+                                  </TableCell>
+                                )}
+                                {hasAssociatedData.hasCosts && (
+                                  <TableCell className="text-right">
+                                    {renderCell(row, "associatedCost")}
+                                  </TableCell>
+                                )}
+                                {hasAssociatedData.showProfit && (
+                                  <TableCell className="text-right">
+                                    {renderCell(row, "profit")}
+                                  </TableCell>
+                                )}
+                              </>
+                            )}
+
+                            {/* Render Metric Cells (only in pivot mode) */}
+                            {pivotConfig.dimensions.length > 0 && pivotConfig.metrics.map(metricKey => (
+                              <TableCell key={metricKey} className="text-right">
+                                {renderCell(row, metricKey)}
+                              </TableCell>
+                            ))}
+                          </motion.tr>
+                        );
+                      })}
+                    </AnimatePresence>
+                    {!pivotData.length && (
+                      <TableRow>
+                        <TableCell colSpan={12} className="h-32 text-center text-muted-foreground">
+                          {isLoading ? "Carregando dados..." : "Nenhum dado encontrado para os filtros selecionados."}
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+              {pivotData.length > 100 && (
+                <div className="p-4 text-center border-t border-border bg-secondary/5">
+                  <p className="text-xs text-muted-foreground italic">
+                    Exibindo apenas os primeiros 100 resultados de {pivotData.length}. Use os filtros acima para refinar sua busca ou exporte para Excel para ver tudo.
+                  </p>
+                </div>
+              )}
+            </div>
           </motion.div>
         )}
       </div>
