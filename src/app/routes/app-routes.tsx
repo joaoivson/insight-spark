@@ -49,6 +49,10 @@ const ProtectedRoute = ({ element }: { element: JSX.Element }) => {
     showModalOnInactive: true, // Mostrar modal ao invés de redirecionar
   });
 
+  if (!token) {
+    return <Navigate to="/login" replace />;
+  }
+
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
