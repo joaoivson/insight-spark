@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://rsejwvxealraianensoz.supabase.co';
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://iprdyorxqdiivthtcvxf.supabase.co';
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_wn-jD_u50_800ku-syYsxQ_WhI3j_6X';
 
 if (!supabaseUrl || !supabaseAnonKey) {
