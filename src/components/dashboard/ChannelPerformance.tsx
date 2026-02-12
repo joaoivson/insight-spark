@@ -76,7 +76,7 @@ const ChannelPerformance = ({
     filteredRows.forEach((row) => {
       const channel = row.sub_id1 || "Orgânico/Outros";
       const current = channelMap.get(channel) || { commission: 0, spend: 0, orders: 0 };
-      
+
       const commission = getComissaoCents(row) / 100;
 
       channelMap.set(channel, {
@@ -88,7 +88,7 @@ const ChannelPerformance = ({
 
     // 2. Processar Gastos (Ads)
     let totalGeneralSpend = 0;
-    
+
     filteredAdSpends.forEach((spend) => {
       if (!spend.sub_id || spend.sub_id === "Geral/Institucional") {
         totalGeneralSpend += (spend.amount || 0);
@@ -141,7 +141,7 @@ const ChannelPerformance = ({
   const [dayPage, setDayPage] = useState<number>(0);
   const [daySortColumn, setDaySortColumn] = useState<string | null>(null);
   const [daySortDirection, setDaySortDirection] = useState<"asc" | "desc">("desc");
-  
+
   if (!metrics.length) return null;
 
   // Encontrar destaques
@@ -181,7 +181,7 @@ const ChannelPerformance = ({
                       const isProfit = m.profit > 0;
                       const roasColor = m.roas >= 1 ? "text-green-500" : "text-red-500";
                       const RoasIcon = m.roas >= 1 ? TrendingUp : TrendingDown;
-                      
+
                       return (
                         <TableRow key={m.name}>
                           <TableCell className="font-medium text-foreground">
@@ -356,7 +356,7 @@ const ChannelPerformance = ({
             <TableBody>
               {(() => {
                 const dayMap = new Map<string, { commission: number; spend: number; orders: number }>();
-                rows.forEach((row) => {
+                filteredRows.forEach((row) => {
                   const day = row.date ? toDateKey(row.date) : "Sem data";
                   const commission = getComissaoAfiliado(row);
                   const cur = dayMap.get(day) || { commission: 0, spend: 0, orders: 0 };
@@ -366,7 +366,7 @@ const ChannelPerformance = ({
                     orders: cur.orders + 1,
                   });
                 });
-                adSpends.forEach((spend) => {
+                filteredAdSpends.forEach((spend) => {
                   const day = spend.date ? toDateKey(spend.date) : "Sem data";
                   const cur = dayMap.get(day) || { commission: 0, spend: 0, orders: 0 };
                   dayMap.set(day, {
@@ -386,20 +386,20 @@ const ChannelPerformance = ({
                   dayData = dayData.sort((a, b) => {
                     let aVal: any = a[daySortColumn as keyof typeof a];
                     let bVal: any = b[daySortColumn as keyof typeof b];
-                    
+
                     if (daySortColumn === "day") {
                       aVal = a.day;
                       bVal = b.day;
                     }
-                    
+
                     if (aVal === bVal) return 0;
                     if (aVal === undefined || aVal === null) return 1;
                     if (bVal === undefined || bVal === null) return -1;
-                    
+
                     if (typeof aVal === "number" && typeof bVal === "number") {
                       return daySortDirection === "asc" ? aVal - bVal : bVal - aVal;
                     }
-                    
+
                     const comparison = String(aVal).localeCompare(String(bVal));
                     return daySortDirection === "asc" ? comparison : -comparison;
                   });
@@ -498,17 +498,17 @@ const ChannelPerformance = ({
                             </button>
                           </div>
                         </div>
-                    </TableCell>
-                  </TableRow>
-                </>
-              );
-            })()}
-          </TableBody>
-        </Table>
-      </div>
-    )}
-  </div>
-);
+                      </TableCell>
+                    </TableRow>
+                  </>
+                );
+              })()}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+    </div>
+  );
 };
 
 export default ChannelPerformance;

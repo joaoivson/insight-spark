@@ -163,7 +163,7 @@ const DashboardClicks = ({ clicks: rawClicks, totalClicksFromApi, adSpends = [],
   // Comparação: Cliques Manuais (Ads) vs Cliques CSV por Sub ID
   const comparisonStats = useMemo(() => {
     const csvStats = filteredClicks.reduce((acc, item) => {
-      const subId = normalizeSubId(item.sub_id);
+      const subId = normalizeSubId(item.sub_id).toLowerCase();
       acc[subId] = (acc[subId] || 0) + getItemClicks(item);
       return acc;
     }, {} as Record<string, number>);
@@ -179,7 +179,7 @@ const DashboardClicks = ({ clicks: rawClicks, totalClicksFromApi, adSpends = [],
       if (dateRange?.from && itemDateKey < toDateKey(dateRange.from)) return acc;
       if (dateRange?.to && itemDateKey > toDateKey(dateRange.to)) return acc;
 
-      const subId = normalizeSubId(item.sub_id || "Geral");
+      const subId = normalizeSubId(item.sub_id || "Geral").toLowerCase();
       acc[subId] = (acc[subId] || 0) + (item.clicks || 0);
       return acc;
     }, {} as Record<string, number>);
