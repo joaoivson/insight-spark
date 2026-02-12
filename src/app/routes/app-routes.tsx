@@ -43,15 +43,11 @@ const ProtectedRoute = ({ element }: { element: JSX.Element }) => {
   const token = tokenStorage.get();
   // Usar skipCheck para rotas do dashboard após primeira validação
   // Isso evita verificações repetidas ao navegar entre páginas do dashboard
-  const { status, loading, showPlanModal, setShowPlanModal } = useSubscriptionCheck({ 
+  const { status, loading, showPlanModal, setShowPlanModal } = useSubscriptionCheck({
     redirectOnInactive: true,
     skipCheck: false, // Primeira vez sempre verifica
     showModalOnInactive: true, // Mostrar modal ao invés de redirecionar
   });
-
-  if (!token) {
-    return <Navigate to="/login" replace />;
-  }
 
   if (loading) {
     return (
@@ -69,7 +65,7 @@ const ProtectedRoute = ({ element }: { element: JSX.Element }) => {
     // Garantir que o modal seja exibido quando a assinatura estiver inativa
     // O redirect só acontece quando o usuário escolher um plano no modal (através do handleContinue)
     const shouldShowModal = showPlanModal === undefined ? true : showPlanModal;
-    
+
     return (
       <>
         <SubscriptionPlanModal
@@ -87,7 +83,7 @@ const ProtectedRoute = ({ element }: { element: JSX.Element }) => {
           <div className="opacity-50 pointer-events-none">
             {element}
           </div>
-          
+
           {/* Banner de assinatura sobreposto */}
           <div className="absolute inset-0 flex items-center justify-center bg-background/80 backdrop-blur-sm z-50">
             <div className="bg-card border border-border rounded-lg shadow-lg p-8 max-w-md mx-4 text-center space-y-6">
@@ -96,7 +92,7 @@ const ProtectedRoute = ({ element }: { element: JSX.Element }) => {
                   <Lock className="w-12 h-12 text-primary" />
                 </div>
               </div>
-              
+
               <div className="space-y-2">
                 <h2 className="text-2xl font-bold">Assinatura Necessária</h2>
                 <p className="text-muted-foreground">
@@ -104,7 +100,7 @@ const ProtectedRoute = ({ element }: { element: JSX.Element }) => {
                   Escolha um plano e comece a usar todas as funcionalidades.
                 </p>
               </div>
-              
+
               <div className="flex flex-col sm:flex-row gap-3 justify-center">
                 <Button
                   variant="outline"
@@ -140,11 +136,11 @@ export const AppRoutes = () => {
         <Route path="/" element={<Index />} />
         <Route path="/demo" element={<Demo />} />
         <Route path="/login" element={<Login />} />
-        
+
         {/* Auth Routes */}
         <Route path="/auth/set-password" element={<SetPasswordPage />} />
         <Route path="/auth/forgot-password" element={<ForgotPasswordPage />} />
-        
+
         {/* Subscription Routes */}
         <Route path="/assinatura" element={<SubscriptionPage />} />
         <Route path="/assinatura/callback" element={<SubscriptionCallback />} />
