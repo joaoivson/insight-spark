@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState, useRef } from "react";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
+import { LoadingDataOverlay } from "@/components/dashboard/LoadingDataOverlay";
+import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -315,7 +317,7 @@ const AdSpends = () => {
 
     try {
       const today = new Date().toISOString().slice(0, 10);
-      
+
       // Criar a planilha com dados iniciais
       const wsData = [
         ["Data", "SubId", "ValorGasto", "Cliques"],
@@ -328,19 +330,19 @@ const AdSpends = () => {
       // Aplicar formatação de moeda para ValorGasto
       const fmtCurrency = '"R$ "#,##0.00';
       const fmtNumber = '#,##0';
-      
+
       // Percorrer as colunas para formatar
       const range = XLSX.utils.decode_range(ws['!ref'] || "A1");
       for (let R = range.s.r + 1; R <= range.e.r; ++R) {
         // Coluna C (ValorGasto)
         const amountCell = ws[XLSX.utils.encode_cell({ r: R, c: 2 })];
         if (amountCell) amountCell.z = fmtCurrency;
-        
+
         // Coluna D (Cliques)
         const clicksCell = ws[XLSX.utils.encode_cell({ r: R, c: 3 })];
         if (clicksCell) clicksCell.z = fmtNumber;
       }
-      
+
       // Atualizar o range da planilha (50 linhas)
       ws['!ref'] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: 49, c: 3 } });
 
@@ -618,6 +620,11 @@ const AdSpends = () => {
         </AlertDialog>
       }
     >
+      <AnimatePresence>
+        {importing && (
+          <LoadingDataOverlay />
+        )}
+      </AnimatePresence>
       <div className="grid gap-4">
 
         <Card className="p-5">

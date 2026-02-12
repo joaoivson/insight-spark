@@ -36,6 +36,16 @@ const chartItemVariants: Variants = {
   },
 };
 
+const containerVariants: Variants = {
+  hidden: { opacity: 0 },
+  show: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.1
+    }
+  }
+};
+
 const DashboardCharts = ({ rows, adSpends = [], dateRange, subIdFilter, onDrillDown, belowRevenueContent }: DashboardChartsProps) => {
   const [commissionMode, setCommissionMode] = useState<"month" | "day">("month");
 
@@ -62,6 +72,7 @@ const DashboardCharts = ({ rows, adSpends = [], dateRange, subIdFilter, onDrillD
 
   return (
     <motion.div
+      variants={containerVariants}
       initial="hidden"
       animate="show"
       className="grid grid-cols-1 gap-6 mt-6"
@@ -73,24 +84,31 @@ const DashboardCharts = ({ rows, adSpends = [], dateRange, subIdFilter, onDrillD
         onDrillDown={(v) => onDrillDown?.("mes_ano", v)}
         variants={chartItemVariants}
       />
-      <RevenueProfitAreaChart 
-        data={revProfitData} 
-        onDrillDown={(v) => onDrillDown?.("mes_ano", v)} 
+      <RevenueProfitAreaChart
+        data={revProfitData}
+        onDrillDown={(v) => onDrillDown?.("mes_ano", v)}
         variants={chartItemVariants}
       />
       {belowRevenueContent}
-      <div className="grid lg:grid-cols-2 gap-6">
-        <ChannelPieChart 
-          data={channelData} 
-          onDrillDown={(v) => onDrillDown?.("platform", v)} 
-          variants={chartItemVariants}
-        />
-        <CategoryBarChart 
-          data={categoryData} 
-          onDrillDown={(v) => onDrillDown?.("category", v)} 
-          variants={chartItemVariants}
-        />
-      </div>
+      <section
+        aria-label="Comissão por canal e categoria"
+        className="grid grid-cols-1 gap-6 items-stretch min-w-0 sm:gap-6 lg:grid-cols-2 lg:gap-8"
+      >
+        <div className="min-w-0">
+          <ChannelPieChart
+            data={channelData}
+            onDrillDown={(v) => onDrillDown?.("platform", v)}
+            variants={chartItemVariants}
+          />
+        </div>
+        <div className="min-w-0">
+          <CategoryBarChart
+            data={categoryData}
+            onDrillDown={(v) => onDrillDown?.("category", v)}
+            variants={chartItemVariants}
+          />
+        </div>
+      </section>
     </motion.div>
   );
 };

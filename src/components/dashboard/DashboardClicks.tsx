@@ -1,10 +1,9 @@
 import { useMemo, useState } from "react";
 import { ClickRow } from "@/services/clicks.service";
 import { AdSpend } from "@/shared/types/adspend";
-import { 
-  MousePointerClick, 
-  Share2, 
-  Tag, 
+import {
+  MousePointerClick,
+  Tag,
   Instagram,
   Facebook,
   Link2,
@@ -12,45 +11,28 @@ import {
   ArrowUpDown,
   BarChart3,
   TrendingUp,
-  TrendingDown
+  TrendingDown,
+  AlertTriangle
 } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { cn, normalizeSubId } from "@/shared/lib/utils";
-import { 
-  ResponsiveContainer, 
-  PieChart, 
-  Pie, 
-  Cell, 
-  Tooltip, 
-  Legend, 
-  BarChart, 
-  Bar, 
-  XAxis, 
-  YAxis, 
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
   CartesianGrid,
-  LabelList,
-  AreaChart,
-  Area,
-  Label
+  LabelList
 } from "recharts";
 import { motion, AnimatePresence, Variants } from "framer-motion";
-import { isBeforeDateKey, isAfterDateKey, toDateKey } from "@/shared/lib/date";
+import { isBeforeDateKey, isAfterDateKey, toDateKey, parseDateOnly } from "@/shared/lib/date";
 import { Button } from "@/components/ui/button";
 import {
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
-  type ChartConfig,
 } from "@/components/ui/chart";
-
-const PIE_COLORS = [
-  "hsl(210, 80%, 55%)", // Blue
-  "hsl(173, 80%, 40%)", // Teal/Success
-  "hsl(38, 92%, 50%)",  // Orange/Warning
-  "hsl(273, 65%, 60%)", // Purple
-  "hsl(340, 75%, 55%)", // Pink
-  "hsl(222, 47%, 25%)", // Navy
-];
+import { CliquesPorCanalCard } from "@/components/dashboard/charts/CliquesPorCanalCard";
 
 const BAR_COLOR = "hsl(210, 80%, 55%)";
 
@@ -81,35 +63,68 @@ const formatK = (value: number) => {
   return value.toLocaleString("pt-BR");
 };
 
-// API pode enviar ISO (YYYY-MM-DD) ou YYYY-DD-MM. Detecta e normaliza para ISO.
+// API pode enviar DD-MM-YYYY, YYYY-MM-DD (ISO) ou YYYY-DD-MM (dia no meio). Converte tudo para YYYY-MM-DD.
+// Ex: 07-01-2026 (DD-MM-YYYY) → 2026-01-07
+// Ex: 2026-02-01 (YYYY-DD-MM ambíguo) → 2026-01-02
 const normalizeDate = (dateStr?: string | null): string => {
   if (!dateStr || dateStr === "Sem data") return "Sem data";
-  const parts = dateStr.split("-");
-  if (parts.length !== 3) return dateStr;
-  const [year, a, b] = parts;
+
+  // Primeiro tenta DD-MM-YYYY (formato que a API está retornando)
+  const ddmmyyyyMatch = dateStr.match(/^(\d{2})-(\d{2})-(\d{4})$/);
+  if (ddmmyyyyMatch) {
+    const [, day, month, year] = ddmmyyyyMatch;
+    // Valida dia e mês
+    const d = Number(day);
+    const m = Number(month);
+    if (d < 1 || d > 31 || m < 1 || m > 12) return "Sem data";
+    return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
+  }
+
+  // Se não for DD-MM-YYYY, tenta YYYY-MM-DD ou YYYY-DD-MM
+  const yyyyMatch = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!yyyyMatch) return "Sem data";
+
+  const [, year, a, b] = yyyyMatch;
   const na = Number(a);
   const nb = Number(b);
-  // Se o segundo segmento é 01-12, assume ISO (YYYY-MM-DD) e mantém como está
-  if (na >= 1 && na <= 12 && nb >= 1 && nb <= 31) return dateStr;
-  // Caso contrário assume YYYY-DD-MM: segundo = dia, terceiro = mês
-  const day = a.padStart(2, "0");
-  const month = b.padStart(2, "0");
-  return `${year}-${month}-${day}`;
+  if (na < 1 || na > 31 || nb < 1 || nb > 31) return "Sem data";
+
+  // Se segundo > 12 → é dia (YYYY-DD-MM)
+  if (na > 12) return `${year}-${b.padStart(2, "0")}-${a.padStart(2, "0")}`;
+  // Se terceiro > 12 → é dia (YYYY-MM-DD)
+  if (nb > 12) return dateStr;
+  // Ambíguo (a,b <= 12): segundo 02-31 + terceiro 01-12 sugere YYYY-DD-MM (Jan 2–31)
+  if (na >= 2 && nb >= 1 && nb <= 12) return `${year}-${b.padStart(2, "0")}-${a.padStart(2, "0")}`;
+
+  return dateStr;
 };
 
 interface DashboardClicksProps {
   clicks: ClickRow[];
+  totalClicksFromApi?: number | null;
   adSpends?: AdSpend[];
   dateRange?: { from?: Date; to?: Date };
   subIdFilter?: string;
 }
 
-const DashboardClicks = ({ clicks: rawClicks, adSpends = [], dateRange, subIdFilter }: DashboardClicksProps) => {
+const DashboardClicks = ({ clicks: rawClicks, totalClicksFromApi, adSpends = [], dateRange, subIdFilter }: DashboardClicksProps) => {
   // Normaliza as datas estranhas da API (YYYY-DD-MM -> YYYY-MM-DD) antes de qualquer processamento
   const clicks = useMemo(() => rawClicks.map(c => ({
     ...c,
     date: normalizeDate(c.date)
   })), [rawClicks]);
+
+  // Cliques filtrados por dateRange e subIdFilter (usados em todos os cards)
+  const filteredClicks = useMemo(() => {
+    return clicks.filter((item) => {
+      if (subIdFilter && normalizeSubId(item.sub_id).toLowerCase() !== subIdFilter.toLowerCase()) return false;
+      const day = item.date || "Sem data";
+      if (day === "Sem data") return false;
+      if (dateRange?.from && isBeforeDateKey(day, dateRange.from)) return false;
+      if (dateRange?.to && isAfterDateKey(day, dateRange.to)) return false;
+      return true;
+    });
+  }, [clicks, dateRange, subIdFilter]);
 
   // 1. Estados sempre no topo
   const [dayPage, setDayPage] = useState(0);
@@ -122,34 +137,44 @@ const DashboardClicks = ({ clicks: rawClicks, adSpends = [], dateRange, subIdFil
 
   // 2. Helpers
   const getItemClicks = (item: ClickRow): number => {
-    return Number(item.clicks) || 0;
+    return Number(item.clicks || (item as any).click || 0);
+  };
+
+  /** Normaliza canal para agrupar (ex: Instagram, instagram, INSTAGRAM -> mesma soma) */
+  const normalizeChannelKey = (channel: string): string => (channel || "Outros").trim().toLowerCase();
+  const getChannelDisplayName = (channel: string): string => {
+    const t = (channel || "Outros").trim();
+    if (!t) return "Outros";
+    return t.charAt(0).toUpperCase() + t.slice(1).toLowerCase();
   };
 
   // 3. Cálculos Memorizados
-  const totalClicks = useMemo(() => 
-    clicks.reduce((acc, curr) => acc + getItemClicks(curr), 0), 
-  [clicks]);
+  // Usa total_clicks da API quando disponível e sem filtro de sub_id; caso contrário, soma das rows filtradas
+  // Ensure we respect filters by calculating total from filtered data
+  const totalClicks = useMemo(() => {
+    return filteredClicks.reduce((acc, curr) => acc + getItemClicks(curr), 0);
+  }, [filteredClicks]);
 
   // Comparação: Cliques Manuais (Ads) vs Cliques CSV por Sub ID
   const comparisonStats = useMemo(() => {
-    const csvStats = clicks.reduce((acc, item) => {
-      const subId = normalizeSubId(item.sub_id);
+    const csvStats = filteredClicks.reduce((acc, item) => {
+      const subId = normalizeSubId(item.sub_id).toLowerCase();
       acc[subId] = (acc[subId] || 0) + getItemClicks(item);
       return acc;
     }, {} as Record<string, number>);
 
     const adsStats = adSpends.reduce((acc, item) => {
       if (!item.date) return acc;
-      
+
       // Filter by subIdFilter
-      if (subIdFilter && normalizeSubId(item.sub_id || "Geral") !== normalizeSubId(subIdFilter)) return acc;
-      
+      if (subIdFilter && normalizeSubId(item.sub_id || "Geral").toLowerCase() !== subIdFilter.toLowerCase()) return acc;
+
       // Filter by dateRange
       const itemDateKey = toDateKey(item.date);
       if (dateRange?.from && itemDateKey < toDateKey(dateRange.from)) return acc;
       if (dateRange?.to && itemDateKey > toDateKey(dateRange.to)) return acc;
 
-      const subId = normalizeSubId(item.sub_id || "Geral");
+      const subId = normalizeSubId(item.sub_id || "Geral").toLowerCase();
       acc[subId] = (acc[subId] || 0) + (item.clicks || 0);
       return acc;
     }, {} as Record<string, number>);
@@ -177,7 +202,7 @@ const DashboardClicks = ({ clicks: rawClicks, adSpends = [], dateRange, subIdFil
       const factor = compSortDirection === "asc" ? 1 : -1;
       const valA = (a as any)[compSortColumn];
       const valB = (b as any)[compSortColumn];
-      
+
       if (typeof valA === "string") {
         return valA.localeCompare(valB) * factor;
       }
@@ -185,17 +210,22 @@ const DashboardClicks = ({ clicks: rawClicks, adSpends = [], dateRange, subIdFil
     });
 
     return data;
-  }, [clicks, adSpends, compSortColumn, compSortDirection]);
+  }, [filteredClicks, adSpends, compSortColumn, compSortDirection]);
 
   const channelStats = useMemo(() => {
-    const stats = clicks.reduce((acc, item) => {
-      const channel = (item.channel || "Others").trim();
-      acc[channel] = (acc[channel] || 0) + getItemClicks(item);
-      return acc;
-    }, {} as Record<string, number>);
+    const byChannel = filteredClicks.reduce(
+      (acc, item) => {
+        const key = normalizeChannelKey(item.channel);
+        const displayName = getChannelDisplayName(item.channel);
+        if (!acc[key]) acc[key] = { displayName, value: 0 };
+        acc[key].value += getItemClicks(item);
+        return acc;
+      },
+      {} as Record<string, { displayName: string; value: number }>
+    );
 
-    const sortedEntries = Object.entries(stats)
-      .map(([name, value]) => ({ name, value }))
+    const sortedEntries = Object.entries(byChannel)
+      .map(([, { displayName, value }]) => ({ name: displayName, value }))
       .sort((a, b) => b.value - a.value);
 
     if (sortedEntries.length <= 6) {
@@ -207,7 +237,7 @@ const DashboardClicks = ({ clicks: rawClicks, adSpends = [], dateRange, subIdFil
 
     const top5 = sortedEntries.slice(0, 5);
     const othersValue = sortedEntries.slice(5).reduce((sum, item) => sum + item.value, 0);
-    
+
     const finalData = [
       ...top5,
       { name: "Outros", value: othersValue }
@@ -217,30 +247,36 @@ const DashboardClicks = ({ clicks: rawClicks, adSpends = [], dateRange, subIdFil
       ...item,
       percentage: totalClicks > 0 ? (item.value / totalClicks) * 100 : 0,
     }));
-  }, [clicks, totalClicks]);
+  }, [filteredClicks, totalClicks]);
 
+  // YYYY-MM-DD -> DD/MM (pt-BR). Formato explícito DD/MM para evitar ambiguidade MM/DD.
   const formatDateLabelDDMM = (dateStr: string): string => {
     if (!dateStr || dateStr === "Sem data") return dateStr;
-    const parts = dateStr.split("-");
-    if (parts.length !== 3) return dateStr;
-    const [year, month, day] = parts;
-    if (year.length === 4 && Number(year) > 1900) {
-      return `${day.padStart(2, "0")}/${month.padStart(2, "0")}`;
-    }
-    return dateStr;
+    const d = parseDateOnly(dateStr);
+    if (!d) return dateStr;
+    const day = String(d.getDate()).padStart(2, "0");
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    return `${day}/${month}`;
   };
 
+  // YYYY-MM -> MM/YY (pt-BR)
   const formatMonthLabelMMYYYY = (monthKey: string): string => {
     const [y, m] = monthKey.split("-");
-    if (y && m) return `${m}/${y}`;
-    return monthKey;
+    if (!y || !m) return monthKey;
+    const d = parseDateOnly(`${y}-${m}-01`);
+    if (d) {
+      const mm = String(d.getMonth() + 1).padStart(2, "0");
+      const yy = String(d.getFullYear()).slice(-2);
+      return `${mm}/${yy}`;
+    }
+    const yy = y.length === 4 ? y.slice(-2) : y;
+    return `${m}/${yy}`;
   };
 
   const dailyStats = useMemo(() => {
-    const stats = clicks.reduce((acc, item) => {
+    const stats = filteredClicks.reduce((acc, item) => {
       const day = item.date || "Sem data";
-      if (dateRange?.from && day !== "Sem data" && day < toDateKey(dateRange.from)) return acc;
-      if (dateRange?.to && day !== "Sem data" && day > toDateKey(dateRange.to)) return acc;
+      if (day === "Sem data") return acc;
       acc[day] = (acc[day] || 0) + getItemClicks(item);
       return acc;
     }, {} as Record<string, number>);
@@ -251,19 +287,22 @@ const DashboardClicks = ({ clicks: rawClicks, adSpends = [], dateRange, subIdFil
       value: count,
     }));
 
-    data.sort((a, b) => a.day.localeCompare(b.day));
+    data.sort((a, b) => {
+      const ka = parseDateOnly(a.day);
+      const kb = parseDateOnly(b.day);
+      if (!ka || !kb) return 0;
+      return toDateKey(ka).localeCompare(toDateKey(kb));
+    });
     return data;
-  }, [clicks, dateRange]);
+  }, [filteredClicks]);
 
   const monthlyStats = useMemo(() => {
-    const stats = clicks.reduce((acc, item) => {
+    const stats = filteredClicks.reduce((acc, item) => {
       if (!item.date || item.date === "Sem data") return acc;
-      const parts = item.date.split("-");
-      if (parts.length !== 3) return acc;
-      const year = parts[0];
-      // API de cliques pode enviar YYYY-DD-MM (dia no meio): 2026-01-01 = 1º jan, 2026-07-01 = 7 jan
-      // Se o terceiro segmento for 01-12, é o mês; senão usamos o segundo (ISO YYYY-MM-DD)
-      const month = parts[2] >= "01" && parts[2] <= "12" ? parts[2] : parts[1];
+      const d = parseDateOnly(item.date);
+      if (!d) return acc;
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, "0");
       const key = `${year}-${month}`;
       acc[key] = (acc[key] || 0) + getItemClicks(item);
       return acc;
@@ -287,7 +326,7 @@ const DashboardClicks = ({ clicks: rawClicks, adSpends = [], dateRange, subIdFil
 
     data.sort((a, b) => a.monthKey.localeCompare(b.monthKey));
     return data;
-  }, [clicks, dateRange]);
+  }, [filteredClicks, dateRange]);
 
   const chartData = chartMode === "day" ? dailyStats : monthlyStats;
 
@@ -312,13 +351,31 @@ const DashboardClicks = ({ clicks: rawClicks, adSpends = [], dateRange, subIdFil
     return <Link2 className="w-4 h-4 mr-2" />;
   };
 
-  if (!clicks.length) return null;
+  if (!clicks.length || filteredClicks.length === 0) {
+    return (
+      <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+        <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 rounded-xl p-4 flex items-start gap-3" role="alert">
+          <AlertTriangle className="w-5 h-5 mt-0.5 text-amber-700 dark:text-amber-200 shrink-0" />
+          <div className="space-y-1 text-amber-900 dark:text-amber-50">
+            <p className="font-semibold text-sm">
+              {!clicks.length ? "Nenhum dado de cliques disponível" : "Sem cliques no período selecionado"}
+            </p>
+            <p className="text-sm">
+              {!clicks.length
+                ? "Importe seus relatórios de cliques em Upload Cliques para visualizar os dados."
+                : "Certifique-se de que o filtro de data cobre o período do seu upload de cliques."}
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
       {/* Total Clicks KPI */}
       <div className="flex justify-center">
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           className="relative group"
@@ -343,158 +400,12 @@ const DashboardClicks = ({ clicks: rawClicks, adSpends = [], dateRange, subIdFil
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* PIE CHART: Cliques por Canal */}
-        <motion.div
+        <CliquesPorCanalCard
+          channelStats={channelStats}
+          pieActiveIndex={pieActiveIndex}
+          setPieActiveIndex={setPieActiveIndex}
           variants={chartItemVariants}
-          initial="hidden"
-          animate="show"
-          className="bg-card rounded-xl border border-border p-6 shadow-sm flex flex-col"
-        >
-          <div className="mb-4">
-            <h3 className="font-display font-semibold text-lg text-foreground flex items-center gap-2">
-              <Share2 className="w-4 h-4 text-accent" />
-              Cliques por Canal
-            </h3>
-            <p className="text-sm text-muted-foreground">Distribuição de tráfego</p>
-          </div>
-          
-          <div className="flex-1 min-h-[400px] overflow-visible">
-            <ChartContainer
-              config={useMemo(() => {
-                const config: ChartConfig = {
-                  value: { label: "Cliques" }
-                };
-                channelStats.forEach((item, index) => {
-                  config[item.name.replace(/\s+/g, "_")] = {
-                    label: item.name,
-                    color: PIE_COLORS[index % PIE_COLORS.length],
-                  };
-                });
-                return config;
-              }, [channelStats])}
-              className="mx-auto aspect-square max-h-[450px] w-full overflow-visible [&_.recharts-responsive-container]:overflow-visible [&_.recharts-wrapper]:overflow-visible [&_.recharts-surface]:overflow-visible"
-            >
-              <PieChart margin={{ top: 20, right: 160, left: 160, bottom: 20 }}>
-                <ChartTooltip
-                  cursor={false}
-                  content={<ChartTooltipContent hideLabel />}
-                />
-                <Pie
-                  data={channelStats.map((item, index) => ({
-                    ...item,
-                    fill: PIE_COLORS[index % PIE_COLORS.length]
-                  }))}
-                  dataKey="value"
-                  nameKey="name"
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={90}
-                  outerRadius={125}
-                  strokeWidth={8}
-                  stroke="hsl(var(--card))"
-                  paddingAngle={2}
-                  onMouseEnter={(_, index) => setPieActiveIndex(index)}
-                  onMouseLeave={() => setPieActiveIndex(null)}
-                  label={({ cx, cy, midAngle, outerRadius, fill, percent, name }) => {
-                    const RADIAN = Math.PI / 180;
-                    const sin = Math.sin(-RADIAN * midAngle);
-                    const cos = Math.cos(-RADIAN * midAngle);
-                    const sx = cx + (outerRadius + 5) * cos;
-                    const sy = cy + (outerRadius + 5) * sin;
-                    const mx = cx + (outerRadius + 25) * cos;
-                    const my = cy + (outerRadius + 25) * sin;
-                    const ex = mx + (cos >= 0 ? 1 : -1) * 20;
-                    const ey = my;
-                    
-                    return (
-                      <g>
-                        <path d={`M${sx},${sy}L${mx},${my}L${ex},${ey}`} stroke={fill} fill="none" strokeWidth={2} />
-                        <circle cx={ex} cy={ey} r={3} fill={fill} stroke="none" />
-                        <foreignObject
-                          x={ex + (cos >= 0 ? 8 : -118)}
-                          y={ey - 30}
-                          width="110"
-                          height="60"
-                        >
-                          <div 
-                            className="flex flex-col justify-center px-4 h-full rounded-2xl border-2 bg-card/95 shadow-xl"
-                            style={{ borderColor: fill }}
-                          >
-                            <span className="text-[10px] font-bold text-muted-foreground uppercase truncate leading-tight">
-                              {name}
-                            </span>
-                            <span className="text-xl font-black text-foreground leading-none mt-1">
-                              {(percent * 100).toFixed(0)}%
-                            </span>
-                          </div>
-                        </foreignObject>
-                      </g>
-                    );
-                  }}
-                >
-                  <Label
-                    content={({ viewBox }) => {
-                      if (viewBox && "cx" in viewBox && "cy" in viewBox) {
-                        const topPerformer = channelStats.reduce((max, curr) => (curr.value > max.value ? curr : max), channelStats[0]);
-                        const activeItem = pieActiveIndex !== null ? channelStats[pieActiveIndex] : topPerformer;
-                        const activeColor = PIE_COLORS[channelStats.indexOf(activeItem) % PIE_COLORS.length];
-                        
-                        return (
-                          <text
-                            x={viewBox.cx}
-                            y={viewBox.cy}
-                            textAnchor="middle"
-                            dominantBaseline="middle"
-                          >
-                            <tspan
-                              x={viewBox.cx}
-                              y={(viewBox.cy || 0) - 12}
-                              className="fill-muted-foreground text-[10px] uppercase font-bold tracking-wider"
-                            >
-                              {pieActiveIndex !== null ? "Canal Focado" : "Principal"}
-                            </tspan>
-                            <tspan
-                              x={viewBox.cx}
-                              y={(viewBox.cy || 0) + 10}
-                              className="text-lg font-black transition-colors duration-300"
-                              style={{ fill: activeColor }}
-                            >
-                              {activeItem?.name}
-                            </tspan>
-                          </text>
-                        )
-                      }
-                    }}
-                  />
-                </Pie>
-              </PieChart>
-            </ChartContainer>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4 mt-4">
-            {channelStats.map((item, index) => (
-              <div 
-                key={item.name} 
-                className={cn(
-                  "flex items-center gap-2 p-2 rounded-lg transition-colors",
-                  pieActiveIndex === index ? "bg-accent/10 ring-1 ring-accent/20" : "bg-secondary/5"
-                )}
-              >
-                <div 
-                  className="w-3 h-3 rounded-full shrink-0" 
-                  style={{ backgroundColor: PIE_COLORS[index % PIE_COLORS.length] }}
-                />
-                <div className="flex flex-col min-w-0">
-                  <span className="text-[11px] text-muted-foreground truncate font-medium">
-                    {item.name}
-                  </span>
-                  <span className="text-xs font-bold text-foreground">
-                    {item.value.toLocaleString("pt-BR")}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </motion.div>
+        />
 
         {/* BAR CHART: Cliques por Dia/Mês - mesmo layout do gráfico Comissão */}
         <motion.div
@@ -550,7 +461,12 @@ const DashboardClicks = ({ clicks: rawClicks, adSpends = [], dateRange, subIdFil
                 />
                 <ChartTooltip
                   cursor={false}
-                  content={<ChartTooltipContent hideLabel />}
+                  content={<ChartTooltipContent indicator="dot" formatter={(v, name) => (
+                    <span className="flex justify-between items-center gap-4 w-full min-w-[140px]">
+                      <span className="text-muted-foreground">{(name === "value" || !name) ? "Cliques" : name}</span>
+                      <span className="font-medium tabular-nums">{Number(v).toLocaleString("pt-BR")}</span>
+                    </span>
+                  )} />}
                 />
                 <Bar
                   dataKey="value"
@@ -559,11 +475,11 @@ const DashboardClicks = ({ clicks: rawClicks, adSpends = [], dateRange, subIdFil
                   maxBarSize={chartMode === "month" ? (chartData.length === 1 ? 400 : 120) : 50}
                 >
                   {chartData.length <= 20 && (
-                    <LabelList 
-                      dataKey="value" 
-                      position="top" 
-                      formatter={(v: number) => formatK(v)} 
-                      fill="hsl(var(--foreground))" 
+                    <LabelList
+                      dataKey="value"
+                      position="top"
+                      formatter={(v: number) => formatK(v)}
+                      fill="hsl(var(--foreground))"
                       fontSize={14}
                       offset={10}
                     />
@@ -576,7 +492,7 @@ const DashboardClicks = ({ clicks: rawClicks, adSpends = [], dateRange, subIdFil
       </div>
 
       {/* Comparison: Ads vs CSV */}
-      <motion.div 
+      <motion.div
         variants={chartItemVariants}
         initial="hidden"
         animate="show"
@@ -585,24 +501,24 @@ const DashboardClicks = ({ clicks: rawClicks, adSpends = [], dateRange, subIdFil
         <div className="p-4 border-b border-border bg-secondary/5 flex items-center gap-2">
           <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
           <BarChart3 className="w-4 h-4 text-primary" />
-          <h3 className="font-display font-semibold text-sm uppercase tracking-wider">Comparativo: Anúncios vs Shopee (por Sub ID)</h3>
+          <h3 className="font-display font-semibold text-sm tracking-wider lowercase">comparativo: anúncios vs shopee (por sub id)</h3>
         </div>
         <Table>
           <TableHeader>
             <TableRow className="hover:bg-transparent border-border/50">
               <TableHead className="w-[200px]">
-                <button onClick={() => handleCompSort("subId")} className="flex items-center gap-1 hover:text-foreground transition-colors text-xs font-bold uppercase tracking-wider">
-                  Sub ID <ArrowUpDown className="w-3 h-3" />
+                <button onClick={() => handleCompSort("subId")} className="flex items-center gap-1 hover:text-foreground transition-colors text-xs font-bold tracking-wider lowercase">
+                  sub id <ArrowUpDown className="w-3 h-3" />
                 </button>
               </TableHead>
               <TableHead className="text-right">
-                <button onClick={() => handleCompSort("adsClicks")} className="flex items-center gap-1 hover:text-foreground transition-colors ml-auto text-xs font-bold uppercase tracking-wider">
-                  Cliques Anúncios <ArrowUpDown className="w-3 h-3" />
+                <button onClick={() => handleCompSort("adsClicks")} className="flex items-center gap-1 hover:text-foreground transition-colors ml-auto text-xs font-bold tracking-wider lowercase">
+                  cliques anúncios <ArrowUpDown className="w-3 h-3" />
                 </button>
               </TableHead>
               <TableHead className="text-right">
-                <button onClick={() => handleCompSort("csvClicks")} className="flex items-center gap-1 hover:text-foreground transition-colors ml-auto text-xs font-bold uppercase tracking-wider">
-                  Cliques Shopee <ArrowUpDown className="w-3 h-3" />
+                <button onClick={() => handleCompSort("csvClicks")} className="flex items-center gap-1 hover:text-foreground transition-colors ml-auto text-xs font-bold tracking-wider lowercase">
+                  cliques shopee <ArrowUpDown className="w-3 h-3" />
                 </button>
               </TableHead>
               <TableHead className="text-right">
@@ -611,8 +527,8 @@ const DashboardClicks = ({ clicks: rawClicks, adSpends = [], dateRange, subIdFil
                 </button>
               </TableHead>
               <TableHead className="text-right">
-                <button onClick={() => handleCompSort("diffPercent")} className="flex items-center gap-1 hover:text-foreground transition-colors ml-auto text-xs font-bold uppercase tracking-wider">
-                  % Dif. <ArrowUpDown className="w-3 h-3" />
+                <button onClick={() => handleCompSort("diffPercent")} className="flex items-center gap-1 hover:text-foreground transition-colors ml-auto text-xs font-bold tracking-wider lowercase">
+                  % dif. <ArrowUpDown className="w-3 h-3" />
                 </button>
               </TableHead>
             </TableRow>
@@ -620,7 +536,7 @@ const DashboardClicks = ({ clicks: rawClicks, adSpends = [], dateRange, subIdFil
           <TableBody>
             {comparisonStats.map((item) => (
               <TableRow key={item.subId} className="hover:bg-secondary/20 border-border/50 transition-colors">
-                <TableCell className="font-medium py-4">{item.subId}</TableCell>
+                <TableCell className="font-medium py-4">{item.subId === "Sem Sub ID" ? "Sem Sub ID" : item.subId.toLowerCase()}</TableCell>
                 <TableCell className="text-right font-mono py-4">{item.adsClicks.toLocaleString("pt-BR")}</TableCell>
                 <TableCell className="text-right font-mono py-4">{item.csvClicks.toLocaleString("pt-BR")}</TableCell>
                 <TableCell className={cn(

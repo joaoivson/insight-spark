@@ -6,13 +6,14 @@ import { safeGetJSON, safeRemove, safeSetJSON } from "@/utils/storage";
 type DateRange = { from?: Date | string | null; to?: Date | string | null };
 
 type ClicksState = {
-  clicks: ClickRow[]; // The filtered rows currently displayed
-  fullClicks: ClickRow[]; // The source of truth (complete dataset)
+  clicks: ClickRow[];
+  fullClicks: ClickRow[];
+  totalClicks: number | null; // total_clicks retornado pela API
   loading: boolean;
   error: string | null;
   hydrated: boolean;
   lastUpdated: number | null;
-  loadedUserId: string | null; // ID do usuário que carregou os dados em memória
+  loadedUserId: string | null;
   fetchClicks: (opts?: { range?: DateRange; force?: boolean; limit?: number; offset?: number }) => Promise<ClickRow[]>;
   invalidate: () => void;
   persist: (clicks: ClickRow[]) => void;
@@ -29,17 +30,18 @@ const rangeToParams = (range?: DateRange) => {
 const getInitialState = () => {
   const userId = getUserId();
   const cacheKey = getScopedKey(CACHE_KEY_BASE);
-  const cached = safeGetJSON<{ clicks: ClickRow[]; lastUpdated?: number }>(cacheKey);
+  const cached = safeGetJSON<{ clicks: ClickRow[]; totalClicks?: number; lastUpdated?: number }>(cacheKey);
   if (cached && Array.isArray(cached.clicks)) {
     return {
       clicks: cached.clicks,
       fullClicks: cached.clicks,
+      totalClicks: cached.totalClicks ?? null,
       hydrated: true,
       lastUpdated: cached.lastUpdated ?? Date.now(),
       loadedUserId: userId,
     };
   }
-  return { clicks: [], fullClicks: [], hydrated: false, lastUpdated: null, loadedUserId: userId };
+  return { clicks: [], fullClicks: [], totalClicks: null, hydrated: false, lastUpdated: null, loadedUserId: userId };
 };
 
 export const useClicksStore = create<ClicksState>((set, get) => {
@@ -47,6 +49,7 @@ export const useClicksStore = create<ClicksState>((set, get) => {
   return {
     clicks: initial.clicks,
     fullClicks: initial.fullClicks,
+    totalClicks: initial.totalClicks ?? null,
     loading: false,
     error: null,
     hydrated: initial.hydrated,
@@ -55,14 +58,14 @@ export const useClicksStore = create<ClicksState>((set, get) => {
 
     invalidate: () => {
       safeRemove(getScopedKey(CACHE_KEY_BASE));
-      set({ clicks: [], fullClicks: [], hydrated: false, lastUpdated: null, loadedUserId: getUserId() });
+      set({ clicks: [], fullClicks: [], totalClicks: null, hydrated: false, lastUpdated: null, loadedUserId: getUserId() });
     },
 
     persist: (newClicks: ClickRow[]) => {
       const userId = getUserId();
       const cacheKey = getScopedKey(CACHE_KEY_BASE);
       const now = Date.now();
-      set({ clicks: newClicks, fullClicks: newClicks, hydrated: true, lastUpdated: now, loadedUserId: userId });
+      set({ clicks: newClicks, fullClicks: newClicks, totalClicks: null, hydrated: true, lastUpdated: now, loadedUserId: userId });
       safeSetJSON(cacheKey, { clicks: newClicks, lastUpdated: now });
     },
 
@@ -73,13 +76,13 @@ export const useClicksStore = create<ClicksState>((set, get) => {
 
       // Garantia: Se o usuário logado mudou, recarrega do cache dele ou limpa a memória
       if (userId !== loadedUserId) {
-        const cached = safeGetJSON<{ clicks: ClickRow[]; lastUpdated?: number }>(cacheKey);
+        const cached = safeGetJSON<{ clicks: ClickRow[]; totalClicks?: number; lastUpdated?: number }>(cacheKey);
         if (cached && Array.isArray(cached.clicks)) {
           const now = cached.lastUpdated ?? Date.now();
-          set({ clicks: cached.clicks, fullClicks: cached.clicks, hydrated: true, lastUpdated: now, loadedUserId: userId });
+          set({ clicks: cached.clicks, fullClicks: cached.clicks, totalClicks: cached.totalClicks ?? null, hydrated: true, lastUpdated: now, loadedUserId: userId });
           if (!opts.force) return cached.clicks;
         } else {
-          set({ clicks: [], fullClicks: [], hydrated: false, lastUpdated: null, loadedUserId: userId });
+          set({ clicks: [], fullClicks: [], totalClicks: null, hydrated: false, lastUpdated: null, loadedUserId: userId });
         }
       }
 
@@ -94,16 +97,19 @@ export const useClicksStore = create<ClicksState>((set, get) => {
       set({ loading: true, error: null });
       
       try {
-        const apiRows = await fetchClickRows({
+        const { startDate, endDate } = rangeToParams(opts.range);
+        const { rows: apiRows, total_clicks } = await fetchClickRows({
+          startDate,
+          endDate,
           limit: opts.limit,
           offset: opts.offset,
         });
 
         const now = Date.now();
-        // GARANTIA: Seta no estado e NO localStorage IMEDIATAMENTE após o retorno
         set({ 
           clicks: apiRows, 
           fullClicks: apiRows, 
+          totalClicks: total_clicks,
           hydrated: true, 
           lastUpdated: now,
           loadedUserId: userId
@@ -111,6 +117,7 @@ export const useClicksStore = create<ClicksState>((set, get) => {
 
         localStorage.setItem(cacheKey, JSON.stringify({ 
           clicks: apiRows, 
+          totalClicks: total_clicks,
           lastUpdated: now 
         }));
 

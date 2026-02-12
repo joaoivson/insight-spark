@@ -11,6 +11,7 @@ import {
   ArrowUpDown,
 } from "lucide-react";
 import { isBeforeDateKey, isAfterDateKey, parseDateOnly } from "@/shared/lib/date";
+import { filterKpiRows, getComissaoCents, getComissaoAfiliado } from "@/shared/lib/kpi";
 import {
   Table,
   TableBody,
@@ -20,6 +21,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/shared/lib/utils";
+import { toDateKey } from "@/shared/lib/date";
 
 type DateRange = { from?: Date; to?: Date };
 
@@ -35,10 +37,6 @@ interface ChannelPerformanceProps {
 const formatCurrency = (value: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value || 0);
 
-const getAffiliateCommission = (row: DatasetRow) => {
-  return row.commission || 0;
-};
-
 const ChannelPerformance = ({
   rows,
   adSpends,
@@ -47,14 +45,17 @@ const ChannelPerformance = ({
   showDayTable = true,
   showHighlights = true,
 }: ChannelPerformanceProps) => {
-  // Filter rows by dateRange
+  // Filter rows by dateRange and KPI status (Pendente, Concluído) — mesma fonte que kpi.ts
   const filteredRows = useMemo(() => {
-    if (!dateRange?.from && !dateRange?.to) return rows;
-    return rows.filter((r) => {
-      if (dateRange.from && isBeforeDateKey(r.date, dateRange.from)) return false;
-      if (dateRange.to && isAfterDateKey(r.date, dateRange.to)) return false;
-      return true;
-    });
+    let dateFiltered = rows;
+    if (dateRange?.from || dateRange?.to) {
+      dateFiltered = rows.filter((r) => {
+        if (dateRange.from && isBeforeDateKey(r.date, dateRange.from)) return false;
+        if (dateRange.to && isAfterDateKey(r.date, dateRange.to)) return false;
+        return true;
+      });
+    }
+    return filterKpiRows(dateFiltered);
   }, [rows, dateRange]);
 
   // Filter adSpends by dateRange
@@ -68,15 +69,28 @@ const ChannelPerformance = ({
     });
   }, [adSpends, dateRange]);
 
+  const MAX_ROWS = 50;
+
+  const [subPageSize, setSubPageSize] = useState<number>(5);
+  const [subPage, setSubPage] = useState<number>(0);
+  const [subSortColumn, setSubSortColumn] = useState<string>("revenue");
+  const [subSortDirection, setSubSortDirection] = useState<"asc" | "desc">("desc");
+
+  const [dayPageSize, setDayPageSize] = useState<number>(5);
+  const [dayPage, setDayPage] = useState<number>(0);
+  const [daySortColumn, setDaySortColumn] = useState<string | null>(null);
+  const [daySortDirection, setDaySortDirection] = useState<"asc" | "desc">("desc");
+
   const metrics = useMemo(() => {
+    // Filter rows by dateRange and KPI status (Pendente, Concluído) — mesma fonte que kpi.ts
     const channelMap = new Map<string, { commission: number; spend: number; orders: number }>();
 
     // 1. Processar Comissões por canal (Sub ID)
     filteredRows.forEach((row) => {
       const channel = row.sub_id1 || "Orgânico/Outros";
       const current = channelMap.get(channel) || { commission: 0, spend: 0, orders: 0 };
-      
-      const commission = getAffiliateCommission(row);
+
+      const commission = getComissaoAfiliado(row);
 
       channelMap.set(channel, {
         ...current,
@@ -87,13 +101,13 @@ const ChannelPerformance = ({
 
     // 2. Processar Gastos (Ads)
     let totalGeneralSpend = 0;
-    
+
     filteredAdSpends.forEach((spend) => {
       if (!spend.sub_id || spend.sub_id === "Geral/Institucional") {
         totalGeneralSpend += (spend.amount || 0);
       } else {
         const channel = spend.sub_id;
-        const current = channelMap.get(channel) || { revenue: 0, commission: 0, spend: 0, orders: 0 };
+        const current = channelMap.get(channel) || { commission: 0, spend: 0, orders: 0 };
         channelMap.set(channel, {
           ...current,
           spend: current.spend + (spend.amount || 0)
@@ -110,18 +124,18 @@ const ChannelPerformance = ({
       const allocatedGeneralSpend = totalGeneralSpend * share;
       const totalSpend = vals.spend + allocatedGeneralSpend;
 
-      const receita = vals.commission; // receita = comissão (pedido do usuário)
-      const profit = vals.commission - totalSpend; // lucro: comissão - gasto
-      const roas = totalSpend > 0 ? vals.commission / totalSpend : vals.commission > 0 ? 999 : 0;
-      const roi = totalSpend > 0 ? (profit / totalSpend) * 100 : 0;
+      const commissionRounded = Math.round(vals.commission * 100) / 100;
+      const profitRounded = Math.round((commissionRounded - totalSpend) * 100) / 100;
+      const roas = totalSpend > 0 ? commissionRounded / totalSpend : 0;
+      const roi = totalSpend > 0 ? profitRounded / totalSpend : 0;
       const cpa = vals.orders > 0 ? totalSpend / vals.orders : 0;
 
       return {
         name,
-        commission: vals.commission,
-        spend: totalSpend, // Agora inclui o rateio
-        profit,
-        revenue: receita,
+        commission: commissionRounded,
+        spend: totalSpend,
+        profit: profitRounded,
+        revenue: commissionRounded,
         roas,
         roi,
         cpa,
@@ -129,18 +143,25 @@ const ChannelPerformance = ({
       };
     });
 
-    return data.sort((a, b) => b.revenue - a.revenue); // Ordenar por receita padrão
-  }, [filteredRows, filteredAdSpends]);
+    return data.sort((a, b) => {
+      let aVal: any = a[subSortColumn as keyof typeof a];
+      let bVal: any = b[subSortColumn as keyof typeof b];
 
-  const MAX_ROWS = 50;
+      if (aVal === bVal) return 0;
+      if (aVal === undefined || aVal === null) return 1;
+      if (bVal === undefined || bVal === null) return -1;
+
+      if (typeof aVal === "number" && typeof bVal === "number") {
+        return subSortDirection === "asc" ? aVal - bVal : bVal - aVal;
+      }
+
+      const comparison = String(aVal).localeCompare(String(bVal));
+      return subSortDirection === "asc" ? comparison : -comparison;
+    });
+  }, [filteredRows, filteredAdSpends, subSortColumn, subSortDirection]);
+
   const limitedChannels = metrics.slice(0, MAX_ROWS);
-  const [subPageSize, setSubPageSize] = useState<number>(5);
-  const [subPage, setSubPage] = useState<number>(0);
-  const [dayPageSize, setDayPageSize] = useState<number>(5);
-  const [dayPage, setDayPage] = useState<number>(0);
-  const [daySortColumn, setDaySortColumn] = useState<string | null>(null);
-  const [daySortDirection, setDaySortDirection] = useState<"asc" | "desc">("desc");
-  
+
   if (!metrics.length) return null;
 
   // Encontrar destaques
@@ -160,11 +181,86 @@ const ChannelPerformance = ({
           <Table>
             <TableHeader className="bg-muted/50">
               <TableRow>
-                <TableHead>Sub ID</TableHead>
-                <TableHead className="text-right">Custos de Anúncios</TableHead>
-                <TableHead className="text-right">Receita (Comissão)</TableHead>
-                <TableHead className="text-right">Lucro (Comissão - Gasto)</TableHead>
-                <TableHead className="text-center">ROAS</TableHead>
+                <TableHead>
+                  <button
+                    className="flex items-center gap-1 hover:text-foreground transition-colors"
+                    onClick={() => {
+                      if (subSortColumn === "name") {
+                        setSubSortDirection(subSortDirection === "asc" ? "desc" : "asc");
+                      } else {
+                        setSubSortColumn("name");
+                        setSubSortDirection("asc");
+                      }
+                    }}
+                  >
+                    Sub ID
+                    <ArrowUpDown className="w-3 h-3" />
+                  </button>
+                </TableHead>
+                <TableHead className="text-right">
+                  <button
+                    className="flex items-center gap-1 hover:text-foreground transition-colors ml-auto"
+                    onClick={() => {
+                      if (subSortColumn === "spend") {
+                        setSubSortDirection(subSortDirection === "asc" ? "desc" : "asc");
+                      } else {
+                        setSubSortColumn("spend");
+                        setSubSortDirection("desc");
+                      }
+                    }}
+                  >
+                    Custos de Anúncios
+                    <ArrowUpDown className="w-3 h-3" />
+                  </button>
+                </TableHead>
+                <TableHead className="text-right">
+                  <button
+                    className="flex items-center gap-1 hover:text-foreground transition-colors ml-auto"
+                    onClick={() => {
+                      if (subSortColumn === "revenue") {
+                        setSubSortDirection(subSortDirection === "asc" ? "desc" : "asc");
+                      } else {
+                        setSubSortColumn("revenue");
+                        setSubSortDirection("desc");
+                      }
+                    }}
+                  >
+                    Receita (Comissão)
+                    <ArrowUpDown className="w-3 h-3" />
+                  </button>
+                </TableHead>
+                <TableHead className="text-right">
+                  <button
+                    className="flex items-center gap-1 hover:text-foreground transition-colors ml-auto"
+                    onClick={() => {
+                      if (subSortColumn === "profit") {
+                        setSubSortDirection(subSortDirection === "asc" ? "desc" : "asc");
+                      } else {
+                        setSubSortColumn("profit");
+                        setSubSortDirection("desc");
+                      }
+                    }}
+                  >
+                    Lucro (Comissão - Gasto)
+                    <ArrowUpDown className="w-3 h-3" />
+                  </button>
+                </TableHead>
+                <TableHead className="text-center">
+                  <button
+                    className="flex items-center gap-1 hover:text-foreground transition-colors mx-auto"
+                    onClick={() => {
+                      if (subSortColumn === "roas") {
+                        setSubSortDirection(subSortDirection === "asc" ? "desc" : "asc");
+                      } else {
+                        setSubSortColumn("roas");
+                        setSubSortDirection("desc");
+                      }
+                    }}
+                  >
+                    ROAS
+                    <ArrowUpDown className="w-3 h-3" />
+                  </button>
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -180,7 +276,7 @@ const ChannelPerformance = ({
                       const isProfit = m.profit > 0;
                       const roasColor = m.roas >= 1 ? "text-green-500" : "text-red-500";
                       const RoasIcon = m.roas >= 1 ? TrendingUp : TrendingDown;
-                      
+
                       return (
                         <TableRow key={m.name}>
                           <TableCell className="font-medium text-foreground">
@@ -262,7 +358,7 @@ const ChannelPerformance = ({
 
       {/* Performance por Dia */}
       {showDayTable && (
-        <div className="bg-card border border-border rounded-xl overflow-hidden">
+        <div className="bg-card border border-border rounded-xl overflow-hidden min-h-[320px]">
           <div className="p-6 border-b border-border">
             <h3 className="font-display font-semibold text-lg">Performance por Dia</h3>
             <p className="text-sm text-muted-foreground">Custos de anúncios vs comissão diária.</p>
@@ -356,8 +452,8 @@ const ChannelPerformance = ({
               {(() => {
                 const dayMap = new Map<string, { commission: number; spend: number; orders: number }>();
                 filteredRows.forEach((row) => {
-                  const day = row.date || "Sem data";
-                  const commission = getAffiliateCommission(row);
+                  const day = row.date ? toDateKey(row.date) : "Sem data";
+                  const commission = getComissaoAfiliado(row);
                   const cur = dayMap.get(day) || { commission: 0, spend: 0, orders: 0 };
                   dayMap.set(day, {
                     commission: cur.commission + commission,
@@ -366,8 +462,7 @@ const ChannelPerformance = ({
                   });
                 });
                 filteredAdSpends.forEach((spend) => {
-                  const d = parseDateOnly(spend.date);
-                  const day = d ? d.toISOString().slice(0, 10) : "Sem data";
+                  const day = spend.date ? toDateKey(spend.date) : "Sem data";
                   const cur = dayMap.get(day) || { commission: 0, spend: 0, orders: 0 };
                   dayMap.set(day, {
                     ...cur,
@@ -386,20 +481,20 @@ const ChannelPerformance = ({
                   dayData = dayData.sort((a, b) => {
                     let aVal: any = a[daySortColumn as keyof typeof a];
                     let bVal: any = b[daySortColumn as keyof typeof b];
-                    
+
                     if (daySortColumn === "day") {
                       aVal = a.day;
                       bVal = b.day;
                     }
-                    
+
                     if (aVal === bVal) return 0;
                     if (aVal === undefined || aVal === null) return 1;
                     if (bVal === undefined || bVal === null) return -1;
-                    
+
                     if (typeof aVal === "number" && typeof bVal === "number") {
                       return daySortDirection === "asc" ? aVal - bVal : bVal - aVal;
                     }
-                    
+
                     const comparison = String(aVal).localeCompare(String(bVal));
                     return daySortDirection === "asc" ? comparison : -comparison;
                   });
@@ -498,17 +593,17 @@ const ChannelPerformance = ({
                             </button>
                           </div>
                         </div>
-                    </TableCell>
-                  </TableRow>
-                </>
-              );
-            })()}
-          </TableBody>
-        </Table>
-      </div>
-    )}
-  </div>
-);
+                      </TableCell>
+                    </TableRow>
+                  </>
+                );
+              })()}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+    </div>
+  );
 };
 
 export default ChannelPerformance;

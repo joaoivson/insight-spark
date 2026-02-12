@@ -32,8 +32,8 @@ const formatCurrency = (value: number) =>
 const Dashboard = () => {
   const { rows, loading: rowsLoading, fetchRows } = useDatasetStore();
   const { adSpends, loading: spendsLoading, fetchAdSpends } = useAdSpendsStore();
-  const { clicks, loading: clicksLoading, fetchClicks } = useClicksStore();
-  
+  const { clicks, totalClicks: apiTotalClicks, loading: clicksLoading, fetchClicks } = useClicksStore();
+
   const [activeTab, setActiveTab] = useState("comissao");
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [categoryFilter, setCategoryFilter] = useState<string>("");
@@ -60,16 +60,6 @@ const Dashboard = () => {
     });
   }, [rows, statusFilter, categoryFilter, subIdFilter, dateRange]);
 
-  const filteredClicks = useMemo(() => {
-    return clicks.filter((c) => {
-      if (subIdFilter && normalizeSubId(c.sub_id).toLowerCase() !== subIdFilter.toLowerCase()) return false;
-      
-      if (dateRange.from && isBeforeDateKey(c.date, dateRange.from)) return false;
-      if (dateRange.to && isAfterDateKey(c.date, dateRange.to)) return false;
-      return true;
-    });
-  }, [clicks, subIdFilter, dateRange]);
-
   const totals = useMemo(() => {
     const { faturamento, comissao, gastoAnuncios, lucro, roas } = calcTotals(filteredRows, adSpends, {
       dateRange,
@@ -92,7 +82,7 @@ const Dashboard = () => {
       iconColor: "text-primary",
     },
     {
-      title: "Custos de Anúncios",
+      title: "Valor Gasto Anúncios",
       value: formatCurrency(totals.gastoAnuncios),
       icon: ShoppingCart,
       iconColor: "text-warning",
@@ -120,8 +110,8 @@ const Dashboard = () => {
   }, [rows, clicks]);
 
   return (
-    <DashboardLayout 
-      title="Dashboard" 
+    <DashboardLayout
+      title="Dashboard"
       subtitle="Visão geral dos seus dados"
     >
       <motion.div
@@ -133,15 +123,15 @@ const Dashboard = () => {
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full md:w-auto">
               <TabsList className="grid w-full grid-cols-2 md:w-[400px] bg-secondary/40 border border-accent/20 p-1 h-12 shadow-2xl shadow-black/40 rounded-xl backdrop-blur-sm ring-1 ring-white/5">
-                <TabsTrigger 
-                  value="comissao" 
+                <TabsTrigger
+                  value="comissao"
                   className="flex items-center gap-2 h-full rounded-lg transition-all duration-300 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg data-[state=active]:shadow-primary/20 font-bold"
                 >
                   <LayoutDashboard className="w-4 h-4" />
                   Comissão
                 </TabsTrigger>
-                <TabsTrigger 
-                  value="cliques" 
+                <TabsTrigger
+                  value="cliques"
                   className="flex items-center gap-2 h-full rounded-lg transition-all duration-300 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg data-[state=active]:shadow-primary/20 font-bold"
                 >
                   <MousePointerClick className="w-4 h-4" />
@@ -199,7 +189,7 @@ const Dashboard = () => {
                   )}
 
                   <KPICards kpis={kpis} />
-                  
+
                   <DashboardCharts
                     rows={filteredRows}
                     adSpends={adSpends}
@@ -222,6 +212,7 @@ const Dashboard = () => {
                   <div className="mt-8">
                     <ChannelPerformance rows={filteredRows} adSpends={adSpends} dateRange={dateRange} showDayTable={false} showHighlights />
                   </div>
+
                 </>
               )}
             </TabsContent>
@@ -230,23 +221,7 @@ const Dashboard = () => {
               {loading ? (
                 <DashboardSkeleton />
               ) : (
-                <>
-                  {!filteredClicks.length && (
-                    <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 rounded-xl p-4 mb-4 flex items-start gap-3" role="alert">
-                      <AlertTriangle className="w-5 h-5 mt-0.5 text-amber-700 dark:text-amber-200" />
-                      <div className="space-y-1 text-amber-900 dark:text-amber-50">
-                        <p className="font-semibold text-sm">Sem cliques no período selecionado</p>
-                        <p className="text-sm">Certifique-se de que o filtro de data cobre o período do seu upload de cliques.</p>
-                      </div>
-                    </div>
-                  )}
-                  <DashboardClicks 
-                    clicks={filteredClicks} 
-                    adSpends={adSpends} 
-                    dateRange={dateRange}
-                    subIdFilter={subIdFilter}
-                  />
-                </>
+                <DashboardClicks clicks={clicks} totalClicksFromApi={apiTotalClicks} adSpends={adSpends} dateRange={dateRange} subIdFilter={subIdFilter} />
               )}
             </TabsContent>
           </Tabs>

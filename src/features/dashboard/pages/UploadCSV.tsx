@@ -1,7 +1,8 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
+import { LoadingDataOverlay } from "@/components/dashboard/LoadingDataOverlay";
 import { motion, AnimatePresence } from "framer-motion";
-import { Upload, FileText, Check, AlertCircle, X, Eye, FileSpreadsheet, Trash2, MousePointerClick } from "lucide-react";
+import { Upload, FileText, Check, AlertCircle, X, Eye, FileSpreadsheet, Trash2, MousePointerClick, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import Papa from "papaparse";
@@ -25,12 +26,16 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { getApiUrl, fetchWithAuth } from "@/core/config/api.config";
 import { Progress } from "@/components/ui/progress";
 import { useDatasetStore } from "@/stores/datasetStore";
 import { useClicksStore } from "@/stores/clicksStore";
 import { deleteAllDatasets } from "@/services/datasets.service";
 import { deleteAllClicks } from "@/services/clicks.service";
+import {
+  type JobType,
+} from "@/services/jobs.service";
+
+import { useQueryClient } from "@tanstack/react-query";
 
 interface CSVData {
   headers: string[];
@@ -38,35 +43,47 @@ interface CSVData {
 }
 
 const UploadCSV = () => {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
   const location = useLocation();
   const isClicksMode = location.pathname.includes("upload-cliques");
-  
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [dragActive, setDragActive] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [csvData, setCsvData] = useState<CSVData | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
-  const [error, setError] = useState<string | null>(null);
+
+  const [datasetId, setDatasetId] = useState<number | null>(null);
+  const [showDatasetPolling, setShowDatasetPolling] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-  const { toast } = useToast();
-  
+  const [error, setError] = useState<string | null>(null);
+  const [uploadProgress, setUploadProgress] = useState(0);
+
   const { fetchRows, invalidate: invalidateSales } = useDatasetStore();
   const { fetchClicks, invalidate: invalidateClicks } = useClicksStore();
 
+  const jobType: JobType = isClicksMode ? "click" : "transaction";
   const config = {
     title: isClicksMode ? "Importar Cliques" : "Importar Dados",
     subtitle: isClicksMode ? "Carregue seus relatórios de cliques" : "Carregue seus relatórios de vendas",
-    uploadUrl: isClicksMode ? "/api/v1/clicks/upload" : "/api/v1/datasets/upload",
     deleteAction: isClicksMode ? deleteAllClicks : deleteAllDatasets,
     invalidate: isClicksMode ? invalidateClicks : invalidateSales,
     fetchAction: isClicksMode ? fetchClicks : fetchRows,
     deleteLabel: isClicksMode ? "Excluir Todos os Cliques" : "Excluir Todas as Vendas",
-    deleteDescription: isClicksMode 
+    deleteDescription: isClicksMode
       ? "Esta ação irá excluir permanentemente todos os dados de cliques. Esta ação não pode ser desfeita."
       : "Esta ação irá excluir permanentemente todos os dados de vendas. Esta ação não pode ser desfeita.",
     successMessage: isClicksMode ? "Cliques importados com sucesso." : "Seus dados foram importados com sucesso.",
     icon: isClicksMode ? MousePointerClick : CloudUploadIcon,
+  };
+
+  const invalidateAllQueries = async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["dataset-rows"] }),
+      queryClient.invalidateQueries({ queryKey: ["ad-spends"] }),
+      queryClient.invalidateQueries({ queryKey: ["clicks"] }),
+    ]);
   };
 
   // Limpar estado quando mudar de rota
@@ -139,57 +156,67 @@ const UploadCSV = () => {
   const handleUpload = async () => {
     if (!file) return;
     setIsProcessing(true);
-    setUploadProgress(20); // Fake progress start
+    setError(null);
+    setUploadProgress(0);
 
     try {
-      const formData = new FormData();
-      formData.append("file", file);
+      // Import smartUpload
+      const { smartUpload } = await import("@/services/jobs.service");
 
-      // Simulate progress for UX
-      const interval = setInterval(() => {
-        setUploadProgress((prev) => Math.min(prev + 10, 90));
-      }, 500);
-
-      const res = await fetchWithAuth(getApiUrl(config.uploadUrl), {
-        method: "POST",
-        body: formData,
+      // Use smart upload (auto-selects multipart for files >20MB)
+      const result = await smartUpload(file, jobType, (progress) => {
+        setUploadProgress(progress);
       });
 
-      clearInterval(interval);
-      setUploadProgress(100);
-
-      const result = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        // Se for erro 400 (Bad Request), geralmente é erro de validação ou duplicados
-        const detail = result.detail || result.error || "Falha no processamento";
-        setError(detail);
-        return; // Sai sem limpar o arquivo para o usuário ver o erro
-      }
-
-      const count = result.count || result.imported_count || 0;
-      const ignored = result.ignored_count || 0;
-      const total = count + ignored;
-
-      let msg = config.successMessage;
-      if (ignored > 0) {
-        msg = `${count} itens importados. ${ignored} itens foram ignorados por já existirem no banco de dados.`;
-      }
-
-      toast({
-        title: ignored > 0 && count === 0 ? "Aviso: Nenhum item novo" : "Processamento concluído!",
-        description: msg,
-        variant: ignored > 0 && count === 0 ? "destructive" : "default",
-        duration: 7000,
-      });
-
-      await config.fetchAction({ force: true });
-      clearFile();
+      // Start dataset polling overlay immediately
+      setDatasetId(result.dataset_id);
+      setShowDatasetPolling(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Erro desconhecido no upload.");
+      const message = err instanceof Error ? err.message : "Erro desconhecido no upload.";
+      setError(message);
+      toast({
+        title: "Erro no upload",
+        description: message,
+        variant: "destructive",
+      });
+      setIsProcessing(false);
       setUploadProgress(0);
+    }
+  };
+
+  const handleDatasetComplete = async () => {
+    setShowDatasetPolling(false);
+    setDatasetId(null);
+    await finalizeUpload(config.successMessage);
+  };
+
+  const handleDatasetError = (errorMessage: string) => {
+    setShowDatasetPolling(false);
+    setDatasetId(null);
+    toast({
+      title: "Erro ao processar dados",
+      description: errorMessage,
+      variant: "destructive"
+    });
+  };
+
+  const finalizeUpload = async (msg: string) => {
+    try {
+      config.invalidate();
+      await invalidateAllQueries();
+      await config.fetchAction({ force: true });
     } finally {
       setIsProcessing(false);
+      setUploadProgress(100);
     }
+
+    toast({
+      title: "✅ Processamento concluído!",
+      description: msg,
+      duration: 7000,
+    });
+
+    clearFile();
   };
 
   const clearFile = () => {
@@ -197,6 +224,8 @@ const UploadCSV = () => {
     setCsvData(null);
     setError(null);
     setUploadProgress(0);
+    setDatasetId(null);
+    setShowDatasetPolling(false);
   };
 
   const handleDeleteAll = async () => {
@@ -204,6 +233,7 @@ const UploadCSV = () => {
     try {
       await config.deleteAction();
       config.invalidate();
+      await invalidateAllQueries();
       toast({
         title: "Dados excluídos",
         description: isClicksMode ? "Todos os dados de cliques foram removidos." : "Todos os dados de vendas foram removidos.",
@@ -222,8 +252,8 @@ const UploadCSV = () => {
   const IconComponent = config.icon;
 
   return (
-    <DashboardLayout 
-      title={config.title} 
+    <DashboardLayout
+      title={config.title}
       subtitle={config.subtitle}
       action={
         <AlertDialog>
@@ -254,6 +284,45 @@ const UploadCSV = () => {
         </AlertDialog>
       }
     >
+      <AnimatePresence>
+        {showDatasetPolling && datasetId && (
+          <LoadingDataOverlay
+            datasetId={datasetId}
+            onComplete={handleDatasetComplete}
+            onError={handleDatasetError}
+          />
+        )}
+      </AnimatePresence>
+      <AnimatePresence>
+        {isDeleting && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-background/80 backdrop-blur-md"
+            role="status"
+            aria-live="polite"
+            aria-label="Excluindo dados"
+          >
+            <div className="max-w-md w-full px-6 text-center space-y-6">
+              <div className="relative flex flex-col items-center">
+                <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-primary/20 to-destructive/20 p-0.5 shadow-xl flex items-center justify-center">
+                  <div className="w-full h-full bg-background rounded-[14px] flex items-center justify-center">
+                    <Loader2 className="w-10 h-10 text-destructive animate-spin" aria-hidden="true" />
+                  </div>
+                </div>
+                <h2 className="mt-6 text-xl font-display font-bold text-foreground">
+                  Excluindo dados
+                </h2>
+                <p className="text-muted-foreground">
+                  Os dados estão sendo apagados do banco de dados.
+                </p>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -269,11 +338,10 @@ const UploadCSV = () => {
               exit={{ opacity: 0 }}
             >
               <div
-                className={`relative group cursor-pointer border-2 border-dashed rounded-3xl p-16 text-center transition-all duration-300 ease-out ${
-                  dragActive
-                    ? "border-primary bg-primary/5 scale-[1.02]"
-                    : "border-border hover:border-primary/50 hover:bg-secondary/30"
-                }`}
+                className={`relative group cursor-pointer border-2 border-dashed rounded-3xl p-16 text-center transition-all duration-300 ease-out ${dragActive
+                  ? "border-primary bg-primary/5 scale-[1.02]"
+                  : "border-border hover:border-primary/50 hover:bg-secondary/30"
+                  }`}
                 onDragEnter={handleDrag}
                 onDragLeave={handleDrag}
                 onDragOver={handleDrag}
@@ -288,19 +356,19 @@ const UploadCSV = () => {
                   id="csv-upload-input"
                   aria-label="Selecionar arquivo CSV"
                 />
-                
+
                 <div className="relative z-0">
                   <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center mx-auto mb-8 shadow-inner group-hover:scale-110 transition-transform duration-300">
                     <IconComponent className="w-10 h-10 text-primary" />
                   </div>
-                  
+
                   <h3 className="font-display font-bold text-2xl text-foreground mb-3 group-hover:text-primary transition-colors">
                     Arraste e solte seu arquivo CSV aqui
                   </h3>
                   <p className="text-muted-foreground mb-6 max-w-md mx-auto leading-relaxed">
                     Solte o arquivo CSV nesta área para fazer o upload... {isClicksMode ? "Relatório de cliques." : "Relatório de vendas."}
                   </p>
-                  
+
                   <Button
                     type="button"
                     variant="outline"
@@ -355,15 +423,15 @@ const UploadCSV = () => {
                       </p>
                     </div>
                   </div>
-                  <Button variant="ghost" size="icon" onClick={clearFile} disabled={isProcessing}>
+                  <Button variant="ghost" size="icon" onClick={clearFile} disabled={isProcessing || showDatasetPolling}>
                     <X className="w-5 h-5 text-muted-foreground hover:text-destructive" />
                   </Button>
                 </div>
 
-                {isProcessing && (
+                {isProcessing && !showDatasetPolling && (
                   <div className="space-y-2 mb-6">
                     <div className="flex justify-between text-xs font-medium">
-                      <span className="text-primary">Processando...</span>
+                      <span className="text-primary">Enviando arquivo…</span>
                       <span className="text-muted-foreground">{uploadProgress}%</span>
                     </div>
                     <Progress value={uploadProgress} className="h-2" />
@@ -372,8 +440,8 @@ const UploadCSV = () => {
 
                 {!isProcessing && csvData && (
                   <div className="flex gap-3 justify-end">
-                    <Button 
-                      variant="outline" 
+                    <Button
+                      variant="outline"
                       onClick={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
@@ -383,7 +451,7 @@ const UploadCSV = () => {
                     >
                       Cancelar
                     </Button>
-                    <Button 
+                    <Button
                       onClick={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
@@ -391,6 +459,7 @@ const UploadCSV = () => {
                       }}
                       className="bg-primary hover:bg-primary/90 min-w-[140px]"
                       type="button"
+                      disabled={isProcessing || showDatasetPolling}
                     >
                       Confirmar Upload
                     </Button>

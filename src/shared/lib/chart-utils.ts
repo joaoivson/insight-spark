@@ -1,7 +1,7 @@
 import type { DatasetRow } from "@/components/dashboard/DataTable";
 import type { AdSpend } from "@/shared/types/adspend";
 import { parseDateOnly, toDateKey, isBeforeDateKey, isAfterDateKey } from "@/shared/lib/date";
-import { getComissaoAfiliado } from "@/shared/lib/kpi";
+import { filterKpiRows, getComissaoAfiliado } from "@/shared/lib/kpi";
 import { normalizeSubId } from "@/shared/lib/utils";
 
 type DateRange = { from?: Date; to?: Date } | undefined;
@@ -36,9 +36,9 @@ export function formatCurrency(value: number): string {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value ?? 0);
 }
 
-/** Group rows by month (mes_ano), sum commission. Returns { label, value, key }[] for bar chart. */
+/** Group rows by month (mes_ano), sum commission. Usa mesma fonte que kpi.ts (Pend. + Concl.). */
 export function groupByMesAno(rows: DatasetRow[], dateRange: DateRange): { label: string; value: number; key: string }[] {
-  const filtered = filterRowsByDateRange(rows, dateRange);
+  const filtered = filterKpiRows(filterRowsByDateRange(rows, dateRange));
   const byMonth = new Map<string, number>();
   filtered.forEach((r) => {
     const mesAno = getMesAnoFromRow(r);
@@ -50,13 +50,13 @@ export function groupByMesAno(rows: DatasetRow[], dateRange: DateRange): { label
     .map(([key, value]) => {
       const [y, m] = key.split("-");
       const label = y && m ? `${m}/${y}` : key;
-      return { label, value, key };
+      return { label, value: Math.round(value * 100) / 100, key };
     });
 }
 
-/** Group rows by day, sum commission. Returns { label, value, key }[] for bar chart. */
+/** Group rows by day, sum commission. Usa mesma fonte que kpi.ts (Pend. + Concl.). */
 export function groupCommissionByDay(rows: DatasetRow[], dateRange: DateRange): { label: string; value: number; key: string }[] {
-  const filtered = filterRowsByDateRange(rows, dateRange);
+  const filtered = filterKpiRows(filterRowsByDateRange(rows, dateRange));
   const byDay = new Map<string, number>();
   filtered.forEach((r) => {
     const key = toDateKey(r.date);
@@ -68,18 +68,18 @@ export function groupCommissionByDay(rows: DatasetRow[], dateRange: DateRange): 
     .map(([key, value]) => {
       const d = parseDateOnly(key);
       const label = d ? d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }) : key;
-      return { label, value, key };
+      return { label, value: Math.round(value * 100) / 100, key };
     });
 }
 
-/** Group by month: commission from rows, cost from adSpends (filtered by dateRange + subIdFilter), profit = commission - cost. */
+/** Group by month: commission from rows, cost from adSpends. Usa mesma fonte que kpi.ts (Pend. + Concl.). */
 export function groupRevenueProfitByMes(
   rows: DatasetRow[],
   adSpends: AdSpend[],
   dateRange: DateRange,
   subIdFilter?: string
 ): { mes_ano: string; commission: number; cost: number; profit: number }[] {
-  const filteredRows = filterRowsByDateRange(rows, dateRange);
+  const filteredRows = filterKpiRows(filterRowsByDateRange(rows, dateRange));
   const byMonth = new Map<string, number>();
   filteredRows.forEach((r) => {
     const mesAno = getMesAnoFromRow(r);
@@ -102,36 +102,37 @@ export function groupRevenueProfitByMes(
   return Array.from(months)
     .sort()
     .map((mes_ano) => {
-      const commission = byMonth.get(mes_ano) ?? 0;
+      const commissionRaw = byMonth.get(mes_ano) ?? 0;
+      const commission = Math.round(commissionRaw * 100) / 100;
       const cost = costByMonth.get(mes_ano) ?? 0;
-      const profit = commission - cost;
+      const profit = Math.round((commission - cost) * 100) / 100;
       return { mes_ano, commission, cost, profit };
     });
 }
 
-/** Group by channel (platform), sum commission. Returns { name, value }[] for pie chart. */
+/** Group by channel (platform), sum commission. Usa mesma fonte que kpi.ts (Pend. + Concl.). */
 export function groupByPlatform(rows: DatasetRow[], dateRange: DateRange): { name: string; value: number }[] {
-  const filtered = filterRowsByDateRange(rows, dateRange);
+  const filtered = filterKpiRows(filterRowsByDateRange(rows, dateRange));
   const byPlatform = new Map<string, number>();
   filtered.forEach((r) => {
     const name = (r.platform?.trim() || "Outros");
     byPlatform.set(name, (byPlatform.get(name) ?? 0) + getComissaoAfiliado(r));
   });
   return Array.from(byPlatform.entries())
-    .map(([name, value]) => ({ name, value }))
+    .map(([name, value]) => ({ name, value: Math.round(value * 100) / 100 }))
     .sort((a, b) => b.value - a.value);
 }
 
-/** Group by category, sum commission. Returns { name, value }[] for bar chart (top 12). */
+/** Group by category, sum commission. Usa mesma fonte que kpi.ts (Pend. + Concl.). */
 export function groupByCategory(rows: DatasetRow[], dateRange: DateRange): { name: string; value: number }[] {
-  const filtered = filterRowsByDateRange(rows, dateRange);
+  const filtered = filterKpiRows(filterRowsByDateRange(rows, dateRange));
   const byCategory = new Map<string, number>();
   filtered.forEach((r) => {
     const name = r.category?.trim() || "Sem categoria";
     byCategory.set(name, (byCategory.get(name) ?? 0) + getComissaoAfiliado(r));
   });
   return Array.from(byCategory.entries())
-    .map(([name, value]) => ({ name, value }))
+    .map(([name, value]) => ({ name, value: Math.round(value * 100) / 100 }))
     .sort((a, b) => b.value - a.value)
     .slice(0, 12);
 }

@@ -3,9 +3,24 @@ import { Bar, BarChart, CartesianGrid, LabelList, XAxis } from "recharts";
 import { ChartTooltip, ChartTooltipContent, ChartContainer, type ChartConfig } from "@/components/ui/chart";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { formatK } from "../../../shared/lib/chart-utils";
+import { formatK, formatCurrency } from "../../../shared/lib/chart-utils";
 
 const BAR_COLOR = "hsl(210, 80%, 55%)";
+
+/** Formata rótulo do eixo: modo dia = DD/MM, modo mês = MM/YY */
+function formatAxisLabel(label: string, mode: "month" | "day"): string {
+  if (!label || typeof label !== "string") return label;
+  if (mode === "day") {
+    return label;
+  }
+  const parts = label.split("/");
+  if (parts.length === 2) {
+    const [m, y] = parts;
+    const yy = y?.length === 4 ? y.slice(-2) : y;
+    return yy ? `${m}/${yy}` : label;
+  }
+  return label;
+}
 
 interface EvolutionBarChartProps {
   data: any[];
@@ -51,8 +66,24 @@ export const EvolutionBarChart = ({ data, mode, onModeChange, onDrillDown, varia
         <ChartContainer config={chartConfig} className="h-full w-full" style={{ minWidth: dynamicMinWidth }}>
           <BarChart accessibilityLayer data={data} margin={{ top: 30, right: 10, left: 10, bottom: 40 }} barCategoryGap={mode === "month" ? (data.length === 1 ? "5%" : 18) : "10%"}>
             <CartesianGrid vertical={false} />
-            <XAxis dataKey="label" tickLine={false} axisLine={false} tickMargin={10} angle={-45} textAnchor="end" height={60} interval={mode === "day" && data.length > 30 ? "preserveStartEnd" : 0} tick={{ fontSize: 14 }} />
-            <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel />} />
+            <XAxis
+              dataKey="label"
+              tickLine={false}
+              axisLine={false}
+              tickMargin={10}
+              angle={-45}
+              textAnchor="end"
+              height={60}
+              interval={mode === "day" && data.length > 30 ? "preserveStartEnd" : 0}
+              tick={{ fontSize: 14 }}
+              tickFormatter={(value) => formatAxisLabel(value, mode)}
+            />
+            <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel formatter={(v, name) => (
+            <span className="flex justify-between items-center gap-4 w-full min-w-[140px]">
+              <span className="text-muted-foreground">{(name === "value" || !name) ? "Comissão" : name}</span>
+              <span className="font-medium tabular-nums">{formatCurrency(Number(v))}</span>
+            </span>
+          )} />} />
             <Bar
               dataKey="value"
               fill="var(--color-value)"

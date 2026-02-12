@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { Area, AreaChart, CartesianGrid, Legend, XAxis, YAxis } from "recharts";
 import { ChartTooltip, ChartTooltipContent, ChartContainer, type ChartConfig } from "@/components/ui/chart";
+import { formatCurrency } from "@/shared/lib/chart-utils";
 import { motion } from "framer-motion";
 
 const BAR_COLOR = "hsl(210, 80%, 55%)";
@@ -96,9 +97,14 @@ export const RevenueProfitAreaChart = ({ data, onDrillDown, variants }: RevenueP
               tick={{ fontSize: 14 }}
             />
             <YAxis hide />
-            <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="dot" />} />
+            <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="dot" formatter={(v, name) => (
+              <span className="flex justify-between items-center gap-4 w-full min-w-[140px]">
+                <span className="text-muted-foreground">{name}</span>
+                <span className="font-medium tabular-nums">{formatCurrency(Number(v))}</span>
+              </span>
+            )} />} />
             <Area type="monotone" dataKey="commission" name="Comissão" stroke="var(--color-commission)" fillOpacity={1} fill="url(#fillCommission)" strokeWidth={2} stackId="a" />
-            <Area type="monotone" dataKey="cost" name="Custos de Anúncios" stroke="var(--color-cost)" fillOpacity={1} fill="url(#fillCost)" strokeWidth={2} stackId="b" />
+            <Area type="monotone" dataKey="cost" name="Anúncios" stroke="var(--color-cost)" fillOpacity={1} fill="url(#fillCost)" strokeWidth={2} stackId="b" />
             <Area type="monotone" dataKey="profit" name="Lucro" stroke="var(--color-profit)" fillOpacity={1} fill="url(#fillProfit)" strokeWidth={3} stackId="c" />
             <Legend verticalAlign="top" height={36}/>
           </AreaChart>
