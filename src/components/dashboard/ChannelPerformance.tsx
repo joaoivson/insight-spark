@@ -77,7 +77,7 @@ const ChannelPerformance = ({
       const channel = row.sub_id1 || "Orgânico/Outros";
       const current = channelMap.get(channel) || { commission: 0, spend: 0, orders: 0 };
 
-      const commission = getComissaoCents(row) / 100;
+      const commission = getComissaoAfiliado(row);
 
       channelMap.set(channel, {
         ...current,

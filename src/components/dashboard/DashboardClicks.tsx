@@ -137,7 +137,7 @@ const DashboardClicks = ({ clicks: rawClicks, totalClicksFromApi, adSpends = [],
 
   // 2. Helpers
   const getItemClicks = (item: ClickRow): number => {
-    return Number(item.clicks) ?? Number((item as any).click) ?? 0;
+    return Number(item.clicks || (item as any).click || 0);
   };
 
   /** Normaliza canal para agrupar (ex: Instagram, instagram, INSTAGRAM -> mesma soma) */
@@ -150,15 +150,10 @@ const DashboardClicks = ({ clicks: rawClicks, totalClicksFromApi, adSpends = [],
 
   // 3. Cálculos Memorizados
   // Usa total_clicks da API quando disponível e sem filtro de sub_id; caso contrário, soma das rows filtradas
+  // Ensure we respect filters by calculating total from filtered data
   const totalClicks = useMemo(() => {
-    if (subIdFilter) {
-      return filteredClicks.reduce((acc, curr) => acc + getItemClicks(curr), 0);
-    }
-    if (totalClicksFromApi != null && totalClicksFromApi >= 0) {
-      return totalClicksFromApi;
-    }
     return filteredClicks.reduce((acc, curr) => acc + getItemClicks(curr), 0);
-  }, [filteredClicks, subIdFilter, totalClicksFromApi]);
+  }, [filteredClicks]);
 
   // Comparação: Cliques Manuais (Ads) vs Cliques CSV por Sub ID
   const comparisonStats = useMemo(() => {
