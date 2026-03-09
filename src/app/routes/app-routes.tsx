@@ -21,6 +21,8 @@ import Reports from "@/features/dashboard/pages/Reports";
 import Modules from "@/features/dashboard/pages/Modules";
 import Settings from "@/features/dashboard/pages/Settings";
 import AdSpends from "@/features/dashboard/pages/AdSpends";
+import CapturaSite from "@/features/dashboard/pages/CapturaSite";
+import CaptureViewer from "@/features/landing/pages/CaptureViewer";
 import SubscriptionPage from "@/features/subscription/pages/SubscriptionPage";
 import SubscriptionSuccess from "@/features/subscription/pages/SubscriptionSuccess";
 import SubscriptionError from "@/features/subscription/pages/SubscriptionError";
@@ -149,12 +151,16 @@ export const AppRoutes = () => {
 
         {/* Protected Routes */}
         <Route path="/dashboard" element={<ProtectedRoute element={<Dashboard />} />} />
+        <Route path="/dashboard/captura" element={<ProtectedRoute element={<CapturaSite />} />} />
         <Route path="/dashboard/upload" element={<ProtectedRoute element={<UploadCSV />} />} />
         <Route path="/dashboard/upload-cliques" element={<ProtectedRoute element={<UploadCSV />} />} />
         <Route path="/dashboard/reports" element={<ProtectedRoute element={<Reports />} />} />
         <Route path="/dashboard/modules" element={<ProtectedRoute element={<Modules />} />} />
         <Route path="/dashboard/settings" element={<ProtectedRoute element={<Settings />} />} />
         <Route path="/dashboard/investimentos" element={<ProtectedRoute element={<AdSpends />} />} />
+
+        {/* Capture Public Route */}
+        <Route path="/c/:slug" element={<CaptureViewer />} />
 
         {/* Fallback */}
         <Route path="*" element={<NotFound />} />

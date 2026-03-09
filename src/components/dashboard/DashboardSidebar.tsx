@@ -1,15 +1,16 @@
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
-import { 
-  Upload, 
-  FileText, 
-  Puzzle, 
+import {
+  Upload,
+  FileText,
+  Puzzle,
   LogOut,
   LayoutDashboard,
   ChevronLeft,
   ChevronRight,
   Wallet,
   X,
-  MousePointerClick
+  MousePointerClick,
+  Globe
 } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -29,6 +30,7 @@ import { useIsMobile } from "@/shared/hooks/use-mobile";
 
 const menuItems = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
+  { icon: Globe, label: "Site de Captura", path: "/dashboard/captura" },
   { icon: Upload, label: "Upload Comissão", path: "/dashboard/upload" },
   { icon: MousePointerClick, label: "Upload Cliques", path: "/dashboard/upload-cliques" },
   { icon: Wallet, label: "Custos de Anúncios", path: "/dashboard/investimentos" },
@@ -51,7 +53,7 @@ const DashboardSidebar = ({ mobileMenuOpen = false, onMobileMenuClose }: Dashboa
   const handleLogout = () => {
     // Apagar absolutamente todos os dados do localStorage (Caches, Token, User, etc)
     storage.clear();
-    
+
     // Forçar redirecionamento limpando qualquer estado restante em memória
     window.location.href = APP_CONFIG.ROUTES.HOME;
     onMobileMenuClose?.();
@@ -139,8 +141,8 @@ const DashboardSidebar = ({ mobileMenuOpen = false, onMobileMenuClose }: Dashboa
                     {(!collapsed || isMobile) && <span className="font-medium truncate">{item.label}</span>}
                   </button>
                 ) : (
-                  <NavLink 
-                    to={item.path} 
+                  <NavLink
+                    to={item.path}
                     className={classes}
                     aria-label={item.label}
                     aria-current={isActive ? "page" : undefined}
@@ -220,8 +222,8 @@ const DashboardSidebar = ({ mobileMenuOpen = false, onMobileMenuClose }: Dashboa
   if (isMobile) {
     return (
       <Sheet open={mobileMenuOpen} onOpenChange={(open) => !open && onMobileMenuClose?.()}>
-        <SheetContent 
-          side="left" 
+        <SheetContent
+          side="left"
           className="w-full sm:w-80 p-0 bg-sidebar border-sidebar-border [&>button]:hidden"
         >
           <aside className="bg-sidebar flex flex-col h-full w-full overflow-hidden">
@@ -234,7 +236,7 @@ const DashboardSidebar = ({ mobileMenuOpen = false, onMobileMenuClose }: Dashboa
 
   // Desktop: Regular sidebar
   return (
-    <aside 
+    <aside
       className={cn(
         "bg-sidebar flex flex-col transition-all duration-300 border-sidebar-border",
         "hidden md:flex md:sticky md:top-0 md:h-screen md:border-r",
