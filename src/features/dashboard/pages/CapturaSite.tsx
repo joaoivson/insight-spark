@@ -41,7 +41,7 @@ const WhatsAppIcon = ({ className }: { className?: string }) => (
 	</svg>
 );
 
-const DEFAULT_IMAGE = "/default-avatar.png";
+const DEFAULT_IMAGE = "/default-logo.png";
 
 export const CapturaSite = () => {
 	const { toast } = useToast();
