@@ -37,9 +37,9 @@ const PricingSection = () => {
         console.error('Erro ao carregar planos:', error);
         // Fallback: criar planos padrão se API falhar
         setPlans([
-          { id: "anual", name: "Anual", checkout_url: "https://pay.cakto.com.br/ebrg3ir", period: "anual" },
+          { id: "anual", name: "Anual", checkout_url: "https://pay.cakto.com.br/yda8io6", period: "anual" },
           { id: "principal", name: "Mensal", checkout_url: "https://pay.cakto.com.br/8e9qxyg_742442", period: "mensal" },
-          { id: "trimestral", name: "Trimestral", checkout_url: "https://pay.cakto.com.br/3frhhks", period: "trimestral" }
+          { id: "trimestral", name: "Trimestral", checkout_url: "https://pay.cakto.com.br/u6rpnpo", period: "trimestral" }
         ]);
       } finally {
         setLoading(false);
@@ -58,7 +58,7 @@ const PricingSection = () => {
     try {
       const isAuthenticated = !!tokenStorage.get();
       const user = userStorage.get() as { email?: string; name?: string; cpf_cnpj?: string } | null;
-      
+
       if (isAuthenticated && user) {
         await caktoService.redirectToCheckout({
           email: user.email,
@@ -110,7 +110,7 @@ const PricingSection = () => {
             Um plano para crescer com clareza
           </h2>
           <p className="text-muted-foreground text-lg">
-            {plans.length > 1 
+            {plans.length > 1
               ? "Escolha o plano ideal para o seu negócio."
               : "Um único plano com tudo que você precisa para começar."
             }
@@ -156,9 +156,9 @@ const PricingSection = () => {
                           </div>
                         </div>
 
-                        <Button 
-                          variant="outline" 
-                          size="lg" 
+                        <Button
+                          variant="outline"
+                          size="lg"
                           className="w-full mb-6"
                           onClick={() => handleSubscribe(plan.id)}
                         >
@@ -198,7 +198,7 @@ const PricingSection = () => {
                   <div className="glass-card rounded-2xl p-7 border-2 border-accent/40 relative overflow-hidden shadow-lg shadow-accent/10 hover:shadow-accent/20 transition-all w-full flex flex-col h-full">
                     {/* Premium Glow Effect - Sutil */}
                     <div className="absolute inset-0 bg-gradient-to-br from-accent/8 via-accent/4 to-transparent pointer-events-none" />
-                    
+
                     <div className="relative z-10 flex-1 flex flex-col">
                       {/* Header com Badge */}
                       <div className="mb-5 relative">
@@ -227,7 +227,7 @@ const PricingSection = () => {
                           </span>
                           <span className="text-muted-foreground text-lg">/ano</span>
                         </div>
-                        
+
                         <div className="flex flex-wrap items-center gap-2 mb-3">
                           <span className="px-3 py-1.5 rounded-lg bg-green-500/10 text-green-600 dark:text-green-400 font-semibold text-sm">
                             Economize R$ {calculateAnnualSavings().toLocaleString('pt-BR')}/ano
@@ -242,9 +242,9 @@ const PricingSection = () => {
                         </p>
                       </div>
 
-                      <Button 
-                        variant="hero" 
-                        size="lg" 
+                      <Button
+                        variant="hero"
+                        size="lg"
                         className="w-full mb-6 shadow-glow hover:shadow-[0_0_40px_hsl(173_80%_40%_/_0.3)]"
                         onClick={() => handleSubscribe(annualPlan.id)}
                       >
@@ -255,8 +255,8 @@ const PricingSection = () => {
                       {/* Lista de Benefícios */}
                       <div className="space-y-3 mb-6 flex-1">
                         {features.map((feature, featureIndex) => (
-                          <div 
-                            key={featureIndex} 
+                          <div
+                            key={featureIndex}
                             className="flex items-center gap-2"
                           >
                             <div className="w-5 h-5 rounded-full bg-accent/20 flex items-center justify-center flex-shrink-0">
@@ -326,9 +326,9 @@ const PricingSection = () => {
                           )}
                         </div>
 
-                        <Button 
-                          variant="outline" 
-                          size="lg" 
+                        <Button
+                          variant="outline"
+                          size="lg"
                           className="w-full mb-6"
                           onClick={() => handleSubscribe(plan.id)}
                         >
