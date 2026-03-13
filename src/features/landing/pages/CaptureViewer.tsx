@@ -80,8 +80,14 @@ export const CaptureViewer = () => {
             )}
 
             {/* Decorative Glow Elements */}
-            <div className="absolute top-[-10%] left-1/2 -translate-x-1/2 w-[200%] max-w-[1000px] h-[400px] bg-primary/20 blur-[120px] rounded-[100%] pointer-events-none" />
-            <div className="absolute top-[40%] right-[-10%] w-[400px] h-[400px] bg-emerald-500/10 blur-[120px] rounded-full pointer-events-none" />
+            <div
+                className="absolute top-[-10%] left-1/2 -translate-x-1/2 w-[200%] max-w-[1000px] h-[400px] blur-[120px] rounded-[100%] pointer-events-none"
+                style={{ backgroundColor: site.theme_color || 'hsl(var(--primary))', opacity: 0.2 }}
+            />
+            <div
+                className="absolute top-[40%] right-[-10%] w-[400px] h-[400px] blur-[120px] rounded-full pointer-events-none"
+                style={{ backgroundColor: site.theme_color || '#10b981', opacity: 0.1 }}
+            />
 
             {/* Main Container */}
             <div className={`w-full max-w-4xl relative z-10 flex flex-col items-center justify-center flex-1 px-4 pb-20 ${site.urgency_text ? 'pt-24 sm:pt-32' : 'pt-16 sm:pt-24'}`}>

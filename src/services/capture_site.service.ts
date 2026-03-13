@@ -13,6 +13,7 @@ export interface CaptureSite {
     slug: string | null;
     created_at: string;
     updated_at: string | null;
+    theme_color: string | null;
 }
 
 export interface CaptureSiteCreate {
@@ -24,6 +25,7 @@ export interface CaptureSiteCreate {
     image_url?: string;
     urgency_text?: string;
     slug?: string;
+    theme_color?: string;
 }
 
 export type CaptureSiteUpdate = CaptureSiteCreate;

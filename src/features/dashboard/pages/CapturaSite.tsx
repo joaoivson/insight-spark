@@ -62,6 +62,7 @@ export const CapturaSite = () => {
 	const [imageUrl, setImageUrl] = useState("");
 	const [urgencyText, setUrgencyText] = useState("✅ Últimas vagas disponíveis - encerra hoje!");
 	const [slug, setSlug] = useState("");
+	const [themeColor, setThemeColor] = useState("");
 	const [slugIsAvailable, setSlugIsAvailable] = useState<boolean | null>(null);
 	const [uploadLoading, setUploadLoading] = useState(false);
 
@@ -98,6 +99,7 @@ export const CapturaSite = () => {
 		setImageUrl((site as any).image_url || "");
 		setUrgencyText((site as any).urgency_text || "");
 		setSlug(site.slug || "");
+		setThemeColor((site as any).theme_color || "");
 		setSlugIsAvailable(true); // se veio do banco dele é válido
 	};
 
@@ -111,6 +113,7 @@ export const CapturaSite = () => {
 		setImageUrl("");
 		setUrgencyText("✅ Últimas vagas disponíveis - encerra hoje!");
 		setSlug("");
+		setThemeColor("");
 		setSlugIsAvailable(null);
 	};
 
@@ -190,6 +193,7 @@ export const CapturaSite = () => {
 				image_url: imageUrl,
 				urgency_text: urgencyText,
 				slug: finalSlug,
+				theme_color: themeColor || undefined,
 			} as any;
 
 			if (activeSiteId) {
@@ -328,6 +332,25 @@ export const CapturaSite = () => {
 									onChange={(e) => setUrgencyText(e.target.value)}
 								/>
 							</div>
+
+							<div className="space-y-2">
+								<Label>Cor de Fundo Glow (Opcional)</Label>
+								<div className="flex gap-2">
+									<Input
+										type="color"
+										value={themeColor || "#10b981"}
+										onChange={(e) => setThemeColor(e.target.value)}
+										className="w-12 h-10 p-1 cursor-pointer"
+									/>
+									<Button
+										variant="outline"
+										onClick={() => setThemeColor("")}
+										type="button"
+									>
+										Padrão / Limpar
+									</Button>
+								</div>
+							</div>
 						</Card>
 
 						<Card className="p-5 space-y-4">
@@ -414,7 +437,10 @@ export const CapturaSite = () => {
 
 							<div className="flex-1 flex flex-col text-white p-6 relative">
 								{/* Decorative Glow */}
-								<div className="absolute top-0 left-1/2 -translate-x-1/2 w-[150%] h-[300px] bg-primary/20 blur-[100px] rounded-full pointer-events-none" />
+								<div
+									className="absolute top-0 left-1/2 -translate-x-1/2 w-[150%] h-[300px] blur-[100px] rounded-full pointer-events-none"
+									style={{ backgroundColor: themeColor || 'hsl(var(--primary))', opacity: 0.2 }}
+								/>
 
 								<div className="flex-1 flex flex-col relative z-20 px-6 pt-8 pb-10 items-center text-center">
 									{/* Image/Logo */}
