@@ -1,6 +1,20 @@
 import { useEffect, useState } from "react";
 import { useParams, Navigate } from "react-router-dom";
-import { CheckCircle2 } from "lucide-react";
+import {
+    CheckCircle2, AlertTriangle, Clock, Flame, Zap,
+    TrendingUp, ShieldCheck, Timer
+} from "lucide-react";
+
+const URGENCY_ICONS: Record<string, any> = {
+    'alert': AlertTriangle,
+    'clock': Clock,
+    'timer': Timer,
+    'flame': Flame,
+    'zap': Zap,
+    'trending': TrendingUp,
+    'shield': ShieldCheck,
+    'check': CheckCircle2
+};
 import { CaptureSite, getPublicSite } from "@/services/capture_site.service";
 import { Button } from "@/components/ui/button";
 
@@ -67,15 +81,45 @@ export const CaptureViewer = () => {
     const benefitsList = site.benefits || [];
 
     return (
-        <div className="min-h-screen bg-black text-white relative flex flex-col items-center overflow-x-hidden">
+        <div
+            className="min-h-screen text-white relative flex flex-col items-center overflow-x-hidden"
+            style={{
+                backgroundColor: site.background_color || '#000000',
+                backgroundImage: site.is_gradient ? `radial-gradient(circle at top, ${site.background_color || '#000000'} 0%, #000000 100%)` : 'none'
+            }}
+        >
             {/* Urgency Banner (Top Strip) */}
             {site.urgency_text && (
-                <div className="w-full py-2.5 sm:py-3 px-6 bg-emerald-500/10 border-b border-emerald-500/20 text-emerald-400 text-xs sm:text-sm font-semibold text-center backdrop-blur-md z-30 fixed top-0 left-0 flex items-center justify-center gap-2 shadow-lg">
-                    <span className="relative flex h-2 w-2">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                        <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                    </span>
-                    {site.urgency_text.toUpperCase()}
+                <div
+                    className={`w-full px-6 border-b font-bold text-center backdrop-blur-md z-30 fixed top-0 left-0 flex items-center justify-center gap-2 shadow-lg uppercase tracking-wider transition-all duration-300 ${site.urgency_size === 'lg'
+                        ? 'py-4 sm:py-5 text-sm sm:text-base'
+                        : 'py-2.5 sm:py-3 text-xs sm:text-sm'
+                        }`}
+                    style={{
+                        color: site.urgency_text_color || site.urgency_color || '#10b981'
+                    }}
+                >
+                    {site.urgency_icon !== 'none' && URGENCY_ICONS[site.urgency_icon || ''] && (
+                        (() => {
+                            const IconComp = URGENCY_ICONS[site.urgency_icon || ''];
+                            const animationClass =
+                                site.urgency_animation === 'pulse' ? 'animate-pulse' :
+                                    site.urgency_animation === 'blink' ? 'animate-[pulse_0.5s_ease-in-out_infinite]' :
+                                        site.urgency_animation === 'bounce' ? 'animate-bounce' : '';
+
+                            return (
+                                <IconComp
+                                    className={animationClass}
+                                    style={{
+                                        width: `${site.urgency_icon_size || 16}px`,
+                                        height: `${site.urgency_icon_size || 16}px`,
+                                        color: site.urgency_text_color || site.urgency_color || '#10b981'
+                                    }}
+                                />
+                            );
+                        })()
+                    )}
+                    {site.urgency_text}
                 </div>
             )}
 
@@ -102,23 +146,30 @@ export const CaptureViewer = () => {
                 </div>
 
                 {/* Title */}
-                <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold tracking-tight mb-6 leading-tight text-white drop-shadow-sm text-center max-w-3xl">
+                <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold tracking-tight mb-6 leading-tight drop-shadow-sm text-center max-w-3xl" style={{ color: site.text_primary_color || '#ffffff' }}>
                     {site.title}
                 </h1>
 
                 {/* Subtitle */}
                 {site.subtitle && (
-                    <p className="text-white/80 text-lg sm:text-xl md:text-2xl mb-12 sm:mb-14 leading-relaxed font-light text-center max-w-2xl px-2">
+                    <p className="text-lg sm:text-xl md:text-2xl mb-12 sm:mb-14 leading-relaxed font-light text-center max-w-2xl px-2" style={{ color: site.text_primary_color ? `${site.text_primary_color}cc` : 'rgba(255,255,255,0.8)' }}>
                         {site.subtitle}
                     </p>
                 )}
 
                 {/* Action Button */}
                 <div className="w-full max-w-lg relative group mb-14 sm:mb-16">
-                    <div className="absolute -inset-1 bg-gradient-to-r from-emerald-500 to-green-500 rounded-2xl blur-lg opacity-50 group-hover:opacity-75 transition duration-200"></div>
+                    <div
+                        className="absolute -inset-1 rounded-2xl blur-lg opacity-50 group-hover:opacity-75 transition duration-200"
+                        style={{ backgroundColor: site.button_color || '#10b981' }}
+                    ></div>
                     <Button
                         onClick={handleActionClick}
-                        className="w-full h-16 sm:h-20 rounded-2xl text-lg sm:text-xl font-bold bg-gradient-to-b from-emerald-400 to-emerald-600 hover:from-emerald-300 hover:to-emerald-500 text-white shadow-xl border border-emerald-400/30 transition-all relative z-10 gap-3"
+                        className="w-full h-16 sm:h-20 rounded-2xl text-lg sm:text-xl font-bold text-white shadow-xl border transition-all relative z-10 gap-3"
+                        style={{
+                            backgroundColor: site.button_color || '#10b981',
+                            borderColor: 'rgba(255,255,255,0.1)'
+                        }}
                     >
                         <WhatsAppIcon className="w-6 h-6 sm:w-8 sm:h-8" />
                         {site.button_text || "Acessar Agora"}
@@ -131,7 +182,7 @@ export const CaptureViewer = () => {
                         {benefitsList.map((benefit, i) => (
                             <div key={i} className="flex items-start gap-4 bg-white/5 p-4 sm:p-6 rounded-2xl border border-white/10 backdrop-blur-md shadow-lg transition-transform hover:-translate-y-1">
                                 <CheckCircle2 className="w-6 h-6 sm:w-7 sm:h-7 text-emerald-400 flex-shrink-0 mt-0.5 drop-shadow-[0_0_8px_rgba(52,211,153,0.5)]" />
-                                <span className="text-white/95 leading-relaxed font-medium text-base sm:text-lg">{benefit}</span>
+                                <span className="leading-relaxed font-medium text-base sm:text-lg" style={{ color: site.text_primary_color ? `${site.text_primary_color}f2` : 'rgba(255,255,255,0.95)' }}>{benefit}</span>
                             </div>
                         ))}
                     </div>

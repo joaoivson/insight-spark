@@ -30,11 +30,11 @@ import { useIsMobile } from "@/shared/hooks/use-mobile";
 
 const menuItems = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
-  { icon: Globe, label: "Site de Captura", path: "/dashboard/captura" },
   { icon: Upload, label: "Upload Comissão", path: "/dashboard/upload" },
   { icon: MousePointerClick, label: "Upload Cliques", path: "/dashboard/upload-cliques" },
   { icon: Wallet, label: "Custos de Anúncios", path: "/dashboard/investimentos" },
-  { icon: FileText, label: "Relatório Dinâmico", path: "/dashboard/reports" },
+  { icon: Globe, label: "Página de Captura", path: "/dashboard/captura" },
+  // { icon: FileText, label: "Relatório Dinâmico", path: "/dashboard/reports" },
   // { icon: Puzzle, label: "Módulos", path: "/dashboard/modules" }, // Temporarily hidden
 ];
 

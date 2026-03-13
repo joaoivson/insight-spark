@@ -14,6 +14,16 @@ export interface CaptureSite {
     created_at: string;
     updated_at: string | null;
     theme_color: string | null;
+    button_color: string | null;
+    background_color: string | null;
+    is_gradient: boolean;
+    urgency_color: string | null;
+    urgency_icon: string | null;
+    urgency_size: string | null;
+    urgency_icon_size: number | null;
+    urgency_animation: string | null;
+    text_primary_color: string | null;
+    urgency_text_color: string | null;
 }
 
 export interface CaptureSiteCreate {
@@ -26,6 +36,16 @@ export interface CaptureSiteCreate {
     urgency_text?: string;
     slug?: string;
     theme_color?: string;
+    button_color?: string;
+    background_color?: string;
+    is_gradient?: boolean;
+    urgency_color?: string;
+    urgency_icon?: string;
+    urgency_size?: string;
+    urgency_icon_size?: number;
+    urgency_animation?: string;
+    text_primary_color?: string;
+    urgency_text_color?: string;
 }
 
 export type CaptureSiteUpdate = CaptureSiteCreate;
@@ -56,7 +76,7 @@ export const getPublicSite = async (slug: string): Promise<CaptureSite> => {
 };
 
 export const getUserSites = async (): Promise<CaptureSite[]> => {
-    const url = getApiUrl(`/api/v1/capturas`);
+    const url = getApiUrl("/api/v1/capturas");
     const res = await fetchWithAuth(url);
     if (!res.ok) {
         const text = await res.text();
@@ -76,7 +96,7 @@ export const getSite = async (id: number): Promise<CaptureSite> => {
 };
 
 export const createSite = async (site: CaptureSiteCreate): Promise<CaptureSite> => {
-    const url = getApiUrl(`/api/v1/capturas`);
+    const url = getApiUrl("/api/v1/capturas");
     const res = await fetchWithAuth(url, {
         method: "POST",
         body: JSON.stringify(site),
@@ -111,7 +131,7 @@ export const deleteSite = async (id: number): Promise<void> => {
 };
 
 export const uploadImage = async (file: File): Promise<{ url: string }> => {
-    const url = getApiUrl(`/api/v1/uploads/image`);
+    const url = getApiUrl("/api/v1/uploads/image");
     const formData = new FormData();
     formData.append("file", file);
 
