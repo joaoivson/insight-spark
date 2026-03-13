@@ -24,6 +24,7 @@ export interface CaptureSite {
     urgency_animation: string | null;
     text_primary_color: string | null;
     urgency_text_color: string | null;
+    is_active: boolean;
 }
 
 export interface CaptureSiteCreate {
@@ -46,6 +47,7 @@ export interface CaptureSiteCreate {
     urgency_animation?: string;
     text_primary_color?: string;
     urgency_text_color?: string;
+    is_active?: boolean;
 }
 
 export type CaptureSiteUpdate = CaptureSiteCreate;

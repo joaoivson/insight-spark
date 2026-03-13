@@ -97,6 +97,8 @@ export const CapturaSite = () => {
   const [textPrimaryColor, setTextPrimaryColor] = useState('#ffffff');
   const [urgencyTextColor, setUrgencyTextColor] = useState('#991b1b');
 
+  const [isActive, setIsActive] = useState(true);
+
   const [slugIsAvailable, setSlugIsAvailable] = useState<boolean | null>(null);
   const [uploadLoading, setUploadLoading] = useState(false);
 
@@ -120,7 +122,9 @@ export const CapturaSite = () => {
     }
   };
 
-  const selectSite = (site: CaptureSite) => {
+  const selectSite = (e: React.MouseEvent, site: CaptureSite) => {
+    e.preventDefault();
+    e.stopPropagation();
     setActiveSiteId(site.id);
     setTitle(site.title || "");
     setSubtitle(site.subtitle || "");
@@ -141,6 +145,7 @@ export const CapturaSite = () => {
     setUrgencyAnimation(site.urgency_animation || 'none');
     setTextPrimaryColor(site.text_primary_color || '#ffffff');
     setUrgencyTextColor(site.urgency_text_color || '#991b1b');
+    setIsActive(site.is_active ?? true);
 
     setSlugIsAvailable(true);
     setViewMode('editor');
@@ -225,18 +230,20 @@ export const CapturaSite = () => {
     }
   };
 
-  const handleDelete = async (id: number) => {
+  const handleDelete = async (e: React.MouseEvent, id: number) => {
+    e.preventDefault();
+    e.stopPropagation();
+
     if (!confirm("Tem certeza que deseja excluir esta página? Esta ação é irreversível.")) return;
 
     try {
-      setLoading(true);
+      // Usamos o id diretamente para filtrar, sem afetar o estado global de loading
+      // para evitar que o componente renderize skeletons desnecessariamente
       await deleteSite(id);
       setSites(prev => prev.filter(s => s.id !== id));
       toast({ title: "Sucesso", description: "Página excluída com sucesso!" });
     } catch (error: any) {
       toast({ title: "Erro", description: error.message, variant: "destructive" });
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -274,6 +281,7 @@ export const CapturaSite = () => {
         urgency_animation: urgencyAnimation,
         text_primary_color: textPrimaryColor,
         urgency_text_color: urgencyTextColor,
+        is_active: isActive,
       };
 
       if (activeSiteId) {
@@ -305,7 +313,7 @@ export const CapturaSite = () => {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h2 className="text-2xl font-bold tracking-tight">Suas Páginas</h2>
-          <p className="text-muted-foreground">Gerencie seus sites de captura e converta mais leads.</p>
+          <p className="text-muted-foreground">Gerencie suas páginas e converta mais leads.</p>
         </div>
         <Button onClick={handleNew} className="gap-2 bg-emerald-600 hover:bg-emerald-700">
           <Plus className="w-4 h-4" /> Criar Novo Site
@@ -336,23 +344,28 @@ export const CapturaSite = () => {
               <div className="p-5 flex-1">
                 <div className="flex items-start justify-between mb-2">
                   <h3 className="font-bold text-lg truncate pr-4">{site.title}</h3>
-                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-muted-foreground hover:text-primary"
-                      onClick={() => selectSite(site)}
-                    >
-                      <Wand2 className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                      onClick={() => handleDelete(site.id)}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
+                  <div className="flex items-center gap-2">
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-widest ${site.is_active ? 'bg-emerald-500/10 text-emerald-500' : 'bg-destructive/10 text-destructive'}`}>
+                      {site.is_active ? 'Ativo' : 'Inativo'}
+                    </span>
+                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-muted-foreground hover:text-primary"
+                        onClick={(e) => selectSite(e, site)}
+                      >
+                        <Wand2 className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                        onClick={(e) => handleDelete(e, site.id)}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
                   </div>
                 </div>
                 <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
@@ -376,8 +389,8 @@ export const CapturaSite = () => {
               </div>
 
               <div className="bg-muted/30 p-3 px-5 border-t border-border flex justify-between items-center">
-                <Button variant="link" className="p-0 h-auto text-xs text-primary font-medium" onClick={() => selectSite(site)}>
-                  EDITARbuilder
+                <Button variant="link" className="p-0 h-auto text-xs text-primary font-medium" onClick={(e) => selectSite(e, site)}>
+                  EDITAR
                 </Button>
                 <a
                   href={`${window.location.origin}/c/${site.slug}`}
@@ -403,9 +416,24 @@ export const CapturaSite = () => {
           <Button variant="ghost" size="sm" className="gap-2" onClick={() => setViewMode('list')}>
             <ArrowLeft className="w-4 h-4" /> Voltar
           </Button>
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-medium text-muted-foreground uppercase tracking-widest">Builder Mode</span>
-            <div className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+
+          <div className="flex items-center gap-6">
+            <div className="flex items-center gap-3 bg-background/50 border border-border px-3 py-1.5 rounded-full">
+              <Label htmlFor="active-toggle" className="text-[10px] font-bold uppercase tracking-widest cursor-pointer">
+                {isActive ? 'Página Ativa' : 'Página Inativa'}
+              </Label>
+              <Switch
+                id="active-toggle"
+                checked={isActive}
+                onCheckedChange={setIsActive}
+                className="data-[state=checked]:bg-emerald-500"
+              />
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-medium text-muted-foreground uppercase tracking-widest">Builder Mode</span>
+              <div className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+            </div>
           </div>
         </div>
 
