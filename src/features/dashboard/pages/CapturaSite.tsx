@@ -27,6 +27,16 @@ import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Switch } from "@/components/ui/switch";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 import {
   CaptureSite,
@@ -102,6 +112,9 @@ export const CapturaSite = () => {
   const [slugIsAvailable, setSlugIsAvailable] = useState<boolean | null>(null);
   const [uploadLoading, setUploadLoading] = useState(false);
 
+  // Modal de Exclusão
+  const [siteToDelete, setSiteToDelete] = useState<number | null>(null);
+
   useEffect(() => {
     loadSites();
   }, []);
@@ -123,7 +136,7 @@ export const CapturaSite = () => {
   };
 
   const selectSite = (e: React.MouseEvent, site: CaptureSite) => {
-    e.preventDefault();
+    console.log("selectSite triggered", site.id);
     e.stopPropagation();
     setActiveSiteId(site.id);
     setTitle(site.title || "");
@@ -231,19 +244,25 @@ export const CapturaSite = () => {
   };
 
   const handleDelete = async (e: React.MouseEvent, id: number) => {
-    e.preventDefault();
+    console.log("handleDelete triggered for ID:", id);
     e.stopPropagation();
+    setSiteToDelete(id);
+  };
 
-    if (!confirm("Tem certeza que deseja excluir esta página? Esta ação é irreversível.")) return;
+  const confirmDelete = async () => {
+    if (!siteToDelete) return;
 
     try {
-      // Usamos o id diretamente para filtrar, sem afetar o estado global de loading
-      // para evitar que o componente renderize skeletons desnecessariamente
-      await deleteSite(id);
-      setSites(prev => prev.filter(s => s.id !== id));
+      console.log("Calling deleteSite service for ID:", siteToDelete);
+      await deleteSite(siteToDelete);
+      setSites(prev => prev.filter(s => s.id !== siteToDelete));
       toast({ title: "Sucesso", description: "Página excluída com sucesso!" });
+      console.log("Deletion successful");
     } catch (error: any) {
+      console.error("Deletion failed:", error);
       toast({ title: "Erro", description: error.message, variant: "destructive" });
+    } finally {
+      setSiteToDelete(null);
     }
   };
 
@@ -348,19 +367,21 @@ export const CapturaSite = () => {
                     <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-widest ${site.is_active ? 'bg-emerald-500/10 text-emerald-500' : 'bg-destructive/10 text-destructive'}`}>
                       {site.is_active ? 'Ativo' : 'Inativo'}
                     </span>
-                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="flex gap-1 group-hover:opacity-100 transition-opacity">
                       <Button
+                        type="button"
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8 text-muted-foreground hover:text-primary"
+                        className="h-8 w-8 text-muted-foreground hover:text-primary z-50"
                         onClick={(e) => selectSite(e, site)}
                       >
                         <Wand2 className="w-4 h-4" />
                       </Button>
                       <Button
+                        type="button"
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                        className="h-8 w-8 text-muted-foreground hover:text-destructive z-50"
                         onClick={(e) => handleDelete(e, site.id)}
                       >
                         <Trash2 className="w-4 h-4" />
@@ -384,7 +405,7 @@ export const CapturaSite = () => {
                     style={{ backgroundColor: site.background_color || '#000000' }}
                     title="Cor de Fundo"
                   />
-                  {site.is_gradient && <Sparkles className="w-3 h-3 text-emerald-500" title="Gradiente Ativo" />}
+                  {site.is_gradient && <Sparkles className="w-3 h-3 text-emerald-500" />}
                 </div>
               </div>
 
@@ -882,6 +903,28 @@ export const CapturaSite = () => {
       <div className="flex-1 min-h-screen py-4">
         {viewMode === 'list' ? renderListView() : renderEditorView()}
       </div>
+
+      {/* Modal de Confirmação de Exclusão */}
+      <AlertDialog open={siteToDelete !== null} onOpenChange={(open) => !open && setSiteToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Tem certeza absoluta?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação não pode ser desfeita. Isso excluirá permanentemente sua página de captura
+              e todos os dados associados a ela.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Sim, excluir página
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </DashboardLayout>
   );
 };
