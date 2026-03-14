@@ -165,7 +165,13 @@ export const CapturaSite = () => {
     setViewMode('editor');
   };
 
+  const MAX_CAPTURE_SITES = 15;
+
   const handleNew = () => {
+    if (sites.length >= MAX_CAPTURE_SITES) {
+      toast({ title: "Limite atingido", description: `Você pode criar no máximo ${MAX_CAPTURE_SITES} páginas de captura.`, variant: "destructive" });
+      return;
+    }
     setActiveSiteId(null);
     setTitle("Nova Página de Captura");
     setSubtitle("Subtítulo persuasivo para converter seus visitantes");
@@ -333,9 +339,14 @@ export const CapturaSite = () => {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h2 className="text-2xl font-bold tracking-tight">Suas Páginas</h2>
-          <p className="text-muted-foreground">Gerencie suas páginas e converta mais leads.</p>
+          <p className="text-muted-foreground">
+            Gerencie suas páginas e converta mais leads.
+            <span className={`ml-2 text-xs font-medium ${sites.length >= MAX_CAPTURE_SITES ? "text-destructive" : "text-muted-foreground"}`}>
+              ({sites.length}/{MAX_CAPTURE_SITES})
+            </span>
+          </p>
         </div>
-        <Button onClick={handleNew} className="gap-2 bg-emerald-600 hover:bg-emerald-700">
+        <Button onClick={handleNew} disabled={sites.length >= MAX_CAPTURE_SITES} className="gap-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50">
           <Plus className="w-4 h-4" /> Criar Novo Site
         </Button>
       </div>

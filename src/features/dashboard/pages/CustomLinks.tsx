@@ -87,7 +87,13 @@ const CustomLinks = () => {
         setEditingLink(null);
     };
 
+    const MAX_CUSTOM_LINKS = 15;
+
     const handleNew = () => {
+        if (links.length >= MAX_CUSTOM_LINKS) {
+            toast({ title: "Limite atingido", description: `Você pode criar no máximo ${MAX_CUSTOM_LINKS} links.`, variant: "destructive" });
+            return;
+        }
         resetForm();
         setView("editor");
     };
@@ -205,9 +211,12 @@ const CustomLinks = () => {
                     <h1 className="text-2xl font-bold">Meus Links</h1>
                     <p className="text-muted-foreground text-sm mt-1">
                         Crie links personalizados que redirecionam para seus links de afiliado
+                        <span className={`ml-2 text-xs font-medium ${links.length >= MAX_CUSTOM_LINKS ? "text-destructive" : "text-muted-foreground"}`}>
+                            ({links.length}/{MAX_CUSTOM_LINKS})
+                        </span>
                     </p>
                 </div>
-                <Button onClick={handleNew}>
+                <Button onClick={handleNew} disabled={links.length >= MAX_CUSTOM_LINKS}>
                     <Plus className="w-4 h-4 mr-2" />
                     Novo Link
                 </Button>
