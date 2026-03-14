@@ -8,8 +8,14 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import {
     Plus, ArrowLeft, Copy, Pencil, Trash2, ExternalLink,
-    Link2, MousePointerClick, Loader2, Check, AlertCircle
+    Link2, MousePointerClick, Loader2, Check, AlertCircle,
+    CalendarIcon, X
 } from "lucide-react";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from "@/shared/lib/utils";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import {
     CustomLink, CustomLinkCreate, CustomLinkUpdate,
     getUserLinks, createLink, updateLink, deleteLink, checkLinkSlug
@@ -27,7 +33,13 @@ import {
 
 type ViewMode = "list" | "editor";
 
-const LINK_BASE_URL = "marketdash.com.br/l/";
+const getLinkBaseUrl = () => {
+    const host = window.location.hostname;
+    if (host.includes("hml")) return "hml.marketdash.com.br/l/";
+    if (host.includes("marketdash.com.br")) return "marketdash.com.br/l/";
+    return `${host}:${window.location.port}/l/`;
+};
+const LINK_BASE_URL = getLinkBaseUrl();
 
 const CustomLinks = () => {
     const { toast } = useToast();
@@ -44,7 +56,7 @@ const CustomLinks = () => {
     const [formUrl, setFormUrl] = useState("");
     const [formSlug, setFormSlug] = useState("");
     const [formTag, setFormTag] = useState("");
-    const [formExpiresAt, setFormExpiresAt] = useState("");
+    const [formExpiresAt, setFormExpiresAt] = useState<Date | undefined>(undefined);
     const [slugAvailable, setSlugAvailable] = useState<boolean | null>(null);
     const [slugChecking, setSlugChecking] = useState(false);
 
@@ -69,7 +81,7 @@ const CustomLinks = () => {
         setFormUrl("");
         setFormSlug("");
         setFormTag("");
-        setFormExpiresAt("");
+        setFormExpiresAt(undefined);
         setSlugAvailable(null);
         setEditingLink(null);
     };
@@ -85,7 +97,7 @@ const CustomLinks = () => {
         setFormUrl(link.original_url);
         setFormSlug(link.slug);
         setFormTag(link.tag || "");
-        setFormExpiresAt(link.expires_at ? link.expires_at.slice(0, 16) : "");
+        setFormExpiresAt(link.expires_at ? new Date(link.expires_at) : undefined);
         setSlugAvailable(null);
         setView("editor");
     };
@@ -126,7 +138,7 @@ const CustomLinks = () => {
                     original_url: formUrl,
                     slug: formSlug || undefined,
                     tag: formTag || undefined,
-                    expires_at: formExpiresAt || null,
+                    expires_at: formExpiresAt ? formExpiresAt.toISOString() : null,
                 };
                 await updateLink(editingLink.id, payload);
                 toast({ title: "Link atualizado!" });
@@ -136,7 +148,7 @@ const CustomLinks = () => {
                     original_url: formUrl,
                     slug: formSlug || undefined,
                     tag: formTag || undefined,
-                    expires_at: formExpiresAt || undefined,
+                    expires_at: formExpiresAt ? formExpiresAt.toISOString() : undefined,
                 };
                 await createLink(payload);
                 toast({ title: "Link criado!" });
@@ -381,13 +393,69 @@ const CustomLinks = () => {
                     </div>
 
                     <div className="space-y-2">
-                        <Label htmlFor="expires">Data de Expiracao (opcional)</Label>
-                        <Input
-                            id="expires"
-                            type="datetime-local"
-                            value={formExpiresAt}
-                            onChange={(e) => setFormExpiresAt(e.target.value)}
-                        />
+                        <Label>Data de Expiracao (opcional)</Label>
+                        <div className="flex gap-2">
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                    <Button
+                                        variant="outline"
+                                        className={cn(
+                                            "w-full justify-start text-left font-normal",
+                                            !formExpiresAt && "text-muted-foreground"
+                                        )}
+                                    >
+                                        <CalendarIcon className="mr-2 h-4 w-4" />
+                                        {formExpiresAt
+                                            ? format(formExpiresAt, "dd 'de' MMMM 'de' yyyy 'as' HH:mm", { locale: ptBR })
+                                            : "Selecionar data e horario"}
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0" align="start">
+                                    <Calendar
+                                        mode="single"
+                                        selected={formExpiresAt}
+                                        onSelect={(date) => {
+                                            if (!date) return setFormExpiresAt(undefined);
+                                            const prev = formExpiresAt;
+                                            if (prev) {
+                                                date.setHours(prev.getHours(), prev.getMinutes());
+                                            }
+                                            setFormExpiresAt(new Date(date));
+                                        }}
+                                        disabled={(date) => {
+                                            const today = new Date();
+                                            today.setHours(0, 0, 0, 0);
+                                            return date < today;
+                                        }}
+                                        initialFocus
+                                        locale={ptBR}
+                                    />
+                                    <div className="border-t border-border px-3 py-3 flex items-center gap-2">
+                                        <Label className="text-xs text-muted-foreground whitespace-nowrap">Horario:</Label>
+                                        <Input
+                                            type="time"
+                                            value={formExpiresAt ? format(formExpiresAt, "HH:mm") : ""}
+                                            onChange={(e) => {
+                                                const [h, m] = e.target.value.split(":").map(Number);
+                                                const date = formExpiresAt ? new Date(formExpiresAt) : new Date();
+                                                date.setHours(h, m, 0, 0);
+                                                setFormExpiresAt(new Date(date));
+                                            }}
+                                            className="h-8 w-24 text-sm"
+                                        />
+                                    </div>
+                                </PopoverContent>
+                            </Popover>
+                            {formExpiresAt && (
+                                <Button
+                                    variant="ghost" size="icon"
+                                    onClick={() => setFormExpiresAt(undefined)}
+                                    className="flex-shrink-0"
+                                >
+                                    <X className="w-4 h-4" />
+                                </Button>
+                            )}
+                        </div>
                     </div>
 
                     <Button
