@@ -22,7 +22,9 @@ import Modules from "@/features/dashboard/pages/Modules";
 import Settings from "@/features/dashboard/pages/Settings";
 import AdSpends from "@/features/dashboard/pages/AdSpends";
 import CapturaSite from "@/features/dashboard/pages/CapturaSite";
+import CustomLinks from "@/features/dashboard/pages/CustomLinks";
 import CaptureViewer from "@/features/landing/pages/CaptureViewer";
+import LinkRedirect from "@/features/landing/pages/LinkRedirect";
 import SubscriptionPage from "@/features/subscription/pages/SubscriptionPage";
 import SubscriptionSuccess from "@/features/subscription/pages/SubscriptionSuccess";
 import SubscriptionError from "@/features/subscription/pages/SubscriptionError";
@@ -158,9 +160,13 @@ export const AppRoutes = () => {
         <Route path="/dashboard/modules" element={<ProtectedRoute element={<Modules />} />} />
         <Route path="/dashboard/settings" element={<ProtectedRoute element={<Settings />} />} />
         <Route path="/dashboard/investimentos" element={<ProtectedRoute element={<AdSpends />} />} />
+        <Route path="/dashboard/links" element={<ProtectedRoute element={<CustomLinks />} />} />
 
         {/* Capture Public Route */}
         <Route path="/c/:slug" element={<CaptureViewer />} />
+
+        {/* Link Redirect Public Route */}
+        <Route path="/l/:slug" element={<LinkRedirect />} />
 
         {/* Fallback */}
         <Route path="*" element={<NotFound />} />

@@ -10,7 +10,8 @@ import {
   Wallet,
   X,
   MousePointerClick,
-  Globe
+  Globe,
+  Link2
 } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -34,6 +35,7 @@ const menuItems = [
   { icon: MousePointerClick, label: "Upload Cliques", path: "/dashboard/upload-cliques" },
   { icon: Wallet, label: "Custos de Anúncios", path: "/dashboard/investimentos" },
   { icon: Globe, label: "Página de Captura", path: "/dashboard/captura" },
+  { icon: Link2, label: "Meus Links", path: "/dashboard/links" },
   // { icon: FileText, label: "Relatório Dinâmico", path: "/dashboard/reports" },
   // { icon: Puzzle, label: "Módulos", path: "/dashboard/modules" }, // Temporarily hidden
 ];
