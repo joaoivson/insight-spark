@@ -50,7 +50,7 @@ const getBaseUrl = (): string => {
     if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
       return ''; // Vazio = usar o mesmo host/porta do frontend (proxy do Vite)
     }
-    return 'http://localhost:8000';
+    return 'http://localhost:8081';
   }
 
   // Mecanismo de rollback de emergência (apenas se explicitamente habilitado)

@@ -358,16 +358,88 @@ export const CapturaSite = () => {
         </Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {sites.map(site => (
-            <Card key={site.id} className="overflow-hidden flex flex-col group border-border/50 hover:border-emerald-500/30 transition-all shadow-sm hover:shadow-md">
-              <div className="p-5 flex-1">
-                <div className="flex items-start justify-between mb-2">
-                  <h3 className="font-bold text-lg truncate pr-4">{site.title}</h3>
-                  <div className="flex items-center gap-2">
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-widest ${site.is_active ? 'bg-emerald-500/10 text-emerald-500' : 'bg-destructive/10 text-destructive'}`}>
-                      {site.is_active ? 'Ativo' : 'Inativo'}
-                    </span>
-                    <div className="flex gap-1 group-hover:opacity-100 transition-opacity">
+          {sites.map(site => {
+            const siteUrl = `${window.location.origin}/c/${site.slug}`;
+            return (
+              <Card key={site.id} className="overflow-hidden flex flex-col group border-border/50 hover:border-emerald-500/30 transition-all shadow-sm hover:shadow-md">
+                {/* Preview no topo — mesma estrutura do /c/{slug} */}
+                <div
+                  className="relative w-full h-56 flex flex-col items-center overflow-hidden cursor-pointer"
+                  style={{
+                    backgroundColor: site.background_color || '#000000',
+                    backgroundImage: site.is_gradient ? `radial-gradient(circle at top, ${site.background_color || '#000000'} 0%, #000000 100%)` : 'none'
+                  }}
+                  onClick={(e) => selectSite(e, site)}
+                >
+                  {/* Urgency Banner */}
+                  {site.urgency_text && (
+                    <div
+                      className="w-full py-1.5 px-3 text-[8px] font-bold text-center uppercase tracking-wider flex items-center justify-center gap-1 shrink-0 border-b"
+                      style={{
+                        backgroundColor: site.urgency_color ? `${site.urgency_color}26` : 'rgba(16, 185, 129, 0.15)',
+                        borderColor: site.urgency_color ? `${site.urgency_color}33` : 'rgba(16, 185, 129, 0.2)',
+                        color: site.urgency_text_color || site.urgency_color || '#10b981'
+                      }}
+                    >
+                      {site.urgency_icon !== 'none' && URGENCY_ICONS[site.urgency_icon || ''] && (() => {
+                        const IconComp = URGENCY_ICONS[site.urgency_icon || ''];
+                        return <IconComp style={{ width: '10px', height: '10px' }} />;
+                      })()}
+                      <span className="truncate">{site.urgency_text}</span>
+                    </div>
+                  )}
+
+                  {/* Glows decorativos (2 como no /c/) */}
+                  <div
+                    className="absolute top-[-10%] left-1/2 -translate-x-1/2 w-[200%] h-[100px] blur-[60px] rounded-full pointer-events-none"
+                    style={{ backgroundColor: site.theme_color || '#10b981', opacity: 0.2 }}
+                  />
+                  <div
+                    className="absolute top-[40%] right-[-10%] w-[80px] h-[80px] blur-[40px] rounded-full pointer-events-none"
+                    style={{ backgroundColor: site.theme_color || '#10b981', opacity: 0.1 }}
+                  />
+
+                  {/* Conteúdo principal */}
+                  <div className="relative z-10 flex flex-col items-center text-center flex-1 justify-center px-4 gap-2">
+                    <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-white/10 bg-black/50 shrink-0">
+                      <img src={site.image_url || DEFAULT_IMAGE} alt="Logo" className="w-full h-full object-cover" />
+                    </div>
+                    <h4 className="text-xs font-extrabold tracking-tight truncate max-w-full drop-shadow-sm" style={{ color: site.text_primary_color || '#ffffff' }}>
+                      {site.title}
+                    </h4>
+                    {site.subtitle && (
+                      <p className="text-[8px] font-light truncate max-w-full" style={{ color: `${site.text_primary_color || '#ffffff'}cc` }}>
+                        {site.subtitle}
+                      </p>
+                    )}
+                    <div className="w-full max-w-[140px] relative group mt-1">
+                      <div
+                        className="absolute -inset-0.5 rounded-lg blur-sm opacity-50 pointer-events-none"
+                        style={{ backgroundColor: site.button_color || '#10b981' }}
+                      />
+                      <div
+                        className="relative z-10 w-full py-1.5 rounded-lg text-[9px] font-bold text-white text-center flex items-center justify-center gap-1 border"
+                        style={{
+                          backgroundColor: site.button_color || '#10b981',
+                          borderColor: 'rgba(255,255,255,0.1)'
+                        }}
+                      >
+                        <WhatsAppIcon className="w-3 h-3" />
+                        {site.button_text || 'CTA'}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Badge de status */}
+                  <span className={`absolute top-2 right-2 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-widest ${site.is_active ? 'bg-emerald-500/20 text-emerald-400' : 'bg-destructive/20 text-destructive'}`}>
+                    {site.is_active ? 'Ativo' : 'Inativo'}
+                  </span>
+                </div>
+
+                <div className="p-4 flex-1">
+                  <div className="flex items-start justify-between mb-3">
+                    <h3 className="font-bold text-lg truncate pr-4">{site.title}</h3>
+                    <div className="flex gap-1">
                       <Button
                         type="button"
                         variant="ghost"
@@ -388,42 +460,43 @@ export const CapturaSite = () => {
                       </Button>
                     </div>
                   </div>
-                </div>
-                <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
-                  <Globe className="w-3 h-3" />
-                  <span className="truncate">/c/{site.slug}</span>
+
+                  {/* Link com botão copiar */}
+                  <div className="flex items-center gap-2 bg-muted/30 rounded-md p-2 px-3">
+                    <Globe className="w-3 h-3 text-muted-foreground shrink-0" />
+                    <span className="text-xs text-muted-foreground truncate font-mono flex-1">/c/{site.slug}</span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 shrink-0 text-muted-foreground hover:text-primary"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigator.clipboard.writeText(siteUrl);
+                        toast({ title: "Copiado!", description: "Link copiado para a área de transferência." });
+                      }}
+                    >
+                      <Copy className="w-3.5 h-3.5" />
+                    </Button>
+                  </div>
                 </div>
 
-                <div className="flex items-center gap-3">
-                  <div
-                    className="w-4 h-4 rounded-full border border-border"
-                    style={{ backgroundColor: site.button_color || '#10b981' }}
-                    title="Cor do Botão"
-                  />
-                  <div
-                    className="w-4 h-4 rounded-full border border-border"
-                    style={{ backgroundColor: site.background_color || '#000000' }}
-                    title="Cor de Fundo"
-                  />
-                  {site.is_gradient && <Sparkles className="w-3 h-3 text-emerald-500" />}
+                <div className="bg-muted/30 p-3 px-5 border-t border-border flex justify-between items-center">
+                  <Button variant="link" className="p-0 h-auto text-xs text-primary font-medium" onClick={(e) => selectSite(e, site)}>
+                    EDITAR
+                  </Button>
+                  <a
+                    href={siteUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex items-center gap-1.5 text-xs font-semibold hover:underline"
+                  >
+                    VER PÁGINA <ExternalLink className="w-3 h-3" />
+                  </a>
                 </div>
-              </div>
-
-              <div className="bg-muted/30 p-3 px-5 border-t border-border flex justify-between items-center">
-                <Button variant="link" className="p-0 h-auto text-xs text-primary font-medium" onClick={(e) => selectSite(e, site)}>
-                  EDITAR
-                </Button>
-                <a
-                  href={`${window.location.origin}/c/${site.slug}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="flex items-center gap-1.5 text-xs font-semibold hover:underline"
-                >
-                  VER PÁGINA <ExternalLink className="w-3 h-3" />
-                </a>
-              </div>
-            </Card>
-          ))}
+              </Card>
+            );
+          })}
         </div>
       )}
     </div>
@@ -432,7 +505,7 @@ export const CapturaSite = () => {
   const renderEditorView = () => (
     <div className="flex flex-col lg:flex-row h-full min-h-[500px] bg-background border border-border rounded-xl overflow-hidden">
       {/* LEFT PANEL: EDITOR */}
-      <div className="w-full lg:w-1/2 flex flex-col overflow-y-auto border-r border-border">
+      <div className="w-full lg:w-1/2 flex flex-col overflow-y-auto border-r border-border order-2 lg:order-1">
         <div className="p-4 border-b border-border bg-muted/20 flex items-center justify-between sticky top-0 z-50 backdrop-blur-md">
           <Button variant="ghost" size="sm" className="gap-2" onClick={() => setViewMode('list')}>
             <ArrowLeft className="w-4 h-4" /> Voltar
@@ -788,104 +861,105 @@ export const CapturaSite = () => {
         </div>
       </div>
 
-      {/* RIGHT PANEL: LIVE PREVIEW */}
-      <div className="w-full lg:w-1/2 bg-muted/10 p-4 lg:p-8 flex items-center justify-center overflow-y-auto relative">
-        <div className="absolute top-4 right-4 flex gap-2">
-          <div className="px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-full flex items-center gap-2">
-            <Eye className="w-3 h-3 text-emerald-500" />
-            <span className="text-[10px] font-bold text-emerald-500 uppercase tracking-widest">Live Preview</span>
-          </div>
-        </div>
-
-        <div className="w-full max-w-[375px] h-[812px] max-h-full bg-black rounded-[45px] border-[12px] border-zinc-900 shadow-2xl relative overflow-hidden flex flex-col scale-[0.85] sm:scale-100 origin-center">
-          {/* Fake Mobile Status Bar */}
-          <div className="h-7 w-full flex items-center justify-center pt-2 shrink-0 bg-black/40 backdrop-blur-sm z-50">
-            <div className="w-[100px] h-4 bg-zinc-800 rounded-full" />
+      {/* RIGHT PANEL: LIVE PREVIEW — sticky no topo */}
+      <div className="w-full lg:w-1/2 bg-muted/10 overflow-y-auto relative order-1 lg:order-2">
+        <div className="sticky top-0 p-4 lg:p-6">
+          <div className="flex justify-end mb-3">
+            <div className="px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-full flex items-center gap-2">
+              <Eye className="w-3 h-3 text-emerald-500" />
+              <span className="text-[10px] font-bold text-emerald-500 uppercase tracking-widest">Live Preview</span>
+            </div>
           </div>
 
-          {/* The Preview Content */}
-          <div
-            className="flex-1 overflow-y-auto preview-scroll scrollbar-hide flex flex-col relative"
-            style={{
-              backgroundColor: backgroundColor || '#000000',
-              backgroundImage: isGradient ? `radial-gradient(circle at top, ${backgroundColor || '#000000'} 0%, #000000 100%)` : 'none'
-            }}
-          >
-            {/* Urgency Banner */}
-            {urgencyText && (
+          <div className="flex items-start justify-center">
+            <div className="w-full max-w-[375px] h-[700px] bg-black rounded-[45px] border-[12px] border-zinc-900 shadow-2xl relative overflow-hidden flex flex-col scale-[0.85] sm:scale-100 origin-top">
+              {/* Fake Mobile Status Bar */}
+              <div className="h-7 w-full flex items-center justify-center pt-2 shrink-0 bg-black/40 backdrop-blur-sm z-50">
+                <div className="w-[100px] h-4 bg-zinc-800 rounded-full" />
+              </div>
+
+              {/* Preview Content */}
               <div
-                className="w-full py-2.5 px-6 border-b text-[11px] font-bold text-center backdrop-blur-md z-40 sticky top-0 uppercase tracking-wider flex items-center justify-center gap-2 shadow-sm"
+                className="flex-1 overflow-y-auto preview-scroll scrollbar-hide flex flex-col relative"
                 style={{
-                  backgroundColor: urgencyColor ? `${urgencyColor}26` : 'rgba(16, 185, 129, 0.15)',
-                  borderColor: urgencyColor ? `${urgencyColor}33` : 'rgba(16, 185, 129, 0.2)',
-                  color: urgencyTextColor || urgencyColor || '#10b981'
+                  backgroundColor: backgroundColor || '#000000',
+                  backgroundImage: isGradient ? `radial-gradient(circle at top, ${backgroundColor || '#000000'} 0%, #000000 100%)` : 'none'
                 }}
               >
-                {urgencyIcon !== 'none' && URGENCY_ICONS[urgencyIcon] && (
-                  (() => {
-                    const IconComp = URGENCY_ICONS[urgencyIcon];
-                    const animationClass =
-                      urgencyAnimation === 'pulse' ? 'animate-pulse' :
-                        urgencyAnimation === 'blink' ? 'animate-[pulse_0.5s_ease-in-out_infinite]' : // Efeito de piscar rápido
-                          urgencyAnimation === 'bounce' ? 'animate-bounce' : '';
-
-                    return (
-                      <IconComp
-                        className={animationClass}
-                        style={{ width: `${urgencyIconSize}px`, height: `${urgencyIconSize}px` }}
-                      />
-                    );
-                  })()
-                )}
-                {urgencyText}
-              </div>
-            )}
-
-            <div className="flex-1 flex flex-col text-white p-8 relative">
-              {/* Decorative Glow */}
-              <div
-                className="absolute top-0 left-1/2 -translate-x-1/2 w-[160%] h-[350px] blur-[100px] rounded-full pointer-events-none"
-                style={{ backgroundColor: themeColor || '#10b981', opacity: 0.15 }}
-              />
-
-              <div className="flex-1 flex flex-col relative z-20 items-center text-center pt-6">
-                {/* Image/Logo */}
-                <div className="w-24 h-24 mb-8 rounded-full overflow-hidden border-4 border-white/10 shadow-2xl flex-shrink-0 bg-zinc-900">
-                  <img src={imageUrl || DEFAULT_IMAGE} alt="Logo" className="w-full h-full object-cover" />
-                </div>
-
-                <h1 className="text-3xl font-black tracking-tight mb-5 leading-[1.1]" style={{ color: textPrimaryColor }}>
-                  {title || "Título Irresistível Aqui"}
-                </h1>
-
-                <p className="text-base mb-10 leading-relaxed font-light px-2" style={{ color: `${textPrimaryColor}b3` }}>
-                  {subtitle || "Uma descrição poderosa que complementa seu título e aumenta o desejo do seu cliente."}
-                </p>
-
-                <div className="w-full relative group mb-12">
+                {/* Urgency Banner */}
+                {urgencyText && (
                   <div
-                    className="absolute -inset-1 blur-lg opacity-40 group-hover:opacity-75 transition duration-200 rounded-2xl"
-                    style={{ backgroundColor: buttonColor || '#10b981' }}
-                  ></div>
-                  <Button
-                    className="w-full h-16 rounded-2xl text-lg font-bold shadow-2xl relative z-10 gap-3 border transition-all"
+                    className="w-full px-4 border-b font-bold text-center backdrop-blur-md z-40 sticky top-0 flex items-center justify-center gap-2 shadow-lg uppercase tracking-wider py-2 text-[10px]"
                     style={{
-                      backgroundColor: buttonColor || '#10b981',
-                      borderColor: 'rgba(255,255,255,0.1)'
+                      backgroundColor: urgencyColor ? `${urgencyColor}26` : 'rgba(16, 185, 129, 0.15)',
+                      borderColor: urgencyColor ? `${urgencyColor}33` : 'rgba(16, 185, 129, 0.2)',
+                      color: urgencyTextColor || urgencyColor || '#10b981'
                     }}
                   >
-                    <WhatsAppIcon className="w-6 h-6" />
-                    {buttonText || "Botão de Ação"}
-                  </Button>
-                </div>
+                    {urgencyIcon !== 'none' && URGENCY_ICONS[urgencyIcon] && (() => {
+                      const IconComp = URGENCY_ICONS[urgencyIcon];
+                      const animationClass =
+                        urgencyAnimation === 'pulse' ? 'animate-pulse' :
+                          urgencyAnimation === 'blink' ? 'animate-[pulse_0.5s_ease-in-out_infinite]' :
+                            urgencyAnimation === 'bounce' ? 'animate-bounce' : '';
+                      return (
+                        <IconComp
+                          className={animationClass}
+                          style={{ width: `${urgencyIconSize}px`, height: `${urgencyIconSize}px`, color: urgencyTextColor || urgencyColor || '#10b981' }}
+                        />
+                      );
+                    })()}
+                    {urgencyText}
+                  </div>
+                )}
 
-                <div className="space-y-4 w-full text-left">
-                  {benefits.split('\n').filter(b => b.trim()).map((benefit, i) => (
-                    <div key={i} className="flex items-start gap-4 bg-white/[0.03] p-5 rounded-2xl border border-white/[0.05] backdrop-blur-sm shadow-sm transition-all hover:bg-white/[0.06]">
-                      <CheckCircle2 className="w-6 h-6 text-emerald-400 flex-shrink-0 mt-0.5" />
-                      <span className="leading-snug font-medium text-base" style={{ color: `${textPrimaryColor}e6` }}>{benefit}</span>
+                <div className="flex-1 flex flex-col text-white relative">
+                  {/* Decorative Glows */}
+                  <div
+                    className="absolute top-[-10%] left-1/2 -translate-x-1/2 w-[200%] h-[250px] blur-[100px] rounded-full pointer-events-none"
+                    style={{ backgroundColor: themeColor || '#10b981', opacity: 0.2 }}
+                  />
+                  <div
+                    className="absolute top-[40%] right-[-10%] w-[200px] h-[200px] blur-[80px] rounded-full pointer-events-none"
+                    style={{ backgroundColor: themeColor || '#10b981', opacity: 0.1 }}
+                  />
+
+                  <div className={`flex-1 flex flex-col relative z-20 items-center text-center px-6 pb-8 ${urgencyText ? 'pt-6' : 'pt-8'}`}>
+                    <div className="w-20 h-20 mb-6 rounded-full overflow-hidden border-4 border-white/10 shadow-2xl flex-shrink-0 bg-black/50">
+                      <img src={imageUrl || DEFAULT_IMAGE} alt="Logo" className="w-full h-full object-cover" />
                     </div>
-                  ))}
+
+                    <h1 className="text-2xl font-extrabold tracking-tight mb-4 leading-tight drop-shadow-sm" style={{ color: textPrimaryColor }}>
+                      {title || "Título Irresistível Aqui"}
+                    </h1>
+
+                    <p className="text-sm mb-8 leading-relaxed font-light px-2" style={{ color: textPrimaryColor ? `${textPrimaryColor}cc` : 'rgba(255,255,255,0.8)' }}>
+                      {subtitle || "Uma descrição poderosa que complementa seu título."}
+                    </p>
+
+                    <div className="w-full relative group mb-10">
+                      <div
+                        className="absolute -inset-1 rounded-2xl blur-lg opacity-50 group-hover:opacity-75 transition duration-200"
+                        style={{ backgroundColor: buttonColor || '#10b981' }}
+                      />
+                      <Button
+                        className="w-full h-14 rounded-2xl text-base font-bold text-white shadow-xl border transition-all relative z-10 gap-3"
+                        style={{ backgroundColor: buttonColor || '#10b981', borderColor: 'rgba(255,255,255,0.1)' }}
+                      >
+                        <WhatsAppIcon className="w-5 h-5" />
+                        {buttonText || "Botão de Ação"}
+                      </Button>
+                    </div>
+
+                    <div className="space-y-3 w-full text-left">
+                      {benefits.split('\n').filter(b => b.trim()).map((benefit, i) => (
+                        <div key={i} className="flex items-start gap-3 bg-white/5 p-4 rounded-2xl border border-white/10 backdrop-blur-md shadow-lg transition-transform hover:-translate-y-1">
+                          <CheckCircle2 className="w-5 h-5 text-emerald-400 flex-shrink-0 mt-0.5 drop-shadow-[0_0_8px_rgba(52,211,153,0.5)]" />
+                          <span className="leading-relaxed font-medium text-sm" style={{ color: textPrimaryColor ? `${textPrimaryColor}f2` : 'rgba(255,255,255,0.95)' }}>{benefit}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
