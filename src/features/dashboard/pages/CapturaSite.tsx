@@ -24,6 +24,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { Switch } from "@/components/ui/switch";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
@@ -342,7 +343,31 @@ export const CapturaSite = () => {
       {loading && sites.length === 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {[1, 2, 3].map(i => (
-            <Card key={i} className="h-48 animate-pulse bg-muted" />
+            <Card key={i} className="overflow-hidden flex flex-col border-border/50">
+              {/* Preview skeleton */}
+              <div className="relative w-full h-56 bg-muted flex flex-col items-center justify-center gap-3 p-4">
+                <Skeleton className="w-10 h-10 rounded-full" />
+                <Skeleton className="h-3 w-28" />
+                <Skeleton className="h-2 w-20" />
+                <Skeleton className="h-7 w-32 rounded-lg mt-1" />
+                <Skeleton className="absolute top-2 right-2 h-5 w-14 rounded-full" />
+              </div>
+              {/* Info skeleton */}
+              <div className="p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <Skeleton className="h-5 w-36" />
+                  <div className="flex gap-1">
+                    <Skeleton className="h-8 w-8 rounded-md" />
+                    <Skeleton className="h-8 w-8 rounded-md" />
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 bg-muted/30 rounded-md p-2 px-3">
+                  <Skeleton className="h-3 w-3 rounded-full" />
+                  <Skeleton className="h-3 w-28" />
+                  <Skeleton className="h-7 w-7 rounded-md ml-auto" />
+                </div>
+              </div>
+            </Card>
           ))}
         </div>
       ) : sites.length === 0 ? (

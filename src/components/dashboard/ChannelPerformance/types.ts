@@ -30,6 +30,7 @@ export interface ChannelPerformanceProps {
     rows: DatasetRow[];
     adSpends: any[]; // Using any temporarily if adSpends type is complex or elsewhere
     dateRange?: DateRange;
+    subIdFilter?: string;
     showSubTable?: boolean;
     showDayTable?: boolean;
     showHighlights?: boolean;

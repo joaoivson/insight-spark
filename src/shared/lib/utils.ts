@@ -21,7 +21,7 @@ export function normalizeSubId(subId: string | null | undefined): string {
   
   // Se após a limpeza a string ficar vazia, retorna padrão
   if (cleaned === "") return "Sem Sub ID";
-  
-  return cleaned;
+
+  return cleaned.toLowerCase();
 }
 

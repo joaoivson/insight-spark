@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/shared/lib/utils";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -213,8 +214,33 @@ const CustomLinks = () => {
             </div>
 
             {loading ? (
-                <div className="flex justify-center py-12">
-                    <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                    {[1, 2, 3].map((i) => (
+                        <div key={i} className="bg-card border border-border rounded-lg p-4 space-y-3">
+                            <div className="flex items-start justify-between">
+                                <div className="space-y-1.5 flex-1">
+                                    <Skeleton className="h-5 w-32" />
+                                    <Skeleton className="h-3 w-48" />
+                                </div>
+                                <Skeleton className="h-5 w-9 rounded-full ml-2" />
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                                <Skeleton className="h-3.5 w-3.5 rounded-full" />
+                                <Skeleton className="h-3.5 w-40" />
+                            </div>
+                            <div className="flex items-center gap-3">
+                                <Skeleton className="h-3 w-20" />
+                                <Skeleton className="h-3 w-16" />
+                                <Skeleton className="h-4 w-12 rounded-full" />
+                            </div>
+                            <div className="flex items-center gap-1 pt-1 border-t border-border">
+                                <Skeleton className="h-8 w-8 rounded-md" />
+                                <Skeleton className="h-8 w-8 rounded-md" />
+                                <Skeleton className="h-8 w-8 rounded-md" />
+                                <Skeleton className="h-8 w-8 rounded-md ml-auto" />
+                            </div>
+                        </div>
+                    ))}
                 </div>
             ) : links.length === 0 ? (
                 <div className="text-center py-16 border border-dashed border-border rounded-lg">

@@ -8,11 +8,12 @@ const ChannelPerformance = ({
     rows,
     adSpends,
     dateRange,
+    subIdFilter,
     showSubTable = true,
     showDayTable = true,
     showHighlights = true,
 }: ChannelPerformanceProps) => {
-    const { channelMetrics, dailyMetrics, highlights } = useChannelMetrics(rows, adSpends, dateRange);
+    const { channelMetrics, dailyMetrics, highlights } = useChannelMetrics(rows, adSpends, dateRange, subIdFilter);
 
     if (!channelMetrics.length) return null;
 

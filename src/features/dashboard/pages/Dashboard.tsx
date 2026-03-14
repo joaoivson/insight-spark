@@ -209,6 +209,7 @@ const Dashboard = () => {
                           rows={filteredRows}
                           adSpends={adSpends}
                           dateRange={dateRange}
+                          subIdFilter={subIdFilter}
                           showSubTable={false}
                           showDayTable
                           showHighlights={false}
@@ -218,7 +219,7 @@ const Dashboard = () => {
                   />
 
                   <div className="mt-8">
-                    <ChannelPerformance rows={filteredRows} adSpends={adSpends} dateRange={dateRange} showDayTable={false} showHighlights />
+                    <ChannelPerformance rows={filteredRows} adSpends={adSpends} dateRange={dateRange} subIdFilter={subIdFilter} showDayTable={false} showHighlights />
                   </div>
 
                 </>
