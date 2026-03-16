@@ -3,12 +3,14 @@ import { DatasetRow } from "../../DataTable";
 import { AdSpend } from "@/shared/types/adspend";
 import { isBeforeDateKey, isAfterDateKey, parseDateOnly } from "@/shared/lib/date";
 import { filterKpiRows, getComissaoCents } from "@/shared/lib/kpi";
+import { normalizeSubId } from "@/shared/lib/utils";
 import { DateRange, ChannelMetric, DayMetric } from "../types";
 
 export const useChannelMetrics = (
     rows: DatasetRow[],
     adSpends: AdSpend[],
-    dateRange?: DateRange
+    dateRange?: DateRange,
+    subIdFilter?: string
 ) => {
     // Filter rows by dateRange and KPI status (Pendente, Concluído) — mesma fonte que kpi.ts
     const filteredRows = useMemo(() => {
@@ -23,23 +25,22 @@ export const useChannelMetrics = (
         return filterKpiRows(dateFiltered);
     }, [rows, dateRange]);
 
-    // Filter adSpends by dateRange
+    // Filter adSpends by dateRange and subIdFilter
     const filteredAdSpends = useMemo(() => {
-        if (!dateRange?.from && !dateRange?.to) return adSpends;
         return adSpends.filter((spend) => {
-            const spendDate = spend.date;
-            if (dateRange.from && isBeforeDateKey(spendDate, dateRange.from)) return false;
-            if (dateRange.to && isAfterDateKey(spendDate, dateRange.to)) return false;
+            if (dateRange?.from && isBeforeDateKey(spend.date, dateRange.from)) return false;
+            if (dateRange?.to && isAfterDateKey(spend.date, dateRange.to)) return false;
+            if (subIdFilter && normalizeSubId(spend.sub_id) !== subIdFilter.toLowerCase()) return false;
             return true;
         });
-    }, [adSpends, dateRange]);
+    }, [adSpends, dateRange, subIdFilter]);
 
     const channelMetrics = useMemo(() => {
         const channelMap = new Map<string, { commission: number; spend: number; orders: number }>();
 
         // 1. Processar Comissões por canal (Sub ID)
         filteredRows.forEach((row) => {
-            const channel = row.sub_id1 || "Orgânico/Outros";
+            const channel = (row.sub_id1 || "Orgânico/Outros").toLowerCase();
             const current = channelMap.get(channel) || { commission: 0, spend: 0, orders: 0 };
 
             const commission = getComissaoCents(row) / 100;
@@ -58,7 +59,7 @@ export const useChannelMetrics = (
             if (!spend.sub_id || spend.sub_id === "Geral/Institucional") {
                 totalGeneralSpend += (spend.amount || 0);
             } else {
-                const channel = spend.sub_id;
+                const channel = spend.sub_id.toLowerCase();
                 const current = channelMap.get(channel) || { commission: 0, spend: 0, orders: 0 };
                 channelMap.set(channel, {
                     ...current,

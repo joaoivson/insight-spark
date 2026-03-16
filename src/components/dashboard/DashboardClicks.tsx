@@ -132,6 +132,12 @@ const DashboardClicks = ({ clicks: rawClicks, totalClicksFromApi, adSpends = [],
   const [daySortDirection, setDaySortDirection] = useState<"asc" | "desc">("desc");
   const [compSortColumn, setCompSortColumn] = useState<string>("total");
   const [compSortDirection, setCompSortDirection] = useState<"asc" | "desc">("desc");
+  const [compSubPage, setCompSubPage] = useState(0);
+  const [compSubPageSize, setCompSubPageSize] = useState(5);
+  const [compDaySortColumn, setCompDaySortColumn] = useState<string>("day");
+  const [compDaySortDirection, setCompDaySortDirection] = useState<"asc" | "desc">("desc");
+  const [compDayPage, setCompDayPage] = useState(0);
+  const [compDayPageSize, setCompDayPageSize] = useState(5);
   const [pieActiveIndex, setPieActiveIndex] = useState<number | null>(null);
   const [chartMode, setChartMode] = useState<"day" | "month">("day");
 
@@ -211,6 +217,55 @@ const DashboardClicks = ({ clicks: rawClicks, totalClicksFromApi, adSpends = [],
 
     return data;
   }, [filteredClicks, adSpends, compSortColumn, compSortDirection]);
+
+  // Comparação por Dia: Cliques Anúncios vs Cliques Shopee
+  const comparisonDayStats = useMemo(() => {
+    const csvByDay = filteredClicks.reduce((acc, item) => {
+      const day = item.date || "Sem data";
+      if (day === "Sem data") return acc;
+      acc[day] = (acc[day] || 0) + getItemClicks(item);
+      return acc;
+    }, {} as Record<string, number>);
+
+    const adsByDay = adSpends.reduce((acc, item) => {
+      if (!item.date) return acc;
+      if (subIdFilter && normalizeSubId(item.sub_id || "Geral") !== subIdFilter.toLowerCase()) return acc;
+      const itemDateKey = toDateKey(item.date);
+      if (dateRange?.from && itemDateKey < toDateKey(dateRange.from)) return acc;
+      if (dateRange?.to && itemDateKey > toDateKey(dateRange.to)) return acc;
+      acc[itemDateKey] = (acc[itemDateKey] || 0) + (item.clicks || 0);
+      return acc;
+    }, {} as Record<string, number>);
+
+    const allDays = Array.from(new Set([...Object.keys(csvByDay), ...Object.keys(adsByDay)]));
+
+    let data = allDays.map(day => {
+      const csvClicks = csvByDay[day] || 0;
+      const adsClicks = adsByDay[day] || 0;
+      const diff = csvClicks - adsClicks;
+      const diffPercent = adsClicks > 0 ? ((csvClicks - adsClicks) / adsClicks) * 100 : 0;
+      return { day, csvClicks, adsClicks, diff, diffPercent, total: csvClicks + adsClicks };
+    });
+
+    data.sort((a, b) => {
+      const factor = compDaySortDirection === "asc" ? 1 : -1;
+      const valA = (a as any)[compDaySortColumn];
+      const valB = (b as any)[compDaySortColumn];
+      if (typeof valA === "string") return valA.localeCompare(valB) * factor;
+      return (valA - valB) * factor;
+    });
+
+    return data;
+  }, [filteredClicks, adSpends, subIdFilter, dateRange, compDaySortColumn, compDaySortDirection]);
+
+  const handleCompDaySort = (column: string) => {
+    if (compDaySortColumn === column) {
+      setCompDaySortDirection(prev => prev === "asc" ? "desc" : "asc");
+    } else {
+      setCompDaySortColumn(column);
+      setCompDaySortDirection("desc");
+    }
+  };
 
   const channelStats = useMemo(() => {
     const byChannel = filteredClicks.reduce(
@@ -534,32 +589,181 @@ const DashboardClicks = ({ clicks: rawClicks, totalClicksFromApi, adSpends = [],
             </TableRow>
           </TableHeader>
           <TableBody>
-            {comparisonStats.map((item) => (
-              <TableRow key={item.subId} className="hover:bg-secondary/20 border-border/50 transition-colors">
-                <TableCell className="font-medium py-4">{item.subId === "Sem Sub ID" ? "Sem Sub ID" : item.subId.toLowerCase()}</TableCell>
-                <TableCell className="text-right font-mono py-4">{item.adsClicks.toLocaleString("pt-BR")}</TableCell>
-                <TableCell className="text-right font-mono py-4">{item.csvClicks.toLocaleString("pt-BR")}</TableCell>
-                <TableCell className={cn(
-                  "text-right font-mono py-4 font-bold",
-                  item.diff > 0 ? "text-success" : item.diff < 0 ? "text-destructive" : "text-muted-foreground"
-                )}>
-                  {item.diff > 0 ? "+" : ""}{item.diff.toLocaleString("pt-BR")}
-                </TableCell>
-                <TableCell className={cn(
-                  "text-right text-xs py-4 font-medium",
-                  item.diff > 0 ? "text-success" : item.diff < 0 ? "text-destructive" : "text-muted-foreground"
-                )}>
-                  {item.diffPercent > 0 ? "+" : ""}{item.diffPercent.toFixed(1)}%
-                </TableCell>
-              </TableRow>
-            ))}
-            {comparisonStats.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={5} className="text-center py-8 text-muted-foreground italic">
-                  Nenhum dado para comparação disponível.
-                </TableCell>
-              </TableRow>
-            )}
+            {(() => {
+              const totalPages = Math.max(1, Math.ceil(comparisonStats.length / compSubPageSize));
+              const safePage = Math.min(compSubPage, totalPages - 1);
+              const start = safePage * compSubPageSize;
+              const pageRows = comparisonStats.slice(start, start + compSubPageSize);
+
+              return (
+                <>
+                  {pageRows.map((item) => (
+                    <TableRow key={item.subId} className="hover:bg-secondary/20 border-border/50 transition-colors">
+                      <TableCell className="font-medium py-4">{item.subId === "Sem Sub ID" ? "Sem Sub ID" : item.subId.toLowerCase()}</TableCell>
+                      <TableCell className="text-right font-mono py-4">{item.adsClicks.toLocaleString("pt-BR")}</TableCell>
+                      <TableCell className="text-right font-mono py-4">{item.csvClicks.toLocaleString("pt-BR")}</TableCell>
+                      <TableCell className={cn(
+                        "text-right font-mono py-4 font-bold",
+                        item.diff > 0 ? "text-success" : item.diff < 0 ? "text-destructive" : "text-muted-foreground"
+                      )}>
+                        {item.diff > 0 ? "+" : ""}{item.diff.toLocaleString("pt-BR")}
+                      </TableCell>
+                      <TableCell className={cn(
+                        "text-right text-xs py-4 font-medium",
+                        item.diff > 0 ? "text-success" : item.diff < 0 ? "text-destructive" : "text-muted-foreground"
+                      )}>
+                        {item.diffPercent > 0 ? "+" : ""}{item.diffPercent.toFixed(1)}%
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  {comparisonStats.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center py-8 text-muted-foreground italic">
+                        Nenhum dado para comparação disponível.
+                      </TableCell>
+                    </TableRow>
+                  )}
+                  {comparisonStats.length > 0 && (
+                    <TableRow>
+                      <TableCell colSpan={5} className="p-3">
+                        <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground">
+                          <div className="flex items-center gap-2">
+                            <span>Linhas por página</span>
+                            <select
+                              className="bg-background border border-border rounded px-2 py-1"
+                              value={String(compSubPageSize)}
+                              onChange={(e) => { setCompSubPageSize(Number(e.target.value)); setCompSubPage(0); }}
+                            >
+                              {[5, 10, 25, 50].map((n) => (
+                                <option key={n} value={n}>{n}</option>
+                              ))}
+                            </select>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <button className="px-2 py-1 rounded border border-border disabled:opacity-50" onClick={() => setCompSubPage(0)} disabled={safePage === 0}>Primeira</button>
+                            <button className="px-2 py-1 rounded border border-border disabled:opacity-50" onClick={() => setCompSubPage(p => Math.max(0, p - 1))} disabled={safePage === 0}>Anterior</button>
+                            <span>Página {safePage + 1} de {totalPages}</span>
+                            <button className="px-2 py-1 rounded border border-border disabled:opacity-50" onClick={() => setCompSubPage(p => Math.min(totalPages - 1, p + 1))} disabled={safePage >= totalPages - 1}>Próxima</button>
+                            <button className="px-2 py-1 rounded border border-border disabled:opacity-50" onClick={() => setCompSubPage(totalPages - 1)} disabled={safePage >= totalPages - 1}>Última</button>
+                          </div>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </>
+              );
+            })()}
+          </TableBody>
+        </Table>
+      </motion.div>
+
+      {/* Comparison by Day: Ads vs CSV */}
+      <motion.div
+        variants={chartItemVariants}
+        initial="hidden"
+        animate="show"
+        className="bg-card border border-border rounded-xl overflow-hidden shadow-sm"
+      >
+        <div className="p-4 border-b border-border bg-secondary/5 flex items-center gap-2">
+          <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+          <Calendar className="w-4 h-4 text-primary" />
+          <h3 className="font-display font-semibold text-sm tracking-wider lowercase">comparativo: anúncios vs shopee (por dia)</h3>
+        </div>
+        <Table>
+          <TableHeader>
+            <TableRow className="hover:bg-transparent border-border/50">
+              <TableHead className="w-[140px]">
+                <button onClick={() => handleCompDaySort("day")} className="flex items-center gap-1 hover:text-foreground transition-colors text-xs font-bold tracking-wider lowercase">
+                  dia <ArrowUpDown className="w-3 h-3" />
+                </button>
+              </TableHead>
+              <TableHead className="text-right">
+                <button onClick={() => handleCompDaySort("adsClicks")} className="flex items-center gap-1 hover:text-foreground transition-colors ml-auto text-xs font-bold tracking-wider lowercase">
+                  cliques anúncios <ArrowUpDown className="w-3 h-3" />
+                </button>
+              </TableHead>
+              <TableHead className="text-right">
+                <button onClick={() => handleCompDaySort("csvClicks")} className="flex items-center gap-1 hover:text-foreground transition-colors ml-auto text-xs font-bold tracking-wider lowercase">
+                  cliques shopee <ArrowUpDown className="w-3 h-3" />
+                </button>
+              </TableHead>
+              <TableHead className="text-right">
+                <button onClick={() => handleCompDaySort("diff")} className="flex items-center gap-1 hover:text-foreground transition-colors ml-auto text-xs font-bold uppercase tracking-wider">
+                  Diferença <ArrowUpDown className="w-3 h-3" />
+                </button>
+              </TableHead>
+              <TableHead className="text-right">
+                <button onClick={() => handleCompDaySort("diffPercent")} className="flex items-center gap-1 hover:text-foreground transition-colors ml-auto text-xs font-bold tracking-wider lowercase">
+                  % dif. <ArrowUpDown className="w-3 h-3" />
+                </button>
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {(() => {
+              const totalPages = Math.max(1, Math.ceil(comparisonDayStats.length / compDayPageSize));
+              const safePage = Math.min(compDayPage, totalPages - 1);
+              const start = safePage * compDayPageSize;
+              const pageRows = comparisonDayStats.slice(start, start + compDayPageSize);
+
+              return (
+                <>
+                  {pageRows.map((item) => (
+                    <TableRow key={item.day} className="hover:bg-secondary/20 border-border/50 transition-colors">
+                      <TableCell className="font-medium py-4">{formatDateLabelDDMM(item.day)}</TableCell>
+                      <TableCell className="text-right font-mono py-4">{item.adsClicks.toLocaleString("pt-BR")}</TableCell>
+                      <TableCell className="text-right font-mono py-4">{item.csvClicks.toLocaleString("pt-BR")}</TableCell>
+                      <TableCell className={cn(
+                        "text-right font-mono py-4 font-bold",
+                        item.diff > 0 ? "text-success" : item.diff < 0 ? "text-destructive" : "text-muted-foreground"
+                      )}>
+                        {item.diff > 0 ? "+" : ""}{item.diff.toLocaleString("pt-BR")}
+                      </TableCell>
+                      <TableCell className={cn(
+                        "text-right text-xs py-4 font-medium",
+                        item.diff > 0 ? "text-success" : item.diff < 0 ? "text-destructive" : "text-muted-foreground"
+                      )}>
+                        {item.diffPercent > 0 ? "+" : ""}{item.diffPercent.toFixed(1)}%
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  {comparisonDayStats.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center py-8 text-muted-foreground italic">
+                        Nenhum dado para comparação disponível.
+                      </TableCell>
+                    </TableRow>
+                  )}
+                  {comparisonDayStats.length > 0 && (
+                    <TableRow>
+                      <TableCell colSpan={5} className="p-3">
+                        <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground">
+                          <div className="flex items-center gap-2">
+                            <span>Linhas por página</span>
+                            <select
+                              className="bg-background border border-border rounded px-2 py-1"
+                              value={String(compDayPageSize)}
+                              onChange={(e) => { setCompDayPageSize(Number(e.target.value)); setCompDayPage(0); }}
+                            >
+                              {[5, 10, 25, 50].map((n) => (
+                                <option key={n} value={n}>{n}</option>
+                              ))}
+                            </select>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <button className="px-2 py-1 rounded border border-border disabled:opacity-50" onClick={() => setCompDayPage(0)} disabled={safePage === 0}>Primeira</button>
+                            <button className="px-2 py-1 rounded border border-border disabled:opacity-50" onClick={() => setCompDayPage(p => Math.max(0, p - 1))} disabled={safePage === 0}>Anterior</button>
+                            <span>Página {safePage + 1} de {totalPages}</span>
+                            <button className="px-2 py-1 rounded border border-border disabled:opacity-50" onClick={() => setCompDayPage(p => Math.min(totalPages - 1, p + 1))} disabled={safePage >= totalPages - 1}>Próxima</button>
+                            <button className="px-2 py-1 rounded border border-border disabled:opacity-50" onClick={() => setCompDayPage(totalPages - 1)} disabled={safePage >= totalPages - 1}>Última</button>
+                          </div>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </>
+              );
+            })()}
           </TableBody>
         </Table>
       </motion.div>

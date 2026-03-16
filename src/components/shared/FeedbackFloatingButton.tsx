@@ -122,6 +122,7 @@ export const FeedbackFloatingButton = () => {
     }
   };
 
+  if (location.pathname.startsWith('/c/')) return null;
   if (!canShowFeedback) return null;
 
   return (

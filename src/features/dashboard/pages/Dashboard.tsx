@@ -14,8 +14,10 @@ import {
   AlertTriangle,
   TrendingUp,
   MousePointerClick,
-  LayoutDashboard
+  LayoutDashboard,
+  Globe
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { useDatasetStore } from "@/stores/datasetStore";
@@ -30,6 +32,7 @@ const formatCurrency = (value: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value || 0);
 
 const Dashboard = () => {
+  const navigate = useNavigate();
   const { rows, loading: rowsLoading, fetchRows } = useDatasetStore();
   const { adSpends, loading: spendsLoading, fetchAdSpends } = useAdSpendsStore();
   const { clicks, totalClicks: apiTotalClicks, loading: clicksLoading, fetchClicks } = useClicksStore();
@@ -139,6 +142,11 @@ const Dashboard = () => {
                 </TabsTrigger>
               </TabsList>
             </Tabs>
+
+            <Button onClick={() => navigate('/dashboard/captura')} className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/20">
+              <Globe className="w-4 h-4" />
+              Criar Site de Captura
+            </Button>
           </div>
 
           <DashboardFilters
@@ -201,6 +209,7 @@ const Dashboard = () => {
                           rows={filteredRows}
                           adSpends={adSpends}
                           dateRange={dateRange}
+                          subIdFilter={subIdFilter}
                           showSubTable={false}
                           showDayTable
                           showHighlights={false}
@@ -210,7 +219,7 @@ const Dashboard = () => {
                   />
 
                   <div className="mt-8">
-                    <ChannelPerformance rows={filteredRows} adSpends={adSpends} dateRange={dateRange} showDayTable={false} showHighlights />
+                    <ChannelPerformance rows={filteredRows} adSpends={adSpends} dateRange={dateRange} subIdFilter={subIdFilter} showDayTable={false} showHighlights />
                   </div>
 
                 </>
