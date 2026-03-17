@@ -11,7 +11,7 @@ export default defineConfig(({ mode }) => ({
     proxy: {
       // Proxy para API em desenvolvimento (resolve CORS)
       '/api': {
-        target: 'http://localhost:8081',
+        target: 'http://localhost:8000',
         changeOrigin: true,
         secure: false,
       },

@@ -500,7 +500,7 @@ export const CapturaSite = () => {
                   {/* Link com botão copiar */}
                   <div className="flex items-center gap-2 bg-muted/30 rounded-md p-2 px-3">
                     <Globe className="w-3 h-3 text-muted-foreground shrink-0" />
-                    <span className="text-xs text-muted-foreground truncate font-mono flex-1">/c/{site.slug}</span>
+                    <span className="text-xs text-muted-foreground truncate font-mono flex-1">{siteUrl}</span>
                     <Button
                       type="button"
                       variant="ghost"
@@ -865,12 +865,16 @@ export const CapturaSite = () => {
                   <Input
                     placeholder="meu-produto-exclusivo"
                     value={slug}
-                    onChange={(e) => setSlug(e.target.value)}
-                    onBlur={(e) => validateSlug(e.target.value)}
-                    className="bg-background border-primary/30"
+                    onChange={(e) => !activeSiteId && setSlug(e.target.value)}
+                    onBlur={(e) => !activeSiteId && validateSlug(e.target.value)}
+                    readOnly={!!activeSiteId}
+                    className={`bg-background border-primary/30 ${activeSiteId ? "opacity-60 cursor-not-allowed" : ""}`}
                   />
                   {slugIsAvailable === true && <CheckCircle2 className="w-5 h-5 text-emerald-500 flex-shrink-0" />}
                 </div>
+                {activeSiteId && (
+                  <p className="text-xs text-muted-foreground">O slug não pode ser alterado após a criação.</p>
+                )}
                 {publicUrl && (
                   <div className="mt-2 flex items-center justify-between bg-background/50 border border-primary/10 rounded-md p-2 px-3 text-xs">
                     <span className="truncate text-muted-foreground font-mono mr-2">{publicUrl}</span>

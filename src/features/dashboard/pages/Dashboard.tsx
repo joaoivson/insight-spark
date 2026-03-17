@@ -15,9 +15,7 @@ import {
   TrendingUp,
   MousePointerClick,
   LayoutDashboard,
-  Globe
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { useDatasetStore } from "@/stores/datasetStore";
@@ -32,7 +30,6 @@ const formatCurrency = (value: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value || 0);
 
 const Dashboard = () => {
-  const navigate = useNavigate();
   const { rows, loading: rowsLoading, fetchRows } = useDatasetStore();
   const { adSpends, loading: spendsLoading, fetchAdSpends } = useAdSpendsStore();
   const { clicks, totalClicks: apiTotalClicks, loading: clicksLoading, fetchClicks } = useClicksStore();
@@ -143,10 +140,6 @@ const Dashboard = () => {
               </TabsList>
             </Tabs>
 
-            <Button onClick={() => navigate('/dashboard/captura')} className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/20">
-              <Globe className="w-4 h-4" />
-              Criar Site de Captura
-            </Button>
           </div>
 
           <DashboardFilters
