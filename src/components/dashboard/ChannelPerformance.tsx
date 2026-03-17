@@ -29,6 +29,7 @@ interface ChannelPerformanceProps {
   rows: DatasetRow[];
   adSpends: AdSpend[];
   dateRange?: DateRange;
+  subIdFilter?: string;
   showSubTable?: boolean;
   showDayTable?: boolean;
   showHighlights?: boolean;
@@ -41,6 +42,7 @@ const ChannelPerformance = ({
   rows,
   adSpends,
   dateRange,
+  subIdFilter = "",
   showSubTable = true,
   showDayTable = true,
   showHighlights = true,
@@ -58,16 +60,23 @@ const ChannelPerformance = ({
     return filterKpiRows(dateFiltered);
   }, [rows, dateRange]);
 
-  // Filter adSpends by dateRange
+  // Filter adSpends by dateRange and subIdFilter
   const filteredAdSpends = useMemo(() => {
-    if (!dateRange?.from && !dateRange?.to) return adSpends;
-    return adSpends.filter((spend) => {
-      const spendDate = spend.date;
-      if (dateRange.from && isBeforeDateKey(spendDate, dateRange.from)) return false;
-      if (dateRange.to && isAfterDateKey(spendDate, dateRange.to)) return false;
-      return true;
-    });
-  }, [adSpends, dateRange]);
+    let result = adSpends;
+    if (dateRange?.from || dateRange?.to) {
+      result = result.filter((spend) => {
+        if (dateRange.from && isBeforeDateKey(spend.date, dateRange.from)) return false;
+        if (dateRange.to && isAfterDateKey(spend.date, dateRange.to)) return false;
+        return true;
+      });
+    }
+    if (subIdFilter) {
+      result = result.filter((spend) =>
+        (spend.sub_id || "").toLowerCase() === subIdFilter.toLowerCase()
+      );
+    }
+    return result;
+  }, [adSpends, dateRange, subIdFilter]);
 
   const MAX_ROWS = 50;
 

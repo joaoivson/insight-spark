@@ -388,33 +388,42 @@ const CustomLinks = () => {
                                 id="slug"
                                 placeholder="meu-produto"
                                 value={formSlug}
+                                readOnly={!!editingLink}
                                 onChange={(e) => {
+                                    if (editingLink) return;
                                     setFormSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""));
                                     setSlugAvailable(null);
                                 }}
+                                className={editingLink ? "opacity-60 cursor-not-allowed" : ""}
                             />
-                            <Button
-                                variant="outline" size="sm"
-                                onClick={handleCheckSlug}
-                                disabled={!formSlug.trim() || slugChecking}
-                                className="flex-shrink-0"
-                            >
-                                {slugChecking ? <Loader2 className="w-4 h-4 animate-spin" /> : "Verificar"}
-                            </Button>
+                            {!editingLink && (
+                                <Button
+                                    variant="outline" size="sm"
+                                    onClick={handleCheckSlug}
+                                    disabled={!formSlug.trim() || slugChecking}
+                                    className="flex-shrink-0"
+                                >
+                                    {slugChecking ? <Loader2 className="w-4 h-4 animate-spin" /> : "Verificar"}
+                                </Button>
+                            )}
                         </div>
-                        {slugAvailable === true && (
+                        {!editingLink && slugAvailable === true && (
                             <p className="text-xs text-green-500 flex items-center gap-1">
                                 <Check className="w-3 h-3" /> Slug disponivel
                             </p>
                         )}
-                        {slugAvailable === false && (
+                        {!editingLink && slugAvailable === false && (
                             <p className="text-xs text-yellow-500 flex items-center gap-1">
                                 <AlertCircle className="w-3 h-3" /> Slug ajustado automaticamente
                             </p>
                         )}
-                        <p className="text-xs text-muted-foreground">
-                            Deixe em branco para gerar automaticamente
-                        </p>
+                        {editingLink ? (
+                            <p className="text-xs text-muted-foreground">O slug não pode ser alterado após a criação.</p>
+                        ) : (
+                            <p className="text-xs text-muted-foreground">
+                                Deixe em branco para gerar automaticamente
+                            </p>
+                        )}
                     </div>
 
                     <div className="space-y-2">
