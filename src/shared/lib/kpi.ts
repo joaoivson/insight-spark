@@ -13,7 +13,7 @@ export const getComissaoAfiliado = (row: DatasetRow) => {
 
 type DateRange = { from?: Date | string | null; to?: Date | string | null };
 
-const KPI_STATUSES = ["pendente", "concluído", "concluido", "cancelado"];
+const KPI_STATUSES = ["pendente", "concluído", "concluido", "cancelado", "pending", "completed", "cancelled"];
 const isKpiStatus = (s: string) => KPI_STATUSES.includes((s || "").toLowerCase());
 
 /** Filtra linhas por status (Pendente, Concluído) — mesma fonte usada nos KPIs e gráficos. */
