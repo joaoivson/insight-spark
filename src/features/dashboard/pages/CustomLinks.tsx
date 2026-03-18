@@ -67,7 +67,7 @@ const CustomLinks = () => {
             const data = await getUserLinks();
             setLinks(data);
         } catch (err: any) {
-            toast({ title: "Erro", description: "Falha ao carregar links", variant: "destructive" });
+            toast({ title: "Não foi possível carregar seus links", description: "Verifique sua conexão e tente novamente.", variant: "destructive" });
         } finally {
             setLoading(false);
         }
@@ -91,7 +91,7 @@ const CustomLinks = () => {
 
     const handleNew = () => {
         if (links.length >= MAX_CUSTOM_LINKS) {
-            toast({ title: "Limite atingido", description: `Você pode criar no máximo ${MAX_CUSTOM_LINKS} links.`, variant: "destructive" });
+            toast({ title: "Limite de links atingido", description: `Seu plano permite até ${MAX_CUSTOM_LINKS} links personalizados.`, variant: "destructive" });
             return;
         }
         resetForm();
@@ -125,7 +125,7 @@ const CustomLinks = () => {
                 toast({ title: "Slug indisponivel", description: `Sugestao: ${result.suggested_slug}` });
             }
         } catch {
-            toast({ title: "Erro", description: "Falha ao verificar slug", variant: "destructive" });
+            toast({ title: "Não foi possível verificar a URL", description: "Tente novamente em instantes.", variant: "destructive" });
         } finally {
             setSlugChecking(false);
         }
@@ -133,7 +133,7 @@ const CustomLinks = () => {
 
     const handleSave = async () => {
         if (!formName.trim() || !formUrl.trim()) {
-            toast({ title: "Campos obrigatorios", description: "Preencha nome e URL", variant: "destructive" });
+            toast({ title: "Campos obrigatórios", description: "Preencha o nome e a URL do link antes de salvar.", variant: "destructive" });
             return;
         }
 
@@ -163,7 +163,7 @@ const CustomLinks = () => {
             await fetchLinks();
             handleBack();
         } catch (err: any) {
-            toast({ title: "Erro", description: err.message || "Falha ao salvar", variant: "destructive" });
+            toast({ title: "Não foi possível salvar o link", description: err.message || "Tente novamente em instantes.", variant: "destructive" });
         } finally {
             setSaving(false);
         }
@@ -176,7 +176,7 @@ const CustomLinks = () => {
             toast({ title: "Link deletado!" });
             await fetchLinks();
         } catch (err: any) {
-            toast({ title: "Erro", description: err.message || "Falha ao deletar", variant: "destructive" });
+            toast({ title: "Não foi possível excluir o link", description: err.message || "Tente novamente em instantes.", variant: "destructive" });
         } finally {
             setDeleteDialogOpen(false);
             setLinkToDelete(null);
@@ -189,7 +189,7 @@ const CustomLinks = () => {
             await fetchLinks();
             toast({ title: link.is_active ? "Link desativado" : "Link ativado" });
         } catch {
-            toast({ title: "Erro", description: "Falha ao alterar status", variant: "destructive" });
+            toast({ title: "Não foi possível alterar o status", description: "Tente novamente em instantes.", variant: "destructive" });
         }
     };
 

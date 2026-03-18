@@ -248,12 +248,12 @@ const AdSpends = () => {
   const handleSave = async () => {
     const parsedAmount = normalizeAmount(amount);
     if (!parsedAmount || parsedAmount <= 0) {
-      toast({ title: "Valor inválido", description: "Informe um valor maior que zero.", variant: "destructive" });
+      toast({ title: "Valor inválido", description: "Informe um valor maior que zero para continuar.", variant: "destructive" });
       return;
     }
     const parsedDate = normalizeDate(date);
     if (!parsedDate) {
-      toast({ title: "Data inválida", description: "Use o formato dd/mm/aaaa ou yyyy-mm-dd.", variant: "destructive" });
+      toast({ title: "Data inválida", description: "Use o formato dd/mm/aaaa (ex: 18/03/2026).", variant: "destructive" });
       return;
     }
 
@@ -285,7 +285,7 @@ const AdSpends = () => {
       });
       resetForm();
     } catch (err) {
-      toast({ title: "Erro ao salvar", variant: "destructive" });
+      toast({ title: "Não foi possível salvar o registro", description: "Verifique os dados e tente novamente.", variant: "destructive" });
     } finally {
       setSaving(false);
     }
@@ -305,7 +305,7 @@ const AdSpends = () => {
       await remove(id);
       toast({ title: "Custos de Anúncios removidos" });
     } catch (err) {
-      toast({ title: "Erro ao remover", variant: "destructive" });
+      toast({ title: "Não foi possível remover o registro", description: "Tente novamente em instantes.", variant: "destructive" });
     }
   };
 
@@ -544,7 +544,7 @@ const AdSpends = () => {
         .filter(Boolean) as { amount: number; date: string; sub_id: string; clicks?: number }[];
 
       if (!payloads.length) {
-        toast({ title: "Planilha vazia ou inválida", variant: "destructive" });
+        toast({ title: "Planilha sem dados válidos", description: "Verifique se o arquivo está no formato correto e tente novamente.", variant: "destructive" });
         return;
       }
 
@@ -579,7 +579,7 @@ const AdSpends = () => {
       setPreviewData(null);
       setPreviewFile(null);
     } catch (err) {
-      toast({ title: "Erro ao importar planilha", variant: "destructive" });
+      toast({ title: "Não foi possível importar a planilha", description: "Tente novamente. Se o problema persistir, verifique o formato do arquivo.", variant: "destructive" });
     } finally {
       setImporting(false);
     }

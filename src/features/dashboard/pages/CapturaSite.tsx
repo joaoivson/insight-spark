@@ -169,7 +169,7 @@ export const CapturaSite = () => {
 
   const handleNew = () => {
     if (sites.length >= MAX_CAPTURE_SITES) {
-      toast({ title: "Limite atingido", description: `Você pode criar no máximo ${MAX_CAPTURE_SITES} páginas de captura.`, variant: "destructive" });
+      toast({ title: "Limite de páginas atingido", description: `Seu plano permite até ${MAX_CAPTURE_SITES} páginas de captura.`, variant: "destructive" });
       return;
     }
     setActiveSiteId(null);
@@ -233,7 +233,7 @@ export const CapturaSite = () => {
     if (!file) return;
 
     if (file.size > 5 * 1024 * 1024) { // 5MB
-      toast({ title: "Erro", description: "A imagem deve ter no máximo 5MB", variant: "destructive" });
+      toast({ title: "Imagem muito grande", description: "O arquivo deve ter no máximo 5MB. Reduza o tamanho e tente novamente.", variant: "destructive" });
       return;
     }
 
@@ -241,7 +241,7 @@ export const CapturaSite = () => {
       setUploadLoading(true);
       const data = await uploadImage(file);
       setImageUrl(data.url);
-      toast({ title: "Sucesso", description: "Imagem adicionada com sucesso!" });
+      toast({ title: "Imagem adicionada com sucesso!" });
     } catch (error: any) {
       toast({ title: "Erro", description: error.message, variant: "destructive" });
     } finally {
@@ -263,7 +263,7 @@ export const CapturaSite = () => {
       console.log("Calling deleteSite service for ID:", siteToDelete);
       await deleteSite(siteToDelete);
       setSites(prev => prev.filter(s => s.id !== siteToDelete));
-      toast({ title: "Sucesso", description: "Página excluída com sucesso!" });
+      toast({ title: "Página excluída com sucesso!" });
       console.log("Deletion successful");
     } catch (error: any) {
       console.error("Deletion failed:", error);
@@ -275,7 +275,7 @@ export const CapturaSite = () => {
 
   const handleSave = async () => {
     if (!title) {
-      toast({ title: "Erro", description: "O Título é obrigatório.", variant: "destructive" });
+      toast({ title: "Título obrigatório", description: "Adicione um título para a sua página de captura.", variant: "destructive" });
       return;
     }
 
