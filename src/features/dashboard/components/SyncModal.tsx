@@ -7,7 +7,7 @@ const STEPS: { key: Step; label: string; sub: string; icon: React.ReactNode }[] 
   {
     key: "syncing",
     label: "Conectando à API Shopee",
-    sub: "Buscando comissões dos últimos 60 dias...",
+    sub: "Buscando comissões dos últimos 90 dias...",
     icon: <RefreshCw className="w-5 h-5" />,
   },
   {
