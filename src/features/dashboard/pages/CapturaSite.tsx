@@ -838,7 +838,7 @@ export const CapturaSite = () => {
               </div>
 
               <div className="space-y-2">
-                <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Facebook Pixel ID</Label>
+                <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Facebook Pixel ID <span className="font-normal normal-case">(opcional)</span></Label>
                 <Input
                   placeholder="Ex: 123456789012345"
                   value={facebookPixelId}
