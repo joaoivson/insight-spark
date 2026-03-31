@@ -85,3 +85,26 @@ src/
 2. Create service in `services/{feature}.service.ts`
 3. Add route in `app/routes/`
 4. Add sidebar navigation entry in `components/dashboard/`
+
+## Testes e Verificação
+
+```bash
+npm run lint                # ESLint
+npx tsc --noEmit            # Type check
+npm run build               # Build completo (valida tudo)
+```
+
+Padrões:
+- Type check antes de PR: `npx tsc --noEmit`
+- Lint deve passar sem erros (warnings de `any` são tolerados)
+- Testar responsividade em mobile e desktop
+
+## Troubleshooting
+
+| Problema | Causa provável | Solução |
+|----------|---------------|---------|
+| `VITE_API_URL` undefined | `.env` não configurado | Criar `.env` com `VITE_API_URL=http://localhost:8081` |
+| Proxy error 502 | Backend não rodando | Iniciar uvicorn na porta 8081 |
+| Import `@/` não resolve | Alias não configurado | Verificar `tsconfig.app.json` paths |
+| shadcn component missing | Não instalado | `npx shadcn-ui@latest add [nome]` |
+| Zustand state stale | Cache localStorage | Limpar `dataset-cache:{userId}` no DevTools |
