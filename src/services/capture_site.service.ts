@@ -24,6 +24,7 @@ export interface CaptureSite {
     urgency_animation: string | null;
     text_primary_color: string | null;
     urgency_text_color: string | null;
+    facebook_pixel_id: string | null;
     is_active: boolean;
 }
 
@@ -47,6 +48,7 @@ export interface CaptureSiteCreate {
     urgency_animation?: string;
     text_primary_color?: string;
     urgency_text_color?: string;
+    facebook_pixel_id?: string;
     is_active?: boolean;
 }
 

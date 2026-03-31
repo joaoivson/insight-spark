@@ -108,6 +108,7 @@ export const CapturaSite = () => {
   const [textPrimaryColor, setTextPrimaryColor] = useState('#ffffff');
   const [urgencyTextColor, setUrgencyTextColor] = useState('#991b1b');
 
+  const [facebookPixelId, setFacebookPixelId] = useState("");
   const [isActive, setIsActive] = useState(true);
 
   const [slugIsAvailable, setSlugIsAvailable] = useState<boolean | null>(null);
@@ -160,6 +161,7 @@ export const CapturaSite = () => {
     setTextPrimaryColor(site.text_primary_color || '#ffffff');
     setUrgencyTextColor(site.urgency_text_color || '#991b1b');
     setIsActive(site.is_active ?? true);
+    setFacebookPixelId(site.facebook_pixel_id || "");
 
     setSlugIsAvailable(true);
     setViewMode('editor');
@@ -194,6 +196,7 @@ export const CapturaSite = () => {
     setUrgencyColor('#fef2f2');
     setUrgencyIcon("alert");
     setUrgencySize('md');
+    setFacebookPixelId("");
 
     setSlugIsAvailable(null);
     setViewMode('editor');
@@ -307,6 +310,7 @@ export const CapturaSite = () => {
         urgency_animation: urgencyAnimation,
         text_primary_color: textPrimaryColor,
         urgency_text_color: urgencyTextColor,
+        facebook_pixel_id: facebookPixelId || undefined,
         is_active: isActive,
       };
 
@@ -831,6 +835,18 @@ export const CapturaSite = () => {
                   value={buttonLink}
                   onChange={(e) => setButtonLink(e.target.value)}
                 />
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Facebook Pixel ID</Label>
+                <Input
+                  placeholder="Ex: 123456789012345"
+                  value={facebookPixelId}
+                  onChange={(e) => setFacebookPixelId(e.target.value)}
+                />
+                <p className="text-[10px] text-muted-foreground italic">
+                  Insira o ID do seu Pixel do Facebook para rastrear conversões (PageView + Lead).
+                </p>
               </div>
             </Card>
           </div>
