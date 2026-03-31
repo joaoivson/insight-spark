@@ -105,18 +105,6 @@ export const CaptureViewer = () => {
         });
     }, [site, slug]);
 
-    if (loading) {
-        return (
-            <div className="min-h-screen bg-black flex items-center justify-center">
-                <div className="w-8 h-8 rounded-full border-4 border-emerald-500 border-t-transparent animate-spin" />
-            </div>
-        );
-    }
-
-    if (error || !site) {
-        return <Navigate to="/" replace />;
-    }
-
     const handleActionClick = useCallback(() => {
         if (!site?.button_link) return;
 
@@ -145,6 +133,18 @@ export const CaptureViewer = () => {
             window.location.href = link;
         }, 150);
     }, [site, slug]);
+
+    if (loading) {
+        return (
+            <div className="min-h-screen bg-black flex items-center justify-center">
+                <div className="w-8 h-8 rounded-full border-4 border-emerald-500 border-t-transparent animate-spin" />
+            </div>
+        );
+    }
+
+    if (error || !site) {
+        return <Navigate to="/" replace />;
+    }
 
     const benefitsList = site.benefits || [];
 
