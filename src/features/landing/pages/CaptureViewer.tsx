@@ -1,9 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useParams, Navigate } from "react-router-dom";
 import {
     CheckCircle2, AlertTriangle, Clock, Flame, Zap,
     TrendingUp, ShieldCheck, Timer
 } from "lucide-react";
+import { parseUtmParams, UtmParams } from "@/shared/utils/utm-parser";
+import { trackEvent } from "@/services/page_events.service";
 
 const URGENCY_ICONS: Record<string, any> = {
     'alert': AlertTriangle,
@@ -33,11 +35,23 @@ const WhatsAppIcon = ({ className }: { className?: string }) => (
 );
 
 
+declare global {
+    interface Window {
+        fbq?: (...args: any[]) => void;
+    }
+}
+
 export const CaptureViewer = () => {
     const { slug } = useParams<{ slug: string }>();
     const [site, setSite] = useState<CaptureSite | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(false);
+    const utmRef = useRef<UtmParams | null>(null);
+    const trackedRef = useRef(false);
+
+    useEffect(() => {
+        utmRef.current = parseUtmParams();
+    }, []);
 
     useEffect(() => {
         if (!slug) return;
@@ -55,6 +69,42 @@ export const CaptureViewer = () => {
         fetchSite();
     }, [slug]);
 
+    // Initialize Facebook Pixel + track page_view
+    useEffect(() => {
+        if (!site || trackedRef.current) return;
+        trackedRef.current = true;
+
+        const pixelId = site.facebook_pixel_id;
+        if (pixelId) {
+            // Inject Facebook Pixel script
+            const script = document.createElement("script");
+            script.innerHTML = `
+                !function(f,b,e,v,n,t,s)
+                {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+                n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+                if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+                n.queue=[];t=b.createElement(e);t.async=!0;
+                t.src=v;s=b.getElementsByTagName(e)[0];
+                s.parentNode.insertBefore(t,s)}(window, document,'script',
+                'https://connect.facebook.net/en_US/fbevents.js');
+                fbq('init', '${pixelId}');
+                fbq('track', 'PageView');
+            `;
+            document.head.appendChild(script);
+        }
+
+        // Internal tracking
+        const utms = utmRef.current || {};
+        trackEvent({
+            site_id: site.id,
+            slug: slug!,
+            event_type: "page_view",
+            ...utms,
+            referrer: document.referrer || null,
+            user_agent: navigator.userAgent,
+        });
+    }, [site, slug]);
+
     if (loading) {
         return (
             <div className="min-h-screen bg-black flex items-center justify-center">
@@ -67,16 +117,34 @@ export const CaptureViewer = () => {
         return <Navigate to="/" replace />;
     }
 
-    const handleActionClick = () => {
-        if (site.button_link) {
-            // Formata o link se não tiver http/https
-            let link = site.button_link;
-            if (!/^https?:\/\//i.test(link)) {
-                link = "https://" + link;
-            }
-            window.location.href = link;
+    const handleActionClick = useCallback(() => {
+        if (!site?.button_link) return;
+
+        // Track Lead event on Facebook Pixel
+        if (site.facebook_pixel_id && window.fbq) {
+            window.fbq("track", "Lead");
         }
-    };
+
+        // Internal tracking
+        const utms = utmRef.current || {};
+        trackEvent({
+            site_id: site.id,
+            slug: slug!,
+            event_type: "click_group",
+            ...utms,
+            referrer: document.referrer || null,
+            user_agent: navigator.userAgent,
+        });
+
+        // Small delay to ensure tracking requests fire before navigation
+        let link = site.button_link;
+        if (!/^https?:\/\//i.test(link)) {
+            link = "https://" + link;
+        }
+        setTimeout(() => {
+            window.location.href = link;
+        }, 150);
+    }, [site, slug]);
 
     const benefitsList = site.benefits || [];
 
