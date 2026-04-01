@@ -5,7 +5,8 @@ import {
   Settings2, Sparkles, Wand2, AlertTriangle,
   Plus, LayoutTemplate, Copy, Save, RefreshCw,
   Upload, MessageCircle, CheckCircle2, ExternalLink,
-  Clock, Flame, Zap, TrendingUp, ShieldCheck, Timer
+  Clock, Flame, Zap, TrendingUp, ShieldCheck, Timer,
+  MousePointerClick
 } from "lucide-react";
 
 // Mapeamento de ícones para o Banner de Urgência
@@ -49,6 +50,7 @@ import {
   checkSlug,
   uploadImage,
 } from "@/services/capture_site.service";
+import { getSiteEventStats } from "@/services/page_events.service";
 
 // Um regex mínimo para retirar carateres especiais caso o usuário digite
 const slugify = (str: string) => {
@@ -114,6 +116,9 @@ export const CapturaSite = () => {
   const [slugIsAvailable, setSlugIsAvailable] = useState<boolean | null>(null);
   const [uploadLoading, setUploadLoading] = useState(false);
 
+  // Estatísticas de eventos (page_view / click_group)
+  const [eventStats, setEventStats] = useState<Record<number, { page_views: number; click_groups: number }>>({});
+
   // Modal de Exclusão
   const [siteToDelete, setSiteToDelete] = useState<number | null>(null);
 
@@ -124,8 +129,17 @@ export const CapturaSite = () => {
   const loadSites = async () => {
     try {
       setLoading(true);
-      const data = await getUserSites();
+      const [data, statsResponse] = await Promise.all([
+        getUserSites(),
+        getSiteEventStats(),
+      ]);
       setSites(data);
+
+      const statsMap: Record<number, { page_views: number; click_groups: number }> = {};
+      for (const s of statsResponse.stats) {
+        statsMap[s.site_id] = { page_views: s.page_views, click_groups: s.click_groups };
+      }
+      setEventStats(statsMap);
     } catch (error: any) {
       toast({
         title: "Erro",
@@ -519,6 +533,17 @@ export const CapturaSite = () => {
                       <Copy className="w-3.5 h-3.5" />
                     </Button>
                   </div>
+                  {/* Contadores de eventos */}
+                  <div className="flex items-center gap-4 mt-2">
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <Eye className="w-3.5 h-3.5" />
+                      <span>{eventStats[site.id]?.page_views ?? 0}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <MousePointerClick className="w-3.5 h-3.5" />
+                      <span>{eventStats[site.id]?.click_groups ?? 0}</span>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="bg-muted/30 p-3 px-5 border-t border-border flex justify-between items-center">
@@ -552,6 +577,20 @@ export const CapturaSite = () => {
           </Button>
 
           <div className="flex items-center gap-6">
+            {activeSiteId && (
+              <div className="flex items-center gap-3 bg-background/50 border border-border px-3 py-1.5 rounded-full">
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <Eye className="w-3.5 h-3.5" />
+                  <span className="font-medium">{eventStats[activeSiteId]?.page_views ?? 0}</span>
+                </div>
+                <div className="w-px h-4 bg-border" />
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <MousePointerClick className="w-3.5 h-3.5" />
+                  <span className="font-medium">{eventStats[activeSiteId]?.click_groups ?? 0}</span>
+                </div>
+              </div>
+            )}
+
             <div className="flex items-center gap-3 bg-background/50 border border-border px-3 py-1.5 rounded-full">
               <Label htmlFor="active-toggle" className="text-[10px] font-bold uppercase tracking-widest cursor-pointer">
                 {isActive ? 'Página Ativa' : 'Página Inativa'}
