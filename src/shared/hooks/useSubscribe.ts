@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { caktoService } from "@/services/cakto.service";
+import { paymentService } from "@/services/payment.service";
 import { tokenStorage, userStorage } from "@/shared/lib/storage";
 import { useToast } from "@/hooks/use-toast";
 
@@ -30,13 +30,13 @@ export const useSubscribe = () => {
       const user = userStorage.get() as { email?: string; name?: string; cpf_cnpj?: string } | null;
 
       if (isAuthenticated && user) {
-        await caktoService.redirectToCheckout({
+        await paymentService.redirectToCheckout({
           email: user.email,
           name: user.name,
           cpf_cnpj: user.cpf_cnpj,
         });
       } else {
-        await caktoService.redirectToCheckoutDirect();
+        paymentService.redirectToCheckoutDirect();
       }
     } catch (error) {
       console.error('Erro ao redirecionar para checkout:', error);

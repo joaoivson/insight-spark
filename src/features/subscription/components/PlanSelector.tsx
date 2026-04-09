@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import { Check, Sparkles } from "lucide-react";
-import { PlanInfo, getPlanPrice, isBestOffer, calculateAnnualSavings, getAnnualMonthlyEquivalent } from "@/services/cakto.service";
+import { PlanInfo, getPlanPrice, isBestOffer, calculateAnnualSavings, getAnnualMonthlyEquivalent } from "@/services/payment.service";
 import { Button } from "@/components/ui/button";
 
 interface PlanSelectorProps {

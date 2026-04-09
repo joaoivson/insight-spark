@@ -236,20 +236,21 @@ export const fetchWithAuth = async (
       // Não redirecionar se:
       // 1. Já estiver na página de assinatura ou checkout
       // 2. Estiver em uma rota do dashboard (o modal será exibido pelo ProtectedRoute)
-      if (!window.location.pathname.includes('/assinatura') && 
-          !window.location.href.includes('cakto') && 
+      if (!window.location.pathname.includes('/assinatura') &&
+          !window.location.href.includes('cakto') &&
+          !window.location.href.includes('kiwify') &&
           !isDashboardRoute) {
         // Importar dinamicamente para evitar dependência circular
-        import('@/services/cakto.service').then(({ caktoService }) => {
+        import('@/services/payment.service').then(({ paymentService }) => {
           const user = userStorage.get() as { email?: string; name?: string; cpf_cnpj?: string } | null;
           if (user) {
-            caktoService.redirectToCheckout({
+            paymentService.redirectToCheckout({
               email: user.email,
               name: user.name,
               cpf_cnpj: user.cpf_cnpj,
             });
           } else {
-            caktoService.redirectToCheckoutDirect();
+            paymentService.redirectToCheckoutDirect();
           }
         }).catch(() => {
           // Fallback: redirecionar para página de assinatura se houver erro

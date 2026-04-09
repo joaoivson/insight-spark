@@ -265,23 +265,23 @@ const SettingsPage = () => {
                           </Badge>
                         )}
                         <span className="text-sm text-muted-foreground">
-                          {getPlanDisplayName(subscriptionStatus.plan, subscriptionStatus.cakto_offer_name)}
+                          {getPlanDisplayName(subscriptionStatus.plan, subscriptionStatus.provider_offer_name || subscriptionStatus.cakto_offer_name)}
                         </span>
                       </div>
 
                       <div className="space-y-3 mb-6 text-sm">
                         <div className="flex items-center justify-between">
                           <span className="text-muted-foreground">Forma de pagamento</span>
-                          <span className="font-medium">{formatPaymentMethod(subscriptionStatus.cakto_payment_method)}</span>
+                          <span className="font-medium">{formatPaymentMethod(subscriptionStatus.provider_payment_method || subscriptionStatus.cakto_payment_method)}</span>
                         </div>
                         {(
-                          subscriptionStatus.cakto_next_payment_date || subscriptionStatus.cakto_due_date || subscriptionStatus.expires_at
+                          subscriptionStatus.provider_due_date || subscriptionStatus.cakto_next_payment_date || subscriptionStatus.cakto_due_date || subscriptionStatus.expires_at
                         ) && (
                           <div className="flex items-center justify-between">
                             <span className="text-muted-foreground">Próximo vencimento</span>
                             <span className="font-medium">
                               {formatDate(
-                                subscriptionStatus.cakto_next_payment_date || subscriptionStatus.cakto_due_date || subscriptionStatus.expires_at
+                                subscriptionStatus.provider_due_date || subscriptionStatus.cakto_next_payment_date || subscriptionStatus.cakto_due_date || subscriptionStatus.expires_at
                               )}
                             </span>
                           </div>
@@ -342,24 +342,25 @@ const SettingsPage = () => {
             <AlertDialogHeader>
               <AlertDialogTitle>Cancelar Assinatura</AlertDialogTitle>
               <AlertDialogDescription>
-                Para cancelar sua assinatura, você precisa acessar sua conta na Cakto. 
+                Para cancelar sua assinatura, você precisa acessar a plataforma de pagamentos.
                 O cancelamento pode ser feito a qualquer momento e sua assinatura continuará ativa até o final do período pago.
                 <br /><br />
-                Deseja ser redirecionado para a página de gerenciamento da Cakto?
+                Deseja ser redirecionado para a página de gerenciamento?
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel>Fechar</AlertDialogCancel>
               <AlertDialogAction
                 onClick={() => {
-                  // Redirecionar para página de gerenciamento da Cakto
-                  // Nota: A URL exata depende da configuração da Cakto
-                  window.open('https://www.cakto.com.br/area-do-cliente', '_blank');
+                  // Importar dinamicamente para evitar dependência circular no top-level
+                  import("@/services/payment.service").then(({ getCustomerPortalUrl }) => {
+                    window.open(getCustomerPortalUrl(), '_blank');
+                  });
                   setShowCancelDialog(false);
                 }}
                 className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               >
-                Ir para Cakto
+                Gerenciar assinatura
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>

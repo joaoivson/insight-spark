@@ -5,7 +5,7 @@ import { CheckCircle2, XCircle, Loader2 } from "lucide-react";
 import { APP_CONFIG } from "@/core/config/app.config";
 import { useSubscriptionCheck } from "@/shared/hooks/useSubscriptionCheck";
 import { tokenStorage, userStorage } from "@/shared/lib/storage";
-import { caktoService } from "@/services/cakto.service";
+import { paymentService } from "@/services/payment.service";
 
 const SubscriptionCallback = () => {
   const navigate = useNavigate();
@@ -136,13 +136,13 @@ const SubscriptionCallback = () => {
             try {
               const user = userStorage.get() as { email?: string; name?: string; cpf_cnpj?: string } | null;
               if (user) {
-                await caktoService.redirectToCheckout({
+                await paymentService.redirectToCheckout({
                   email: user.email,
                   name: user.name,
                   cpf_cnpj: user.cpf_cnpj,
                 });
               } else {
-                caktoService.redirectToCheckoutDirect();
+                paymentService.redirectToCheckoutDirect();
               }
             } catch (error) {
               console.error('Erro ao redirecionar para checkout:', error);

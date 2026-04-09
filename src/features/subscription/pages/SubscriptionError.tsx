@@ -2,7 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { XCircle } from "lucide-react";
 import { APP_CONFIG } from "@/core/config/app.config";
-import { caktoService } from "@/services/cakto.service";
+import { paymentService } from "@/services/payment.service";
 import { userStorage } from "@/shared/lib/storage";
 
 const SubscriptionError = () => {
@@ -12,13 +12,13 @@ const SubscriptionError = () => {
     try {
       const user = userStorage.get() as { email?: string; name?: string; cpf_cnpj?: string } | null;
       if (user) {
-        await caktoService.redirectToCheckout({
+        await paymentService.redirectToCheckout({
           email: user.email,
           name: user.name,
           cpf_cnpj: user.cpf_cnpj,
         });
       } else {
-        caktoService.redirectToCheckoutDirect();
+        paymentService.redirectToCheckoutDirect();
       }
     } catch (error) {
       console.error('Erro ao redirecionar para checkout:', error);

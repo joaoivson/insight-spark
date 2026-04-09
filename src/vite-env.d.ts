@@ -1,5 +1,12 @@
 /// <reference types="vite/client" />
 
+declare module "@feature-flags" {
+  const value: {
+    payment_provider: "cakto" | "kiwify";
+  };
+  export default value;
+}
+
 interface ImportMetaEnv {
   readonly VITE_API_URL?: string;
   readonly VITE_WHATSAPP_NUMBER?: string;

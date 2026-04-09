@@ -23,7 +23,8 @@
 
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@feature-flags": ["./feature-flags.json"]
     }
   },
   "include": ["src"]

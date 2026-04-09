@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { getSubscriptionStatus, SubscriptionStatus } from "@/services/subscription.service";
 import { useToast } from "@/hooks/use-toast";
 import { tokenStorage, storage, userStorage, getScopedKey } from "@/shared/lib/storage";
-import { caktoService } from "@/services/cakto.service";
+import { paymentService } from "@/services/payment.service";
 
 const SUBSCRIPTION_CACHE_BASE = 'subscription-status-cache';
 
@@ -131,13 +131,13 @@ export const useSubscriptionCheck = (options?: {
           // Redirecionar direto para Cakto ao invés de página de assinatura
           const user = userStorage.get() as { email?: string; name?: string; cpf_cnpj?: string } | null;
           if (user) {
-            await caktoService.redirectToCheckout({
+            await paymentService.redirectToCheckout({
               email: user.email,
               name: user.name,
               cpf_cnpj: user.cpf_cnpj,
             });
           } else {
-            caktoService.redirectToCheckoutDirect();
+            paymentService.redirectToCheckoutDirect();
           }
         }
       }

@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { caktoService, PlanInfo } from "@/services/cakto.service";
+import { paymentService, PlanInfo } from "@/services/payment.service";
 import { useSubscriptionCheck } from "@/shared/hooks/useSubscriptionCheck";
 import { userStorage } from "@/shared/lib/storage";
 import { Loader2, CheckCircle2, BarChart3, TrendingUp, Target, Shield, ArrowRight, User, Phone, Mail, CreditCard, Check } from "lucide-react";
@@ -36,7 +36,7 @@ const SubscriptionPage = () => {
   useEffect(() => {
     const fetchPlans = async () => {
       try {
-        const plansList = await caktoService.getPlans();
+        const plansList = await paymentService.getPlans();
         setPlans(plansList);
         // Se houver apenas um plano, selecionar automaticamente
         if (plansList.length === 1) {

@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { PlanSelector } from "./PlanSelector";
-import { caktoService, PlanInfo } from "@/services/cakto.service";
+import { paymentService, PlanInfo } from "@/services/payment.service";
 import { userStorage } from "@/shared/lib/storage";
 import { ArrowRight, Loader2, AlertCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -37,7 +37,7 @@ export const SubscriptionPlanModal = ({
   useEffect(() => {
     const fetchPlans = async () => {
       try {
-        const plansList = await caktoService.getPlans();
+        const plansList = await paymentService.getPlans();
         // Ordenar: anual primeiro
         const sortedPlans = [...plansList].sort((a, b) => {
           const order: Record<string, number> = { 'anual': 0, 'mensal': 1, 'trimestral': 2 };
@@ -137,7 +137,7 @@ export const SubscriptionPlanModal = ({
         checkoutPayload.telefone = mergedData.telefone;
       }
 
-      await caktoService.redirectToCheckout(checkoutPayload);
+      await paymentService.redirectToCheckout(checkoutPayload);
     } catch (error) {
       console.error('Erro ao redirecionar para checkout:', error);
       toast({

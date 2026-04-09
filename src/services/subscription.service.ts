@@ -7,6 +7,17 @@ export interface SubscriptionStatus {
   needs_validation: boolean;
   last_validation_at: string | null;
   expires_at: string | null;
+  // Provider-agnostic fields
+  provider: string | null;
+  provider_customer_id: string | null;
+  provider_status: string | null;
+  provider_offer_name: string | null;
+  provider_due_date: string | null;
+  provider_subscription_status: string | null;
+  provider_payment_status: string | null;
+  provider_payment_method: string | null;
+  provider_order_id: string | null;
+  // Legacy Cakto fields (backward compat)
   cakto_customer_id: string | null;
   cakto_status: string | null;
   cakto_offer_name: string | null;

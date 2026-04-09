@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Check, ArrowRight, Loader2, Sparkles } from "lucide-react";
-import { caktoService, PlanInfo, getPlanPrice, isBestOffer, calculateAnnualSavings, getAnnualMonthlyEquivalent } from "@/services/cakto.service";
+import { paymentService, PlanInfo, getPlanPrice, isBestOffer, calculateAnnualSavings, getAnnualMonthlyEquivalent } from "@/services/payment.service";
 import { tokenStorage, userStorage } from "@/shared/lib/storage";
 import { useToast } from "@/hooks/use-toast";
 import { UrgencyTimer } from "./UrgencyTimer";
@@ -26,7 +26,7 @@ const PricingSection = () => {
   useEffect(() => {
     const fetchPlans = async () => {
       try {
-        const plansList = await caktoService.getPlans();
+        const plansList = await paymentService.getPlans();
         // Ordenar: anual primeiro, depois mensal e trimestral
         const sortedPlans = [...plansList].sort((a, b) => {
           const order: Record<string, number> = { 'anual': 0, 'mensal': 1, 'trimestral': 2 };
@@ -60,14 +60,14 @@ const PricingSection = () => {
       const user = userStorage.get() as { email?: string; name?: string; cpf_cnpj?: string } | null;
 
       if (isAuthenticated && user) {
-        await caktoService.redirectToCheckout({
+        await paymentService.redirectToCheckout({
           email: user.email,
           name: user.name,
           cpf_cnpj: user.cpf_cnpj,
           plan: planId,
         });
       } else {
-        await caktoService.redirectToCheckout({
+        await paymentService.redirectToCheckout({
           plan: planId,
         });
       }
