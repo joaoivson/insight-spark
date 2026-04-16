@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { tokenStorage, userStorage, storage } from "@/shared/lib/storage";
 import { APP_CONFIG } from "@/core/config/app.config";
+import { supabase } from "@/shared/lib/supabase";
 import logoIcon from "@/assets/logo/logo.png";
 import logoName from "@/assets/logo/logo_name.png";
 import {
@@ -69,13 +70,18 @@ const DashboardSidebar = ({ mobileMenuOpen = false, onMobileMenuClose }: Dashboa
   const cleanNumber = WHATSAPP_NUMBER && typeof WHATSAPP_NUMBER === "string" ? WHATSAPP_NUMBER.replace(/\D/g, "") : null;
   const waUrl = cleanNumber ? `https://wa.me/${cleanNumber}` : null;
 
-  const handleLogout = () => {
-    // Apagar absolutamente todos os dados do localStorage (Caches, Token, User, etc)
-    storage.clear();
+  const handleLogout = async () => {
+    // Invalidar sessão no servidor Supabase
+    await supabase.auth.signOut();
 
-    // Forçar redirecionamento limpando qualquer estado restante em memória
-    window.location.href = APP_CONFIG.ROUTES.HOME;
+    // Apagar absolutamente todos os dados do localStorage e sessionStorage
+    storage.clear();
+    sessionStorage.clear();
+
     onMobileMenuClose?.();
+
+    // Forçar reload completo para destruir qualquer estado em memória (React Query, Zustand, etc)
+    window.location.href = APP_CONFIG.ROUTES.HOME;
   };
 
   const handleNavClick = () => {
