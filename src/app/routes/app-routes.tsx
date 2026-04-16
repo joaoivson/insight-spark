@@ -33,6 +33,7 @@ import SetPasswordPage from "@/features/auth/pages/SetPasswordPage";
 import ForgotPasswordPage from "@/features/auth/pages/ForgotPasswordPage";
 import NotFound from "@/shared/pages/NotFound";
 import IntegrationsPage from "@/features/dashboard/pages/Integrations";
+import ImpostosMeta from "@/features/dashboard/pages/ImpostosMeta";
 
 // Loading fallback component
 const LoadingFallback = () => (
@@ -163,6 +164,7 @@ export const AppRoutes = () => {
         <Route path="/dashboard/investimentos" element={<ProtectedRoute element={<AdSpends />} />} />
         <Route path="/dashboard/links" element={<ProtectedRoute element={<CustomLinks />} />} />
         <Route path="/dashboard/integracoes" element={<ProtectedRoute element={<IntegrationsPage />} />} />
+        <Route path="/dashboard/impostos" element={<ProtectedRoute element={<ImpostosMeta />} />} />
 
         {/* Capture Public Route */}
         <Route path="/c/:slug" element={<CaptureViewer />} />

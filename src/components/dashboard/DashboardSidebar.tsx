@@ -13,6 +13,7 @@ import {
   Globe,
   Link2,
   Plug,
+  Receipt,
 } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -39,6 +40,7 @@ const menuItems = [
   { icon: Globe, label: "Página de Captura", path: "/dashboard/captura" },
   { icon: Link2, label: "Meus Links", path: "/dashboard/links" },
   { icon: Plug, label: "Integração Shopee", path: "/dashboard/integracoes" },
+  { icon: Receipt, label: "Impostos Meta", path: "/dashboard/impostos" },
   // { icon: FileText, label: "Relatório Dinâmico", path: "/dashboard/reports" },
   // { icon: Puzzle, label: "Módulos", path: "/dashboard/modules" }, // Temporarily hidden
 ];
