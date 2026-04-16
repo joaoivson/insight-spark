@@ -48,9 +48,11 @@ export const CaptureViewer = () => {
     const [error, setError] = useState(false);
     const utmRef = useRef<UtmParams | null>(null);
     const trackedRef = useRef(false);
+    const isPreviewRef = useRef(false);
 
     useEffect(() => {
         utmRef.current = parseUtmParams();
+        isPreviewRef.current = new URLSearchParams(window.location.search).get("preview") === "1";
     }, []);
 
     useEffect(() => {
@@ -102,6 +104,7 @@ export const CaptureViewer = () => {
             ...utms,
             referrer: document.referrer || null,
             user_agent: navigator.userAgent,
+            preview: isPreviewRef.current,
         });
     }, [site, slug]);
 
@@ -113,7 +116,7 @@ export const CaptureViewer = () => {
             window.fbq("track", "Lead");
         }
 
-        // Internal tracking
+        // Internal tracking (sendBeacon is non-blocking and survives navigation)
         const utms = utmRef.current || {};
         trackEvent({
             site_id: site.id,
@@ -122,16 +125,14 @@ export const CaptureViewer = () => {
             ...utms,
             referrer: document.referrer || null,
             user_agent: navigator.userAgent,
+            preview: isPreviewRef.current,
         });
 
-        // Small delay to ensure tracking requests fire before navigation
         let link = site.button_link;
         if (!/^https?:\/\//i.test(link)) {
             link = "https://" + link;
         }
-        setTimeout(() => {
-            window.location.href = link;
-        }, 150);
+        window.location.href = link;
     }, [site, slug]);
 
     if (loading) {

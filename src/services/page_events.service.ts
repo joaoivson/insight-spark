@@ -11,6 +11,7 @@ export interface TrackEventPayload {
   utm_ad?: string | null;
   referrer?: string | null;
   user_agent?: string | null;
+  preview?: boolean;
 }
 
 export interface SiteEventStats {
@@ -32,16 +33,26 @@ export async function getSiteEventStats(): Promise<SiteEventStatsResponse> {
   return res.json();
 }
 
-export async function trackEvent(payload: TrackEventPayload): Promise<void> {
+export function trackEvent(payload: TrackEventPayload): void {
+  const url = getApiUrl("/api/v1/events");
+  const body = JSON.stringify(payload);
+
   try {
-    const url = getApiUrl("/api/v1/events");
-    await fetch(url, {
+    if (typeof navigator !== "undefined" && typeof navigator.sendBeacon === "function") {
+      const blob = new Blob([body], { type: "application/json" });
+      if (navigator.sendBeacon(url, blob)) {
+        return;
+      }
+    }
+    void fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-      keepalive: true, // Ensures request completes even if page navigates away
+      body,
+      keepalive: true,
+    }).catch(() => {
+      // swallow — tracking must never block UX
     });
   } catch {
-    // Silently fail — tracking should never block user experience
+    // swallow — tracking must never block UX
   }
 }

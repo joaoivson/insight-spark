@@ -414,6 +414,7 @@ export const CapturaSite = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {sites.map(site => {
             const siteUrl = `${window.location.origin}/c/${site.slug}`;
+            const siteUrlPreview = `${siteUrl}?preview=1`;
             return (
               <Card key={site.id} className="overflow-hidden flex flex-col group border-border/50 hover:border-emerald-500/30 transition-all shadow-sm hover:shadow-md">
                 {/* Preview no topo — mesma estrutura do /c/{slug} */}
@@ -551,7 +552,7 @@ export const CapturaSite = () => {
                     EDITAR
                   </Button>
                   <a
-                    href={siteUrl}
+                    href={siteUrlPreview}
                     target="_blank"
                     rel="noreferrer"
                     className="flex items-center gap-1.5 text-xs font-semibold hover:underline"
