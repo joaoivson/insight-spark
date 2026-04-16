@@ -1,22 +1,45 @@
 import { useEffect, useMemo, useState } from "react";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
+import KPICards from "@/components/dashboard/KPICards";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
-import { Receipt, Save, Loader2 } from "lucide-react";
+import {
+  Receipt,
+  Save,
+  Loader2,
+  Calendar as CalendarIcon,
+  Wallet,
+  TrendingUp,
+  TrendingDown,
+  DollarSign,
+  Percent,
+  BarChart3,
+} from "lucide-react";
+import { format, startOfMonth, endOfMonth } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import { useAdSpendsStore } from "@/stores/adSpendsStore";
 import { useDatasetStore } from "@/stores/datasetStore";
 import { getTaxSettings, updateTaxSettings } from "@/services/tax_settings.service";
 import { calcTaxRows, calcTaxTotals } from "@/shared/lib/taxes";
+import type { KPIData } from "@/components/dashboard/KPICards";
 
 const currency = (v: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v ?? 0);
 
-const pct = (v: number) =>
-  `${v.toFixed(2)}%`;
+const pct = (v: number) => `${v.toFixed(2)}%`;
+
+type DateRange = { from: Date; to: Date };
+
+function currentMonthRange(): DateRange {
+  const now = new Date();
+  return { from: startOfMonth(now), to: endOfMonth(now) };
+}
 
 export default function ImpostosMeta() {
   const { toast } = useToast();
@@ -27,6 +50,11 @@ export default function ImpostosMeta() {
   const [commTaxRate, setCommTaxRate] = useState<string>("0");
   const [saving, setSaving] = useState(false);
   const [loadingSettings, setLoadingSettings] = useState(true);
+
+  const [dateRange, setDateRange] = useState<DateRange>(currentMonthRange());
+  const [calendarOpen, setCalendarOpen] = useState(false);
+  const [selecting, setSelecting] = useState<"from" | "to">("from");
+  const [tempFrom, setTempFrom] = useState<Date | undefined>(dateRange.from);
 
   // Load data stores and tax settings
   useEffect(() => {
@@ -43,17 +71,73 @@ export default function ImpostosMeta() {
       .finally(() => setLoadingSettings(false));
   }, []);
 
-  const taxRows = useMemo(() => {
-    const adRate = parseFloat(adTaxRate) || 0;
-    const commRate = parseFloat(commTaxRate) || 0;
-    return calcTaxRows(fullAdSpends, fullRows, adRate, commRate);
-  }, [fullAdSpends, fullRows, adTaxRate, commTaxRate]);
+  const adRate = parseFloat(adTaxRate) || 0;
+  const commRate = parseFloat(commTaxRate) || 0;
+
+  const taxRows = useMemo(
+    () => calcTaxRows(fullAdSpends, fullRows, adRate, commRate),
+    [fullAdSpends, fullRows, adTaxRate, commTaxRate]
+  );
+
+  // KPI cards: filter rows by selected date range
+  const filteredRows = useMemo(() => {
+    const fromKey = format(dateRange.from, "yyyy-MM");
+    const toKey = format(dateRange.to, "yyyy-MM");
+    return taxRows.filter((r) => r.monthKey >= fromKey && r.monthKey <= toKey);
+  }, [taxRows, dateRange]);
+
+  const kpiTotals = useMemo(() => calcTaxTotals(filteredRows), [filteredRows]);
 
   const totals = useMemo(() => calcTaxTotals(taxRows), [taxRows]);
 
+  const kpis: KPIData[] = [
+    {
+      title: "Invest. Anúncios",
+      value: currency(kpiTotals.investimento),
+      icon: Wallet,
+      iconColor: "text-warning",
+    },
+    {
+      title: "Impostos Anúncios",
+      value: currency(kpiTotals.impostosAnuncios),
+      icon: BarChart3,
+      iconColor: "text-warning",
+    },
+    {
+      title: "Invest. Total",
+      value: currency(kpiTotals.investimentoTotal),
+      icon: DollarSign,
+      iconColor: "text-chart-5",
+    },
+    {
+      title: "Comissões",
+      value: currency(kpiTotals.comissoes),
+      icon: Percent,
+      iconColor: "text-success",
+    },
+    {
+      title: "Impostos Saídas",
+      value: currency(kpiTotals.impostosSaidas),
+      icon: TrendingDown,
+      iconColor: "text-warning",
+    },
+    {
+      title: "Lucro Líquido",
+      value: currency(kpiTotals.lucroLiquido),
+      changeType: kpiTotals.lucroLiquido >= 0 ? "positive" : "negative",
+      icon: TrendingUp,
+      iconColor: kpiTotals.lucroLiquido >= 0 ? "text-success" : "text-accent",
+    },
+    {
+      title: "Margem de Lucro",
+      value: pct(kpiTotals.margemLucro),
+      changeType: kpiTotals.margemLucro >= 0 ? "positive" : "negative",
+      icon: Receipt,
+      iconColor: kpiTotals.margemLucro >= 0 ? "text-success" : "text-accent",
+    },
+  ];
+
   const handleSave = async () => {
-    const adRate = parseFloat(adTaxRate) || 0;
-    const commRate = parseFloat(commTaxRate) || 0;
     if (adRate < 0 || adRate > 100 || commRate < 0 || commRate > 100) {
       toast({ title: "Alíquotas devem estar entre 0 e 100", variant: "destructive" });
       return;
@@ -69,10 +153,35 @@ export default function ImpostosMeta() {
     }
   };
 
+  const handleCalendarSelect = (date: Date | undefined) => {
+    if (!date) return;
+    if (selecting === "from") {
+      setTempFrom(date);
+      setSelecting("to");
+    } else {
+      const from = tempFrom!;
+      const to = date;
+      if (to < from) {
+        setDateRange({ from: startOfMonth(to), to: endOfMonth(from) });
+      } else {
+        setDateRange({ from: startOfMonth(from), to: endOfMonth(to) });
+      }
+      setCalendarOpen(false);
+      setSelecting("from");
+      setTempFrom(undefined);
+    }
+  };
+
+  const dateRangeLabel =
+    format(dateRange.from, "MMM/yyyy", { locale: ptBR }) ===
+    format(dateRange.to, "MMM/yyyy", { locale: ptBR })
+      ? format(dateRange.from, "MMM/yyyy", { locale: ptBR })
+      : `${format(dateRange.from, "MMM/yyyy", { locale: ptBR })} – ${format(dateRange.to, "MMM/yyyy", { locale: ptBR })}`;
+
   const isLoading = adLoading || rowsLoading || loadingSettings;
 
   return (
-    <DashboardLayout>
+    <DashboardLayout title="Impostos Meta">
       <div className="p-6 space-y-6">
         {/* Header */}
         <div className="flex items-center gap-3">
@@ -100,9 +209,7 @@ export default function ImpostosMeta() {
                 />
                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">%</span>
               </div>
-              <p className="text-xs text-muted-foreground">
-                Aplicado sobre o Investimento em Anúncios
-              </p>
+              <p className="text-xs text-muted-foreground">Aplicado sobre o Investimento em Anúncios</p>
             </div>
             <div className="space-y-2">
               <Label htmlFor="comm-tax">% Imposto Saídas</Label>
@@ -120,9 +227,7 @@ export default function ImpostosMeta() {
                 />
                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">%</span>
               </div>
-              <p className="text-xs text-muted-foreground">
-                Aplicado sobre as Comissões recebidas
-              </p>
+              <p className="text-xs text-muted-foreground">Aplicado sobre as Comissões recebidas</p>
             </div>
           </div>
           <div className="mt-4 flex justify-end">
@@ -132,6 +237,46 @@ export default function ImpostosMeta() {
             </Button>
           </div>
         </Card>
+
+        {/* KPI Section */}
+        <div className="space-y-4">
+          {/* Period picker */}
+          <div className="flex items-center justify-between">
+            <h2 className="text-base font-semibold">Resumo do Período</h2>
+            <Popover open={calendarOpen} onOpenChange={(open) => {
+              setCalendarOpen(open);
+              if (!open) { setSelecting("from"); setTempFrom(undefined); }
+            }}>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="gap-2 text-sm">
+                  <CalendarIcon className="w-4 h-4" />
+                  <span className="capitalize">{dateRangeLabel}</span>
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="end">
+                <div className="p-3 text-xs text-muted-foreground border-b">
+                  {selecting === "from" ? "Selecione o mês inicial" : "Selecione o mês final"}
+                </div>
+                <Calendar
+                  mode="single"
+                  selected={selecting === "to" ? tempFrom : dateRange.from}
+                  onSelect={handleCalendarSelect}
+                  locale={ptBR}
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
+
+          {/* KPI Cards */}
+          {isLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : (
+            <KPICards kpis={kpis} />
+          )}
+        </div>
 
         {/* Table Card */}
         <Card className="p-6">
