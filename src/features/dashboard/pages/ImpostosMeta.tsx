@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import {
   Receipt,
@@ -20,6 +21,11 @@ import {
   DollarSign,
   Percent,
   BarChart3,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { format, startOfMonth, endOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -35,6 +41,9 @@ const currency = (v: number) =>
 const pct = (v: number) => `${v.toFixed(2)}%`;
 
 type DateRange = { from: Date; to: Date };
+
+type SortKey = "monthKey" | "investimento" | "impostosAnuncios" | "investimentoTotal" | "comissoes" | "impostosSaidas" | "lucroLiquido" | "margemLucro";
+type SortDir = "asc" | "desc";
 
 function currentMonthRange(): DateRange {
   const now = new Date();
@@ -55,6 +64,11 @@ export default function ImpostosMeta() {
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [selecting, setSelecting] = useState<"from" | "to">("from");
   const [tempFrom, setTempFrom] = useState<Date | undefined>(dateRange.from);
+
+  const [sortKey, setSortKey] = useState<SortKey>("monthKey");
+  const [sortDir, setSortDir] = useState<SortDir>("desc");
+  const [pageSize, setPageSize] = useState(5);
+  const [currentPage, setCurrentPage] = useState(1);
 
   // Load data stores and tax settings
   useEffect(() => {
@@ -89,6 +103,36 @@ export default function ImpostosMeta() {
   const kpiTotals = useMemo(() => calcTaxTotals(filteredRows), [filteredRows]);
 
   const totals = useMemo(() => calcTaxTotals(taxRows), [taxRows]);
+
+  const sortedRows = useMemo(() => {
+    return [...taxRows].sort((a, b) => {
+      const av = a[sortKey];
+      const bv = b[sortKey];
+      const cmp = typeof av === "string" ? av.localeCompare(bv as string) : (av as number) - (bv as number);
+      return sortDir === "asc" ? cmp : -cmp;
+    });
+  }, [taxRows, sortKey, sortDir]);
+
+  const totalPages = Math.max(1, Math.ceil(sortedRows.length / pageSize));
+  const safePage = Math.min(currentPage, totalPages);
+  const pagedRows = sortedRows.slice((safePage - 1) * pageSize, safePage * pageSize);
+
+  const handleSort = (key: SortKey) => {
+    if (key === sortKey) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortKey(key);
+      setSortDir("asc");
+    }
+    setCurrentPage(1);
+  };
+
+  const SortIcon = ({ k }: { k: SortKey }) => {
+    if (sortKey !== k) return <ArrowUpDown className="ml-1 w-3 h-3 inline opacity-40" />;
+    return sortDir === "asc"
+      ? <ArrowUp className="ml-1 w-3 h-3 inline text-primary" />
+      : <ArrowDown className="ml-1 w-3 h-3 inline text-primary" />;
+  };
 
   const kpis: KPIData[] = [
     {
@@ -291,56 +335,118 @@ export default function ImpostosMeta() {
               Nenhum dado encontrado. Faça upload de comissões e registre custos de anúncios.
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Mês</TableHead>
-                    <TableHead className="text-right">Invest. Anúncios</TableHead>
-                    <TableHead className="text-right">Impostos Anúncios</TableHead>
-                    <TableHead className="text-right">Invest. Total</TableHead>
-                    <TableHead className="text-right">Comissões</TableHead>
-                    <TableHead className="text-right">Impostos Saídas</TableHead>
-                    <TableHead className="text-right">Lucro Líquido</TableHead>
-                    <TableHead className="text-right">Margem %</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {taxRows.map((row) => (
-                    <TableRow key={row.monthKey}>
-                      <TableCell className="font-medium">{row.month}</TableCell>
-                      <TableCell className="text-right">{currency(row.investimento)}</TableCell>
-                      <TableCell className="text-right text-orange-400">{currency(row.impostosAnuncios)}</TableCell>
-                      <TableCell className="text-right">{currency(row.investimentoTotal)}</TableCell>
-                      <TableCell className="text-right text-green-400">{currency(row.comissoes)}</TableCell>
-                      <TableCell className="text-right text-orange-400">{currency(row.impostosSaidas)}</TableCell>
-                      <TableCell className={`text-right font-semibold ${row.lucroLiquido >= 0 ? "text-green-400" : "text-red-400"}`}>
-                        {currency(row.lucroLiquido)}
+            <>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="cursor-pointer select-none whitespace-nowrap" onClick={() => handleSort("monthKey")}>
+                        Mês<SortIcon k="monthKey" />
+                      </TableHead>
+                      <TableHead className="text-right cursor-pointer select-none whitespace-nowrap" onClick={() => handleSort("investimento")}>
+                        Invest. Anúncios<SortIcon k="investimento" />
+                      </TableHead>
+                      <TableHead className="text-right cursor-pointer select-none whitespace-nowrap" onClick={() => handleSort("impostosAnuncios")}>
+                        Impostos Anúncios<SortIcon k="impostosAnuncios" />
+                      </TableHead>
+                      <TableHead className="text-right cursor-pointer select-none whitespace-nowrap" onClick={() => handleSort("investimentoTotal")}>
+                        Invest. Total<SortIcon k="investimentoTotal" />
+                      </TableHead>
+                      <TableHead className="text-right cursor-pointer select-none whitespace-nowrap" onClick={() => handleSort("comissoes")}>
+                        Comissões<SortIcon k="comissoes" />
+                      </TableHead>
+                      <TableHead className="text-right cursor-pointer select-none whitespace-nowrap" onClick={() => handleSort("impostosSaidas")}>
+                        Impostos Saídas<SortIcon k="impostosSaidas" />
+                      </TableHead>
+                      <TableHead className="text-right cursor-pointer select-none whitespace-nowrap" onClick={() => handleSort("lucroLiquido")}>
+                        Lucro Líquido<SortIcon k="lucroLiquido" />
+                      </TableHead>
+                      <TableHead className="text-right cursor-pointer select-none whitespace-nowrap" onClick={() => handleSort("margemLucro")}>
+                        Margem %<SortIcon k="margemLucro" />
+                      </TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {pagedRows.map((row) => (
+                      <TableRow key={row.monthKey}>
+                        <TableCell className="font-medium">{row.month}</TableCell>
+                        <TableCell className="text-right">{currency(row.investimento)}</TableCell>
+                        <TableCell className="text-right text-orange-400">{currency(row.impostosAnuncios)}</TableCell>
+                        <TableCell className="text-right">{currency(row.investimentoTotal)}</TableCell>
+                        <TableCell className="text-right text-green-400">{currency(row.comissoes)}</TableCell>
+                        <TableCell className="text-right text-orange-400">{currency(row.impostosSaidas)}</TableCell>
+                        <TableCell className={`text-right font-semibold ${row.lucroLiquido >= 0 ? "text-green-400" : "text-red-400"}`}>
+                          {currency(row.lucroLiquido)}
+                        </TableCell>
+                        <TableCell className={`text-right font-semibold ${row.margemLucro >= 0 ? "text-green-400" : "text-red-400"}`}>
+                          {pct(row.margemLucro)}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+
+                    {/* Totals row */}
+                    <TableRow className="border-t-2 font-bold bg-muted/30">
+                      <TableCell>Total</TableCell>
+                      <TableCell className="text-right">{currency(totals.investimento)}</TableCell>
+                      <TableCell className="text-right text-orange-400">{currency(totals.impostosAnuncios)}</TableCell>
+                      <TableCell className="text-right">{currency(totals.investimentoTotal)}</TableCell>
+                      <TableCell className="text-right text-green-400">{currency(totals.comissoes)}</TableCell>
+                      <TableCell className="text-right text-orange-400">{currency(totals.impostosSaidas)}</TableCell>
+                      <TableCell className={`text-right ${totals.lucroLiquido >= 0 ? "text-green-400" : "text-red-400"}`}>
+                        {currency(totals.lucroLiquido)}
                       </TableCell>
-                      <TableCell className={`text-right font-semibold ${row.margemLucro >= 0 ? "text-green-400" : "text-red-400"}`}>
-                        {pct(row.margemLucro)}
+                      <TableCell className={`text-right ${totals.margemLucro >= 0 ? "text-green-400" : "text-red-400"}`}>
+                        {pct(totals.margemLucro)}
                       </TableCell>
                     </TableRow>
-                  ))}
+                  </TableBody>
+                </Table>
+              </div>
 
-                  {/* Totals row */}
-                  <TableRow className="border-t-2 font-bold bg-muted/30">
-                    <TableCell>Total</TableCell>
-                    <TableCell className="text-right">{currency(totals.investimento)}</TableCell>
-                    <TableCell className="text-right text-orange-400">{currency(totals.impostosAnuncios)}</TableCell>
-                    <TableCell className="text-right">{currency(totals.investimentoTotal)}</TableCell>
-                    <TableCell className="text-right text-green-400">{currency(totals.comissoes)}</TableCell>
-                    <TableCell className="text-right text-orange-400">{currency(totals.impostosSaidas)}</TableCell>
-                    <TableCell className={`text-right ${totals.lucroLiquido >= 0 ? "text-green-400" : "text-red-400"}`}>
-                      {currency(totals.lucroLiquido)}
-                    </TableCell>
-                    <TableCell className={`text-right ${totals.margemLucro >= 0 ? "text-green-400" : "text-red-400"}`}>
-                      {pct(totals.margemLucro)}
-                    </TableCell>
-                  </TableRow>
-                </TableBody>
-              </Table>
-            </div>
+              {/* Pagination controls */}
+              <div className="flex items-center justify-between mt-4 gap-4 flex-wrap">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <span>Linhas por página:</span>
+                  <Select
+                    value={String(pageSize)}
+                    onValueChange={(v) => { setPageSize(Number(v)); setCurrentPage(1); }}
+                  >
+                    <SelectTrigger className="w-20 h-8">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {[5, 10, 15, 20].map((n) => (
+                        <SelectItem key={n} value={String(n)}>{n}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <span>
+                    {(safePage - 1) * pageSize + 1}–{Math.min(safePage * pageSize, sortedRows.length)} de {sortedRows.length}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    disabled={safePage === 1}
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={safePage === totalPages}
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+            </>
           )}
         </Card>
       </div>
