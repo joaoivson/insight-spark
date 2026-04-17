@@ -5,8 +5,6 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Calendar } from "@/components/ui/calendar";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
@@ -14,7 +12,6 @@ import {
   Receipt,
   Save,
   Loader2,
-  Calendar as CalendarIcon,
   Wallet,
   TrendingUp,
   TrendingDown,
@@ -27,8 +24,6 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
-import { format, startOfMonth, endOfMonth } from "date-fns";
-import { ptBR } from "date-fns/locale";
 import { useAdSpendsStore } from "@/stores/adSpendsStore";
 import { useDatasetStore } from "@/stores/datasetStore";
 import { getTaxSettings, updateTaxSettings } from "@/services/tax_settings.service";
@@ -40,15 +35,8 @@ const currency = (v: number) =>
 
 const pct = (v: number) => `${v.toFixed(2)}%`;
 
-type DateRange = { from: Date; to: Date };
-
 type SortKey = "monthKey" | "investimento" | "impostosAnuncios" | "investimentoTotal" | "comissoes" | "impostosSaidas" | "lucroLiquido" | "margemLucro";
 type SortDir = "asc" | "desc";
-
-function currentMonthRange(): DateRange {
-  const now = new Date();
-  return { from: startOfMonth(now), to: endOfMonth(now) };
-}
 
 export default function ImpostosMeta() {
   const { toast } = useToast();
@@ -59,11 +47,6 @@ export default function ImpostosMeta() {
   const [commTaxRate, setCommTaxRate] = useState<string>("0");
   const [saving, setSaving] = useState(false);
   const [loadingSettings, setLoadingSettings] = useState(true);
-
-  const [dateRange, setDateRange] = useState<DateRange>(currentMonthRange());
-  const [calendarOpen, setCalendarOpen] = useState(false);
-  const [selecting, setSelecting] = useState<"from" | "to">("from");
-  const [tempFrom, setTempFrom] = useState<Date | undefined>(dateRange.from);
 
   const [sortKey, setSortKey] = useState<SortKey>("monthKey");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
@@ -92,15 +75,6 @@ export default function ImpostosMeta() {
     () => calcTaxRows(fullAdSpends, fullRows, adRate, commRate),
     [fullAdSpends, fullRows, adTaxRate, commTaxRate]
   );
-
-  // KPI cards: filter rows by selected date range
-  const filteredRows = useMemo(() => {
-    const fromKey = format(dateRange.from, "yyyy-MM");
-    const toKey = format(dateRange.to, "yyyy-MM");
-    return taxRows.filter((r) => r.monthKey >= fromKey && r.monthKey <= toKey);
-  }, [taxRows, dateRange]);
-
-  const kpiTotals = useMemo(() => calcTaxTotals(filteredRows), [filteredRows]);
 
   const totals = useMemo(() => calcTaxTotals(taxRows), [taxRows]);
 
@@ -137,47 +111,47 @@ export default function ImpostosMeta() {
   const kpis: KPIData[] = [
     {
       title: "Invest. Anúncios",
-      value: currency(kpiTotals.investimento),
+      value: currency(totals.investimento),
       icon: Wallet,
       iconColor: "text-warning",
     },
     {
       title: "Impostos Anúncios",
-      value: currency(kpiTotals.impostosAnuncios),
+      value: currency(totals.impostosAnuncios),
       icon: BarChart3,
       iconColor: "text-warning",
     },
     {
       title: "Invest. Total",
-      value: currency(kpiTotals.investimentoTotal),
+      value: currency(totals.investimentoTotal),
       icon: DollarSign,
       iconColor: "text-chart-5",
     },
     {
       title: "Comissões",
-      value: currency(kpiTotals.comissoes),
+      value: currency(totals.comissoes),
       icon: Percent,
       iconColor: "text-success",
     },
     {
       title: "Impostos Saídas",
-      value: currency(kpiTotals.impostosSaidas),
+      value: currency(totals.impostosSaidas),
       icon: TrendingDown,
       iconColor: "text-warning",
     },
     {
       title: "Lucro Líquido",
-      value: currency(kpiTotals.lucroLiquido),
-      changeType: kpiTotals.lucroLiquido >= 0 ? "positive" : "negative",
+      value: currency(totals.lucroLiquido),
+      changeType: totals.lucroLiquido >= 0 ? "positive" : "negative",
       icon: TrendingUp,
-      iconColor: kpiTotals.lucroLiquido >= 0 ? "text-success" : "text-accent",
+      iconColor: totals.lucroLiquido >= 0 ? "text-success" : "text-accent",
     },
     {
       title: "Margem de Lucro",
-      value: pct(kpiTotals.margemLucro),
-      changeType: kpiTotals.margemLucro >= 0 ? "positive" : "negative",
+      value: pct(totals.margemLucro),
+      changeType: totals.margemLucro >= 0 ? "positive" : "negative",
       icon: Receipt,
-      iconColor: kpiTotals.margemLucro >= 0 ? "text-success" : "text-accent",
+      iconColor: totals.margemLucro >= 0 ? "text-success" : "text-accent",
     },
   ];
 
@@ -196,31 +170,6 @@ export default function ImpostosMeta() {
       setSaving(false);
     }
   };
-
-  const handleCalendarSelect = (date: Date | undefined) => {
-    if (!date) return;
-    if (selecting === "from") {
-      setTempFrom(date);
-      setSelecting("to");
-    } else {
-      const from = tempFrom!;
-      const to = date;
-      if (to < from) {
-        setDateRange({ from: startOfMonth(to), to: endOfMonth(from) });
-      } else {
-        setDateRange({ from: startOfMonth(from), to: endOfMonth(to) });
-      }
-      setCalendarOpen(false);
-      setSelecting("from");
-      setTempFrom(undefined);
-    }
-  };
-
-  const dateRangeLabel =
-    format(dateRange.from, "MMM/yyyy", { locale: ptBR }) ===
-    format(dateRange.to, "MMM/yyyy", { locale: ptBR })
-      ? format(dateRange.from, "MMM/yyyy", { locale: ptBR })
-      : `${format(dateRange.from, "MMM/yyyy", { locale: ptBR })} – ${format(dateRange.to, "MMM/yyyy", { locale: ptBR })}`;
 
   const isLoading = adLoading || rowsLoading || loadingSettings;
 
@@ -282,45 +231,14 @@ export default function ImpostosMeta() {
           </div>
         </Card>
 
-        {/* KPI Section */}
-        <div className="space-y-4">
-          {/* Period picker */}
-          <div className="flex items-center justify-between">
-            <h2 className="text-base font-semibold">Resumo do Período</h2>
-            <Popover open={calendarOpen} onOpenChange={(open) => {
-              setCalendarOpen(open);
-              if (!open) { setSelecting("from"); setTempFrom(undefined); }
-            }}>
-              <PopoverTrigger asChild>
-                <Button variant="outline" className="gap-2 text-sm">
-                  <CalendarIcon className="w-4 h-4" />
-                  <span className="capitalize">{dateRangeLabel}</span>
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="end">
-                <div className="p-3 text-xs text-muted-foreground border-b">
-                  {selecting === "from" ? "Selecione o mês inicial" : "Selecione o mês final"}
-                </div>
-                <Calendar
-                  mode="single"
-                  selected={selecting === "to" ? tempFrom : dateRange.from}
-                  onSelect={handleCalendarSelect}
-                  locale={ptBR}
-                  initialFocus
-                />
-              </PopoverContent>
-            </Popover>
+        {/* KPI Cards */}
+        {isLoading ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
           </div>
-
-          {/* KPI Cards */}
-          {isLoading ? (
-            <div className="flex items-center justify-center py-8">
-              <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-            </div>
-          ) : (
-            <KPICards kpis={kpis} />
-          )}
-        </div>
+        ) : (
+          <KPICards kpis={kpis} />
+        )}
 
         {/* Table Card */}
         <Card className="p-6">
