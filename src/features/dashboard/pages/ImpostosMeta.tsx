@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
-import KPICards from "@/components/dashboard/KPICards";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -27,16 +26,44 @@ import {
 import { useAdSpendsStore } from "@/stores/adSpendsStore";
 import { useDatasetStore } from "@/stores/datasetStore";
 import { getTaxSettings, updateTaxSettings } from "@/services/tax_settings.service";
-import { calcTaxRows, calcTaxTotals } from "@/shared/lib/taxes";
-import type { KPIData } from "@/components/dashboard/KPICards";
+import {
+  calcTaxRows,
+  calcTaxTotals,
+  calcTaxDayRows,
+  calcTaxDayTotals,
+  formatMonthFull,
+  type TaxRow,
+  type TaxDayRow,
+} from "@/shared/lib/taxes";
+import { toDateKey } from "@/shared/lib/date";
+import { cn } from "@/shared/lib/utils";
 
 const currency = (v: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v ?? 0);
 
 const pct = (v: number) => `${v.toFixed(2)}%`;
 
-type SortKey = "monthKey" | "investimento" | "impostosAnuncios" | "investimentoTotal" | "comissoes" | "impostosSaidas" | "lucroLiquido" | "margemLucro";
+type SortKey = "key" | "investimento" | "impostosAnuncios" | "investimentoTotal" | "comissoes" | "impostosSaidas" | "lucroLiquido" | "margemLucro";
 type SortDir = "asc" | "desc";
+
+type UnifiedRow = {
+  key: string;
+  label: string;
+  investimento: number;
+  impostosAnuncios: number;
+  investimentoTotal: number;
+  comissoes: number;
+  impostosSaidas: number;
+  lucroLiquido: number;
+  margemLucro: number;
+};
+
+function toUnified(r: TaxRow): UnifiedRow {
+  return { key: r.monthKey, label: r.month, ...r };
+}
+function toUnifiedDay(r: TaxDayRow): UnifiedRow {
+  return { key: r.dateKey, label: r.dateDisplay, ...r };
+}
 
 export default function ImpostosMeta() {
   const { toast } = useToast();
@@ -47,13 +74,13 @@ export default function ImpostosMeta() {
   const [commTaxRate, setCommTaxRate] = useState<string>("0");
   const [saving, setSaving] = useState(false);
   const [loadingSettings, setLoadingSettings] = useState(true);
+  const [selectedMonth, setSelectedMonth] = useState<string>("all");
 
-  const [sortKey, setSortKey] = useState<SortKey>("monthKey");
+  const [sortKey, setSortKey] = useState<SortKey>("key");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [pageSize, setPageSize] = useState(5);
   const [currentPage, setCurrentPage] = useState(1);
 
-  // Load data stores and tax settings
   useEffect(() => {
     fetchAdSpends();
     fetchRows();
@@ -71,21 +98,50 @@ export default function ImpostosMeta() {
   const adRate = parseFloat(adTaxRate) || 0;
   const commRate = parseFloat(commTaxRate) || 0;
 
-  const taxRows = useMemo(
+  // Available months derived from all data
+  const availableMonths = useMemo(() => {
+    const months = new Set<string>();
+    fullAdSpends.forEach((s) => {
+      const dk = toDateKey(s.date as string);
+      if (dk) months.add(dk.slice(0, 7));
+    });
+    fullRows.forEach((r) => {
+      const dk = toDateKey(r.date);
+      if (dk) months.add(dk.slice(0, 7));
+    });
+    return Array.from(months).sort().reverse();
+  }, [fullAdSpends, fullRows]);
+
+  const isDailyMode = selectedMonth !== "all";
+
+  const monthlyRows = useMemo(
     () => calcTaxRows(fullAdSpends, fullRows, adRate, commRate),
     [fullAdSpends, fullRows, adTaxRate, commTaxRate]
   );
 
-  const totals = useMemo(() => calcTaxTotals(taxRows), [taxRows]);
+  const dailyRows = useMemo(() => {
+    if (!isDailyMode) return [];
+    return calcTaxDayRows(fullAdSpends, fullRows, adRate, commRate, selectedMonth);
+  }, [fullAdSpends, fullRows, adTaxRate, commTaxRate, selectedMonth, isDailyMode]);
+
+  const unifiedRows: UnifiedRow[] = useMemo(
+    () => isDailyMode ? dailyRows.map(toUnifiedDay) : monthlyRows.map(toUnified),
+    [isDailyMode, dailyRows, monthlyRows]
+  );
+
+  const totals = useMemo(
+    () => isDailyMode ? calcTaxDayTotals(dailyRows) : calcTaxTotals(monthlyRows),
+    [isDailyMode, dailyRows, monthlyRows]
+  );
 
   const sortedRows = useMemo(() => {
-    return [...taxRows].sort((a, b) => {
+    return [...unifiedRows].sort((a, b) => {
       const av = a[sortKey];
       const bv = b[sortKey];
       const cmp = typeof av === "string" ? av.localeCompare(bv as string) : (av as number) - (bv as number);
       return sortDir === "asc" ? cmp : -cmp;
     });
-  }, [taxRows, sortKey, sortDir]);
+  }, [unifiedRows, sortKey, sortDir]);
 
   const totalPages = Math.max(1, Math.ceil(sortedRows.length / pageSize));
   const safePage = Math.min(currentPage, totalPages);
@@ -108,53 +164,6 @@ export default function ImpostosMeta() {
       : <ArrowDown className="ml-1 w-3 h-3 inline text-primary" />;
   };
 
-  const kpis: KPIData[] = [
-    {
-      title: "Invest. Anúncios",
-      value: currency(totals.investimento),
-      icon: Wallet,
-      iconColor: "text-warning",
-    },
-    {
-      title: "Impostos Anúncios",
-      value: currency(totals.impostosAnuncios),
-      icon: BarChart3,
-      iconColor: "text-warning",
-    },
-    {
-      title: "Invest. Total",
-      value: currency(totals.investimentoTotal),
-      icon: DollarSign,
-      iconColor: "text-chart-5",
-    },
-    {
-      title: "Comissões",
-      value: currency(totals.comissoes),
-      icon: Percent,
-      iconColor: "text-success",
-    },
-    {
-      title: "Impostos Saídas",
-      value: currency(totals.impostosSaidas),
-      icon: TrendingDown,
-      iconColor: "text-warning",
-    },
-    {
-      title: "Lucro Líquido",
-      value: currency(totals.lucroLiquido),
-      changeType: totals.lucroLiquido >= 0 ? "positive" : "negative",
-      icon: TrendingUp,
-      iconColor: totals.lucroLiquido >= 0 ? "text-success" : "text-accent",
-    },
-    {
-      title: "Margem de Lucro",
-      value: pct(totals.margemLucro),
-      changeType: totals.margemLucro >= 0 ? "positive" : "negative",
-      icon: Receipt,
-      iconColor: totals.margemLucro >= 0 ? "text-success" : "text-accent",
-    },
-  ];
-
   const handleSave = async () => {
     if (adRate < 0 || adRate > 100 || commRate < 0 || commRate > 100) {
       toast({ title: "Alíquotas devem estar entre 0 e 100", variant: "destructive" });
@@ -173,21 +182,26 @@ export default function ImpostosMeta() {
 
   const isLoading = adLoading || rowsLoading || loadingSettings;
 
+  const tableTitle = isDailyMode
+    ? `Análise Diária — ${formatMonthFull(selectedMonth)}`
+    : "Análise Mensal de Impostos";
+
+  const dateColLabel = isDailyMode ? "Data" : "Mês";
+
   return (
-    <DashboardLayout title="Impostos Meta">
-      <div className="p-6 space-y-6">
+    <DashboardLayout title="Impostos">
+      <div className="p-6 space-y-5">
         {/* Header */}
         <div className="flex items-center gap-3">
           <Receipt className="w-6 h-6 text-primary" />
-          <h1 className="text-2xl font-bold">Impostos Meta</h1>
+          <h1 className="text-2xl font-bold">Impostos</h1>
         </div>
 
-        {/* Config Card */}
-        <Card className="p-6">
-          <h2 className="text-base font-semibold mb-4">Configuração de Alíquotas</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-            <div className="space-y-2">
-              <Label htmlFor="ad-tax">% Imposto Anúncios</Label>
+        {/* Config Card — compact */}
+        <Card className="px-4 py-3">
+          <div className="flex flex-wrap items-end gap-4">
+            <div className="flex-1 min-w-[160px] space-y-1">
+              <Label htmlFor="ad-tax" className="text-xs">% Imposto Anúncios</Label>
               <div className="relative">
                 <Input
                   id="ad-tax"
@@ -197,15 +211,14 @@ export default function ImpostosMeta() {
                   step={0.01}
                   value={adTaxRate}
                   onChange={(e) => setAdTaxRate(e.target.value)}
-                  className="pr-8"
+                  className="pr-7 h-8 text-sm"
                   placeholder="0"
                 />
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">%</span>
+                <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">%</span>
               </div>
-              <p className="text-xs text-muted-foreground">Aplicado sobre o Investimento em Anúncios</p>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="comm-tax">% Imposto Saídas</Label>
+            <div className="flex-1 min-w-[160px] space-y-1">
+              <Label htmlFor="comm-tax" className="text-xs">% Imposto Saídas</Label>
               <div className="relative">
                 <Input
                   id="comm-tax"
@@ -215,42 +228,123 @@ export default function ImpostosMeta() {
                   step={0.01}
                   value={commTaxRate}
                   onChange={(e) => setCommTaxRate(e.target.value)}
-                  className="pr-8"
+                  className="pr-7 h-8 text-sm"
                   placeholder="0"
                 />
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">%</span>
+                <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">%</span>
               </div>
-              <p className="text-xs text-muted-foreground">Aplicado sobre as Comissões recebidas</p>
             </div>
-          </div>
-          <div className="mt-4 flex justify-end">
-            <Button onClick={handleSave} disabled={saving} className="gap-2">
-              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-              Salvar Alíquotas
+            <Button onClick={handleSave} disabled={saving} size="sm" className="gap-1.5 h-8">
+              {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+              Salvar
             </Button>
           </div>
         </Card>
 
-        {/* KPI Cards */}
+        {/* KPI Cards — 6 in one row (5 individual + 1 combined) */}
         {isLoading ? (
           <div className="flex items-center justify-center py-8">
             <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
           </div>
         ) : (
-          <KPICards kpis={kpis} />
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+            {/* Invest. Anúncios */}
+            <div className="bg-card rounded-xl border border-border p-3 min-w-0">
+              <div className="w-8 h-8 rounded-lg bg-warning/10 flex items-center justify-center mb-2">
+                <Wallet className="w-4 h-4 text-warning" />
+              </div>
+              <div className="text-base font-bold leading-tight truncate">{currency(totals.investimento)}</div>
+              <div className="text-xs text-muted-foreground mt-0.5">Invest. Anúncios</div>
+            </div>
+            {/* Impostos Anúncios */}
+            <div className="bg-card rounded-xl border border-border p-3 min-w-0">
+              <div className="w-8 h-8 rounded-lg bg-warning/10 flex items-center justify-center mb-2">
+                <BarChart3 className="w-4 h-4 text-warning" />
+              </div>
+              <div className="text-base font-bold leading-tight truncate">{currency(totals.impostosAnuncios)}</div>
+              <div className="text-xs text-muted-foreground mt-0.5">Impostos Anúncios</div>
+            </div>
+            {/* Invest. Total */}
+            <div className="bg-card rounded-xl border border-border p-3 min-w-0">
+              <div className="w-8 h-8 rounded-lg bg-chart-5/10 flex items-center justify-center mb-2">
+                <DollarSign className="w-4 h-4 text-chart-5" />
+              </div>
+              <div className="text-base font-bold leading-tight truncate">{currency(totals.investimentoTotal)}</div>
+              <div className="text-xs text-muted-foreground mt-0.5">Invest. Total</div>
+            </div>
+            {/* Comissões */}
+            <div className="bg-card rounded-xl border border-border p-3 min-w-0">
+              <div className="w-8 h-8 rounded-lg bg-success/10 flex items-center justify-center mb-2">
+                <Percent className="w-4 h-4 text-success" />
+              </div>
+              <div className="text-base font-bold leading-tight truncate">{currency(totals.comissoes)}</div>
+              <div className="text-xs text-muted-foreground mt-0.5">Comissões</div>
+            </div>
+            {/* Impostos Saídas */}
+            <div className="bg-card rounded-xl border border-border p-3 min-w-0">
+              <div className="w-8 h-8 rounded-lg bg-warning/10 flex items-center justify-center mb-2">
+                <TrendingDown className="w-4 h-4 text-warning" />
+              </div>
+              <div className="text-base font-bold leading-tight truncate">{currency(totals.impostosSaidas)}</div>
+              <div className="text-xs text-muted-foreground mt-0.5">Impostos Saídas</div>
+            </div>
+            {/* Lucro Líquido + Margem (combined) */}
+            <div className={cn(
+              "bg-card rounded-xl border border-border p-3 min-w-0",
+              totals.lucroLiquido >= 0 ? "border-success/20" : "border-destructive/20"
+            )}>
+              <div className={cn(
+                "w-8 h-8 rounded-lg flex items-center justify-center mb-2",
+                totals.lucroLiquido >= 0 ? "bg-success/10" : "bg-destructive/10"
+              )}>
+                <TrendingUp className={cn("w-4 h-4", totals.lucroLiquido >= 0 ? "text-success" : "text-destructive")} />
+              </div>
+              <div className={cn(
+                "text-base font-bold leading-tight truncate",
+                totals.lucroLiquido >= 0 ? "text-success" : "text-destructive"
+              )}>
+                {currency(totals.lucroLiquido)}
+              </div>
+              <div className={cn(
+                "text-xs font-medium",
+                totals.margemLucro >= 0 ? "text-success" : "text-destructive"
+              )}>
+                {pct(totals.margemLucro)}
+              </div>
+              <div className="text-xs text-muted-foreground mt-0.5">Lucro Líquido</div>
+            </div>
+          </div>
         )}
 
         {/* Table Card */}
         <Card className="p-6">
-          <h2 className="text-base font-semibold mb-4">Análise Mensal de Impostos</h2>
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+            <h2 className="text-base font-semibold">{tableTitle}</h2>
+            <Select
+              value={selectedMonth}
+              onValueChange={(v) => { setSelectedMonth(v); setCurrentPage(1); setSortKey("key"); setSortDir("desc"); }}
+            >
+              <SelectTrigger className="w-52 h-8 text-sm">
+                <SelectValue placeholder="Todos os meses" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os meses</SelectItem>
+                {availableMonths.map((mk) => (
+                  <SelectItem key={mk} value={mk}>{formatMonthFull(mk)}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
           {isLoading ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
             </div>
-          ) : taxRows.length === 0 ? (
+          ) : unifiedRows.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
-              Nenhum dado encontrado. Faça upload de comissões e registre custos de anúncios.
+              {isDailyMode
+                ? "Nenhum dado para o mês selecionado."
+                : "Nenhum dado encontrado. Faça upload de comissões e registre custos de anúncios."}
             </div>
           ) : (
             <>
@@ -258,8 +352,8 @@ export default function ImpostosMeta() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="cursor-pointer select-none whitespace-nowrap" onClick={() => handleSort("monthKey")}>
-                        Mês<SortIcon k="monthKey" />
+                      <TableHead className="cursor-pointer select-none whitespace-nowrap" onClick={() => handleSort("key")}>
+                        {dateColLabel}<SortIcon k="key" />
                       </TableHead>
                       <TableHead className="text-right cursor-pointer select-none whitespace-nowrap" onClick={() => handleSort("investimento")}>
                         Invest. Anúncios<SortIcon k="investimento" />
@@ -286,8 +380,8 @@ export default function ImpostosMeta() {
                   </TableHeader>
                   <TableBody>
                     {pagedRows.map((row) => (
-                      <TableRow key={row.monthKey}>
-                        <TableCell className="font-medium">{row.month}</TableCell>
+                      <TableRow key={row.key}>
+                        <TableCell className="font-medium">{row.label}</TableCell>
                         <TableCell className="text-right">{currency(row.investimento)}</TableCell>
                         <TableCell className="text-right text-orange-400">{currency(row.impostosAnuncios)}</TableCell>
                         <TableCell className="text-right">{currency(row.investimentoTotal)}</TableCell>
@@ -321,7 +415,7 @@ export default function ImpostosMeta() {
                 </Table>
               </div>
 
-              {/* Pagination controls */}
+              {/* Pagination */}
               <div className="flex items-center justify-between mt-4 gap-4 flex-wrap">
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <span>Linhas por página:</span>

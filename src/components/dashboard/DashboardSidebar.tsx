@@ -39,8 +39,8 @@ const menuItems = [
   { icon: Wallet, label: "Custos de Anúncios", path: "/dashboard/investimentos" },
   { icon: Globe, label: "Página de Captura", path: "/dashboard/captura" },
   { icon: Link2, label: "Meus Links", path: "/dashboard/links" },
-  { icon: Plug, label: "Integração Shopee", path: "/dashboard/integracoes" },
-  { icon: Receipt, label: "Impostos Meta", path: "/dashboard/impostos" },
+  { icon: Plug, label: "Integração Shopee", path: "/dashboard/integracoes", isNew: true },
+  { icon: Receipt, label: "Impostos", path: "/dashboard/impostos", isNew: true },
   // { icon: FileText, label: "Relatório Dinâmico", path: "/dashboard/reports" },
   // { icon: Puzzle, label: "Módulos", path: "/dashboard/modules" }, // Temporarily hidden
 ];
@@ -154,6 +154,21 @@ const DashboardSidebar = ({ mobileMenuOpen = false, onMobileMenuClose }: Dashboa
               collapsed && !isMobile && "justify-center px-0",
               "w-full"
             );
+            const itemContent = (
+              <>
+                <item.icon className="w-5 h-5 flex-shrink-0" aria-hidden="true" />
+                {(!collapsed || isMobile) && (
+                  <>
+                    <span className="font-medium truncate flex-1">{item.label}</span>
+                    {item.isNew && (
+                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-primary/20 text-primary flex-shrink-0">
+                        Novo
+                      </span>
+                    )}
+                  </>
+                )}
+              </>
+            );
             return (
               <li key={item.path} className="w-full">
                 {isDemo ? (
@@ -164,8 +179,7 @@ const DashboardSidebar = ({ mobileMenuOpen = false, onMobileMenuClose }: Dashboa
                     aria-label={item.label}
                     aria-current={isActive ? "page" : undefined}
                   >
-                    <item.icon className="w-5 h-5 flex-shrink-0" aria-hidden="true" />
-                    {(!collapsed || isMobile) && <span className="font-medium truncate">{item.label}</span>}
+                    {itemContent}
                   </button>
                 ) : (
                   <NavLink
@@ -175,8 +189,7 @@ const DashboardSidebar = ({ mobileMenuOpen = false, onMobileMenuClose }: Dashboa
                     aria-current={isActive ? "page" : undefined}
                     onClick={handleNavClick}
                   >
-                    <item.icon className="w-5 h-5 flex-shrink-0" aria-hidden="true" />
-                    {(!collapsed || isMobile) && <span className="font-medium truncate">{item.label}</span>}
+                    {itemContent}
                   </NavLink>
                 )}
               </li>

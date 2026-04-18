@@ -33,6 +33,7 @@ export interface DatasetRow {
   date: string;
   product: string;
   platform: string;
+  channel?: string | null;
   category: string;
   status: string;
   sub_id1: string;

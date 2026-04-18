@@ -123,6 +123,19 @@ export function groupByPlatform(rows: DatasetRow[], dateRange: DateRange): { nam
     .sort((a, b) => b.value - a.value);
 }
 
+/** Group by channel type (Shopee channelType), fallback to platform. Pend. + Concl. */
+export function groupByChannel(rows: DatasetRow[], dateRange: DateRange): { name: string; value: number }[] {
+  const filtered = filterKpiRows(filterRowsByDateRange(rows, dateRange));
+  const byChannel = new Map<string, number>();
+  filtered.forEach((r) => {
+    const name = (r.channel?.trim() || r.platform?.trim() || "Outros");
+    byChannel.set(name, (byChannel.get(name) ?? 0) + getComissaoAfiliado(r));
+  });
+  return Array.from(byChannel.entries())
+    .map(([name, value]) => ({ name, value: Math.round(value * 100) / 100 }))
+    .sort((a, b) => b.value - a.value);
+}
+
 /** Group by category, sum commission. Usa mesma fonte que kpi.ts (Pend. + Concl.). */
 export function groupByCategory(rows: DatasetRow[], dateRange: DateRange): { name: string; value: number }[] {
   const filtered = filterKpiRows(filterRowsByDateRange(rows, dateRange));

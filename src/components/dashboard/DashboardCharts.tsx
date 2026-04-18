@@ -5,7 +5,7 @@ import {
   groupByMesAno,
   groupCommissionByDay,
   groupRevenueProfitByMes,
-  groupByPlatform,
+  groupByChannel,
   groupByCategory,
 } from "../../shared/lib/chart-utils";
 import { EvolutionBarChart } from "./charts/EvolutionBarChart";
@@ -67,7 +67,7 @@ const DashboardCharts = ({ rows, adSpends = [], dateRange, subIdFilter, onDrillD
   const mesAnoData = groupByMesAno(rows, dateRange);
   const commissionDayData = groupCommissionByDay(rows, dateRange);
   const revProfitData = groupRevenueProfitByMes(rows, adSpends, dateRange, subIdFilter);
-  const channelData = groupByPlatform(rows, dateRange);
+  const channelData = groupByChannel(rows, dateRange);
   const categoryData = groupByCategory(rows, dateRange);
 
   return (

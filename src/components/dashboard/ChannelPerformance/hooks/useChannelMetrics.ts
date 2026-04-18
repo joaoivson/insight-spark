@@ -40,7 +40,8 @@ export const useChannelMetrics = (
 
         // 1. Processar Comissões por canal (Sub ID)
         filteredRows.forEach((row) => {
-            const channel = (row.sub_id1 || "Orgânico/Outros").toLowerCase();
+            const rawId = normalizeSubId(row.sub_id1);
+            const channel = rawId === "Sem Sub ID" ? "orgânico/outros" : rawId;
             const current = channelMap.get(channel) || { commission: 0, spend: 0, orders: 0 };
 
             const commission = getComissaoCents(row) / 100;
@@ -59,7 +60,8 @@ export const useChannelMetrics = (
             if (!spend.sub_id || spend.sub_id === "Geral/Institucional") {
                 totalGeneralSpend += (spend.amount || 0);
             } else {
-                const channel = spend.sub_id.toLowerCase();
+                const rawSpend = normalizeSubId(spend.sub_id);
+                const channel = rawSpend === "Sem Sub ID" ? "orgânico/outros" : rawSpend;
                 const current = channelMap.get(channel) || { commission: 0, spend: 0, orders: 0 };
                 channelMap.set(channel, {
                     ...current,
