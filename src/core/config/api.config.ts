@@ -221,7 +221,8 @@ export const fetchWithAuth = async (
 
   // Tratamento de erro 403 - Assinatura inativa
   if (response.status === 403) {
-    const errorData = await response.json().catch(() => ({}));
+    // Clonar antes de consumir o body — caller pode precisar ler o response depois.
+    const errorData = await response.clone().json().catch(() => ({}));
     const errorMessage = errorData.detail || errorData.message || '';
     const isSubscriptionError = 
       errorMessage.toLowerCase().includes("assinatura") ||
