@@ -181,7 +181,7 @@ export const CapturaSite = () => {
     setViewMode('editor');
   };
 
-  const MAX_CAPTURE_SITES = 15;
+  const MAX_CAPTURE_SITES = 30;
 
   const handleNew = () => {
     if (sites.length >= MAX_CAPTURE_SITES) {

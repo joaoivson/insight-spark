@@ -87,7 +87,7 @@ const CustomLinks = () => {
         setEditingLink(null);
     };
 
-    const MAX_CUSTOM_LINKS = 15;
+    const MAX_CUSTOM_LINKS = 30;
 
     const handleNew = () => {
         if (links.length >= MAX_CUSTOM_LINKS) {
