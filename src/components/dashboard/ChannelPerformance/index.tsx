@@ -15,13 +15,13 @@ const ChannelPerformance = ({
 }: ChannelPerformanceProps) => {
     const { channelMetrics, dailyMetrics, highlights } = useChannelMetrics(rows, adSpends, dateRange, subIdFilter);
 
-    if (!channelMetrics.length) return null;
+    if (!channelMetrics.length && !dailyMetrics.length) return null;
 
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
-            {showHighlights && <MetricHighlights highlights={highlights} />}
-            {showSubTable && <SubIdTable metrics={channelMetrics} />}
-            {showDayTable && <DailyTable metrics={dailyMetrics} />}
+            {showHighlights && channelMetrics.length > 0 && <MetricHighlights highlights={highlights} />}
+            {showSubTable && channelMetrics.length > 0 && <SubIdTable metrics={channelMetrics} />}
+            {showDayTable && dailyMetrics.length > 0 && <DailyTable metrics={dailyMetrics} />}
         </div>
     );
 };

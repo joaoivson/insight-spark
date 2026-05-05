@@ -74,7 +74,10 @@ export default function ImpostosMeta() {
   const [commTaxRate, setCommTaxRate] = useState<string>("0");
   const [saving, setSaving] = useState(false);
   const [loadingSettings, setLoadingSettings] = useState(true);
-  const [selectedMonth, setSelectedMonth] = useState<string>("all");
+  const [selectedMonth, setSelectedMonth] = useState<string>(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  });
 
   const [sortKey, setSortKey] = useState<SortKey>("key");
   const [sortDir, setSortDir] = useState<SortDir>("desc");

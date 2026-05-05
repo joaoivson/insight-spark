@@ -14,6 +14,7 @@ import {
   Link2,
   Plug,
   Receipt,
+  Users,
 } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -41,6 +42,7 @@ const menuItems = [
   { icon: Link2, label: "Meus Links", path: "/dashboard/links" },
   { icon: Plug, label: "Integração Shopee", path: "/dashboard/integracoes", isNew: true },
   { icon: Receipt, label: "Impostos", path: "/dashboard/impostos", isNew: true },
+  { icon: Users, label: "Indique & Ganhe", path: "/dashboard/afiliados", isNew: true },
   // { icon: FileText, label: "Relatório Dinâmico", path: "/dashboard/reports" },
   // { icon: Puzzle, label: "Módulos", path: "/dashboard/modules" }, // Temporarily hidden
 ];
@@ -158,14 +160,14 @@ const DashboardSidebar = ({ mobileMenuOpen = false, onMobileMenuClose }: Dashboa
               <>
                 <item.icon className="w-5 h-5 flex-shrink-0" aria-hidden="true" />
                 {(!collapsed || isMobile) && (
-                  <>
-                    <span className="font-medium truncate flex-1">{item.label}</span>
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                    <span className="font-medium truncate">{item.label}</span>
                     {item.isNew && (
                       <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-primary/20 text-primary flex-shrink-0">
                         Novo
                       </span>
                     )}
-                  </>
+                  </div>
                 )}
               </>
             );
