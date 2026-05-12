@@ -1,7 +1,8 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import Header from "@/components/landing/Header";
 import Footer from "@/components/landing/Footer";
 import { Skeleton } from "@/components/ui/skeleton";
+import { setAffiliateRef } from "@/shared/utils/affiliate";
 
 // Lazy load de seções pesadas para melhor performance
 const HeroSection = lazy(() => import("@/components/landing/HeroSection"));
@@ -29,6 +30,12 @@ const SectionSkeleton = () => (
 );
 
 const Index = () => {
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const ref = params.get("ref");
+    if (ref) setAffiliateRef(ref);
+  }, []);
+
   return (
     <div className="min-h-screen bg-background">
       <Header />

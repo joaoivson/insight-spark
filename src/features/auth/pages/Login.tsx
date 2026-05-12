@@ -56,6 +56,7 @@ const Login = () => {
           name: (result.user as any).name ?? (result.user as any).nome ?? "",
           cpf_cnpj: (result.user as any).cpf_cnpj,
           email: result.user.email,
+          is_admin: Boolean((result.user as any).is_admin),
           created_at: (result.user as any).created_at,
           updated_at: (result.user as any).updated_at,
         });

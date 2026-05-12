@@ -2,6 +2,25 @@ import type { LoginData, LoginResponse } from '../types';
 import { getApiUrl, fetchWithAuth } from '@/core/config/api.config';
 import { supabase } from '@/shared/lib/supabase';
 import { APP_CONFIG } from '@/core/config/app.config';
+import { getAffiliateRef, clearAffiliateRef } from '@/shared/utils/affiliate';
+
+async function attachAffiliateRef(token: string): Promise<void> {
+  const ref = getAffiliateRef();
+  if (!ref) return;
+  try {
+    await fetch(getApiUrl('/api/v1/auth/attach-ref'), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ referrer_user_id: ref }),
+    });
+    clearAffiliateRef();
+  } catch {
+    // não bloquear o login se o attach-ref falhar — pode tentar de novo no próximo login
+  }
+}
 
 export const loginService = async (data: LoginData): Promise<LoginResponse> => {
   try {
@@ -25,6 +44,7 @@ export const loginService = async (data: LoginData): Promise<LoginResponse> => {
       const userResult = await response.json();
 
       if (response.ok) {
+        await attachAffiliateRef(token);
         return {
           success: true,
           token: token,
@@ -40,13 +60,18 @@ export const loginService = async (data: LoginData): Promise<LoginResponse> => {
     const legacyResponse = await fetch(getApiUrl('/api/v1/auth/login'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: data.email, password: data.senha }),
+      body: JSON.stringify({
+        email: data.email,
+        password: data.senha,
+        referrer_user_id: getAffiliateRef() ?? undefined,
+      }),
     });
 
     const legacyData = await legacyResponse.json();
 
     if (legacyResponse.ok && legacyData.access_token) {
       localStorage.setItem(APP_CONFIG.STORAGE_KEYS.TOKEN, legacyData.access_token);
+      clearAffiliateRef();
       return {
         success: true,
         token: legacyData.access_token,

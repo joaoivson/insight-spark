@@ -35,6 +35,7 @@ import NotFound from "@/shared/pages/NotFound";
 import IntegrationsPage from "@/features/dashboard/pages/Integrations";
 import ImpostosMeta from "@/features/dashboard/pages/ImpostosMeta";
 import AfiliadosPage from "@/features/dashboard/pages/Afiliados";
+import AfiliadosPendentesPage from "@/features/admin/pages/AfiliadosPendentes";
 
 // Loading fallback component
 const LoadingFallback = () => (
@@ -167,6 +168,7 @@ export const AppRoutes = () => {
         <Route path="/dashboard/integracoes" element={<ProtectedRoute element={<IntegrationsPage />} />} />
         <Route path="/dashboard/impostos" element={<ProtectedRoute element={<ImpostosMeta />} />} />
         <Route path="/dashboard/afiliados" element={<ProtectedRoute element={<AfiliadosPage />} />} />
+        <Route path="/dashboard/admin/afiliados" element={<ProtectedRoute element={<AfiliadosPendentesPage />} />} />
 
         {/* Capture Public Route */}
         <Route path="/c/:slug" element={<CaptureViewer />} />

@@ -15,6 +15,7 @@ import {
   Plug,
   Receipt,
   Users,
+  ShieldCheck,
 } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -43,8 +44,10 @@ const menuItems = [
   { icon: Plug, label: "Integração Shopee", path: "/dashboard/integracoes", isNew: true },
   { icon: Receipt, label: "Impostos", path: "/dashboard/impostos", isNew: true },
   { icon: Users, label: "Indique & Ganhe", path: "/dashboard/afiliados", isNew: true },
-  // { icon: FileText, label: "Relatório Dinâmico", path: "/dashboard/reports" },
-  // { icon: Puzzle, label: "Módulos", path: "/dashboard/modules" }, // Temporarily hidden
+];
+
+const adminMenuItems = [
+  { icon: ShieldCheck, label: "Afiliados pendentes", path: "/dashboard/admin/afiliados", isAdmin: true },
 ];
 
 interface DashboardSidebarProps {
@@ -70,6 +73,9 @@ const DashboardSidebar = ({ mobileMenuOpen = false, onMobileMenuClose }: Dashboa
   const isDemo = location.pathname.startsWith("/demo");
   const [collapsed, setCollapsed] = useState(false);
   const isMobile = useIsMobile();
+  const storedUser = userStorage.get() as { is_admin?: boolean } | null;
+  const isAdmin = Boolean(storedUser?.is_admin);
+  const visibleMenu = isAdmin ? [...menuItems, ...adminMenuItems] : menuItems;
 
   const cleanNumber = WHATSAPP_NUMBER && typeof WHATSAPP_NUMBER === "string" ? WHATSAPP_NUMBER.replace(/\D/g, "") : null;
   const waUrl = cleanNumber ? `https://wa.me/${cleanNumber}` : null;
@@ -147,7 +153,7 @@ const DashboardSidebar = ({ mobileMenuOpen = false, onMobileMenuClose }: Dashboa
       {/* Navigation */}
       <nav className="flex-1 py-4 md:py-6 px-3 overflow-y-auto" aria-label="Navegação principal">
         <ul className="flex flex-col gap-1" role="list">
-          {menuItems.map((item) => {
+          {visibleMenu.map((item) => {
             const isActive = location.pathname === item.path && !isDemo;
             const classes = cn(
               "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200",
