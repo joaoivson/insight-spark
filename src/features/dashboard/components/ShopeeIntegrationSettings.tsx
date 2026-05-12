@@ -95,19 +95,44 @@ export const ShopeeIntegrationSettings = () => {
   const handleSync = async () => {
     setIsSyncing(true);
     setSyncStep("syncing");
+    const previousSyncAt = status?.last_sync_at ?? null;
     try {
+      // Backend retorna 202 e processa em background via Celery worker
+      // (sync de 88 dias leva minutos e estoura timeout de gateway).
       await triggerManualSync();
       setSyncStep("saving");
-      await new Promise((r) => setTimeout(r, 600));
+
+      // Polling: a cada 5s checa se last_sync_at mudou. Timeout 5 minutos.
+      const POLL_INTERVAL_MS = 5_000;
+      const MAX_POLL_MS = 5 * 60 * 1000;
+      const startedAt = Date.now();
+      let updated: ShopeeStatus | null = null;
+      while (Date.now() - startedAt < MAX_POLL_MS) {
+        await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
+        try {
+          const current = await getShopeeStatus();
+          if (current?.last_sync_at && current.last_sync_at !== previousSyncAt) {
+            updated = current;
+            break;
+          }
+        } catch {
+          // ignora falhas intermitentes do polling
+        }
+      }
+
+      if (!updated) {
+        toast({
+          title: "Sincronização em andamento",
+          description: "O processo está demorando mais que o esperado. Recarregue a página em alguns minutos.",
+        });
+        return;
+      }
+
       setSyncStep("refreshing");
-      const [updated] = await Promise.all([
-        getShopeeStatus(),
-        fetchRows({ force: true }),
-        fetchClicks({ force: true }),
-      ]);
+      await Promise.all([fetchRows({ force: true }), fetchClicks({ force: true })]);
       setSyncStep("done");
       setStatus(updated);
-      await new Promise((r) => setTimeout(r, 1200));
+      await new Promise((r) => setTimeout(r, 800));
       toast({ title: "Sincronização concluída", description: "Dados Shopee atualizados com sucesso." });
     } catch (err) {
       toast({
