@@ -168,8 +168,8 @@ const DashboardSidebar = ({ mobileMenuOpen = false, onMobileMenuClose }: Dashboa
               <>
                 <item.icon className="w-5 h-5 flex-shrink-0" aria-hidden="true" />
                 {(!collapsed || isMobile) && (
-                  <div className="flex items-center gap-2 min-w-0 flex-1">
-                    <span className="font-medium truncate">{item.label}</span>
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 min-w-0 flex-1">
+                    <span className="font-medium">{item.label}</span>
                     {item.isNew && (
                       <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-primary/20 text-primary flex-shrink-0">
                         Novo
