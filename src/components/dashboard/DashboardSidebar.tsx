@@ -43,12 +43,13 @@ const menuItems = [
   { icon: Link2, label: "Meus Links", path: "/dashboard/links" },
   { icon: Plug, label: "Integração Shopee", path: "/dashboard/integracoes", isNew: true },
   { icon: Receipt, label: "Impostos", path: "/dashboard/impostos", isNew: true },
-  { icon: Users, label: "Indique & Ganhe", path: "/dashboard/afiliados", isNew: true },
+  // { icon: Users, label: "Indique & Ganhe", path: "/dashboard/afiliados", isNew: true },
 ];
 
-const adminMenuItems = [
-  { icon: ShieldCheck, label: "Afiliados pendentes", path: "/dashboard/admin/afiliados", isAdmin: true },
-];
+// Programa de afiliados oculto até liberação. Endpoints/rotas/webhook continuam ativos.
+// const adminMenuItems = [
+//   { icon: ShieldCheck, label: "Afiliados pendentes", path: "/dashboard/admin/afiliados", isAdmin: true },
+// ];
 
 interface DashboardSidebarProps {
   mobileMenuOpen?: boolean;
@@ -73,9 +74,10 @@ const DashboardSidebar = ({ mobileMenuOpen = false, onMobileMenuClose }: Dashboa
   const isDemo = location.pathname.startsWith("/demo");
   const [collapsed, setCollapsed] = useState(false);
   const isMobile = useIsMobile();
-  const storedUser = userStorage.get() as { is_admin?: boolean } | null;
-  const isAdmin = Boolean(storedUser?.is_admin);
-  const visibleMenu = isAdmin ? [...menuItems, ...adminMenuItems] : menuItems;
+  // const storedUser = userStorage.get() as { is_admin?: boolean } | null;
+  // const isAdmin = Boolean(storedUser?.is_admin);
+  // const visibleMenu = isAdmin ? [...menuItems, ...adminMenuItems] : menuItems;
+  const visibleMenu = menuItems;
 
   const cleanNumber = WHATSAPP_NUMBER && typeof WHATSAPP_NUMBER === "string" ? WHATSAPP_NUMBER.replace(/\D/g, "") : null;
   const waUrl = cleanNumber ? `https://wa.me/${cleanNumber}` : null;
