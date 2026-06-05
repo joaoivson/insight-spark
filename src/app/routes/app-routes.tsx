@@ -25,6 +25,8 @@ import CapturaSite from "@/features/dashboard/pages/CapturaSite";
 import CustomLinks from "@/features/dashboard/pages/CustomLinks";
 import CaptureViewer from "@/features/landing/pages/CaptureViewer";
 import LinkRedirect from "@/features/landing/pages/LinkRedirect";
+import PrivacyPolicy from "@/features/landing/pages/PrivacyPolicy";
+import TermsOfService from "@/features/landing/pages/TermsOfService";
 import SubscriptionPage from "@/features/subscription/pages/SubscriptionPage";
 import SubscriptionSuccess from "@/features/subscription/pages/SubscriptionSuccess";
 import SubscriptionError from "@/features/subscription/pages/SubscriptionError";
@@ -146,6 +148,8 @@ export const AppRoutes = () => {
         <Route path="/" element={<Index />} />
         <Route path="/demo" element={<Demo />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/privacy" element={<PrivacyPolicy />} />
+        <Route path="/terms" element={<TermsOfService />} />
 
         {/* Auth Routes */}
         <Route path="/auth/set-password" element={<SetPasswordPage />} />

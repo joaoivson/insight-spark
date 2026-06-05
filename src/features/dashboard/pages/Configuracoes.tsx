@@ -10,10 +10,22 @@ import { ShopeeIntegrationSettings } from "@/features/dashboard/components/Shope
 import { FacebookIntegrationSettings } from "@/features/dashboard/components/FacebookIntegrationSettings";
 import { useTaxSettingsStore } from "@/stores/taxSettingsStore";
 
+// Define a aba inicial: retorno do OAuth (?code/?error) ou deep-link (?tab=) abrem Facebook.
+const resolveInitialTab = (): string => {
+  if (typeof window === "undefined") return "shopee";
+  const params = new URLSearchParams(window.location.search);
+  if (params.get("code") || params.get("error")) return "facebook";
+  const t = params.get("tab");
+  if (t === "facebook" || t === "shopee" || t === "impostos") return t;
+  return "shopee";
+};
+
 const Configuracoes = () => {
+  const [tab, setTab] = useState<string>(resolveInitialTab);
+
   return (
     <DashboardLayout title="Configurações" subtitle="Gerencie suas integrações e preferências">
-      <Tabs defaultValue="shopee" className="max-w-3xl">
+      <Tabs value={tab} onValueChange={setTab} className="max-w-3xl">
         <div className="-mx-4 px-4 md:mx-0 md:px-0 overflow-x-auto mb-6">
           <TabsList className="w-max">
             <TabsTrigger value="shopee" className="gap-2 whitespace-nowrap">

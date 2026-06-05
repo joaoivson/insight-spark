@@ -8,7 +8,6 @@ import {
   Upload,
   MousePointerClick,
   Globe,
-  Receipt,
   Settings,
   Sun,
   Moon,
@@ -48,7 +47,6 @@ const moreItems: NavItem[] = [
   { icon: Upload, label: "Upload Comissão", path: "/dashboard/upload" },
   { icon: MousePointerClick, label: "Upload Cliques", path: "/dashboard/upload-cliques" },
   { icon: Globe, label: "Página de Captura", path: "/dashboard/captura" },
-  { icon: Receipt, label: "Impostos", path: "/dashboard/impostos", isNew: true },
   { icon: Settings, label: "Configurações", path: "/dashboard/configuracoes", isNew: true },
 ];
 

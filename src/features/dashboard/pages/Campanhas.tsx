@@ -215,7 +215,7 @@ const Campanhas = () => {
 
         {/* Lista */}
         {showEmptyState ? (
-          <EmptyState fbConnected={fbConnected} onGoSettings={() => navigate("/dashboard/configuracoes")} />
+          <EmptyState fbConnected={fbConnected} onGoSettings={() => navigate("/dashboard/configuracoes?tab=facebook")} />
         ) : initialLoading ? (
           <div className="flex flex-col gap-3">
             {[0, 1, 2].map((i) => (
