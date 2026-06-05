@@ -3,7 +3,7 @@ import { Target, TrendingUp, BarChart } from "lucide-react";
 
 const StrategySection = () => {
   return (
-    <section className="py-24 bg-secondary/30 relative overflow-hidden">
+    <section className="py-16 md:py-24 bg-secondary/30 relative overflow-hidden">
       <div className="container mx-auto px-4">
         <div className="max-w-4xl mx-auto">
           <motion.div
@@ -22,7 +22,7 @@ const StrategySection = () => {
             </h2>
           </motion.div>
 
-          <div className="grid md:grid-cols-2 gap-12 items-center">
+          <div className="grid md:grid-cols-2 gap-8 md:gap-12 items-center">
             <motion.div
               initial={{ opacity: 0, x: -20 }}
               whileInView={{ opacity: 1, x: 0 }}
@@ -72,12 +72,12 @@ const StrategySection = () => {
               whileInView={{ opacity: 1, scale: 1 }}
               viewport={{ once: true }}
               transition={{ duration: 0.5 }}
-              className="glass-card rounded-3xl p-10 border border-accent/20 relative"
+              className="glass-card rounded-3xl p-6 md:p-10 border border-accent/20 relative"
             >
               <div className="absolute -top-6 -left-6 w-12 h-12 bg-accent rounded-full flex items-center justify-center text-accent-foreground font-bold shadow-lg shadow-accent/20">
                 “
               </div>
-              <p className="text-2xl font-display font-medium text-foreground leading-relaxed italic mb-6">
+              <p className="text-xl md:text-2xl font-display font-medium text-foreground leading-relaxed italic mb-6">
                 O MarketDash transforma você de um simples divulgador de links em um operador de performance profissional.
               </p>
               <div className="flex items-center gap-4">

@@ -206,9 +206,9 @@ const CustomLinks = () => {
 
     const renderList = () => (
         <div className="space-y-6">
-            <div className="flex items-center justify-between">
-                <div>
-                    <h1 className="text-2xl font-bold">Meus Links</h1>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div className="min-w-0">
+                    <h1 className="text-xl md:text-2xl font-bold">Meus Links</h1>
                     <p className="text-muted-foreground text-sm mt-1">
                         Crie links personalizados que redirecionam para seus links de afiliado
                         <span className={`ml-2 text-xs font-medium ${links.length >= MAX_CUSTOM_LINKS ? "text-destructive" : "text-muted-foreground"}`}>
@@ -216,7 +216,7 @@ const CustomLinks = () => {
                         </span>
                     </p>
                 </div>
-                <Button onClick={handleNew} disabled={links.length >= MAX_CUSTOM_LINKS}>
+                <Button onClick={handleNew} disabled={links.length >= MAX_CUSTOM_LINKS} className="w-full sm:w-auto flex-shrink-0">
                     <Plus className="w-4 h-4 mr-2" />
                     Novo Link
                 </Button>
@@ -268,7 +268,7 @@ const CustomLinks = () => {
                     {links.map((link) => (
                         <div
                             key={link.id}
-                            className="bg-card border border-border rounded-lg p-4 space-y-3 hover:border-primary/30 transition-colors"
+                            className="min-w-0 bg-card border border-border rounded-lg p-4 space-y-3 hover:border-primary/30 transition-colors"
                         >
                             <div className="flex items-start justify-between">
                                 <div className="min-w-0 flex-1">
@@ -284,13 +284,15 @@ const CustomLinks = () => {
                                 />
                             </div>
 
-                            <div
-                                className="flex items-center gap-1.5 text-sm text-primary cursor-pointer hover:underline"
+                            <button
+                                type="button"
+                                className="flex w-full items-center gap-1.5 text-sm text-primary text-left rounded-md py-1.5 -my-0.5 hover:bg-primary/5 active:bg-primary/10 transition-colors duration-150"
                                 onClick={() => handleCopy(link.slug)}
                             >
                                 <Link2 className="w-3.5 h-3.5 flex-shrink-0" />
                                 <span className="truncate">{LINK_BASE_URL}{link.slug}</span>
-                            </div>
+                                <Copy className="w-3.5 h-3.5 flex-shrink-0 ml-auto opacity-60" />
+                            </button>
 
                             <div className="flex items-center gap-3 text-xs text-muted-foreground">
                                 <span className="flex items-center gap-1">
@@ -308,35 +310,39 @@ const CustomLinks = () => {
                                 </div>
                             )}
 
-                            <div className="flex items-center gap-1 pt-1 border-t border-border">
+                            <div className="flex items-center gap-1 pt-2 border-t border-border">
                                 <Button
                                     variant="ghost" size="sm"
                                     onClick={() => handleCopy(link.slug)}
-                                    className="h-8 px-2"
+                                    className="h-9 w-9 px-0"
+                                    aria-label="Copiar link"
                                 >
-                                    <Copy className="w-3.5 h-3.5" />
+                                    <Copy className="w-4 h-4" />
                                 </Button>
                                 <Button
                                     variant="ghost" size="sm"
                                     onClick={() => handleEdit(link)}
-                                    className="h-8 px-2"
+                                    className="h-9 w-9 px-0"
+                                    aria-label="Editar link"
                                 >
-                                    <Pencil className="w-3.5 h-3.5" />
+                                    <Pencil className="w-4 h-4" />
                                 </Button>
                                 <a
                                     href={`https://${LINK_BASE_URL}${link.slug}`}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="inline-flex items-center justify-center h-8 px-2 rounded-md text-sm font-medium hover:bg-accent hover:text-accent-foreground"
+                                    aria-label="Abrir link"
+                                    className="inline-flex items-center justify-center h-9 w-9 rounded-md text-sm font-medium hover:bg-accent hover:text-accent-foreground transition-colors duration-150"
                                 >
-                                    <ExternalLink className="w-3.5 h-3.5" />
+                                    <ExternalLink className="w-4 h-4" />
                                 </a>
                                 <Button
                                     variant="ghost" size="sm"
                                     onClick={() => { setLinkToDelete(link); setDeleteDialogOpen(true); }}
-                                    className="h-8 px-2 ml-auto text-destructive hover:text-destructive"
+                                    className="h-9 w-9 px-0 ml-auto text-destructive hover:text-destructive"
+                                    aria-label="Deletar link"
                                 >
-                                    <Trash2 className="w-3.5 h-3.5" />
+                                    <Trash2 className="w-4 h-4" />
                                 </Button>
                             </div>
                         </div>

@@ -65,7 +65,7 @@ const SubscriptionCallback = () => {
         <div className="w-full max-w-md text-center space-y-6">
           <Loader2 className="w-20 h-20 animate-spin mx-auto text-primary" />
           <div>
-            <h1 className="text-3xl font-bold">Processando sua assinatura...</h1>
+            <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Processando sua assinatura...</h1>
             <p className="text-muted-foreground mt-2">
               Aguarde enquanto confirmamos seu pagamento.
             </p>
@@ -81,7 +81,7 @@ const SubscriptionCallback = () => {
         <div className="w-full max-w-md text-center space-y-6">
           <CheckCircle2 className="w-20 h-20 text-green-500 mx-auto" />
           <div>
-            <h1 className="text-3xl font-bold">Assinatura Confirmada!</h1>
+            <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Assinatura Confirmada!</h1>
             {isAuthenticated ? (
               <>
                 <p className="text-muted-foreground mt-2">
@@ -120,7 +120,7 @@ const SubscriptionCallback = () => {
       <div className="w-full max-w-md text-center space-y-6">
         <XCircle className="w-20 h-20 text-destructive mx-auto" />
         <div>
-          <h1 className="text-3xl font-bold">Erro ao Processar Assinatura</h1>
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Erro ao Processar Assinatura</h1>
           <p className="text-muted-foreground mt-2">
             Houve um problema ao confirmar sua assinatura.
           </p>
@@ -128,11 +128,11 @@ const SubscriptionCallback = () => {
             Entre em contato com o suporte ou tente novamente.
           </p>
         </div>
-        <div className="flex gap-2 justify-center">
-          <Button variant="outline" onClick={() => navigate("/")}>
+        <div className="flex flex-col-reverse sm:flex-row gap-3 sm:justify-center">
+          <Button variant="outline" className="h-11 w-full sm:w-auto" onClick={() => navigate("/")}>
             Voltar ao Início
           </Button>
-          <Button onClick={async () => {
+          <Button className="h-11 w-full sm:w-auto" onClick={async () => {
             try {
               const user = userStorage.get() as { email?: string; name?: string; cpf_cnpj?: string } | null;
               if (user) {

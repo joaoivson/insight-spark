@@ -30,16 +30,16 @@ const SubscriptionError = () => {
       <div className="w-full max-w-md text-center space-y-6">
         <XCircle className="w-20 h-20 text-destructive mx-auto" />
         <div>
-          <h1 className="text-3xl font-bold">Erro no Pagamento</h1>
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Erro no Pagamento</h1>
           <p className="text-muted-foreground mt-2">
             Não foi possível processar seu pagamento. Por favor, tente novamente.
           </p>
         </div>
-        <div className="flex gap-2 justify-center">
-          <Button variant="outline" onClick={() => navigate("/")}>
+        <div className="flex flex-col-reverse sm:flex-row gap-3 sm:justify-center">
+          <Button variant="outline" className="h-11 w-full sm:w-auto" onClick={() => navigate("/")}>
             Voltar ao Início
           </Button>
-          <Button onClick={handleTryAgain}>
+          <Button className="h-11 w-full sm:w-auto" onClick={handleTryAgain}>
             Tentar Novamente
           </Button>
         </div>

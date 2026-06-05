@@ -1,6 +1,7 @@
 import { ReactNode, useState } from "react";
 import DashboardSidebar from "./DashboardSidebar";
 import DashboardHeader from "./DashboardHeader";
+import MobileBottomNav from "./MobileBottomNav";
 import { useGlobalDataLoading } from "@/shared/hooks/useGlobalDataLoading";
 import { LoadingDataOverlay } from "./LoadingDataOverlay";
 import { AnimatePresence } from "framer-motion";
@@ -34,10 +35,17 @@ const DashboardLayout = ({ children, title, subtitle, subtitleSize, action }: Da
           action={action}
           onMobileMenuToggle={() => setMobileMenuOpen(!mobileMenuOpen)}
         />
-        <main className="flex-1 overflow-y-auto p-4 md:p-6" role="main" aria-label="Conteúdo principal">
+        <main
+          className="flex-1 overflow-y-auto p-4 md:p-6 pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-6"
+          role="main"
+          aria-label="Conteúdo principal"
+        >
           {children}
         </main>
       </div>
+
+      {/* Navegação inferior estilo app — apenas mobile */}
+      <MobileBottomNav />
     </div>
   );
 };

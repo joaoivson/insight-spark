@@ -7,10 +7,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import {
-  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
-} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { DataCard } from "@/components/shared/DataCard";
+import { ResponsiveModal } from "@/components/shared/ResponsiveModal";
 import { useToast } from "@/hooks/use-toast";
 import {
   getPendingAffiliates,
@@ -78,6 +77,22 @@ const AfiliadosPendentesPage = () => {
     }
   };
 
+  const renderPix = (pix: string | null) =>
+    pix ? (
+      <button
+        onClick={() => handleCopyPix(pix)}
+        className="inline-flex items-center gap-1 text-sm text-foreground hover:text-primary transition-colors duration-150"
+      >
+        <span className="font-mono break-all">{pix}</span>
+        <Copy className="w-3 h-3 shrink-0" />
+      </button>
+    ) : (
+      <span className="inline-flex items-center gap-1 text-xs text-amber-500">
+        <AlertCircle className="w-3 h-3" />
+        Sem PIX
+      </span>
+    );
+
   return (
     <DashboardLayout
       title="Afiliados pendentes"
@@ -103,59 +118,73 @@ const AfiliadosPendentesPage = () => {
               Nenhum afiliado com saldo pendente. ✨
             </div>
           ) : (
-            <Table>
-              <TableHeader className="bg-muted/50">
-                <TableRow>
-                  <TableHead>Afiliado</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>PIX</TableHead>
-                  <TableHead className="text-right">Comissões</TableHead>
-                  <TableHead className="text-right">Total a pagar</TableHead>
-                  <TableHead className="text-right">Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {items.map((it) => (
-                  <TableRow key={it.referrer_user_id}>
-                    <TableCell className="font-medium">{it.name || "—"}</TableCell>
-                    <TableCell className="text-muted-foreground">{it.email}</TableCell>
-                    <TableCell>
-                      {it.pix_key ? (
-                        <button
-                          onClick={() => handleCopyPix(it.pix_key)}
-                          className="inline-flex items-center gap-1 text-sm text-foreground hover:text-primary"
+            <>
+              {/* Desktop: tabela */}
+              <Table className="hidden md:table">
+                <TableHeader className="bg-muted/50">
+                  <TableRow>
+                    <TableHead>Afiliado</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead>PIX</TableHead>
+                    <TableHead className="text-right">Comissões</TableHead>
+                    <TableHead className="text-right">Total a pagar</TableHead>
+                    <TableHead className="text-right">Ações</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {items.map((it) => (
+                    <TableRow key={it.referrer_user_id}>
+                      <TableCell className="font-medium">{it.name || "—"}</TableCell>
+                      <TableCell className="text-muted-foreground">{it.email}</TableCell>
+                      <TableCell>{renderPix(it.pix_key)}</TableCell>
+                      <TableCell className="text-right text-muted-foreground">{it.commissions_count}</TableCell>
+                      <TableCell className="text-right font-bold">{formatBRL(it.total_pending)}</TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          size="sm"
+                          onClick={() => setSelected(it)}
+                          className="gap-2 transition-colors duration-150"
                         >
-                          <span className="font-mono">{it.pix_key}</span>
-                          <Copy className="w-3 h-3" />
-                        </button>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 text-xs text-amber-500">
-                          <AlertCircle className="w-3 h-3" />
-                          Sem PIX
-                        </span>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right text-muted-foreground">{it.commissions_count}</TableCell>
-                    <TableCell className="text-right font-bold">{formatBRL(it.total_pending)}</TableCell>
-                    <TableCell className="text-right">
+                          <Check className="w-3 h-3" />
+                          Marcar como pago
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+
+              {/* Mobile: cards */}
+              <div className="md:hidden space-y-3 p-4">
+                {items.map((it) => (
+                  <DataCard
+                    key={it.referrer_user_id}
+                    title={it.name || it.email}
+                    fields={[
+                      { label: "Email", value: <span className="break-all">{it.email}</span> },
+                      { label: "PIX", value: renderPix(it.pix_key) },
+                      { label: "Comissões", value: it.commissions_count },
+                      { label: "Total a pagar", value: formatBRL(it.total_pending), emphasis: true },
+                    ]}
+                    actions={
                       <Button
                         size="sm"
                         onClick={() => setSelected(it)}
-                        className="gap-2"
+                        className="gap-1.5 transition-colors duration-150"
                       >
-                        <Check className="w-3 h-3" />
-                        Marcar como pago
+                        <Check className="w-3.5 h-3.5" />
+                        Pagar
                       </Button>
-                    </TableCell>
-                  </TableRow>
+                    }
+                  />
                 ))}
-              </TableBody>
-            </Table>
+              </div>
+            </>
           )}
         </div>
       </motion.div>
 
-      <Dialog
+      <ResponsiveModal
         open={!!selected}
         onOpenChange={(open) => {
           if (!open) {
@@ -163,15 +192,14 @@ const AfiliadosPendentesPage = () => {
             setPaymentRef("");
           }
         }}
+        title="Confirmar pagamento"
+        description={
+          selected
+            ? `Marcar ${selected.commissions_count} comissões de ${selected.name || selected.email} (${formatBRL(selected.total_pending || 0)}) como pagas.`
+            : undefined
+        }
       >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Confirmar pagamento</DialogTitle>
-            <DialogDescription>
-              Marcar {selected?.commissions_count} comissões de {selected?.name || selected?.email}
-              <strong> ({formatBRL(selected?.total_pending || 0)})</strong> como pagas.
-            </DialogDescription>
-          </DialogHeader>
+        <div className="space-y-4">
           <div className="space-y-2">
             <label className="text-sm font-medium">Referência do pagamento (ID do comprovante PIX)</label>
             <Input
@@ -180,16 +208,25 @@ const AfiliadosPendentesPage = () => {
               placeholder="ex: E18236120202605070800..."
             />
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setSelected(null)} disabled={submitting}>
+          <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setSelected(null)}
+              disabled={submitting}
+              className="w-full sm:w-auto transition-colors duration-150"
+            >
               Cancelar
             </Button>
-            <Button onClick={handleConfirmPaid} disabled={!paymentRef.trim() || submitting}>
+            <Button
+              onClick={handleConfirmPaid}
+              disabled={!paymentRef.trim() || submitting}
+              className="w-full sm:w-auto transition-colors duration-150"
+            >
               {submitting ? "Confirmando..." : "Confirmar pagamento"}
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </div>
+        </div>
+      </ResponsiveModal>
     </DashboardLayout>
   );
 };

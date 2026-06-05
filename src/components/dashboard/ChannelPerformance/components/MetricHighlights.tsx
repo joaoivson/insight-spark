@@ -16,9 +16,9 @@ export const MetricHighlights = ({ highlights }: MetricHighlightsProps) => {
     if (!highlights) return null;
 
     return (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
             {/* Estrela de ROAS */}
-            <div className="bg-card border border-border p-5 rounded-xl">
+            <div className="bg-card border border-border p-4 md:p-5 rounded-xl">
                 <div className="flex items-start justify-between">
                     <div>
                         <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Top ROAS</p>
@@ -37,7 +37,7 @@ export const MetricHighlights = ({ highlights }: MetricHighlightsProps) => {
             </div>
 
             {/* Maior Volume */}
-            <div className="bg-card border border-border p-5 rounded-xl">
+            <div className="bg-card border border-border p-4 md:p-5 rounded-xl">
                 <div className="flex items-start justify-between">
                     <div>
                         <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Maior Volume</p>
@@ -57,7 +57,7 @@ export const MetricHighlights = ({ highlights }: MetricHighlightsProps) => {
 
             {/* Alerta de Prejuízo */}
             {highlights.alertChannel && (
-                <div className="bg-card border border-border p-5 rounded-xl border-red-500/20">
+                <div className="bg-card border border-border p-4 md:p-5 rounded-xl border-red-500/20">
                     <div className="flex items-start justify-between">
                         <div>
                             <p className="text-xs font-medium text-red-500 uppercase tracking-wider">Atenção (Prejuízo)</p>

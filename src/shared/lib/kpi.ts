@@ -2,6 +2,7 @@ import type { DatasetRow } from "@/components/dashboard/DataTable";
 import type { AdSpend } from "@/shared/types/adspend";
 import { toDateKey } from "@/shared/lib/date";
 import { normalizeSubId } from "@/shared/lib/utils";
+import { grossUpSpend, netCommission, ZERO_TAX, type TaxRates } from "@/shared/lib/tax";
 
 export const getFaturamento = (row: DatasetRow) => {
   return row.revenue || 0;
@@ -27,29 +28,31 @@ export const getComissaoCents = (row: DatasetRow) =>
 export const calcTotals = (
   rows: DatasetRow[],
   adSpends: AdSpend[],
-  opts: { dateRange?: DateRange; subIdFilter?: string }
+  opts: { dateRange?: DateRange; subIdFilter?: string; tax?: TaxRates }
 ) => {
+  const tax = opts.tax ?? ZERO_TAX;
   const kpiRows = filterKpiRows(rows);
-  // Filtrar comissões zero (pedidos sem receita)
-  const kpiRowsNonZero = kpiRows.filter((r) => (r.commission || 0) > 0);
 
   // Trunca (Math.floor) por linha e soma — alinha ao relatório original Shopee
   const faturamento = Math.round(kpiRows.reduce((acc, r) => acc + getFaturamento(r), 0) * 100) / 100;
-  const comissao = Math.round(kpiRows.reduce((acc, r) => acc + getComissaoAfiliado(r), 0) * 100) / 100;
-  // Acumula centavos para evitar perda de precisão (mesmo que os gráficos)
-  // const comissaoCents = kpiRowsNonZero.reduce((acc, r) => acc + Math.round((getComissaoAfiliado(r) || 0) * 100), 0);
-  // const comissao = comissaoCents / 100;
-  const gastoAnunciosRaw = adSpends.reduce((acc, spend) => {
+  const comissaoBruta = Math.round(kpiRows.reduce((acc, r) => acc + getComissaoAfiliado(r), 0) * 100) / 100;
+  const gastoPagoRaw = adSpends.reduce((acc, spend) => {
     if (opts.subIdFilter && normalizeSubId(spend.sub_id).toLowerCase() !== opts.subIdFilter.toLowerCase()) return acc;
     const spendDate = toDateKey(spend.date);
     if (opts.dateRange?.from && spendDate < toDateKey(opts.dateRange.from)) return acc;
     if (opts.dateRange?.to && spendDate > toDateKey(opts.dateRange.to)) return acc;
     return acc + (spend.amount || 0);
   }, 0);
+  const gastoPago = Math.round(gastoPagoRaw * 100) / 100;
 
-  const gastoAnuncios = Math.round(gastoAnunciosRaw * 100) / 100;
+  // Imposto aplicado em tempo de cálculo (ver tax.ts):
+  // comissão líquida = comissão × (1 − imposto_comissão); gasto com imposto = gasto × (1 + markup_ads)
+  const comissao = Math.round(netCommission(comissaoBruta, tax) * 100) / 100;
+  const gastoAnuncios = Math.round(grossUpSpend(gastoPago, tax) * 100) / 100;
   const lucro = Math.round((comissao - gastoAnuncios) * 100) / 100;
   const roas = gastoAnuncios > 0 ? comissao / gastoAnuncios : 0;
 
-  return { faturamento, comissao, gastoAnuncios, lucro, roas };
+  // `comissao`/`gastoAnuncios` já vêm com imposto aplicado (líquida / com markup).
+  // `comissaoBruta`/`gastoPago` expõem os valores sem imposto quando necessário.
+  return { faturamento, comissao, gastoAnuncios, lucro, roas, comissaoBruta, gastoPago };
 };

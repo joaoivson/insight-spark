@@ -161,12 +161,12 @@ const SubscriptionPage = () => {
         <div className="w-full max-w-md text-center space-y-6">
           <CheckCircle2 className="w-20 h-20 text-green-500 mx-auto" />
           <div>
-            <h1 className="text-3xl font-bold">Assinatura Ativa</h1>
+            <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Assinatura Ativa</h1>
             <p className="text-muted-foreground mt-2">
               Sua assinatura está ativa{status.expires_at ? ` até ${new Date(status.expires_at).toLocaleDateString("pt-BR")}` : ""}.
             </p>
           </div>
-          <Button onClick={() => navigate("/dashboard")}>
+          <Button size="lg" className="h-11 w-full sm:w-auto" onClick={() => navigate("/dashboard")}>
             Ir para Dashboard
           </Button>
         </div>

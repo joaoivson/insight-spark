@@ -55,7 +55,7 @@ const testimonials = [
 
 const SocialProofSection = () => {
   return (
-    <section className="py-20 relative">
+    <section className="py-12 md:py-20 relative">
       <div className="container mx-auto px-4">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -75,7 +75,7 @@ const SocialProofSection = () => {
           </p>
         </motion.div>
 
-        <div className="grid md:grid-cols-4 gap-4 mb-16">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mb-12 md:mb-16">
           {stats.map((stat) => (
             <motion.div
               key={stat.label}

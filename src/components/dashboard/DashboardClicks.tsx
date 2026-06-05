@@ -436,17 +436,17 @@ const DashboardClicks = ({ clicks: rawClicks, totalClicksFromApi, adSpends = [],
           className="relative group"
         >
           <div className="absolute -inset-1 bg-gradient-to-r from-primary/20 via-accent/20 to-primary/20 rounded-2xl blur-xl opacity-75 group-hover:opacity-100 transition duration-1000 group-hover:duration-200" />
-          <div className="relative bg-card/60 border border-accent/20 backdrop-blur-md rounded-2xl px-10 py-5 flex items-center gap-6 shadow-2xl shadow-black/20 ring-1 ring-white/5">
-            <div className="p-3 bg-accent/10 rounded-xl border border-accent/20">
-              <MousePointerClick className="w-8 h-8 text-accent" />
+          <div className="relative bg-card/60 border border-accent/20 backdrop-blur-md rounded-2xl px-5 py-4 md:px-10 md:py-5 flex items-center gap-4 md:gap-6 shadow-2xl shadow-black/20 ring-1 ring-white/5">
+            <div className="p-2.5 md:p-3 bg-accent/10 rounded-xl border border-accent/20 flex-shrink-0">
+              <MousePointerClick className="w-6 h-6 md:w-8 md:h-8 text-accent" />
             </div>
-            <div className="flex flex-col">
-              <span className="text-muted-foreground text-xs font-bold uppercase tracking-wider mb-1">Volume Total de Cliques</span>
-              <div className="flex items-baseline gap-2">
-                <span className="text-3xl md:text-4xl font-display font-black text-foreground tracking-tight">
+            <div className="flex flex-col min-w-0">
+              <span className="text-muted-foreground text-[11px] md:text-xs font-bold uppercase tracking-wider mb-1">Volume Total de Cliques</span>
+              <div className="flex flex-wrap items-baseline gap-x-2">
+                <span className="text-2xl md:text-4xl font-display font-black text-foreground tracking-tight">
                   {totalClicks.toLocaleString("pt-BR")}
                 </span>
-                <span className="text-accent text-sm font-semibold">cliques registrados</span>
+                <span className="text-accent text-xs md:text-sm font-semibold">cliques registrados</span>
               </div>
             </div>
           </div>
@@ -468,19 +468,19 @@ const DashboardClicks = ({ clicks: rawClicks, totalClicksFromApi, adSpends = [],
           initial="hidden"
           animate="show"
           whileHover={{ scale: 1.01 }}
-          className="bg-card rounded-xl border border-border p-6"
+          className="bg-card rounded-xl border border-border p-4 md:p-6"
         >
-          <div className="mb-4 flex items-center justify-between gap-3 flex-wrap">
+          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h3 className="font-display font-semibold text-lg text-foreground">Cliques por Dia e Mês</h3>
+              <h3 className="font-display font-semibold text-base md:text-lg text-foreground">Cliques por Dia e Mês</h3>
               <p className="text-sm text-muted-foreground">
                 {chartMode === "month" ? "Soma dos cliques por mês" : "Soma dos cliques por dia"}
               </p>
             </div>
             <AnimatePresence mode="wait">
               <motion.div key={chartMode} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }} transition={{ duration: 0.2 }} className="flex items-center gap-2">
-                <Button size="sm" variant={chartMode === "month" ? "default" : "outline"} onClick={() => setChartMode("month")}>Mês</Button>
-                <Button size="sm" variant={chartMode === "day" ? "default" : "outline"} onClick={() => setChartMode("day")}>Dia</Button>
+                <Button size="sm" className="h-9 flex-1 sm:flex-none" variant={chartMode === "month" ? "default" : "outline"} onClick={() => setChartMode("month")}>Mês</Button>
+                <Button size="sm" className="h-9 flex-1 sm:flex-none" variant={chartMode === "day" ? "default" : "outline"} onClick={() => setChartMode("day")}>Dia</Button>
               </motion.div>
             </AnimatePresence>
           </div>
@@ -558,6 +558,47 @@ const DashboardClicks = ({ clicks: rawClicks, totalClicksFromApi, adSpends = [],
           <BarChart3 className="w-4 h-4 text-primary" />
           <h3 className="font-display font-semibold text-sm tracking-wider lowercase">comparativo: anúncios vs shopee (por sub id)</h3>
         </div>
+
+        {/* Mobile: lista de cards */}
+        <div className="md:hidden p-4 space-y-3">
+          {(() => {
+            const totalPages = Math.max(1, Math.ceil(comparisonStats.length / compSubPageSize));
+            const safePage = Math.min(compSubPage, totalPages - 1);
+            const start = safePage * compSubPageSize;
+            const pageRows = comparisonStats.slice(start, start + compSubPageSize);
+            if (comparisonStats.length === 0) {
+              return <p className="text-center py-6 text-sm text-muted-foreground italic">Nenhum dado para comparação disponível.</p>;
+            }
+            return pageRows.map((item) => {
+              const diffColor = item.diff > 0 ? "text-success" : item.diff < 0 ? "text-destructive" : "text-muted-foreground";
+              return (
+                <div key={item.subId} className="rounded-xl border border-border bg-background/40 p-4">
+                  <p className="font-semibold text-foreground truncate">{item.subId === "Sem Sub ID" ? "Sem Sub ID" : item.subId.toLowerCase()}</p>
+                  <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2">
+                    <div>
+                      <dt className="text-[11px] uppercase tracking-wide text-muted-foreground">Cliques anúncios</dt>
+                      <dd className="text-sm font-mono text-foreground">{item.adsClicks.toLocaleString("pt-BR")}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-[11px] uppercase tracking-wide text-muted-foreground">Cliques shopee</dt>
+                      <dd className="text-sm font-mono text-foreground">{item.csvClicks.toLocaleString("pt-BR")}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-[11px] uppercase tracking-wide text-muted-foreground">Diferença</dt>
+                      <dd className={cn("text-sm font-mono font-bold", diffColor)}>{item.diff > 0 ? "+" : ""}{item.diff.toLocaleString("pt-BR")}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-[11px] uppercase tracking-wide text-muted-foreground">% dif.</dt>
+                      <dd className={cn("text-sm font-medium", diffColor)}>{item.diffPercent > 0 ? "+" : ""}{item.diffPercent.toFixed(1)}%</dd>
+                    </div>
+                  </dl>
+                </div>
+              );
+            });
+          })()}
+        </div>
+
+        <div className="overflow-x-auto hidden md:block">
         <Table>
           <TableHeader>
             <TableRow className="hover:bg-transparent border-border/50">
@@ -623,38 +664,43 @@ const DashboardClicks = ({ clicks: rawClicks, totalClicksFromApi, adSpends = [],
                       </TableCell>
                     </TableRow>
                   )}
-                  {comparisonStats.length > 0 && (
-                    <TableRow>
-                      <TableCell colSpan={5} className="p-3">
-                        <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground">
-                          <div className="flex items-center gap-2">
-                            <span>Linhas por página</span>
-                            <select
-                              className="bg-background border border-border rounded px-2 py-1"
-                              value={String(compSubPageSize)}
-                              onChange={(e) => { setCompSubPageSize(Number(e.target.value)); setCompSubPage(0); }}
-                            >
-                              {[5, 10, 25, 50].map((n) => (
-                                <option key={n} value={n}>{n}</option>
-                              ))}
-                            </select>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <button className="px-2 py-1 rounded border border-border disabled:opacity-50" onClick={() => setCompSubPage(0)} disabled={safePage === 0}>Primeira</button>
-                            <button className="px-2 py-1 rounded border border-border disabled:opacity-50" onClick={() => setCompSubPage(p => Math.max(0, p - 1))} disabled={safePage === 0}>Anterior</button>
-                            <span>Página {safePage + 1} de {totalPages}</span>
-                            <button className="px-2 py-1 rounded border border-border disabled:opacity-50" onClick={() => setCompSubPage(p => Math.min(totalPages - 1, p + 1))} disabled={safePage >= totalPages - 1}>Próxima</button>
-                            <button className="px-2 py-1 rounded border border-border disabled:opacity-50" onClick={() => setCompSubPage(totalPages - 1)} disabled={safePage >= totalPages - 1}>Última</button>
-                          </div>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  )}
                 </>
               );
             })()}
           </TableBody>
         </Table>
+        </div>
+
+        {/* Paginação compartilhada */}
+        {comparisonStats.length > 0 && (() => {
+          const totalPages = Math.max(1, Math.ceil(comparisonStats.length / compSubPageSize));
+          const safePage = Math.min(compSubPage, totalPages - 1);
+          return (
+            <div className="p-3 border-t border-border">
+              <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center sm:justify-between gap-3 text-sm text-muted-foreground">
+                <div className="flex items-center gap-2">
+                  <span>Linhas por página</span>
+                  <select
+                    className="bg-background border border-border rounded-lg px-2 h-9"
+                    value={String(compSubPageSize)}
+                    onChange={(e) => { setCompSubPageSize(Number(e.target.value)); setCompSubPage(0); }}
+                  >
+                    {[5, 10, 25, 50].map((n) => (
+                      <option key={n} value={n}>{n}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <button className="h-9 px-3 rounded-lg border border-border disabled:opacity-50 transition-colors hover:bg-accent" onClick={() => setCompSubPage(0)} disabled={safePage === 0}>Primeira</button>
+                  <button className="h-9 px-3 rounded-lg border border-border disabled:opacity-50 transition-colors hover:bg-accent" onClick={() => setCompSubPage(p => Math.max(0, p - 1))} disabled={safePage === 0}>Anterior</button>
+                  <span className="px-1">Página {safePage + 1} de {totalPages}</span>
+                  <button className="h-9 px-3 rounded-lg border border-border disabled:opacity-50 transition-colors hover:bg-accent" onClick={() => setCompSubPage(p => Math.min(totalPages - 1, p + 1))} disabled={safePage >= totalPages - 1}>Próxima</button>
+                  <button className="h-9 px-3 rounded-lg border border-border disabled:opacity-50 transition-colors hover:bg-accent" onClick={() => setCompSubPage(totalPages - 1)} disabled={safePage >= totalPages - 1}>Última</button>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
       </motion.div>
 
       {/* Comparison by Day: Ads vs CSV */}
@@ -669,6 +715,47 @@ const DashboardClicks = ({ clicks: rawClicks, totalClicksFromApi, adSpends = [],
           <Calendar className="w-4 h-4 text-primary" />
           <h3 className="font-display font-semibold text-sm tracking-wider lowercase">comparativo: anúncios vs shopee (por dia)</h3>
         </div>
+
+        {/* Mobile: lista de cards */}
+        <div className="md:hidden p-4 space-y-3">
+          {(() => {
+            const totalPages = Math.max(1, Math.ceil(comparisonDayStats.length / compDayPageSize));
+            const safePage = Math.min(compDayPage, totalPages - 1);
+            const start = safePage * compDayPageSize;
+            const pageRows = comparisonDayStats.slice(start, start + compDayPageSize);
+            if (comparisonDayStats.length === 0) {
+              return <p className="text-center py-6 text-sm text-muted-foreground italic">Nenhum dado para comparação disponível.</p>;
+            }
+            return pageRows.map((item) => {
+              const diffColor = item.diff > 0 ? "text-success" : item.diff < 0 ? "text-destructive" : "text-muted-foreground";
+              return (
+                <div key={item.day} className="rounded-xl border border-border bg-background/40 p-4">
+                  <p className="font-semibold text-foreground">{formatDateLabelDDMM(item.day)}</p>
+                  <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2">
+                    <div>
+                      <dt className="text-[11px] uppercase tracking-wide text-muted-foreground">Cliques anúncios</dt>
+                      <dd className="text-sm font-mono text-foreground">{item.adsClicks.toLocaleString("pt-BR")}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-[11px] uppercase tracking-wide text-muted-foreground">Cliques shopee</dt>
+                      <dd className="text-sm font-mono text-foreground">{item.csvClicks.toLocaleString("pt-BR")}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-[11px] uppercase tracking-wide text-muted-foreground">Diferença</dt>
+                      <dd className={cn("text-sm font-mono font-bold", diffColor)}>{item.diff > 0 ? "+" : ""}{item.diff.toLocaleString("pt-BR")}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-[11px] uppercase tracking-wide text-muted-foreground">% dif.</dt>
+                      <dd className={cn("text-sm font-medium", diffColor)}>{item.diffPercent > 0 ? "+" : ""}{item.diffPercent.toFixed(1)}%</dd>
+                    </div>
+                  </dl>
+                </div>
+              );
+            });
+          })()}
+        </div>
+
+        <div className="overflow-x-auto hidden md:block">
         <Table>
           <TableHeader>
             <TableRow className="hover:bg-transparent border-border/50">
@@ -734,38 +821,43 @@ const DashboardClicks = ({ clicks: rawClicks, totalClicksFromApi, adSpends = [],
                       </TableCell>
                     </TableRow>
                   )}
-                  {comparisonDayStats.length > 0 && (
-                    <TableRow>
-                      <TableCell colSpan={5} className="p-3">
-                        <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground">
-                          <div className="flex items-center gap-2">
-                            <span>Linhas por página</span>
-                            <select
-                              className="bg-background border border-border rounded px-2 py-1"
-                              value={String(compDayPageSize)}
-                              onChange={(e) => { setCompDayPageSize(Number(e.target.value)); setCompDayPage(0); }}
-                            >
-                              {[5, 10, 25, 50].map((n) => (
-                                <option key={n} value={n}>{n}</option>
-                              ))}
-                            </select>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <button className="px-2 py-1 rounded border border-border disabled:opacity-50" onClick={() => setCompDayPage(0)} disabled={safePage === 0}>Primeira</button>
-                            <button className="px-2 py-1 rounded border border-border disabled:opacity-50" onClick={() => setCompDayPage(p => Math.max(0, p - 1))} disabled={safePage === 0}>Anterior</button>
-                            <span>Página {safePage + 1} de {totalPages}</span>
-                            <button className="px-2 py-1 rounded border border-border disabled:opacity-50" onClick={() => setCompDayPage(p => Math.min(totalPages - 1, p + 1))} disabled={safePage >= totalPages - 1}>Próxima</button>
-                            <button className="px-2 py-1 rounded border border-border disabled:opacity-50" onClick={() => setCompDayPage(totalPages - 1)} disabled={safePage >= totalPages - 1}>Última</button>
-                          </div>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  )}
                 </>
               );
             })()}
           </TableBody>
         </Table>
+        </div>
+
+        {/* Paginação compartilhada */}
+        {comparisonDayStats.length > 0 && (() => {
+          const totalPages = Math.max(1, Math.ceil(comparisonDayStats.length / compDayPageSize));
+          const safePage = Math.min(compDayPage, totalPages - 1);
+          return (
+            <div className="p-3 border-t border-border">
+              <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center sm:justify-between gap-3 text-sm text-muted-foreground">
+                <div className="flex items-center gap-2">
+                  <span>Linhas por página</span>
+                  <select
+                    className="bg-background border border-border rounded-lg px-2 h-9"
+                    value={String(compDayPageSize)}
+                    onChange={(e) => { setCompDayPageSize(Number(e.target.value)); setCompDayPage(0); }}
+                  >
+                    {[5, 10, 25, 50].map((n) => (
+                      <option key={n} value={n}>{n}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <button className="h-9 px-3 rounded-lg border border-border disabled:opacity-50 transition-colors hover:bg-accent" onClick={() => setCompDayPage(0)} disabled={safePage === 0}>Primeira</button>
+                  <button className="h-9 px-3 rounded-lg border border-border disabled:opacity-50 transition-colors hover:bg-accent" onClick={() => setCompDayPage(p => Math.max(0, p - 1))} disabled={safePage === 0}>Anterior</button>
+                  <span className="px-1">Página {safePage + 1} de {totalPages}</span>
+                  <button className="h-9 px-3 rounded-lg border border-border disabled:opacity-50 transition-colors hover:bg-accent" onClick={() => setCompDayPage(p => Math.min(totalPages - 1, p + 1))} disabled={safePage >= totalPages - 1}>Próxima</button>
+                  <button className="h-9 px-3 rounded-lg border border-border disabled:opacity-50 transition-colors hover:bg-accent" onClick={() => setCompDayPage(totalPages - 1)} disabled={safePage >= totalPages - 1}>Última</button>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
       </motion.div>
     </div>
   );

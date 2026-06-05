@@ -63,7 +63,7 @@ const KPICard = ({
       whileHover={onClick ? "hover" : undefined}
       whileTap={onClick ? { scale: 0.98 } : undefined}
       className={cn(
-        "bg-card rounded-xl border border-border p-3 sm:p-4 transition-all duration-300 min-w-0 overflow-hidden",
+        "bg-card rounded-xl border border-border p-4 md:p-5 transition-all duration-300 min-w-0 overflow-hidden",
         onClick && "cursor-pointer hover:border-primary/50 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
         className
       )}
@@ -77,17 +77,18 @@ const KPICard = ({
       }}
       aria-label={onClick ? `${title}: ${value}` : undefined}
     >
-      <div className="flex items-center justify-between mb-2 gap-2 min-w-0">
+      <div className="flex items-center justify-between mb-3 gap-2 min-w-0">
         <div
           className={cn(
-            "w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0",
+            "w-9 h-9 md:w-10 md:h-10 rounded-lg flex items-center justify-center flex-shrink-0",
             iconColor === "text-accent" && "bg-accent/10",
             iconColor === "text-success" && "bg-success/10",
             iconColor === "text-warning" && "bg-warning/10",
+            iconColor === "text-primary" && "bg-primary/10",
             iconColor === "text-chart-5" && "bg-chart-5/10"
           )}
         >
-          <Icon className={cn("w-4 h-4", iconColor)} />
+          <Icon className={cn("w-4 h-4 md:w-5 md:h-5", iconColor)} />
         </div>
         {change && (
           <div
@@ -111,12 +112,13 @@ const KPICard = ({
         transition={{ delay: 0.2, duration: 0.4, ease: "easeOut" }}
         key={value}
       >
-        <span 
+        <span
           className={cn(
             "block whitespace-nowrap leading-tight transition-all",
-            "text-base sm:text-lg lg:text-xl font-bold",
+            "text-lg sm:text-lg lg:text-xl font-bold tracking-tight",
+            value.length > 11 && "text-base",
             value.length > 13 && "lg:text-[1.1rem]"
-          )} 
+          )}
           title={value}
         >
           {value}
@@ -183,7 +185,7 @@ const KPICards = ({
       variants={containerVariants}
       initial="hidden"
       animate="show"
-      className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 lg:gap-4"
+      className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 md:gap-4"
     >
       {data.map((kpi, index) => (
         <KPICard

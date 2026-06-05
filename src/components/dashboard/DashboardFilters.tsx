@@ -278,9 +278,9 @@ const DashboardFilters = ({
   );
 
   return (
-    <div className="bg-card rounded-xl border border-border p-3 mb-6 flex flex-wrap items-center gap-x-3 gap-y-2 overflow-x-auto lg:overflow-x-visible">
+    <div className="bg-card rounded-xl border border-border p-3 md:p-4 mb-6 flex flex-col gap-3 md:flex-row md:flex-wrap md:items-center md:gap-x-3 md:gap-y-2">
       {/* Date Range - Mobile uses Sheet, Desktop uses Popover */}
-      <div className="flex items-center gap-1.5">
+      <div className="flex flex-col gap-1.5 md:flex-row md:items-center">
         <Label htmlFor="period-filter" className="text-xs font-medium text-muted-foreground whitespace-nowrap">
           Período:
         </Label>
@@ -307,7 +307,7 @@ const DashboardFilters = ({
 
       {/* Status Filter */}
       {onStatusFilterChange && (
-        <div className="flex items-center gap-1.5">
+        <div className="flex flex-col gap-1.5 md:flex-row md:items-center">
           <Label htmlFor="status-filter" className="text-xs font-medium text-muted-foreground whitespace-nowrap">
             Status:
           </Label>
@@ -327,7 +327,7 @@ const DashboardFilters = ({
 
       {/* Category Filter */}
       {onCategoryFilterChange && (
-        <div className="flex items-center gap-1.5">
+        <div className="flex flex-col gap-1.5 md:flex-row md:items-center">
           <Label htmlFor="category-filter" className="text-xs font-medium text-muted-foreground whitespace-nowrap">
             Categoria:
           </Label>
@@ -347,7 +347,7 @@ const DashboardFilters = ({
 
       {/* Sub ID Filter */}
       {onSubIdFilterChange && (
-        <div className="flex items-center gap-1.5">
+        <div className="flex flex-col gap-1.5 md:flex-row md:items-center">
           <Label htmlFor="subid-filter" className="text-xs font-medium text-muted-foreground whitespace-nowrap">
             SubId:
           </Label>
@@ -367,7 +367,7 @@ const DashboardFilters = ({
 
       {/* Year Filter */}
       {onYearFilterChange && (
-        <div className="flex items-center gap-1.5">
+        <div className="flex flex-col gap-1.5 md:flex-row md:items-center">
           <Label htmlFor="year-filter" className="text-xs font-medium text-muted-foreground whitespace-nowrap">
             Ano:
           </Label>
@@ -387,7 +387,7 @@ const DashboardFilters = ({
 
       {/* Mes/Ano Filter */}
       {onMesAnoFilterChange && (
-        <div className="flex items-center gap-1.5">
+        <div className="flex flex-col gap-1.5 md:flex-row md:items-center">
           <Label htmlFor="mes-ano-filter" className="text-xs font-medium text-muted-foreground whitespace-nowrap">
             Mês/Ano:
           </Label>

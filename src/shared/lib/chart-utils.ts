@@ -3,6 +3,7 @@ import type { AdSpend } from "@/shared/types/adspend";
 import { parseDateOnly, toDateKey, isBeforeDateKey, isAfterDateKey } from "@/shared/lib/date";
 import { filterKpiRows, getComissaoAfiliado } from "@/shared/lib/kpi";
 import { normalizeSubId } from "@/shared/lib/utils";
+import { grossUpSpend, netCommission, ZERO_TAX, type TaxRates } from "@/shared/lib/tax";
 
 type DateRange = { from?: Date; to?: Date } | undefined;
 
@@ -37,7 +38,7 @@ export function formatCurrency(value: number): string {
 }
 
 /** Group rows by month (mes_ano), sum commission. Usa mesma fonte que kpi.ts (Pend. + Concl.). */
-export function groupByMesAno(rows: DatasetRow[], dateRange: DateRange): { label: string; value: number; key: string }[] {
+export function groupByMesAno(rows: DatasetRow[], dateRange: DateRange, tax: TaxRates = ZERO_TAX): { label: string; value: number; key: string }[] {
   const filtered = filterKpiRows(filterRowsByDateRange(rows, dateRange));
   const byMonth = new Map<string, number>();
   filtered.forEach((r) => {
@@ -50,12 +51,12 @@ export function groupByMesAno(rows: DatasetRow[], dateRange: DateRange): { label
     .map(([key, value]) => {
       const [y, m] = key.split("-");
       const label = y && m ? `${m}/${y}` : key;
-      return { label, value: Math.round(value * 100) / 100, key };
+      return { label, value: Math.round(netCommission(value, tax) * 100) / 100, key };
     });
 }
 
 /** Group rows by day, sum commission. Usa mesma fonte que kpi.ts (Pend. + Concl.). */
-export function groupCommissionByDay(rows: DatasetRow[], dateRange: DateRange): { label: string; value: number; key: string }[] {
+export function groupCommissionByDay(rows: DatasetRow[], dateRange: DateRange, tax: TaxRates = ZERO_TAX): { label: string; value: number; key: string }[] {
   const filtered = filterKpiRows(filterRowsByDateRange(rows, dateRange));
   const byDay = new Map<string, number>();
   filtered.forEach((r) => {
@@ -68,7 +69,7 @@ export function groupCommissionByDay(rows: DatasetRow[], dateRange: DateRange): 
     .map(([key, value]) => {
       const d = parseDateOnly(key);
       const label = d ? d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }) : key;
-      return { label, value: Math.round(value * 100) / 100, key };
+      return { label, value: Math.round(netCommission(value, tax) * 100) / 100, key };
     });
 }
 
@@ -77,7 +78,8 @@ export function groupRevenueProfitByMes(
   rows: DatasetRow[],
   adSpends: AdSpend[],
   dateRange: DateRange,
-  subIdFilter?: string
+  subIdFilter?: string,
+  tax: TaxRates = ZERO_TAX
 ): { mes_ano: string; commission: number; cost: number; profit: number }[] {
   const filteredRows = filterKpiRows(filterRowsByDateRange(rows, dateRange));
   const byMonth = new Map<string, number>();
@@ -102,16 +104,16 @@ export function groupRevenueProfitByMes(
   return Array.from(months)
     .sort()
     .map((mes_ano) => {
-      const commissionRaw = byMonth.get(mes_ano) ?? 0;
-      const commission = Math.round(commissionRaw * 100) / 100;
-      const cost = costByMonth.get(mes_ano) ?? 0;
+      // comissão líquida (− imposto) × gasto com markup (+ imposto)
+      const commission = Math.round(netCommission(byMonth.get(mes_ano) ?? 0, tax) * 100) / 100;
+      const cost = Math.round(grossUpSpend(costByMonth.get(mes_ano) ?? 0, tax) * 100) / 100;
       const profit = Math.round((commission - cost) * 100) / 100;
       return { mes_ano, commission, cost, profit };
     });
 }
 
 /** Group by channel (platform), sum commission. Usa mesma fonte que kpi.ts (Pend. + Concl.). */
-export function groupByPlatform(rows: DatasetRow[], dateRange: DateRange): { name: string; value: number }[] {
+export function groupByPlatform(rows: DatasetRow[], dateRange: DateRange, tax: TaxRates = ZERO_TAX): { name: string; value: number }[] {
   const filtered = filterKpiRows(filterRowsByDateRange(rows, dateRange));
   const byPlatform = new Map<string, number>();
   filtered.forEach((r) => {
@@ -119,12 +121,12 @@ export function groupByPlatform(rows: DatasetRow[], dateRange: DateRange): { nam
     byPlatform.set(name, (byPlatform.get(name) ?? 0) + getComissaoAfiliado(r));
   });
   return Array.from(byPlatform.entries())
-    .map(([name, value]) => ({ name, value: Math.round(value * 100) / 100 }))
+    .map(([name, value]) => ({ name, value: Math.round(netCommission(value, tax) * 100) / 100 }))
     .sort((a, b) => b.value - a.value);
 }
 
 /** Group by channel type (Shopee channelType), fallback to platform. Pend. + Concl. */
-export function groupByChannel(rows: DatasetRow[], dateRange: DateRange): { name: string; value: number }[] {
+export function groupByChannel(rows: DatasetRow[], dateRange: DateRange, tax: TaxRates = ZERO_TAX): { name: string; value: number }[] {
   const filtered = filterKpiRows(filterRowsByDateRange(rows, dateRange));
   const byChannel = new Map<string, number>();
   filtered.forEach((r) => {
@@ -132,12 +134,12 @@ export function groupByChannel(rows: DatasetRow[], dateRange: DateRange): { name
     byChannel.set(name, (byChannel.get(name) ?? 0) + getComissaoAfiliado(r));
   });
   return Array.from(byChannel.entries())
-    .map(([name, value]) => ({ name, value: Math.round(value * 100) / 100 }))
+    .map(([name, value]) => ({ name, value: Math.round(netCommission(value, tax) * 100) / 100 }))
     .sort((a, b) => b.value - a.value);
 }
 
 /** Group by category, sum commission. Usa mesma fonte que kpi.ts (Pend. + Concl.). */
-export function groupByCategory(rows: DatasetRow[], dateRange: DateRange): { name: string; value: number }[] {
+export function groupByCategory(rows: DatasetRow[], dateRange: DateRange, tax: TaxRates = ZERO_TAX): { name: string; value: number }[] {
   const filtered = filterKpiRows(filterRowsByDateRange(rows, dateRange));
   const byCategory = new Map<string, number>();
   filtered.forEach((r) => {
@@ -145,7 +147,7 @@ export function groupByCategory(rows: DatasetRow[], dateRange: DateRange): { nam
     byCategory.set(name, (byCategory.get(name) ?? 0) + getComissaoAfiliado(r));
   });
   return Array.from(byCategory.entries())
-    .map(([name, value]) => ({ name, value: Math.round(value * 100) / 100 }))
+    .map(([name, value]) => ({ name, value: Math.round(netCommission(value, tax) * 100) / 100 }))
     .sort((a, b) => b.value - a.value)
     .slice(0, 12);
 }

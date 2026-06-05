@@ -13,6 +13,8 @@ import {
 import { isBeforeDateKey, isAfterDateKey, parseDateOnly } from "@/shared/lib/date";
 import { filterKpiRows, getComissaoCents, getComissaoAfiliado } from "@/shared/lib/kpi";
 import { normalizeSubId } from "@/shared/lib/utils";
+import { grossUpSpend, netCommission } from "@/shared/lib/tax";
+import { useTaxSettingsStore } from "@/stores/taxSettingsStore";
 import {
   Table,
   TableBody,
@@ -39,6 +41,18 @@ interface ChannelPerformanceProps {
 const formatCurrency = (value: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value || 0);
 
+const formatDay = (day: string) => {
+  const m = day.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) {
+    const parsed = parseDateOnly(day);
+    return parsed ? parsed.toLocaleDateString("pt-BR") : day;
+  }
+  const local = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  return isNaN(local.getTime())
+    ? (parseDateOnly(day)?.toLocaleDateString("pt-BR") ?? day)
+    : local.toLocaleDateString("pt-BR");
+};
+
 const ChannelPerformance = ({
   rows,
   adSpends,
@@ -48,6 +62,10 @@ const ChannelPerformance = ({
   showDayTable = true,
   showHighlights = true,
 }: ChannelPerformanceProps) => {
+  // Impostos aplicados em tempo de cálculo (recalcula ao mudar o % em Configurações)
+  const adTaxRate = useTaxSettingsStore((s) => s.adTaxRate);
+  const commissionTaxRate = useTaxSettingsStore((s) => s.commissionTaxRate);
+  const tax = useMemo(() => ({ adTaxRate, commissionTaxRate }), [adTaxRate, commissionTaxRate]);
   // Filter rows by dateRange and KPI status (Pendente, Concluído) — mesma fonte que kpi.ts
   const filteredRows = useMemo(() => {
     let dateFiltered = rows;
@@ -134,9 +152,10 @@ const ChannelPerformance = ({
     const data = Array.from(channelMap.entries()).map(([name, vals]) => {
       const share = totalCommission > 0 ? vals.commission / totalCommission : 0;
       const allocatedGeneralSpend = totalGeneralSpend * share;
-      const totalSpend = vals.spend + allocatedGeneralSpend;
+      // Imposto em tempo de cálculo: comissão líquida + gasto com markup
+      const totalSpend = Math.round(grossUpSpend(vals.spend + allocatedGeneralSpend, tax) * 100) / 100;
 
-      const commissionRounded = Math.round(vals.commission * 100) / 100;
+      const commissionRounded = Math.round(netCommission(vals.commission, tax) * 100) / 100;
       const profitRounded = Math.round((commissionRounded - totalSpend) * 100) / 100;
       const roas = totalSpend > 0 ? commissionRounded / totalSpend : 0;
       const roi = totalSpend > 0 ? profitRounded / totalSpend : 0;
@@ -156,8 +175,8 @@ const ChannelPerformance = ({
     });
 
     return data.sort((a, b) => {
-      let aVal: any = a[subSortColumn as keyof typeof a];
-      let bVal: any = b[subSortColumn as keyof typeof b];
+      const aVal: any = a[subSortColumn as keyof typeof a];
+      const bVal: any = b[subSortColumn as keyof typeof b];
 
       if (aVal === bVal) return 0;
       if (aVal === undefined || aVal === null) return 1;
@@ -170,9 +189,50 @@ const ChannelPerformance = ({
       const comparison = String(aVal).localeCompare(String(bVal));
       return subSortDirection === "asc" ? comparison : -comparison;
     });
-  }, [filteredRows, filteredAdSpends, subSortColumn, subSortDirection]);
+  }, [filteredRows, filteredAdSpends, subSortColumn, subSortDirection, tax]);
 
   const limitedChannels = metrics.slice(0, MAX_ROWS);
+
+  const dayData = useMemo(() => {
+    const dayMap = new Map<string, { commission: number; spend: number; orders: number }>();
+    filteredRows.forEach((row) => {
+      const day = row.date ? toDateKey(row.date) : "Sem data";
+      const commission = getComissaoAfiliado(row);
+      const cur = dayMap.get(day) || { commission: 0, spend: 0, orders: 0 };
+      dayMap.set(day, { commission: cur.commission + commission, spend: cur.spend, orders: cur.orders + 1 });
+    });
+    filteredAdSpends.forEach((spend) => {
+      const day = spend.date ? toDateKey(spend.date) : "Sem data";
+      const cur = dayMap.get(day) || { commission: 0, spend: 0, orders: 0 };
+      dayMap.set(day, { ...cur, spend: cur.spend + (spend.amount || 0) });
+    });
+    let arr = Array.from(dayMap.entries()).map(([day, vals]) => {
+      // Imposto em tempo de cálculo: comissão líquida + gasto com markup
+      const commission = netCommission(vals.commission, tax);
+      const spend = grossUpSpend(vals.spend, tax);
+      const profit = commission - spend; // lucro: comissão líquida - gasto com imposto
+      const roas = spend > 0 ? commission / spend : commission > 0 ? 999 : 0;
+      return { day, ...vals, commission, spend, profit, roas };
+    });
+    if (daySortColumn) {
+      arr = arr.sort((a, b) => {
+        let aVal: any = a[daySortColumn as keyof typeof a];
+        let bVal: any = b[daySortColumn as keyof typeof b];
+        if (daySortColumn === "day") { aVal = a.day; bVal = b.day; }
+        if (aVal === bVal) return 0;
+        if (aVal === undefined || aVal === null) return 1;
+        if (bVal === undefined || bVal === null) return -1;
+        if (typeof aVal === "number" && typeof bVal === "number") {
+          return daySortDirection === "asc" ? aVal - bVal : bVal - aVal;
+        }
+        const comparison = String(aVal).localeCompare(String(bVal));
+        return daySortDirection === "asc" ? comparison : -comparison;
+      });
+    } else {
+      arr = arr.sort((a, b) => a.day.localeCompare(b.day));
+    }
+    return arr;
+  }, [filteredRows, filteredAdSpends, daySortColumn, daySortDirection, tax]);
 
   if (!metrics.length) return null;
 
@@ -186,10 +246,11 @@ const ChannelPerformance = ({
       {/* Tabela Visual */}
       {showSubTable && (
         <div className="bg-card border border-border rounded-xl overflow-hidden">
-          <div className="p-6 border-b border-border">
-            <h3 className="font-display font-semibold text-lg">Performance Detalhada por Sub ID</h3>
+          <div className="p-4 md:p-6 border-b border-border">
+            <h3 className="font-display font-semibold text-base md:text-lg">Performance Detalhada por Sub ID</h3>
             <p className="text-sm text-muted-foreground">Análise de custos de anúncios vs retorno real. (máx. {MAX_ROWS} linhas)</p>
           </div>
+          <div className="overflow-x-auto hidden md:block">
           <Table>
             <TableHeader className="bg-muted/50">
               <TableRow>
@@ -365,16 +426,69 @@ const ChannelPerformance = ({
               })()}
             </TableBody>
           </Table>
+          </div>
+
+          {/* Mobile: cards Sub ID */}
+          <div className="md:hidden p-4 space-y-3">
+            {(() => {
+              const totalPages = Math.max(1, Math.ceil(limitedChannels.length / subPageSize));
+              const safePage = Math.min(subPage, totalPages - 1);
+              const start = safePage * subPageSize;
+              const pageRows = limitedChannels.slice(start, start + subPageSize);
+              return (
+                <>
+                  {pageRows.map((m) => {
+                    const isProfit = m.profit > 0;
+                    const roasOk = m.roas >= 1;
+                    return (
+                      <div key={m.name} className="rounded-xl border border-border bg-background p-4">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="font-semibold text-foreground truncate">{m.name}</p>
+                            <p className="text-xs text-muted-foreground">{m.orders} pedidos • CPA {formatCurrency(m.cpa)}</p>
+                          </div>
+                          <span className={cn("inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold flex-shrink-0", roasOk ? "bg-green-500/10 text-green-500" : "bg-red-500/10 text-red-500")}>
+                            {roasOk ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+                            {m.spend > 0 ? `${m.roas.toFixed(2)}x` : "∞"}
+                          </span>
+                        </div>
+                        <dl className="mt-3 grid grid-cols-3 gap-3">
+                          <div className="min-w-0">
+                            <dt className="text-[11px] uppercase tracking-wide text-muted-foreground">Custos</dt>
+                            <dd className="mt-0.5 text-sm text-foreground truncate">{formatCurrency(m.spend)}</dd>
+                          </div>
+                          <div className="min-w-0">
+                            <dt className="text-[11px] uppercase tracking-wide text-muted-foreground">Receita</dt>
+                            <dd className="mt-0.5 text-sm text-foreground truncate">{formatCurrency(m.revenue)}</dd>
+                          </div>
+                          <div className="min-w-0">
+                            <dt className="text-[11px] uppercase tracking-wide text-muted-foreground">Lucro</dt>
+                            <dd className={cn("mt-0.5 text-sm font-semibold truncate", isProfit ? "text-green-500" : "text-red-500")}>{formatCurrency(m.profit)}</dd>
+                          </div>
+                        </dl>
+                      </div>
+                    );
+                  })}
+                  <div className="flex items-center justify-between gap-2 pt-1 text-sm text-muted-foreground">
+                    <button className="px-3 h-9 rounded-lg border border-border disabled:opacity-50" onClick={() => setSubPage((p) => Math.max(0, p - 1))} disabled={safePage === 0}>Anterior</button>
+                    <span>Pág. {safePage + 1}/{totalPages}</span>
+                    <button className="px-3 h-9 rounded-lg border border-border disabled:opacity-50" onClick={() => setSubPage((p) => Math.min(totalPages - 1, p + 1))} disabled={safePage >= totalPages - 1}>Próxima</button>
+                  </div>
+                </>
+              );
+            })()}
+          </div>
         </div>
       )}
 
       {/* Performance por Dia */}
       {showDayTable && (
         <div className="bg-card border border-border rounded-xl overflow-hidden min-h-[320px]">
-          <div className="p-6 border-b border-border">
-            <h3 className="font-display font-semibold text-lg">Performance por Dia</h3>
+          <div className="p-4 md:p-6 border-b border-border">
+            <h3 className="font-display font-semibold text-base md:text-lg">Performance por Dia</h3>
             <p className="text-sm text-muted-foreground">Custos de anúncios vs comissão diária.</p>
           </div>
+          <div className="overflow-x-auto hidden md:block">
           <Table>
             <TableHeader className="bg-muted/50">
               <TableRow>
@@ -462,59 +576,6 @@ const ChannelPerformance = ({
             </TableHeader>
             <TableBody>
               {(() => {
-                const dayMap = new Map<string, { commission: number; spend: number; orders: number }>();
-                filteredRows.forEach((row) => {
-                  const day = row.date ? toDateKey(row.date) : "Sem data";
-                  const commission = getComissaoAfiliado(row);
-                  const cur = dayMap.get(day) || { commission: 0, spend: 0, orders: 0 };
-                  dayMap.set(day, {
-                    commission: cur.commission + commission,
-                    spend: cur.spend,
-                    orders: cur.orders + 1,
-                  });
-                });
-                filteredAdSpends.forEach((spend) => {
-                  const day = spend.date ? toDateKey(spend.date) : "Sem data";
-                  const cur = dayMap.get(day) || { commission: 0, spend: 0, orders: 0 };
-                  dayMap.set(day, {
-                    ...cur,
-                    spend: cur.spend + (spend.amount || 0),
-                  });
-                });
-                let dayData = Array.from(dayMap.entries())
-                  .map(([day, vals]) => {
-                    const profit = vals.commission - vals.spend; // lucro: comissão - gasto
-                    const roas = vals.spend > 0 ? vals.commission / vals.spend : vals.commission > 0 ? 999 : 0;
-                    return { day, ...vals, profit, roas };
-                  });
-
-                // Apply sorting
-                if (daySortColumn) {
-                  dayData = dayData.sort((a, b) => {
-                    let aVal: any = a[daySortColumn as keyof typeof a];
-                    let bVal: any = b[daySortColumn as keyof typeof b];
-
-                    if (daySortColumn === "day") {
-                      aVal = a.day;
-                      bVal = b.day;
-                    }
-
-                    if (aVal === bVal) return 0;
-                    if (aVal === undefined || aVal === null) return 1;
-                    if (bVal === undefined || bVal === null) return -1;
-
-                    if (typeof aVal === "number" && typeof bVal === "number") {
-                      return daySortDirection === "asc" ? aVal - bVal : bVal - aVal;
-                    }
-
-                    const comparison = String(aVal).localeCompare(String(bVal));
-                    return daySortDirection === "asc" ? comparison : -comparison;
-                  });
-                } else {
-                  // Default sort by day ascending
-                  dayData = dayData.sort((a, b) => a.day.localeCompare(b.day));
-                }
-
                 const totalPages = Math.max(1, Math.ceil(dayData.length / dayPageSize));
                 const safePage = Math.min(dayPage, totalPages - 1);
                 const start = safePage * dayPageSize;
@@ -612,6 +673,58 @@ const ChannelPerformance = ({
               })()}
             </TableBody>
           </Table>
+          </div>
+
+          {/* Mobile: cards por Dia */}
+          <div className="md:hidden p-4 space-y-3">
+            {(() => {
+              const totalPages = Math.max(1, Math.ceil(dayData.length / dayPageSize));
+              const safePage = Math.min(dayPage, totalPages - 1);
+              const start = safePage * dayPageSize;
+              const limited = dayData.slice(start, start + dayPageSize);
+              return (
+                <>
+                  {limited.map((d) => {
+                    const isProfit = d.profit > 0;
+                    const roasOk = d.roas >= 1;
+                    return (
+                      <div key={d.day} className="rounded-xl border border-border bg-background p-4">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="font-semibold text-foreground truncate">{formatDay(d.day)}</p>
+                            <p className="text-xs text-muted-foreground">{d.orders} pedidos</p>
+                          </div>
+                          <span className={cn("inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold flex-shrink-0", roasOk ? "bg-green-500/10 text-green-500" : "bg-red-500/10 text-red-500")}>
+                            {roasOk ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+                            {d.spend > 0 ? `${d.roas.toFixed(2)}x` : "∞"}
+                          </span>
+                        </div>
+                        <dl className="mt-3 grid grid-cols-3 gap-3">
+                          <div className="min-w-0">
+                            <dt className="text-[11px] uppercase tracking-wide text-muted-foreground">Custos</dt>
+                            <dd className="mt-0.5 text-sm text-foreground truncate">{formatCurrency(d.spend)}</dd>
+                          </div>
+                          <div className="min-w-0">
+                            <dt className="text-[11px] uppercase tracking-wide text-muted-foreground">Receita</dt>
+                            <dd className="mt-0.5 text-sm text-foreground truncate">{formatCurrency(d.commission)}</dd>
+                          </div>
+                          <div className="min-w-0">
+                            <dt className="text-[11px] uppercase tracking-wide text-muted-foreground">Lucro</dt>
+                            <dd className={cn("mt-0.5 text-sm font-semibold truncate", isProfit ? "text-green-500" : "text-red-500")}>{formatCurrency(d.profit)}</dd>
+                          </div>
+                        </dl>
+                      </div>
+                    );
+                  })}
+                  <div className="flex items-center justify-between gap-2 pt-1 text-sm text-muted-foreground">
+                    <button className="px-3 h-9 rounded-lg border border-border disabled:opacity-50" onClick={() => setDayPage((p) => Math.max(0, p - 1))} disabled={safePage === 0}>Anterior</button>
+                    <span>Pág. {safePage + 1}/{totalPages}</span>
+                    <button className="px-3 h-9 rounded-lg border border-border disabled:opacity-50" onClick={() => setDayPage((p) => Math.min(totalPages - 1, p + 1))} disabled={safePage >= totalPages - 1}>Próxima</button>
+                  </div>
+                </>
+              );
+            })()}
+          </div>
         </div>
       )}
     </div>

@@ -24,6 +24,7 @@ import { useClicksStore } from "@/stores/clicksStore";
 import { isBeforeDateKey, isAfterDateKey } from "@/shared/lib/date";
 import { calcTotals } from "@/shared/lib/kpi";
 import { normalizeSubId } from "@/shared/lib/utils";
+import { useTaxSettingsStore } from "@/stores/taxSettingsStore";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const formatCurrency = (value: number) =>
@@ -33,6 +34,10 @@ const Dashboard = () => {
   const { rows, loading: rowsLoading, fetchRows } = useDatasetStore();
   const { adSpends, loading: spendsLoading, fetchAdSpends } = useAdSpendsStore();
   const { clicks, totalClicks: apiTotalClicks, loading: clicksLoading, fetchClicks } = useClicksStore();
+  const adTaxRate = useTaxSettingsStore((s) => s.adTaxRate);
+  const commissionTaxRate = useTaxSettingsStore((s) => s.commissionTaxRate);
+  const fetchTax = useTaxSettingsStore((s) => s.fetch);
+  const tax = useMemo(() => ({ adTaxRate, commissionTaxRate }), [adTaxRate, commissionTaxRate]);
 
   const [activeTab, setActiveTab] = useState("comissao");
   const [statusFilter, setStatusFilter] = useState<string>("");
@@ -46,6 +51,7 @@ const Dashboard = () => {
     fetchRows({ range: dateRange });
     fetchAdSpends({ range: dateRange });
     fetchClicks({ range: dateRange });
+    fetchTax();
   }, []);
 
   const filteredRows = useMemo(() => {
@@ -64,9 +70,10 @@ const Dashboard = () => {
     const { faturamento, comissao, gastoAnuncios, lucro, roas } = calcTotals(filteredRows, adSpends, {
       dateRange,
       subIdFilter,
+      tax,
     });
     return { faturamento, comissao, gastoAnuncios, lucro, roas };
-  }, [filteredRows, adSpends, subIdFilter, dateRange]);
+  }, [filteredRows, adSpends, subIdFilter, dateRange, tax]);
 
   const kpis: KPIData[] = useMemo(() => [
     {
@@ -122,17 +129,17 @@ const Dashboard = () => {
         <div className="space-y-6">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full md:w-auto">
-              <TabsList className="grid w-full grid-cols-2 md:w-[400px] bg-secondary/40 border border-accent/20 p-1 h-12 shadow-2xl shadow-black/40 rounded-xl backdrop-blur-sm ring-1 ring-white/5">
+              <TabsList className="grid w-full grid-cols-2 md:w-[400px] bg-secondary/40 border border-accent/20 p-1 h-12 shadow-lg shadow-black/20 rounded-xl backdrop-blur-sm ring-1 ring-white/5">
                 <TabsTrigger
                   value="comissao"
-                  className="flex items-center gap-2 h-full rounded-lg transition-all duration-300 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg data-[state=active]:shadow-primary/20 font-bold"
+                  className="flex items-center gap-2 h-full rounded-lg transition-colors duration-200 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg data-[state=active]:shadow-primary/20 font-bold"
                 >
                   <LayoutDashboard className="w-4 h-4" />
                   Comissão
                 </TabsTrigger>
                 <TabsTrigger
                   value="cliques"
-                  className="flex items-center gap-2 h-full rounded-lg transition-all duration-300 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg data-[state=active]:shadow-primary/20 font-bold"
+                  className="flex items-center gap-2 h-full rounded-lg transition-colors duration-200 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg data-[state=active]:shadow-primary/20 font-bold"
                 >
                   <MousePointerClick className="w-4 h-4" />
                   Cliques
@@ -238,16 +245,16 @@ export default Dashboard;
 const DashboardSkeleton = () => {
   return (
     <div className="space-y-4" role="status" aria-label="Carregando dashboard">
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 md:gap-4">
         {[...Array(5)].map((_, i) => (
-          <div key={i} className="bg-card border border-border rounded-xl p-4">
-            <Skeleton className="h-4 w-24 mb-2" />
-            <Skeleton className="h-8 w-32" />
+          <div key={i} className="bg-card border border-border rounded-xl p-4 md:p-5">
+            <Skeleton className="h-9 w-9 rounded-lg mb-3" />
+            <Skeleton className="h-6 w-28" />
             <Skeleton className="h-3 w-20 mt-2" />
           </div>
         ))}
       </div>
-      <div className="bg-card border border-border rounded-xl p-6">
+      <div className="bg-card border border-border rounded-xl p-4 md:p-6">
         <Skeleton className="h-5 w-48 mb-2" />
         <Skeleton className="h-4 w-32 mb-4" />
         <Skeleton className="h-72 w-full rounded-lg" />

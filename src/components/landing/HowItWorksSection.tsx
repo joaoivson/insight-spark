@@ -26,7 +26,7 @@ const steps = [
 
 const HowItWorksSection = () => {
   return (
-    <section id="how-it-works" className="py-24 bg-secondary/30 relative">
+    <section id="how-it-works" className="py-16 md:py-24 bg-secondary/30 relative">
       <div className="container mx-auto px-4">
         {/* Header */}
         {/* Seção de Vídeo */}

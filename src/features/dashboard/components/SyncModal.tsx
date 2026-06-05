@@ -57,7 +57,7 @@ export const SyncModal = ({ open, step }: SyncModalProps) => {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.92, y: 16 }}
             transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-            className="relative w-full max-w-sm mx-4 bg-card border border-border rounded-2xl shadow-2xl p-8 overflow-hidden"
+            className="relative w-full max-w-sm mx-4 bg-card border border-border rounded-2xl shadow-2xl p-6 md:p-8 overflow-hidden"
           >
             {/* Glow de fundo animado */}
             <motion.div

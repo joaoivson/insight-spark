@@ -4,14 +4,14 @@ import DashboardShowcaseSection from "./DashboardShowcaseSection";
 
 const TransformationSection = () => {
   return (
-    <section id="solution" className="py-24 relative overflow-hidden">
+    <section id="solution" className="py-16 md:py-24 relative overflow-hidden">
       <div className="container mx-auto px-4">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.5 }}
-          className="text-center max-w-3xl mx-auto mb-20"
+          className="text-center max-w-3xl mx-auto mb-12 md:mb-20"
         >
           <span className="inline-block px-4 py-1 rounded-full bg-success/10 text-success text-sm font-medium mb-4">
             A Transformação
@@ -22,14 +22,14 @@ const TransformationSection = () => {
           </h2>
         </motion.div>
 
-        <div className="grid lg:grid-cols-2 gap-12 items-center mb-24">
+        <div className="grid lg:grid-cols-2 gap-6 md:gap-12 items-center mb-12 md:mb-24">
           {/* Antes */}
           <motion.div
             initial={{ opacity: 0, x: -20 }}
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.5 }}
-            className="bg-secondary/20 rounded-3xl p-8 border border-border relative overflow-hidden group"
+            className="bg-secondary/20 rounded-3xl p-6 md:p-8 border border-border relative overflow-hidden group"
           >
             <div className="absolute top-4 right-4 text-destructive/20 group-hover:text-destructive/40 transition-colors">
               <XCircle className="w-24 h-24" />
@@ -60,7 +60,7 @@ const TransformationSection = () => {
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.5 }}
-            className="bg-accent/5 rounded-3xl p-8 border border-accent/20 relative overflow-hidden group"
+            className="bg-accent/5 rounded-3xl p-6 md:p-8 border border-accent/20 relative overflow-hidden group"
           >
             <div className="absolute top-4 right-4 text-accent/20 group-hover:text-accent/40 transition-colors">
               <CheckCircle2 className="w-24 h-24" />

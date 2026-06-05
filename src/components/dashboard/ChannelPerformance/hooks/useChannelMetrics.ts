@@ -4,13 +4,15 @@ import { AdSpend } from "@/shared/types/adspend";
 import { isBeforeDateKey, isAfterDateKey, parseDateOnly } from "@/shared/lib/date";
 import { filterKpiRows, getComissaoCents } from "@/shared/lib/kpi";
 import { normalizeSubId } from "@/shared/lib/utils";
+import { grossUpSpend, netCommission, ZERO_TAX, type TaxRates } from "@/shared/lib/tax";
 import { DateRange, ChannelMetric, DayMetric } from "../types";
 
 export const useChannelMetrics = (
     rows: DatasetRow[],
     adSpends: AdSpend[],
     dateRange?: DateRange,
-    subIdFilter?: string
+    subIdFilter?: string,
+    tax: TaxRates = ZERO_TAX
 ) => {
     // Filter rows by dateRange and KPI status (Pendente, Concluído) — mesma fonte que kpi.ts
     const filteredRows = useMemo(() => {
@@ -77,17 +79,19 @@ export const useChannelMetrics = (
         const data: ChannelMetric[] = Array.from(channelMap.entries()).map(([name, vals]) => {
             const share = totalCommission > 0 ? vals.commission / totalCommission : 0;
             const allocatedGeneralSpend = totalGeneralSpend * share;
-            const totalSpend = vals.spend + allocatedGeneralSpend;
+            // Imposto em tempo de cálculo: comissão líquida + gasto com markup
+            const commission = netCommission(vals.commission, tax);
+            const totalSpend = grossUpSpend(vals.spend + allocatedGeneralSpend, tax);
 
-            const receita = vals.commission;
-            const profit = vals.commission - totalSpend;
-            const roas = totalSpend > 0 ? vals.commission / totalSpend : vals.commission > 0 ? 999 : 0;
+            const receita = commission;
+            const profit = commission - totalSpend;
+            const roas = totalSpend > 0 ? commission / totalSpend : commission > 0 ? 999 : 0;
             const roi = totalSpend > 0 ? (profit / totalSpend) * 100 : 0;
             const cpa = vals.orders > 0 ? totalSpend / vals.orders : 0;
 
             return {
                 name,
-                commission: vals.commission,
+                commission,
                 spend: totalSpend,
                 profit,
                 revenue: receita,
@@ -99,7 +103,7 @@ export const useChannelMetrics = (
         });
 
         return data.sort((a, b) => b.revenue - a.revenue);
-    }, [filteredRows, filteredAdSpends]);
+    }, [filteredRows, filteredAdSpends, tax]);
 
     const dailyMetrics = useMemo(() => {
         const dayMap = new Map<string, { commission: number; spend: number; orders: number }>();
@@ -127,12 +131,14 @@ export const useChannelMetrics = (
 
         return Array.from(dayMap.entries())
             .map(([day, vals]) => {
-                const profit = vals.commission - vals.spend;
-                const roas = vals.spend > 0 ? vals.commission / vals.spend : vals.commission > 0 ? 999 : 0;
-                return { day, ...vals, profit, roas };
+                const commission = netCommission(vals.commission, tax);
+                const spend = grossUpSpend(vals.spend, tax);
+                const profit = commission - spend;
+                const roas = spend > 0 ? commission / spend : commission > 0 ? 999 : 0;
+                return { day, ...vals, commission, spend, profit, roas };
             })
             .sort((a, b) => a.day.localeCompare(b.day));
-    }, [filteredRows, filteredAdSpends]);
+    }, [filteredRows, filteredAdSpends, tax]);
 
     const highlights = useMemo(() => {
         if (!channelMetrics.length) return null;

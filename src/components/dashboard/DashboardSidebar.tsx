@@ -13,9 +13,10 @@ import {
   Globe,
   Link2,
   Plug,
-  Receipt,
   Users,
   ShieldCheck,
+  Target,
+  Settings,
 } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -38,11 +39,11 @@ const menuItems = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
   { icon: Upload, label: "Upload Comissão", path: "/dashboard/upload" },
   { icon: MousePointerClick, label: "Upload Cliques", path: "/dashboard/upload-cliques" },
+  { icon: Target, label: "Campanhas", path: "/dashboard/campanhas", isNew: true },
   { icon: Wallet, label: "Custos de Anúncios", path: "/dashboard/investimentos" },
   { icon: Globe, label: "Página de Captura", path: "/dashboard/captura" },
   { icon: Link2, label: "Meus Links", path: "/dashboard/links" },
-  { icon: Plug, label: "Integração Shopee", path: "/dashboard/integracoes", isNew: true },
-  { icon: Receipt, label: "Impostos", path: "/dashboard/impostos", isNew: true },
+  { icon: Settings, label: "Configurações", path: "/dashboard/configuracoes", isNew: true },
   // { icon: Users, label: "Indique & Ganhe", path: "/dashboard/afiliados", isNew: true },
 ];
 

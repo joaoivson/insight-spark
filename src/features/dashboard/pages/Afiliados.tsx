@@ -8,6 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
+import { DataCard } from "@/components/shared/DataCard";
 import { cn } from "@/shared/lib/utils";
 import {
   getMyAffiliateSummary,
@@ -132,7 +133,7 @@ const AfiliadosPage = () => {
               value={affiliateLink}
               className="flex-1 bg-muted border border-border rounded-lg px-4 py-2.5 text-sm text-foreground font-mono"
             />
-            <Button onClick={handleCopy} className="gap-2">
+            <Button onClick={handleCopy} className="w-full sm:w-auto gap-2 transition-colors duration-150">
               {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
               {copied ? "Copiado" : "Copiar link"}
             </Button>
@@ -158,32 +159,55 @@ const AfiliadosPage = () => {
               Nenhuma comissão ainda. Compartilhe seu link e comece a indicar!
             </div>
           ) : (
-            <Table>
-              <TableHeader className="bg-muted/50">
-                <TableRow>
-                  <TableHead>Indicado</TableHead>
-                  <TableHead>Data</TableHead>
-                  <TableHead className="text-right">Valor base</TableHead>
-                  <TableHead className="text-right">Comissão</TableHead>
-                  <TableHead>Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+            <>
+              {/* Desktop: tabela */}
+              <Table className="hidden md:table">
+                <TableHeader className="bg-muted/50">
+                  <TableRow>
+                    <TableHead>Indicado</TableHead>
+                    <TableHead>Data</TableHead>
+                    <TableHead className="text-right">Valor base</TableHead>
+                    <TableHead className="text-right">Comissão</TableHead>
+                    <TableHead>Status</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {summary.commissions.map((c) => (
+                    <TableRow key={c.id}>
+                      <TableCell className="font-medium">{c.referred_email}</TableCell>
+                      <TableCell className="text-muted-foreground">{formatDate(c.created_at)}</TableCell>
+                      <TableCell className="text-right text-muted-foreground">{formatBRL(c.base_amount)}</TableCell>
+                      <TableCell className="text-right font-bold">{formatBRL(c.amount)}</TableCell>
+                      <TableCell>
+                        <span className={cn("text-xs font-semibold px-2 py-1 rounded", STATUS_CLASS[c.status] || "bg-muted")}>
+                          {STATUS_LABEL[c.status] || c.status}
+                        </span>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+
+              {/* Mobile: cards */}
+              <div className="md:hidden space-y-3 p-4">
                 {summary.commissions.map((c) => (
-                  <TableRow key={c.id}>
-                    <TableCell className="font-medium">{c.referred_email}</TableCell>
-                    <TableCell className="text-muted-foreground">{formatDate(c.created_at)}</TableCell>
-                    <TableCell className="text-right text-muted-foreground">{formatBRL(c.base_amount)}</TableCell>
-                    <TableCell className="text-right font-bold">{formatBRL(c.amount)}</TableCell>
-                    <TableCell>
-                      <span className={cn("text-xs font-semibold px-2 py-1 rounded", STATUS_CLASS[c.status] || "bg-muted")}>
+                  <DataCard
+                    key={c.id}
+                    title={c.referred_email}
+                    badge={
+                      <span className={cn("text-xs font-semibold px-2 py-0.5 rounded", STATUS_CLASS[c.status] || "bg-muted")}>
                         {STATUS_LABEL[c.status] || c.status}
                       </span>
-                    </TableCell>
-                  </TableRow>
+                    }
+                    fields={[
+                      { label: "Data", value: formatDate(c.created_at) },
+                      { label: "Valor base", value: formatBRL(c.base_amount) },
+                      { label: "Comissão", value: formatBRL(c.amount), emphasis: true },
+                    ]}
+                  />
                 ))}
-              </TableBody>
-            </Table>
+              </div>
+            </>
           )}
         </div>
       </motion.div>

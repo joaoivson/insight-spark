@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DataCard } from "@/components/shared/DataCard";
 import { useToast } from "@/hooks/use-toast";
 import {
   Receipt,
@@ -193,17 +194,17 @@ export default function ImpostosMeta() {
 
   return (
     <DashboardLayout title="Impostos">
-      <div className="p-6 space-y-5">
+      <div className="p-4 md:p-6 space-y-5">
         {/* Header */}
         <div className="flex items-center gap-3">
           <Receipt className="w-6 h-6 text-primary" />
-          <h1 className="text-2xl font-bold">Impostos</h1>
+          <h1 className="text-xl md:text-2xl font-bold">Impostos</h1>
         </div>
 
         {/* Config Card — compact */}
         <Card className="px-4 py-3">
-          <div className="flex flex-wrap items-end gap-4">
-            <div className="flex-1 min-w-[160px] space-y-1">
+          <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-end gap-4">
+            <div className="flex-1 sm:min-w-[160px] space-y-1">
               <Label htmlFor="ad-tax" className="text-xs">% Imposto Anúncios</Label>
               <div className="relative">
                 <Input
@@ -220,7 +221,7 @@ export default function ImpostosMeta() {
                 <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">%</span>
               </div>
             </div>
-            <div className="flex-1 min-w-[160px] space-y-1">
+            <div className="flex-1 sm:min-w-[160px] space-y-1">
               <Label htmlFor="comm-tax" className="text-xs">% Imposto Saídas</Label>
               <div className="relative">
                 <Input
@@ -237,7 +238,7 @@ export default function ImpostosMeta() {
                 <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">%</span>
               </div>
             </div>
-            <Button onClick={handleSave} disabled={saving} size="sm" className="gap-1.5 h-8">
+            <Button onClick={handleSave} disabled={saving} size="sm" className="gap-1.5 h-9 sm:h-8 w-full sm:w-auto">
               {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
               Salvar
             </Button>
@@ -320,14 +321,14 @@ export default function ImpostosMeta() {
         )}
 
         {/* Table Card */}
-        <Card className="p-6">
-          <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+        <Card className="p-4 md:p-6">
+          <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center sm:justify-between gap-3 mb-4">
             <h2 className="text-base font-semibold">{tableTitle}</h2>
             <Select
               value={selectedMonth}
               onValueChange={(v) => { setSelectedMonth(v); setCurrentPage(1); setSortKey("key"); setSortDir("desc"); }}
             >
-              <SelectTrigger className="w-52 h-8 text-sm">
+              <SelectTrigger className="w-full sm:w-52 h-9 sm:h-8 text-sm">
                 <SelectValue placeholder="Todos os meses" />
               </SelectTrigger>
               <SelectContent>
@@ -351,7 +352,76 @@ export default function ImpostosMeta() {
             </div>
           ) : (
             <>
-              <div className="overflow-x-auto">
+              {/* Mobile: cards */}
+              <div className="md:hidden space-y-3">
+                {pagedRows.map((row) => (
+                  <DataCard
+                    key={row.key}
+                    title={row.label}
+                    badge={
+                      <span className={cn(
+                        "text-xs font-semibold px-2 py-0.5 rounded-full",
+                        row.margemLucro >= 0
+                          ? "bg-success/10 text-success"
+                          : "bg-destructive/10 text-destructive"
+                      )}>
+                        {pct(row.margemLucro)}
+                      </span>
+                    }
+                    fields={[
+                      {
+                        label: "Lucro Líquido",
+                        value: (
+                          <span className={row.lucroLiquido >= 0 ? "text-success" : "text-destructive"}>
+                            {currency(row.lucroLiquido)}
+                          </span>
+                        ),
+                        emphasis: true,
+                      },
+                      { label: "Invest. Anúncios", value: currency(row.investimento) },
+                      { label: "Impostos Anúncios", value: <span className="text-orange-400">{currency(row.impostosAnuncios)}</span> },
+                      { label: "Invest. Total", value: currency(row.investimentoTotal) },
+                      { label: "Comissões", value: <span className="text-green-400">{currency(row.comissoes)}</span> },
+                      { label: "Impostos Saídas", value: <span className="text-orange-400">{currency(row.impostosSaidas)}</span> },
+                    ]}
+                  />
+                ))}
+
+                {/* Totals card */}
+                <DataCard
+                  className="border-primary/30 bg-muted/30"
+                  title="Total"
+                  badge={
+                    <span className={cn(
+                      "text-xs font-semibold px-2 py-0.5 rounded-full",
+                      totals.margemLucro >= 0
+                        ? "bg-success/10 text-success"
+                        : "bg-destructive/10 text-destructive"
+                    )}>
+                      {pct(totals.margemLucro)}
+                    </span>
+                  }
+                  fields={[
+                    {
+                      label: "Lucro Líquido",
+                      value: (
+                        <span className={totals.lucroLiquido >= 0 ? "text-success" : "text-destructive"}>
+                          {currency(totals.lucroLiquido)}
+                        </span>
+                      ),
+                      emphasis: true,
+                    },
+                    { label: "Invest. Anúncios", value: currency(totals.investimento) },
+                    { label: "Impostos Anúncios", value: <span className="text-orange-400">{currency(totals.impostosAnuncios)}</span> },
+                    { label: "Invest. Total", value: currency(totals.investimentoTotal) },
+                    { label: "Comissões", value: <span className="text-green-400">{currency(totals.comissoes)}</span> },
+                    { label: "Impostos Saídas", value: <span className="text-orange-400">{currency(totals.impostosSaidas)}</span> },
+                  ]}
+                />
+              </div>
+
+              {/* Desktop: table */}
+              <div className="hidden md:block overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -419,7 +489,7 @@ export default function ImpostosMeta() {
               </div>
 
               {/* Pagination */}
-              <div className="flex items-center justify-between mt-4 gap-4 flex-wrap">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mt-4 gap-3 sm:gap-4">
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <span>Linhas por página:</span>
                   <Select

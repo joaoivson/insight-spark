@@ -46,10 +46,10 @@ export const RevenueProfitAreaChart = ({ data, onDrillDown, variants }: RevenueP
       initial="hidden"
       animate="show"
       whileHover={{ scale: 1.01 }}
-      className="bg-card rounded-xl border border-border p-6"
+      className="bg-card rounded-xl border border-border p-4 md:p-6"
     >
       <div className="mb-4">
-        <h3 className="font-display font-semibold text-lg text-foreground">Comissão x Custos de Anúncios x Lucro</h3>
+        <h3 className="font-display font-semibold text-base md:text-lg text-foreground">Comissão x Custos de Anúncios x Lucro</h3>
         <p className="text-sm text-muted-foreground">{periodLabel}</p>
       </div>
       <div className="h-80 sm:h-96 overflow-x-auto -mx-2 sm:mx-0 px-2 sm:px-0 scrollbar-thin scrollbar-thumb-accent/20">

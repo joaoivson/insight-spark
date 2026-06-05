@@ -19,7 +19,7 @@ const DashboardShowcaseSection = () => {
   ];
 
   return (
-    <section id="dashboard-preview" className="py-20 relative overflow-hidden">
+    <section id="dashboard-preview" className="py-12 md:py-20 relative overflow-hidden">
       <div className="container mx-auto px-4">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -44,7 +44,7 @@ const DashboardShowcaseSection = () => {
           whileInView={{ opacity: 1, scale: 1 }}
           viewport={{ once: true }}
           transition={{ duration: 0.7 }}
-          className="glass-card rounded-3xl p-3 md:p-6 border border-border/60 relative shadow-2xl shadow-black/40 max-w-6xl mx-auto"
+          className="glass-card rounded-3xl p-3 md:p-6 border border-border/60 relative shadow-lg shadow-black/30 max-w-6xl mx-auto"
         >
           {/* Top KPI Cards Mockup */}
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">

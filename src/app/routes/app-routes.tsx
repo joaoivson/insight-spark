@@ -34,6 +34,8 @@ import ForgotPasswordPage from "@/features/auth/pages/ForgotPasswordPage";
 import NotFound from "@/shared/pages/NotFound";
 import IntegrationsPage from "@/features/dashboard/pages/Integrations";
 import ImpostosMeta from "@/features/dashboard/pages/ImpostosMeta";
+import Campanhas from "@/features/dashboard/pages/Campanhas";
+import Configuracoes from "@/features/dashboard/pages/Configuracoes";
 import AfiliadosPage from "@/features/dashboard/pages/Afiliados";
 import AfiliadosPendentesPage from "@/features/admin/pages/AfiliadosPendentes";
 
@@ -164,6 +166,8 @@ export const AppRoutes = () => {
         <Route path="/dashboard/modules" element={<ProtectedRoute element={<Modules />} />} />
         <Route path="/dashboard/settings" element={<ProtectedRoute element={<Settings />} />} />
         <Route path="/dashboard/investimentos" element={<ProtectedRoute element={<AdSpends />} />} />
+        <Route path="/dashboard/campanhas" element={<ProtectedRoute element={<Campanhas />} />} />
+        <Route path="/dashboard/configuracoes" element={<ProtectedRoute element={<Configuracoes />} />} />
         <Route path="/dashboard/links" element={<ProtectedRoute element={<CustomLinks />} />} />
         <Route path="/dashboard/integracoes" element={<ProtectedRoute element={<IntegrationsPage />} />} />
         <Route path="/dashboard/impostos" element={<ProtectedRoute element={<ImpostosMeta />} />} />

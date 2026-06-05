@@ -158,29 +158,29 @@ const SettingsPage = () => {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="max-w-5xl mx-auto space-y-8"
+        className="max-w-5xl mx-auto space-y-6 md:space-y-8"
       >
-        
+
         {/* Grid Layout */}
-        <div className="grid lg:grid-cols-3 gap-8">
-          
+        <div className="grid lg:grid-cols-3 gap-6 md:gap-8">
+
           {/* Coluna Principal (Perfil) */}
-          <div className="lg:col-span-2 space-y-8">
-            
+          <div className="lg:col-span-2 space-y-6 md:space-y-8">
+
             {/* Card de Perfil */}
-            <div className="bg-card border border-border rounded-2xl p-8 shadow-sm">
-              <div className="flex items-center gap-4 mb-8">
-                <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary border border-primary/20">
+            <div className="bg-card border border-border rounded-2xl p-5 md:p-8 shadow-sm">
+              <div className="flex items-center gap-4 mb-6 md:mb-8">
+                <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary border border-primary/20 flex-shrink-0">
                   <User className="w-6 h-6" />
                 </div>
-                <div>
-                  <h3 className="text-xl font-bold text-foreground">Perfil Pessoal</h3>
+                <div className="min-w-0">
+                  <h3 className="text-lg md:text-xl font-bold text-foreground">Perfil Pessoal</h3>
                   <p className="text-sm text-muted-foreground">Atualize suas informações básicas</p>
                 </div>
               </div>
 
               <div className="space-y-6">
-                <div className="grid md:grid-cols-2 gap-6">
+                <div className="grid md:grid-cols-2 gap-4 md:gap-6">
                   <div className="space-y-2">
                     <Label htmlFor="name">Nome Completo</Label>
                     <Input
@@ -219,8 +219,8 @@ const SettingsPage = () => {
                   <p className="text-[10px] text-muted-foreground">O e-mail de acesso não pode ser alterado.</p>
                 </div>
 
-                <div className="pt-4 flex justify-end">
-                  <Button onClick={handleSave} disabled={isSaving} size="lg" className="min-w-[140px]">
+                <div className="pt-2 md:pt-4 flex md:justify-end">
+                  <Button onClick={handleSave} disabled={isSaving} size="lg" className="w-full md:w-auto md:min-w-[140px]">
                     {isSaving ? "Salvando..." : "Salvar Alterações"}
                   </Button>
                 </div>
@@ -229,10 +229,10 @@ const SettingsPage = () => {
           </div>
 
           {/* Coluna Lateral (Assinatura e Danger Zone) */}
-          <div className="space-y-8">
-            
+          <div className="space-y-6 md:space-y-8">
+
             {/* Card de Assinatura */}
-            <div className="bg-gradient-to-br from-card to-secondary/10 border border-border rounded-2xl p-6 shadow-sm relative overflow-hidden">
+            <div className="bg-gradient-to-br from-card to-secondary/10 border border-border rounded-2xl p-5 md:p-6 shadow-sm relative overflow-hidden">
               <div className="absolute top-0 right-0 p-4 opacity-10">
                 <CreditCard className="w-24 h-24" />
               </div>

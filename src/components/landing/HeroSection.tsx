@@ -7,7 +7,7 @@ import { useSubscribe } from "@/shared/hooks/useSubscribe";
 const HeroSection = () => {
   const { handleSubscribe, loading } = useSubscribe();
   return (
-    <section className="relative min-h-screen flex items-center justify-center overflow-hidden pt-20">
+    <section className="relative min-h-screen flex items-center justify-center overflow-hidden pt-24 pb-16 md:pt-20">
       {/* Background Elements */}
       <div className="absolute inset-0 bg-[var(--gradient-hero)]" />
       
@@ -42,7 +42,7 @@ const HeroSection = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.1 }}
-            className="font-display text-4xl md:text-5xl lg:text-7xl font-bold text-foreground leading-tight mb-6"
+            className="font-display text-3xl sm:text-4xl md:text-5xl lg:text-7xl font-bold text-foreground leading-tight mb-6"
           >
             Pare de adivinhar. Veja exatamente quais links da Shopee estão te dando <span className="gradient-text">lucro real.</span>
           </motion.h1>
@@ -52,7 +52,7 @@ const HeroSection = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.2 }}
-            className="text-lg md:text-2xl text-muted-foreground max-w-3xl mx-auto mb-10"
+            className="text-base sm:text-lg md:text-2xl text-muted-foreground max-w-3xl mx-auto mb-8 md:mb-10"
           >
             O MarketDash transforma seus CSVs de cliques e comissões em insights claros para você escalar o que funciona e cortar o que dá prejuízo.
           </motion.p>
@@ -64,10 +64,10 @@ const HeroSection = () => {
             transition={{ duration: 0.5, delay: 0.25 }}
             className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-6"
           >
-            <Button 
-              variant="hero" 
-              size="xl" 
-              className="px-10 py-8 text-xl"
+            <Button
+              variant="hero"
+              size="xl"
+              className="w-full sm:w-auto sm:px-10 text-base sm:text-lg md:text-xl"
               onClick={() => handleSubscribe(true)}
               disabled={loading}
               aria-label="Ver meu lucro real agora"
@@ -101,7 +101,7 @@ const HeroSection = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.4 }}
-            className="mt-16 grid grid-cols-3 gap-8 max-w-lg mx-auto"
+            className="mt-12 md:mt-16 grid grid-cols-3 gap-4 sm:gap-8 max-w-lg mx-auto"
           >
             {[
               { value: "5 min", label: "para começar" },

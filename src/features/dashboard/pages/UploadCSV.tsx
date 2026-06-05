@@ -258,9 +258,9 @@ const UploadCSV = () => {
       action={
         <AlertDialog>
           <AlertDialogTrigger asChild>
-            <Button variant="destructive" size="sm" disabled={isDeleting}>
+            <Button variant="destructive" size="sm" disabled={isDeleting} className="w-full sm:w-auto">
               <Trash2 className="w-4 h-4 mr-2" />
-              {config.deleteLabel}
+              <span className="truncate">{config.deleteLabel}</span>
             </Button>
           </AlertDialogTrigger>
           <AlertDialogContent>
@@ -338,9 +338,9 @@ const UploadCSV = () => {
               exit={{ opacity: 0 }}
             >
               <div
-                className={`relative group cursor-pointer border-2 border-dashed rounded-3xl p-16 text-center transition-all duration-300 ease-out ${dragActive
-                  ? "border-primary bg-primary/5 scale-[1.02]"
-                  : "border-border hover:border-primary/50 hover:bg-secondary/30"
+                className={`relative group border-2 border-dashed rounded-2xl md:rounded-3xl p-6 sm:p-10 md:p-16 text-center transition-colors duration-200 ease-out ${dragActive
+                  ? "border-primary bg-primary/5"
+                  : "border-border md:hover:border-primary/50 md:hover:bg-secondary/30"
                   }`}
                 onDragEnter={handleDrag}
                 onDragLeave={handleDrag}
@@ -358,26 +358,27 @@ const UploadCSV = () => {
                 />
 
                 <div className="relative z-0">
-                  <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center mx-auto mb-8 shadow-inner group-hover:scale-110 transition-transform duration-300">
-                    <IconComponent className="w-10 h-10 text-primary" />
+                  <div className="w-16 h-16 md:w-20 md:h-20 rounded-2xl md:rounded-3xl bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center mx-auto mb-5 md:mb-8 shadow-inner md:group-hover:scale-110 transition-transform duration-200">
+                    <IconComponent className="w-8 h-8 md:w-10 md:h-10 text-primary" />
                   </div>
 
-                  <h3 className="font-display font-bold text-2xl text-foreground mb-3 group-hover:text-primary transition-colors">
-                    Arraste e solte seu arquivo CSV aqui
+                  <h3 className="font-display font-bold text-lg md:text-2xl text-foreground mb-2 md:mb-3 md:group-hover:text-primary transition-colors">
+                    <span className="hidden md:inline">Arraste e solte seu arquivo CSV aqui</span>
+                    <span className="md:hidden">Importe seu arquivo CSV</span>
                   </h3>
-                  <p className="text-muted-foreground mb-6 max-w-md mx-auto leading-relaxed">
-                    Solte o arquivo CSV nesta área para fazer o upload... {isClicksMode ? "Relatório de cliques." : "Relatório de vendas."}
+                  <p className="text-sm md:text-base text-muted-foreground mb-6 max-w-md mx-auto leading-relaxed">
+                    <span className="hidden md:inline">Solte o arquivo CSV nesta área para fazer o upload. </span>
+                    {isClicksMode ? "Relatório de cliques." : "Relatório de vendas."}
                   </p>
 
                   <Button
                     type="button"
-                    variant="outline"
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
                       fileInputRef.current?.click();
                     }}
-                    className="mt-4"
+                    className="w-full sm:w-auto"
                   >
                     <Upload className="w-4 h-4 mr-2" />
                     Selecionar arquivo CSV
@@ -386,7 +387,7 @@ const UploadCSV = () => {
               </div>
 
               {/* Instructions Grid */}
-              <div className="mt-12 grid md:grid-cols-3 gap-6">
+              <div className="mt-8 md:mt-12 grid grid-cols-1 sm:grid-cols-3 gap-4 md:gap-6">
                 {[
                   { title: "Prepare", desc: "Exporte seus dados em CSV UTF-8" },
                   { title: "Carregue", desc: "Arraste o arquivo para a área acima" },
@@ -410,20 +411,20 @@ const UploadCSV = () => {
               className="space-y-6"
             >
               {/* File Status Card */}
-              <div className="bg-card border border-border rounded-2xl p-6 shadow-lg shadow-black/5">
-                <div className="flex items-start justify-between mb-6">
-                  <div className="flex items-center gap-4">
-                    <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center">
-                      <FileText className="w-7 h-7 text-primary" />
+              <div className="bg-card border border-border rounded-2xl p-4 md:p-6">
+                <div className="flex items-start justify-between gap-3 mb-5 md:mb-6">
+                  <div className="flex items-center gap-3 md:gap-4 min-w-0">
+                    <div className="w-12 h-12 md:w-14 md:h-14 rounded-2xl bg-primary/10 flex items-center justify-center flex-shrink-0">
+                      <FileText className="w-6 h-6 md:w-7 md:h-7 text-primary" />
                     </div>
-                    <div>
-                      <h3 className="font-bold text-lg text-foreground">{file.name}</h3>
+                    <div className="min-w-0">
+                      <h3 className="font-bold text-base md:text-lg text-foreground truncate">{file.name}</h3>
                       <p className="text-sm text-muted-foreground">
                         {(file.size / 1024).toFixed(1)} KB • Pronto para processamento
                       </p>
                     </div>
                   </div>
-                  <Button variant="ghost" size="icon" onClick={clearFile} disabled={isProcessing || showDatasetPolling}>
+                  <Button variant="ghost" size="icon" className="flex-shrink-0" onClick={clearFile} disabled={isProcessing || showDatasetPolling} aria-label="Remover arquivo">
                     <X className="w-5 h-5 text-muted-foreground hover:text-destructive" />
                   </Button>
                 </div>
@@ -439,7 +440,7 @@ const UploadCSV = () => {
                 )}
 
                 {!isProcessing && csvData && (
-                  <div className="flex gap-3 justify-end">
+                  <div className="flex flex-col-reverse gap-3 md:flex-row md:justify-end">
                     <Button
                       variant="outline"
                       onClick={(e) => {
@@ -448,6 +449,7 @@ const UploadCSV = () => {
                         clearFile();
                       }}
                       type="button"
+                      className="w-full md:w-auto"
                     >
                       Cancelar
                     </Button>
@@ -457,7 +459,7 @@ const UploadCSV = () => {
                         e.stopPropagation();
                         handleUpload();
                       }}
-                      className="bg-primary hover:bg-primary/90 min-w-[140px]"
+                      className="w-full md:w-auto md:min-w-[140px]"
                       type="button"
                       disabled={isProcessing || showDatasetPolling}
                     >
@@ -470,12 +472,12 @@ const UploadCSV = () => {
               {/* Data Preview */}
               {csvData && (
                 <div className="bg-card border border-border rounded-2xl overflow-hidden">
-                  <div className="p-4 border-b border-border bg-secondary/5 flex items-center justify-between">
+                  <div className="p-4 border-b border-border bg-secondary/5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                     <div className="flex items-center gap-2">
-                      <Eye className="w-4 h-4 text-muted-foreground" />
+                      <Eye className="w-4 h-4 text-muted-foreground flex-shrink-0" />
                       <span className="font-semibold text-sm">Visualização (10 primeiras linhas)</span>
                     </div>
-                    <span className="text-xs text-muted-foreground px-2 py-1 bg-background rounded-md border border-border">
+                    <span className="text-xs text-muted-foreground px-2 py-1 bg-background rounded-md border border-border self-start sm:self-auto">
                       {csvData.headers.length} colunas detectadas
                     </span>
                   </div>
@@ -516,14 +518,14 @@ const UploadCSV = () => {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="fixed bottom-8 right-8 z-50 bg-destructive text-destructive-foreground px-6 py-4 rounded-xl shadow-2xl flex items-center gap-4 max-w-md"
+            className="fixed inset-x-4 bottom-[calc(5rem+env(safe-area-inset-bottom))] z-50 flex items-center gap-4 rounded-xl bg-destructive px-5 py-4 text-destructive-foreground shadow-lg md:inset-x-auto md:bottom-8 md:right-8 md:max-w-md"
           >
             <AlertCircle className="w-6 h-6 flex-shrink-0" />
-            <div>
+            <div className="min-w-0">
               <h4 className="font-bold">Falha no processamento</h4>
-              <p className="text-sm opacity-90">{error}</p>
+              <p className="text-sm opacity-90 break-words">{error}</p>
             </div>
-            <button onClick={() => setError(null)} className="ml-auto">
+            <button onClick={() => setError(null)} className="ml-auto flex-shrink-0" aria-label="Fechar erro">
               <X className="w-5 h-5" />
             </button>
           </motion.div>

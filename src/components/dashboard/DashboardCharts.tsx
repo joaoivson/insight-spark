@@ -12,6 +12,7 @@ import { EvolutionBarChart } from "./charts/EvolutionBarChart";
 import { RevenueProfitAreaChart } from "./charts/RevenueProfitAreaChart";
 import { ChannelPieChart } from "./charts/ChannelPieChart";
 import { CategoryBarChart } from "./charts/CategoryBarChart";
+import { useTaxSettingsStore } from "@/stores/taxSettingsStore";
 
 export type DrillDownType = "mes_ano" | "category" | "sub_id1" | "product" | "platform";
 
@@ -48,6 +49,9 @@ const containerVariants: Variants = {
 
 const DashboardCharts = ({ rows, adSpends = [], dateRange, subIdFilter, onDrillDown, belowRevenueContent }: DashboardChartsProps) => {
   const [commissionMode, setCommissionMode] = useState<"month" | "day">("month");
+  const adTaxRate = useTaxSettingsStore((s) => s.adTaxRate);
+  const commissionTaxRate = useTaxSettingsStore((s) => s.commissionTaxRate);
+  const tax = { adTaxRate, commissionTaxRate };
 
   if (!rows.length) {
     return (
@@ -64,11 +68,11 @@ const DashboardCharts = ({ rows, adSpends = [], dateRange, subIdFilter, onDrillD
     );
   }
 
-  const mesAnoData = groupByMesAno(rows, dateRange);
-  const commissionDayData = groupCommissionByDay(rows, dateRange);
-  const revProfitData = groupRevenueProfitByMes(rows, adSpends, dateRange, subIdFilter);
-  const channelData = groupByChannel(rows, dateRange);
-  const categoryData = groupByCategory(rows, dateRange);
+  const mesAnoData = groupByMesAno(rows, dateRange, tax);
+  const commissionDayData = groupCommissionByDay(rows, dateRange, tax);
+  const revProfitData = groupRevenueProfitByMes(rows, adSpends, dateRange, subIdFilter, tax);
+  const channelData = groupByChannel(rows, dateRange, tax);
+  const categoryData = groupByCategory(rows, dateRange, tax);
 
   return (
     <motion.div

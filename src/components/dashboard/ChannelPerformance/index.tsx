@@ -1,8 +1,10 @@
+import { useMemo } from "react";
 import { ChannelPerformanceProps } from "./types";
 import { useChannelMetrics } from "./hooks/useChannelMetrics";
 import { MetricHighlights } from "./components/MetricHighlights";
 import { SubIdTable } from "./components/SubIdTable";
 import { DailyTable } from "./components/DailyTable";
+import { useTaxSettingsStore } from "@/stores/taxSettingsStore";
 
 const ChannelPerformance = ({
     rows,
@@ -13,7 +15,10 @@ const ChannelPerformance = ({
     showDayTable = true,
     showHighlights = true,
 }: ChannelPerformanceProps) => {
-    const { channelMetrics, dailyMetrics, highlights } = useChannelMetrics(rows, adSpends, dateRange, subIdFilter);
+    const adTaxRate = useTaxSettingsStore((s) => s.adTaxRate);
+    const commissionTaxRate = useTaxSettingsStore((s) => s.commissionTaxRate);
+    const tax = useMemo(() => ({ adTaxRate, commissionTaxRate }), [adTaxRate, commissionTaxRate]);
+    const { channelMetrics, dailyMetrics, highlights } = useChannelMetrics(rows, adSpends, dateRange, subIdFilter, tax);
 
     if (!channelMetrics.length && !dailyMetrics.length) return null;
 

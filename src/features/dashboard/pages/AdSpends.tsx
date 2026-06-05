@@ -800,7 +800,7 @@ const AdSpends = () => {
               </div>
             )}
           </div>
-          <div className="grid gap-4 md:grid-cols-4">
+          <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-4">
             <div className="space-y-2">
               <Label htmlFor="amount">Valor gasto (R$)</Label>
               <Input
@@ -891,7 +891,8 @@ const AdSpends = () => {
             </div>
           </div>
 
-          <div className="overflow-x-auto relative">
+          {/* Desktop: tabela */}
+          <div className="overflow-x-auto relative hidden md:block">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -955,6 +956,58 @@ const AdSpends = () => {
             )}
           </div>
 
+          {/* Mobile: lista de cards */}
+          <div className="md:hidden space-y-3">
+            {(refreshing || importing || saving || adLoading) && (
+              <div className="flex items-center justify-center gap-2 text-muted-foreground py-6 text-sm">
+                <RefreshCw className="w-4 h-4 animate-spin" />
+                <span>Carregando...</span>
+              </div>
+            )}
+            {!refreshing && !importing && !saving && !adLoading && paginated.length === 0 && (
+              <div className="rounded-xl border border-dashed border-border bg-secondary/20 py-10 text-center text-sm text-muted-foreground">
+                Nenhum custo de anúncio registrado ainda.
+              </div>
+            )}
+            {!refreshing && !importing && !saving && !adLoading && paginated.map((item) => {
+              const cpc = item.clicks && item.clicks > 0 ? item.amount / item.clicks : 0;
+              return (
+                <div key={item.id} className="rounded-xl border border-border bg-card p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-foreground">{formatDateSafe(item.date)}</p>
+                      <span className="mt-1 inline-flex items-center rounded-full bg-secondary px-2 py-0.5 text-xs text-muted-foreground">
+                        {item.sub_id || "Geral"}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      <Button size="icon" variant="ghost" className="h-9 w-9" onClick={() => handleEdit(item)} aria-label="Editar">
+                        <Edit3 className="w-4 h-4" />
+                      </Button>
+                      <Button size="icon" variant="ghost" className="h-9 w-9 text-destructive" onClick={() => handleDelete(item.id)} aria-label="Excluir">
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                  <dl className="mt-3 grid grid-cols-3 gap-3">
+                    <div>
+                      <dt className="text-[11px] uppercase tracking-wide text-muted-foreground">Valor</dt>
+                      <dd className="mt-0.5 text-base font-semibold text-foreground">{currency(item.amount)}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-[11px] uppercase tracking-wide text-muted-foreground">Cliques</dt>
+                      <dd className="mt-0.5 text-sm text-foreground">{(item.clicks !== undefined && item.clicks !== null) ? Number(item.clicks).toLocaleString("pt-BR") : "0"}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-[11px] uppercase tracking-wide text-muted-foreground">CPC</dt>
+                      <dd className="mt-0.5 text-sm text-foreground">{cpc > 0 ? currency(cpc) : "-"}</dd>
+                    </div>
+                  </dl>
+                </div>
+              );
+            })}
+          </div>
+
           <div className="flex items-center justify-between mt-4 flex-wrap gap-3">
             <div className="text-sm text-muted-foreground">
               Página {currentPage + 1} de {totalPages}
@@ -965,6 +1018,7 @@ const AdSpends = () => {
                 size="sm"
                 onClick={() => setPage(0)}
                 disabled={currentPage === 0}
+                className="hidden sm:inline-flex"
               >
                 Primeira
               </Button>
@@ -989,6 +1043,7 @@ const AdSpends = () => {
                 size="sm"
                 onClick={() => setPage(totalPages - 1)}
                 disabled={currentPage >= totalPages - 1}
+                className="hidden sm:inline-flex"
               >
                 Última
               </Button>

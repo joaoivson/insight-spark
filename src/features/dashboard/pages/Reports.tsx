@@ -8,11 +8,8 @@ import {
   Search,
   ArrowUpDown,
   MousePointerClick,
-  FilterX,
   X,
-  Filter,
   Settings2,
-  Check,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -42,8 +39,11 @@ import { useAdSpendsStore } from "@/stores/adSpendsStore";
 import { useClicksStore } from "@/stores/clicksStore";
 import { toDateKey, parseDateOnly, isBeforeDateKey, isAfterDateKey, formatHourRange } from "@/shared/lib/date";
 import { getComissaoAfiliado } from "@/shared/lib/kpi";
+import { grossUpSpend, netCommission } from "@/shared/lib/tax";
+import { useTaxSettingsStore } from "@/stores/taxSettingsStore";
 import { normalizeSubId, cn } from "@/shared/lib/utils";
 import { Badge } from "@/components/ui/badge";
+import { DataCard } from "@/components/shared/DataCard";
 import * as XLSX from "xlsx";
 
 // Pivot Definitions
@@ -83,6 +83,10 @@ const ReportsPage = () => {
   const { rows, loading: rowsLoading, fetchRows } = useDatasetStore();
   const { adSpends, loading: spendsLoading, fetchAdSpends } = useAdSpendsStore();
   const { clicks, loading: clicksLoading, fetchClicks } = useClicksStore();
+  const adTaxRate = useTaxSettingsStore((s) => s.adTaxRate);
+  const commissionTaxRate = useTaxSettingsStore((s) => s.commissionTaxRate);
+  const fetchTax = useTaxSettingsStore((s) => s.fetch);
+  const tax = useMemo(() => ({ adTaxRate, commissionTaxRate }), [adTaxRate, commissionTaxRate]);
 
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [categoryFilter, setCategoryFilter] = useState<string>("");
@@ -132,6 +136,7 @@ const ReportsPage = () => {
     fetchRows({ range: dateRange });
     fetchAdSpends({ range: dateRange });
     fetchClicks({ range: dateRange });
+    fetchTax();
   }, []);
 
   const isLoading = rowsLoading || spendsLoading || clicksLoading;
@@ -172,12 +177,14 @@ const ReportsPage = () => {
       const lookupKey = `${dateKey}_${subIdKey}`;
 
       const associatedClicks = clicksMap.get(lookupKey) || 0;
-      const associatedCost = adsMap.get(lookupKey) || 0;
-      const comissao = getComissaoAfiliado(row);
+      // Imposto em tempo de cálculo: gasto com markup + comissão líquida
+      const associatedCost = grossUpSpend(adsMap.get(lookupKey) || 0, tax);
+      const comissao = netCommission(getComissaoAfiliado(row), tax);
       const profit = comissao - associatedCost;
 
       return {
         ...row,
+        commission: comissao,
         associatedClicks,
         associatedCost,
         profit,
@@ -189,7 +196,7 @@ const ReportsPage = () => {
       if (typeof valA === "number" && typeof valB === "number") return (valA - valB) * factor;
       return String(valA || "").localeCompare(String(valB || "")) * factor;
     });
-  }, [filteredRows, clicks, adSpends, sortBy, sortDir]);
+  }, [filteredRows, clicks, adSpends, sortBy, sortDir, tax]);
 
   const hasAssociatedData = useMemo(() => {
     const hasClicks = joinedData.some(r => (r.associatedClicks ?? 0) > 0);
@@ -403,7 +410,7 @@ const ReportsPage = () => {
       title="Relatório Dinâmico"
       subtitle="Análise personalizada de vendas, cliques e anúncios"
       action={
-        <Button onClick={handleExportExcel} className="gap-2" variant="accent">
+        <Button onClick={handleExportExcel} className="gap-2 w-full sm:w-auto" variant="accent">
           <Download className="w-4 h-4" />
           Exportar Excel
         </Button>
@@ -441,13 +448,13 @@ const ReportsPage = () => {
           clicks={clicks}
         />
 
-        <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-4">
-          <div className="flex-1 bg-card border border-border rounded-xl p-3 flex items-center gap-3 shadow-sm focus-within:ring-2 focus-within:ring-primary/20 transition-all group">
-            <div className="p-2 bg-secondary/50 rounded-lg group-focus-within:bg-primary/10 transition-colors">
+        <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-3">
+          <div className="flex-1 bg-card border border-border rounded-xl p-2.5 flex items-center gap-2.5 shadow-sm focus-within:ring-2 focus-within:ring-primary/20 transition-all group">
+            <div className="p-2 bg-secondary/50 rounded-lg group-focus-within:bg-primary/10 transition-colors flex-shrink-0">
               <Search className="w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
             </div>
             <Input
-              placeholder="Buscar por nome do produto na lista..."
+              placeholder="Buscar produto..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="border-none focus-visible:ring-0 bg-transparent h-9 p-0 text-sm placeholder:text-muted-foreground/60"
@@ -456,22 +463,20 @@ const ReportsPage = () => {
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-8 w-8 hover:bg-destructive/10 hover:text-destructive rounded-lg transition-colors"
+                className="h-9 w-9 hover:bg-destructive/10 hover:text-destructive rounded-lg transition-colors flex-shrink-0"
                 onClick={() => setSearchTerm("")}
+                aria-label="Limpar busca"
               >
                 <X className="w-4 h-4" />
               </Button>
             )}
-            <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 shadow-sm shadow-primary/10">
-              <Filter className="w-4 h-4 text-primary" />
-            </div>
           </div>
 
           <Sheet open={isConfigOpen} onOpenChange={setIsConfigOpen}>
             <SheetTrigger asChild>
-              <Button variant="outline" className="h-[60px] lg:h-auto lg:py-4 gap-3 border-primary/20 bg-primary/5 hover:bg-primary/10 text-primary font-bold px-8 rounded-xl border-2 shadow-sm transition-all hover:scale-[1.01] active:scale-[0.99]">
-                <Settings2 className="w-5 h-5" />
-                <span className="text-base uppercase tracking-wider">Criar Tabela Dinâmica</span>
+              <Button variant="outline" className="w-full lg:w-auto h-12 gap-2.5 border-2 border-primary/20 bg-primary/5 hover:bg-primary/10 text-primary font-semibold px-5 rounded-xl shadow-sm transition-colors">
+                <Settings2 className="w-5 h-5 flex-shrink-0" />
+                <span className="text-sm uppercase tracking-wide">Criar Tabela Dinâmica</span>
               </Button>
             </SheetTrigger>
             <SheetContent className="w-[300px] sm:w-[400px]">
@@ -540,23 +545,23 @@ const ReportsPage = () => {
             className="space-y-8"
           >
             <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
-              <div className="p-6 border-b border-border flex items-center justify-between bg-secondary/5">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-background rounded-lg border border-border">
+              <div className="p-4 md:p-6 border-b border-border flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between bg-secondary/5">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="p-2 bg-background rounded-lg border border-border flex-shrink-0">
                     <FileText className="w-5 h-5 text-muted-foreground" />
                   </div>
-                  <div>
-                    <h3 className="font-display font-semibold text-foreground">
+                  <div className="min-w-0">
+                    <h3 className="font-display font-semibold text-foreground truncate">
                       {pivotConfig.dimensions.length > 0 ? "Tabela Dinâmica Consolidada" : "Relatório Detalhado"}
                     </h3>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-xs text-muted-foreground line-clamp-2">
                       {pivotConfig.dimensions.length > 0
                         ? `Agrupado por: ${pivotConfig.dimensions.map(d => DIMENSIONS.find(dim => dim.key === d)?.label).join(", ")}`
                         : "Vendas associadas a cliques e custos por Sub ID e Data"}
                     </p>
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center justify-between sm:justify-end gap-3 flex-shrink-0">
                   {pivotConfig.dimensions.length > 0 && (
                     <Button
                       variant="ghost"
@@ -574,7 +579,8 @@ const ReportsPage = () => {
                 </div>
               </div>
 
-              <div className="overflow-x-auto">
+              {/* Desktop: tabela densa */}
+              <div className="hidden md:block overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-secondary/20 hover:bg-secondary/20">
@@ -715,6 +721,66 @@ const ReportsPage = () => {
                   </TableBody>
                 </Table>
               </div>
+
+              {/* Mobile: lista de cards */}
+              <div className="md:hidden">
+                {!pivotData.length ? (
+                  <div className="p-8 text-center text-sm text-muted-foreground">
+                    {isLoading ? "Carregando dados..." : "Nenhum dado encontrado para os filtros selecionados."}
+                  </div>
+                ) : (
+                  <div className="space-y-3 p-4">
+                    {pivotData.slice(0, 100).map((row, idx) => {
+                      const isPivot = pivotConfig.dimensions.length > 0;
+
+                      // Título do card: 1ª dimensão (pivot) ou produto (detalhe)
+                      const titleKey = isPivot ? pivotConfig.dimensions[0] : "product";
+                      const title = renderCell(row as any, titleKey);
+
+                      // Dimensões restantes viram campos
+                      const dimFields = isPivot
+                        ? pivotConfig.dimensions.slice(1).map((dimKey) => ({
+                            label: DIMENSIONS.find((d) => d.key === dimKey)?.label || dimKey,
+                            value: renderCell(row as any, dimKey),
+                          }))
+                        : [];
+
+                      // Métricas / colunas de valor
+                      const metricFields = isPivot
+                        ? pivotConfig.metrics.map((metricKey) => ({
+                            label: METRICS.find((m) => m.key === metricKey)?.label || metricKey,
+                            value: renderCell(row as any, metricKey),
+                            emphasis: metricKey === "commission" || metricKey === "profit",
+                          }))
+                        : [
+                            { label: "Quantidade", value: renderCell(row as any, "quantity") },
+                            { label: "Faturamento", value: renderCell(row as any, "revenue") },
+                            { label: "Comissão", value: renderCell(row as any, "commission"), emphasis: true },
+                            { label: "Canal", value: renderCell(row as any, "platform") },
+                            { label: "Horário", value: renderCell(row as any, "time") },
+                            ...(hasAssociatedData.hasClicks
+                              ? [{ label: "Cliques", value: renderCell(row as any, "associatedClicks") }]
+                              : []),
+                            ...(hasAssociatedData.hasCosts
+                              ? [{ label: "Custos de anúncios", value: renderCell(row as any, "associatedCost") }]
+                              : []),
+                            ...(hasAssociatedData.showProfit
+                              ? [{ label: "Lucro", value: renderCell(row as any, "profit"), emphasis: true }]
+                              : []),
+                          ];
+
+                      return (
+                        <DataCard
+                          key={`m-${(row as any).id || idx}-${idx}`}
+                          title={title}
+                          fields={[...dimFields, ...metricFields]}
+                        />
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
               {pivotData.length > 100 && (
                 <div className="p-4 text-center border-t border-border bg-secondary/5">
                   <p className="text-xs text-muted-foreground italic">
@@ -734,19 +800,19 @@ export default ReportsPage;
 
 const ReportsSkeleton = () => {
   return (
-    <div className="space-y-6">
-      <div className="grid md:grid-cols-2 lg:grid-cols-5 gap-6">
+    <div className="space-y-4 md:space-y-6">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-6">
         {[...Array(5)].map((_, i) => (
-          <div key={i} className="bg-card rounded-xl border border-border p-6 space-y-3">
-            <Skeleton className="h-4 w-32" />
-            <Skeleton className="h-8 w-40" />
+          <div key={i} className="bg-card rounded-xl border border-border p-4 md:p-6 space-y-3">
+            <Skeleton className="h-4 w-20 md:w-32" />
+            <Skeleton className="h-7 md:h-8 w-24 md:w-40" />
           </div>
         ))}
       </div>
       <div className="bg-card rounded-xl border border-border p-4 space-y-3">
         <Skeleton className="h-5 w-40" />
         {[...Array(4)].map((_, i) => (
-          <Skeleton key={i} className="h-10 w-full" />
+          <Skeleton key={i} className="h-14 md:h-10 w-full" />
         ))}
       </div>
     </div>

@@ -31,9 +31,16 @@ const modules = [
 const ModulesPage = () => {
   return (
     <DashboardLayout title="Módulos" subtitle="Expanda as funcionalidades da sua conta">
-      <div className="text-center py-12">
-        <p className="text-muted-foreground text-lg">Módulos em desenvolvimento</p>
-        <p className="text-muted-foreground/70 text-sm mt-2">Esta seção estará disponível em breve.</p>
+      <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-card px-6 py-16 text-center md:py-24">
+        <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 text-primary">
+          <Lock className="h-7 w-7" />
+        </div>
+        <h3 className="text-lg font-semibold tracking-tight text-foreground">
+          Módulos em desenvolvimento
+        </h3>
+        <p className="mt-1 max-w-sm text-sm text-muted-foreground">
+          Estamos preparando novos módulos para expandir sua análise. Em breve disponíveis por aqui.
+        </p>
       </div>
     </DashboardLayout>
   );
@@ -48,9 +55,9 @@ const ModulesPageHidden = () => {
         transition={{ duration: 0.5 }}
       >
         {/* Info Banner */}
-        <div className="bg-accent/10 border border-accent/20 rounded-xl p-6 mb-8">
-          <div className="flex items-start gap-4">
-            <div className="w-12 h-12 rounded-xl bg-accent/20 flex items-center justify-center flex-shrink-0">
+        <div className="bg-accent/10 border border-accent/20 rounded-xl p-4 md:p-6 mb-6 md:mb-8">
+          <div className="flex items-start gap-3 md:gap-4">
+            <div className="w-11 h-11 md:w-12 md:h-12 rounded-xl bg-accent/20 flex items-center justify-center flex-shrink-0">
               <Lock className="w-6 h-6 text-accent" />
             </div>
             <div>
@@ -66,14 +73,14 @@ const ModulesPageHidden = () => {
         </div>
 
         {/* Modules Grid */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
           {modules.map((module, index) => (
             <motion.div
               key={module.title}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: index * 0.1 }}
-              className="bg-card rounded-xl border border-border p-6 hover-lift relative overflow-hidden group"
+              className="bg-card rounded-xl border border-border p-4 md:p-6 hover-lift relative overflow-hidden group"
             >
               {/* Gradient overlay */}
               <div className="absolute inset-0 bg-gradient-to-br from-accent/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -113,11 +120,11 @@ const ModulesPageHidden = () => {
         </div>
 
         {/* Request Module */}
-        <div className="mt-12 text-center">
+        <div className="mt-8 md:mt-12 text-center">
           <p className="text-muted-foreground mb-4">
             Precisa de uma funcionalidade específica?
           </p>
-          <Button variant="outline">
+          <Button variant="outline" className="w-full sm:w-auto">
             Sugerir Módulo
             <ArrowRight className="w-4 h-4 ml-2" />
           </Button>

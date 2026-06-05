@@ -204,10 +204,10 @@ const DataTable = ({ rows }: DataTableProps) => {
 
   return (
     <div className="bg-card rounded-xl border border-border mt-6 overflow-hidden">
-      <div className="p-6 border-b border-border">
+      <div className="p-4 md:p-6 border-b border-border">
         <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
           <div>
-            <h3 className="font-display font-semibold text-lg text-foreground">Evolução da Comissão</h3>
+            <h3 className="font-display font-semibold text-base md:text-lg text-foreground">Evolução da Comissão</h3>
             <p className="text-sm text-muted-foreground">
               {commissionSeries.length > 0 ? "Distribuição por período filtrado" : "Sem dados para o período atual"}
             </p>
@@ -230,15 +230,15 @@ const DataTable = ({ rows }: DataTableProps) => {
           </ResponsiveContainer>
         </div>
       </div>
-      <div className="p-6 border-b border-border flex flex-wrap gap-3 items-center justify-between">
+      <div className="p-4 md:p-6 border-b border-border flex flex-wrap gap-3 items-center justify-between">
         <div>
-          <h3 className="font-display font-semibold text-lg text-foreground">Dados Recentes</h3>
+          <h3 className="font-display font-semibold text-base md:text-lg text-foreground">Dados Recentes</h3>
           <p className="text-sm text-muted-foreground">Últimas transações registradas</p>
         </div>
         <div className="flex gap-2 items-center flex-wrap">
           <Popover>
             <PopoverTrigger asChild>
-              <Button variant="outline" size="sm">
+              <Button variant="outline" size="sm" className="h-9">
                 Colunas
               </Button>
             </PopoverTrigger>
@@ -431,7 +431,7 @@ const DataTable = ({ rows }: DataTableProps) => {
           </Table>
         </div>
       )}
-      <div className="p-4 border-t border-border flex items-center justify-between gap-3 flex-wrap">
+      <div className="p-4 border-t border-border flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div className="flex items-center gap-2">
           <span className="text-sm text-muted-foreground">Linhas por página</span>
           <Select
@@ -454,10 +454,11 @@ const DataTable = ({ rows }: DataTableProps) => {
             </SelectContent>
           </Select>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <Button
             variant="outline"
             size="sm"
+            className="h-9"
             onClick={() => setPage(0)}
             disabled={page === 0}
             aria-label="Primeira página"
@@ -467,18 +468,20 @@ const DataTable = ({ rows }: DataTableProps) => {
           <Button
             variant="outline"
             size="sm"
+            className="h-9"
             onClick={() => setPage((p) => Math.max(0, p - 1))}
             disabled={page === 0}
             aria-label="Página anterior"
           >
             Anterior
           </Button>
-          <span className="text-sm text-muted-foreground" aria-live="polite">
+          <span className="text-sm text-muted-foreground px-1" aria-live="polite">
             Página {page + 1} de {totalPages}
           </span>
           <Button
             variant="outline"
             size="sm"
+            className="h-9"
             onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
             disabled={page >= totalPages - 1}
             aria-label="Próxima página"
@@ -488,6 +491,7 @@ const DataTable = ({ rows }: DataTableProps) => {
           <Button
             variant="outline"
             size="sm"
+            className="h-9"
             onClick={() => setPage(totalPages - 1)}
             disabled={page >= totalPages - 1}
             aria-label="Última página"

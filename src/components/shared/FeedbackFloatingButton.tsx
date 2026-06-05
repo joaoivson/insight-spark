@@ -127,11 +127,8 @@ export const FeedbackFloatingButton = () => {
 
   return (
     <>
-      <div
-        className={cn(
-          "fixed top-1/2 right-0 z-40 -translate-y-1/2 translate-x-0"
-        )}
-      >
+      {/* Desktop: aba lateral vertical */}
+      <div className="hidden md:block fixed top-1/2 right-0 z-40 -translate-y-1/2">
         <button
           type="button"
           onClick={() => setOpen(true)}
@@ -150,6 +147,21 @@ export const FeedbackFloatingButton = () => {
           <span>Feedback</span>
         </button>
       </div>
+
+      {/* Mobile: FAB circular acima da bottom nav, sem cobrir conteúdo */}
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        aria-label="Enviar feedback"
+        className={cn(
+          "md:hidden fixed right-4 z-40 bottom-[calc(4.5rem+env(safe-area-inset-bottom))]",
+          "flex h-12 w-12 items-center justify-center rounded-full shadow-lg transition-transform duration-200 active:scale-95",
+          "bg-blue-600 text-white hover:bg-blue-700",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+        )}
+      >
+        <MessageSquarePlus className="h-5 w-5" />
+      </button>
 
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetContent side="right" className="sm:max-w-md overflow-y-auto">

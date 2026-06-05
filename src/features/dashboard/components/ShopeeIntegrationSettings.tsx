@@ -265,12 +265,12 @@ export const ShopeeIntegrationSettings = () => {
             transition={{ duration: 0.25, ease: "easeInOut" }}
             className="overflow-hidden"
           >
-            <div className="flex items-center justify-between p-4 rounded-xl bg-muted/40 border border-border">
-              <div className="space-y-0.5">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-4 p-4 rounded-xl bg-muted/40 border border-border">
+              <div className="space-y-0.5 min-w-0">
                 <p className="text-xs text-muted-foreground uppercase tracking-wide">AppID</p>
-                <p className="text-sm font-mono font-medium text-foreground">{status.app_id}</p>
+                <p className="text-sm font-mono font-medium text-foreground truncate">{status.app_id}</p>
               </div>
-              <div className="space-y-0.5 flex-1 mx-6">
+              <div className="space-y-0.5 flex-1 min-w-0 sm:mx-2">
                 <p className="text-xs text-muted-foreground uppercase tracking-wide">Senha / Secret</p>
                 <p className="text-sm font-mono text-muted-foreground tracking-widest">••••••••••••</p>
               </div>
@@ -278,7 +278,7 @@ export const ShopeeIntegrationSettings = () => {
                 variant="outline"
                 size="sm"
                 onClick={() => setIsEditing(true)}
-                className="gap-1.5 flex-shrink-0"
+                className="gap-1.5 w-full sm:w-auto flex-shrink-0"
               >
                 <Pencil className="w-3.5 h-3.5" />
                 Alterar
@@ -290,12 +290,12 @@ export const ShopeeIntegrationSettings = () => {
 
       {/* Actions when connected */}
       {status?.is_active && (
-        <div className="flex flex-wrap gap-3 pt-2 border-t border-border">
+        <div className="flex flex-col sm:flex-row sm:flex-wrap gap-3 pt-4 border-t border-border">
           <Button
             variant="outline"
             onClick={handleSync}
             disabled={isSyncing}
-            className="gap-2"
+            className="gap-2 w-full sm:w-auto"
           >
             {isSyncing ? (
               <Loader2 className="w-4 h-4 animate-spin" />
@@ -308,7 +308,7 @@ export const ShopeeIntegrationSettings = () => {
           <Button
             variant="outline"
             onClick={() => setShowDisconnectDialog(true)}
-            className="gap-2 text-destructive hover:text-destructive border-destructive/30 hover:bg-destructive/10"
+            className="gap-2 w-full sm:w-auto text-destructive hover:text-destructive border-destructive/30 hover:bg-destructive/10"
           >
             <Unplug className="w-4 h-4" />
             Desconectar

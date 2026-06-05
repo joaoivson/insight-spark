@@ -239,6 +239,7 @@ const SetPasswordPage = () => {
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   className="auth-toggle-password"
+                  aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
                 >
                   {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
@@ -282,6 +283,7 @@ const SetPasswordPage = () => {
                   type="button"
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                   className="auth-toggle-password"
+                  aria-label={showConfirmPassword ? "Ocultar senha" : "Mostrar senha"}
                 >
                   {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>

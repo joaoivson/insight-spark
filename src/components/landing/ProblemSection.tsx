@@ -21,7 +21,7 @@ const ProblemSection = () => {
   ];
 
   return (
-    <section id="problem" className="py-24 bg-secondary/10 relative overflow-hidden">
+    <section id="problem" className="py-16 md:py-24 bg-secondary/10 relative overflow-hidden">
       <div className="container mx-auto px-4 relative z-10">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -42,7 +42,7 @@ const ProblemSection = () => {
           </p>
         </motion.div>
 
-        <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+        <div className="grid md:grid-cols-3 gap-6 md:gap-8 max-w-5xl mx-auto">
           {problems.map((problem, index) => (
             <motion.div
               key={index}
@@ -50,7 +50,7 @@ const ProblemSection = () => {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.5, delay: index * 0.1 }}
-              className="bg-card/50 backdrop-blur-sm border border-border rounded-2xl p-8 hover:border-destructive/30 transition-colors group"
+              className="bg-card/50 backdrop-blur-sm border border-border rounded-2xl p-6 md:p-8 hover:border-destructive/30 transition-colors group"
             >
               <div className="w-14 h-14 rounded-xl bg-destructive/10 flex items-center justify-center mb-6 group-hover:bg-destructive/20 transition-colors">
                 <problem.icon className="w-7 h-7 text-destructive" />

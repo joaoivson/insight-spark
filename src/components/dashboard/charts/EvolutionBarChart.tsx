@@ -48,17 +48,17 @@ export const EvolutionBarChart = ({ data, mode, onModeChange, onDrillDown, varia
       initial="hidden"
       animate="show"
       whileHover={{ scale: 1.01 }}
-      className="bg-card rounded-xl border border-border p-6"
+      className="bg-card rounded-xl border border-border p-4 md:p-6"
     >
-      <div className="mb-4 flex items-center justify-between gap-3 flex-wrap">
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h3 className="font-display font-semibold text-lg text-foreground">Comissão Pendente + Concluída</h3>
+          <h3 className="font-display font-semibold text-base md:text-lg text-foreground">Comissão Pendente + Concluída</h3>
           <p className="text-sm text-muted-foreground">{mode === "month" ? "Soma das comissões por mês" : "Soma das comissões por dia"}</p>
         </div>
         <AnimatePresence mode="wait">
           <motion.div key={mode} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }} transition={{ duration: 0.2 }} className="flex items-center gap-2">
-            <Button size="sm" variant={mode === "month" ? "default" : "outline"} onClick={() => onModeChange("month")}>Mês</Button>
-            <Button size="sm" variant={mode === "day" ? "default" : "outline"} onClick={() => onModeChange("day")}>Dia</Button>
+            <Button size="sm" className="h-9 flex-1 sm:flex-none" variant={mode === "month" ? "default" : "outline"} onClick={() => onModeChange("month")}>Mês</Button>
+            <Button size="sm" className="h-9 flex-1 sm:flex-none" variant={mode === "day" ? "default" : "outline"} onClick={() => onModeChange("day")}>Dia</Button>
           </motion.div>
         </AnimatePresence>
       </div>

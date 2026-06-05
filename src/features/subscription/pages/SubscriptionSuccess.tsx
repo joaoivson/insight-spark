@@ -27,7 +27,7 @@ const SubscriptionSuccess = () => {
       <div className="w-full max-w-md text-center space-y-6">
         <CheckCircle2 className="w-20 h-20 text-green-500 mx-auto" />
         <div>
-          <h1 className="text-3xl font-bold">Pagamento Aprovado!</h1>
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Pagamento Aprovado!</h1>
           <p className="text-muted-foreground mt-2">
             Sua assinatura foi ativada com sucesso.
           </p>
@@ -52,11 +52,11 @@ const SubscriptionSuccess = () => {
           )}
         </div>
         {isAuthenticated ? (
-          <Button onClick={() => navigate(APP_CONFIG.ROUTES.DASHBOARD)}>
+          <Button size="lg" className="h-11 w-full sm:w-auto" onClick={() => navigate(APP_CONFIG.ROUTES.DASHBOARD)}>
             Ir para Dashboard
           </Button>
         ) : (
-          <Button onClick={() => navigate(APP_CONFIG.ROUTES.LOGIN)}>
+          <Button size="lg" className="h-11 w-full sm:w-auto" onClick={() => navigate(APP_CONFIG.ROUTES.LOGIN)}>
             Fazer Login Agora
           </Button>
         )}

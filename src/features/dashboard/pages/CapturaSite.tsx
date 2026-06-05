@@ -29,6 +29,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { Switch } from "@/components/ui/switch";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -364,7 +365,7 @@ export const CapturaSite = () => {
             </span>
           </p>
         </div>
-        <Button onClick={handleNew} disabled={sites.length >= MAX_CAPTURE_SITES} className="gap-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50">
+        <Button onClick={handleNew} disabled={sites.length >= MAX_CAPTURE_SITES} className="w-full sm:w-auto gap-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 transition-colors duration-150">
           <Plus className="w-4 h-4" /> Criar Novo Site
         </Button>
       </div>
@@ -568,16 +569,15 @@ export const CapturaSite = () => {
     </div>
   );
 
-  const renderEditorView = () => (
-    <div className="flex flex-col lg:flex-row h-full min-h-[500px] bg-background border border-border rounded-xl overflow-hidden">
-      {/* LEFT PANEL: EDITOR */}
-      <div className="w-full lg:w-1/2 flex flex-col overflow-y-auto border-r border-border order-2 lg:order-1">
-        <div className="p-4 border-b border-border bg-muted/20 flex items-center justify-between sticky top-0 z-50 backdrop-blur-md">
+  const renderEditorView = () => {
+    const editorPanel = (
+      <div className="w-full flex flex-col overflow-y-auto h-full">
+        <div className="p-4 border-b border-border bg-muted/20 flex flex-wrap items-center justify-between gap-3 sticky top-0 z-50 backdrop-blur-md">
           <Button variant="ghost" size="sm" className="gap-2" onClick={() => setViewMode('list')}>
             <ArrowLeft className="w-4 h-4" /> Voltar
           </Button>
 
-          <div className="flex items-center gap-6">
+          <div className="flex flex-wrap items-center gap-3 lg:gap-6">
             {activeSiteId && (
               <div className="flex items-center gap-3 bg-background/50 border border-border px-3 py-1.5 rounded-full">
                 <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -604,14 +604,14 @@ export const CapturaSite = () => {
               />
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="hidden lg:flex items-center gap-2">
               <span className="text-xs font-medium text-muted-foreground uppercase tracking-widest">Builder Mode</span>
               <div className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
             </div>
           </div>
         </div>
 
-        <div className="p-6 space-y-8">
+        <div className="p-4 sm:p-6 space-y-8">
           <div className="space-y-4">
             <div className="flex items-center gap-2">
               <Settings2 className="w-5 h-5 text-primary" />
@@ -643,7 +643,7 @@ export const CapturaSite = () => {
                 <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Logo da Página</Label>
                 <div className="flex flex-col gap-4">
                   {imageUrl && (
-                    <div className="relative w-24 h-24 rounded-xl overflow-hidden border border-border group bg-zinc-900">
+                    <div className="relative w-24 h-24 rounded-xl overflow-hidden border border-border group bg-muted">
                       <img src={imageUrl} alt="Preview" className="w-full h-full object-cover" />
                       <button
                         onClick={() => setImageUrl("")}
@@ -738,7 +738,7 @@ export const CapturaSite = () => {
                       max="32"
                       value={urgencyIconSize}
                       onChange={(e) => setUrgencyIconSize(parseInt(e.target.value))}
-                      className="w-full h-2 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-emerald-500"
+                      className="w-full h-2 bg-muted rounded-lg appearance-none cursor-pointer accent-emerald-500"
                     />
                   </div>
 
@@ -956,9 +956,10 @@ export const CapturaSite = () => {
           </Button>
         </div>
       </div>
+    );
 
-      {/* RIGHT PANEL: LIVE PREVIEW — sticky no topo */}
-      <div className="w-full lg:w-1/2 bg-muted/10 overflow-y-auto relative order-1 lg:order-2">
+    const previewPanel = (
+      <div className="w-full bg-muted/10 overflow-y-auto relative h-full">
         <div className="sticky top-0 p-4 lg:p-6">
           <div className="flex justify-end mb-3">
             <div className="px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-full flex items-center gap-2">
@@ -1062,8 +1063,38 @@ export const CapturaSite = () => {
           </div>
         </div>
       </div>
-    </div>
-  );
+    );
+
+    return (
+      <div className="h-full min-h-[500px] bg-background border border-border rounded-xl overflow-hidden">
+        {/* Mobile/tablet: tabs Editar / Pré-visualizar */}
+        <Tabs defaultValue="edit" className="lg:hidden flex flex-col h-full">
+          <div className="p-3 border-b border-border bg-muted/20">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="edit">Editar</TabsTrigger>
+              <TabsTrigger value="preview">Pré-visualizar</TabsTrigger>
+            </TabsList>
+          </div>
+          <TabsContent value="edit" className="flex-1 mt-0 overflow-hidden">
+            {editorPanel}
+          </TabsContent>
+          <TabsContent value="preview" className="flex-1 mt-0 overflow-hidden">
+            {previewPanel}
+          </TabsContent>
+        </Tabs>
+
+        {/* Desktop: editor + preview lado a lado */}
+        <div className="hidden lg:flex flex-row h-full">
+          <div className="w-1/2 border-r border-border overflow-hidden flex flex-col">
+            {editorPanel}
+          </div>
+          <div className="w-1/2 overflow-hidden flex flex-col">
+            {previewPanel}
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <DashboardLayout

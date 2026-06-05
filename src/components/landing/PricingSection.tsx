@@ -82,7 +82,7 @@ const PricingSection = () => {
   };
 
   return (
-    <section id="pricing" className="py-24 relative">
+    <section id="pricing" className="py-16 md:py-24 relative">
       <div className="container mx-auto px-4">
         {/* Urgency Timer - Destacado acima da seção */}
         <motion.div

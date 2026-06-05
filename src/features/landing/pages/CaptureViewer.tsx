@@ -206,7 +206,7 @@ export const CaptureViewer = () => {
             <div className={`w-full max-w-4xl relative z-10 flex flex-col items-center justify-center flex-1 px-4 pb-20 ${site.urgency_text ? 'pt-24 sm:pt-32' : 'pt-16 sm:pt-24'}`}>
 
                 {/* Profile Image */}
-                <div className="w-28 h-28 sm:w-36 sm:h-36 mb-8 rounded-full overflow-hidden border-4 border-white/10 shadow-2xl flex-shrink-0 bg-black/50">
+                <div className="w-28 h-28 sm:w-36 sm:h-36 mb-8 rounded-full overflow-hidden border-4 border-white/10 shadow-xl flex-shrink-0 bg-black/50">
                     <img
                         src={site.image_url || DEFAULT_IMAGE}
                         alt="Foto de Perfil"

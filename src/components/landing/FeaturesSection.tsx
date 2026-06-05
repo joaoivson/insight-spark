@@ -45,7 +45,7 @@ const benefits = [
 
 const FeaturesSection = () => {
   return (
-    <section id="features" className="py-24 relative overflow-hidden">
+    <section id="features" className="py-16 md:py-24 relative overflow-hidden">
       <div className="container mx-auto px-4">
         {/* Header */}
         <motion.div
@@ -53,16 +53,16 @@ const FeaturesSection = () => {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.5 }}
-          className="text-center max-w-3xl mx-auto mb-20"
+          className="text-center max-w-3xl mx-auto mb-12 md:mb-20"
         >
           <span className="inline-block px-4 py-1 rounded-full bg-accent/10 text-accent text-sm font-medium mb-4">
             Na Prática
           </span>
           <h2 className="font-display text-3xl md:text-4xl lg:text-5xl font-bold text-foreground mb-6">
-            O que você consegue fazer com o <br />
+            O que você consegue fazer com o{" "}
             <span className="text-accent">MarketDash hoje?</span>
           </h2>
-          <p className="text-xl text-muted-foreground">
+          <p className="text-base md:text-xl text-muted-foreground">
             Ferramentas pensadas para quem vive de performance e não tem tempo a perder com planilhas.
           </p>
         </motion.div>
@@ -75,7 +75,7 @@ const FeaturesSection = () => {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.5, delay: index * 0.1 }}
-              className="group bg-card/50 backdrop-blur-sm border border-border rounded-2xl p-8 hover:border-accent/40 transition-all hover:shadow-2xl hover:shadow-accent/5"
+              className="group bg-card/50 backdrop-blur-sm border border-border rounded-2xl p-6 md:p-8 hover:border-accent/40 transition-all hover:shadow-md hover:shadow-accent/5"
             >
               <div className="w-14 h-14 rounded-xl bg-accent/10 flex items-center justify-center mb-6 group-hover:bg-accent/20 transition-colors">
                 <benefit.icon className="w-7 h-7 text-accent" />
