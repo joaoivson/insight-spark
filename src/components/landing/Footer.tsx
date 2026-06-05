@@ -22,9 +22,13 @@ const Footer = () => {
               />
             </Link>
             <p className="text-primary-foreground/70 text-sm max-w-md">
-              Plataforma de análise de dados para vendedores digitais. 
+              Plataforma de análise de dados para vendedores digitais.
               Transforme seus CSVs em insights acionáveis.
             </p>
+            <div className="mt-4 text-primary-foreground/60 text-xs leading-relaxed">
+              <p>ORQUESTRA IA - TRANSFORMANDO SOLUÇÕES LTDA — CNPJ: 66.641.347/0001-21</p>
+              <p>Rua da Carioca, número 1379, Uberlândia-MG – CEP 38.411-151</p>
+            </div>
           </div>
 
           {/* Links */}
@@ -49,7 +53,7 @@ const Footer = () => {
 
         {/* Bottom */}
         <div className="pt-8 border-t border-primary-foreground/10 text-center text-sm text-primary-foreground/50">
-          <p>© {new Date().getFullYear()} MarketDash. Todos os direitos reservados.</p>
+          <p>© {new Date().getFullYear()} Orquestra IA. Todos os direitos reservados.</p>
         </div>
       </div>
     </footer>
