@@ -115,6 +115,7 @@ export const FacebookIntegrationSettings = () => {
     try {
       const updated = await selectFacebookAdAccounts(next);
       setStatus(updated);
+      toast({ title: "Contas atualizadas", description: "Sincronizando campanhas em segundo plano…" });
     } catch (e) {
       setSelectedAccounts(prev); // rollback
       toast({ title: "Erro ao salvar contas", description: (e as Error).message, variant: "destructive" });
