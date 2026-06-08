@@ -55,6 +55,19 @@ export const selectFacebookAdAccount = async (
   return (await res.json()) as FacebookIntegrationStatus;
 };
 
+export const selectFacebookAdAccounts = async (
+  accountIds: string[],
+): Promise<FacebookIntegrationStatus> => {
+  const url = getApiUrl("/api/v1/facebook/ad-accounts");
+  const res = await fetchWithAuth(url, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ account_ids: accountIds }),
+  });
+  if (!res.ok) throw new Error((await res.text()) || "Erro ao salvar contas de anúncio");
+  return (await res.json()) as FacebookIntegrationStatus;
+};
+
 export const disconnectFacebook = async (): Promise<void> => {
   const url = getApiUrl("/api/v1/facebook");
   const res = await fetchWithAuth(url, { method: "DELETE" });

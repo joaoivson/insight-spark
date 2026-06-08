@@ -68,6 +68,7 @@ export interface FacebookIntegrationStatus {
   fb_user_name: string | null;
   ad_account_id: string | null;
   ad_account_name: string | null;
+  ad_account_ids: string[];
   is_active: boolean;
   last_sync_at: string | null;
   token_expires_at: string | null;

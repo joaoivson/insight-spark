@@ -1,15 +1,9 @@
 import { useEffect, useState } from "react";
-import { Loader2, RefreshCw, Unplug, Facebook, CheckCircle2 } from "lucide-react";
+import { Loader2, Unplug, Facebook, CheckCircle2, Clock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -27,12 +21,14 @@ import {
   getFacebookOAuthUrl,
   getFacebookStatus,
   listFacebookAdAccounts,
-  selectFacebookAdAccount,
-  triggerFacebookSync,
+  selectFacebookAdAccounts,
 } from "@/services/facebook.service";
 import type { FacebookAdAccount, FacebookIntegrationStatus } from "@/shared/types/campaign";
 
 const REDIRECT_PATH = "/dashboard/configuracoes";
+
+// Id no formato "act_123" (usado pela API e armazenado na integração).
+const fullAccountId = (a: FacebookAdAccount) => a.id || `act_${a.account_id}`;
 
 const formatDate = (iso: string | null) => {
   if (!iso) return "—";
@@ -49,7 +45,7 @@ export const FacebookIntegrationSettings = () => {
   const [accounts, setAccounts] = useState<FacebookAdAccount[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
-  const [selectedAccount, setSelectedAccount] = useState<string>("");
+  const [selectedAccounts, setSelectedAccounts] = useState<string[]>([]);
   const [disconnectOpen, setDisconnectOpen] = useState(false);
 
   const redirectUri = typeof window !== "undefined" ? `${window.location.origin}${REDIRECT_PATH}` : REDIRECT_PATH;
@@ -58,7 +54,7 @@ export const FacebookIntegrationSettings = () => {
     try {
       const s = await getFacebookStatus();
       setStatus(s);
-      if (s?.ad_account_id) setSelectedAccount(s.ad_account_id);
+      setSelectedAccounts(s?.ad_account_ids ?? []);
       return s;
     } catch {
       return null;
@@ -111,28 +107,17 @@ export const FacebookIntegrationSettings = () => {
     }
   };
 
-  const handleSelectAccount = async (accountId: string) => {
-    setSelectedAccount(accountId);
+  const toggleAccount = async (accountId: string, checked: boolean) => {
+    const prev = selectedAccounts;
+    const next = checked ? [...prev, accountId] : prev.filter((id) => id !== accountId);
+    setSelectedAccounts(next);
     setBusy(true);
     try {
-      const acc = accounts.find((a) => a.account_id === accountId || a.id === accountId);
-      const updated = await selectFacebookAdAccount(accountId, acc?.name ?? null);
+      const updated = await selectFacebookAdAccounts(next);
       setStatus(updated);
-      toast({ title: "Conta de anúncio selecionada" });
     } catch (e) {
-      toast({ title: "Erro ao selecionar conta", description: (e as Error).message, variant: "destructive" });
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const handleSync = async () => {
-    setBusy(true);
-    try {
-      await triggerFacebookSync();
-      toast({ title: "Sincronização iniciada", description: "As campanhas aparecerão em instantes." });
-    } catch (e) {
-      toast({ title: "Erro ao sincronizar", description: (e as Error).message, variant: "destructive" });
+      setSelectedAccounts(prev); // rollback
+      toast({ title: "Erro ao salvar contas", description: (e as Error).message, variant: "destructive" });
     } finally {
       setBusy(false);
     }
@@ -144,7 +129,7 @@ export const FacebookIntegrationSettings = () => {
       await disconnectFacebook();
       setStatus(null);
       setAccounts([]);
-      setSelectedAccount("");
+      setSelectedAccounts([]);
       toast({ title: "Facebook desconectado" });
     } catch (e) {
       toast({ title: "Erro ao desconectar", description: (e as Error).message, variant: "destructive" });
@@ -188,30 +173,48 @@ export const FacebookIntegrationSettings = () => {
       </div>
 
       <div className="space-y-2">
-        <Label>Conta de anúncio</Label>
-        <Select value={selectedAccount} onValueChange={handleSelectAccount} disabled={busy}>
-          <SelectTrigger>
-            <SelectValue placeholder="Selecione a conta de anúncio" />
-          </SelectTrigger>
-          <SelectContent>
-            {accounts.map((a) => (
-              <SelectItem key={a.account_id} value={a.account_id}>
-                {a.name || a.account_id} {a.currency ? `· ${a.currency}` : ""}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        {accounts.length === 0 && (
+        <Label>Contas de anúncio</Label>
+        <p className="text-xs text-muted-foreground">Marque uma ou mais contas para sincronizar as campanhas.</p>
+
+        {accounts.length === 0 ? (
           <p className="text-xs text-muted-foreground">
             Nenhuma conta encontrada para este token. Reconecte com uma conta que tenha acesso ao Gerenciador de Anúncios.
           </p>
+        ) : (
+          <div className="max-h-64 overflow-y-auto rounded-xl border border-border divide-y divide-border">
+            {accounts.map((a) => {
+              const id = fullAccountId(a);
+              const checked = selectedAccounts.includes(id);
+              return (
+                <label
+                  key={id}
+                  className="flex items-center gap-3 px-3 py-2.5 cursor-pointer transition-colors hover:bg-accent/40"
+                >
+                  <Checkbox
+                    checked={checked}
+                    disabled={busy}
+                    onCheckedChange={(v) => toggleAccount(id, v === true)}
+                    aria-label={`Selecionar ${a.name || id}`}
+                  />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm text-foreground">{a.name || id}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {a.account_id}
+                      {a.currency ? ` · ${a.currency}` : ""}
+                    </span>
+                  </span>
+                </label>
+              );
+            })}
+          </div>
         )}
+
+        <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <Clock className="w-3.5 h-3.5" /> As campanhas são sincronizadas automaticamente a cada 1 hora.
+        </p>
       </div>
 
       <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2">
-        <Button variant="outline" onClick={handleSync} disabled={busy || !status.ad_account_id} className="w-full sm:w-auto">
-          <RefreshCw className={`w-4 h-4 mr-2 ${busy ? "animate-spin" : ""}`} /> Sincronizar agora
-        </Button>
         <Button
           variant="outline"
           className="w-full sm:w-auto text-destructive border-destructive/30 hover:bg-destructive/10"
