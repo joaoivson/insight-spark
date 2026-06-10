@@ -62,6 +62,21 @@ export interface CampaignDetailResponse {
   daily: CampaignDailyPoint[];
 }
 
+export type CampaignStatusFilter = "all" | "active" | "paused";
+
+export interface SubIdOption {
+  sub_id: string;
+  orders: number;
+  commission: number;
+  suggested: boolean;
+  linked_campaign_id: number | null;
+  linked_campaign_name: string | null;
+}
+
+export interface SubIdOptionsResponse {
+  options: SubIdOption[];
+}
+
 export interface FacebookIntegrationStatus {
   id: number;
   user_id: number;

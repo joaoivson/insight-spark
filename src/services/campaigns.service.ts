@@ -3,12 +3,14 @@ import type {
   Campaign,
   CampaignDetailResponse,
   CampaignListResponse,
+  CampaignStatusFilter,
+  SubIdOptionsResponse,
 } from "@/shared/types/campaign";
 
 export interface CampaignListParams {
   startDate?: string;
   endDate?: string;
-  onlyActive?: boolean;
+  status?: CampaignStatusFilter;
   search?: string;
 }
 
@@ -16,7 +18,7 @@ const buildQuery = (params: CampaignListParams): string => {
   const qs = new URLSearchParams();
   if (params.startDate) qs.set("start_date", params.startDate);
   if (params.endDate) qs.set("end_date", params.endDate);
-  if (params.onlyActive) qs.set("only_active", "true");
+  if (params.status && params.status !== "all") qs.set("status", params.status);
   if (params.search) qs.set("search", params.search);
   const s = qs.toString();
   return s ? `?${s}` : "";
@@ -39,8 +41,13 @@ export const getCampaignDetail = async (
   return (await res.json()) as CampaignDetailResponse;
 };
 
-export const linkCampaign = async (id: number, subId: string | null): Promise<Campaign> => {
-  const url = getApiUrl(`/api/v1/campaigns/${id}/link`);
+export const linkCampaign = async (
+  id: number,
+  subId: string | null,
+  range: Pick<CampaignListParams, "startDate" | "endDate"> = {},
+): Promise<Campaign> => {
+  // Envia o período da tela para o backend recalcular comissão/lucro/ROAS na resposta.
+  const url = getApiUrl(`/api/v1/campaigns/${id}/link${buildQuery(range)}`);
   const res = await fetchWithAuth(url, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
@@ -48,6 +55,29 @@ export const linkCampaign = async (id: number, subId: string | null): Promise<Ca
   });
   if (!res.ok) throw new Error((await res.text()) || "Erro ao vincular campanha");
   return (await res.json()) as Campaign;
+};
+
+export const getSubIdOptions = async (campaignId: number): Promise<SubIdOptionsResponse> => {
+  const url = getApiUrl(`/api/v1/campaigns/${campaignId}/sub-id-options`);
+  const res = await fetchWithAuth(url);
+  if (!res.ok) throw new Error((await res.text()) || "Erro ao carregar Sub IDs");
+  return (await res.json()) as SubIdOptionsResponse;
+};
+
+export const exportCampaigns = async (params: CampaignListParams = {}): Promise<void> => {
+  const url = getApiUrl(`/api/v1/campaigns/export${buildQuery(params)}`);
+  const res = await fetchWithAuth(url);
+  if (!res.ok) throw new Error((await res.text()) || "Erro ao exportar campanhas");
+
+  const blob = await res.blob();
+  const href = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = href;
+  link.download = "campanhas.xlsx";
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(href);
 };
 
 export const setCampaignStatus = async (id: number, active: boolean): Promise<Campaign> => {

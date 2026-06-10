@@ -9,6 +9,7 @@ import {
   TrendingDown,
   TrendingUp,
   ArrowRight,
+  ArrowUpDown,
   RefreshCw,
   Plug,
   Search,
@@ -16,28 +17,45 @@ import {
   Coins,
   Target,
   CalendarRange,
+  Download,
   MousePointerClick,
   type LucideIcon,
 } from "lucide-react";
+import type { DateRange } from "react-day-picker";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { ResponsiveModal } from "@/components/shared/ResponsiveModal";
+import { LinkSubIdModal } from "@/features/dashboard/components/LinkSubIdModal";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/shared/lib/utils";
 import { formatCurrency } from "@/shared/lib/chart-utils";
 import { useCampaignsStore } from "@/stores/campaignsStore";
 import {
+  exportCampaigns,
   getCampaignDetail,
-  linkCampaign,
   setCampaignBudget,
   setCampaignStatus,
 } from "@/services/campaigns.service";
 import { getFacebookStatus } from "@/services/facebook.service";
-import type { Campaign, CampaignDailyPoint, CampaignHealth } from "@/shared/types/campaign";
+import type {
+  Campaign,
+  CampaignDailyPoint,
+  CampaignHealth,
+  CampaignStatusFilter,
+} from "@/shared/types/campaign";
 
 // Saúde → classes de token semântico (sem cores hardcoded; ver skill ui-shadcn-premium)
 const HEALTH_STRIPE: Record<CampaignHealth, string> = {
@@ -54,27 +72,53 @@ const HEALTH_BORDER: Record<CampaignHealth, string> = {
   unlinked: "border-warning/30",
 };
 
-type PeriodKey = "7d" | "14d" | "month";
+type PeriodKey = "7d" | "14d" | "month" | "custom";
 
-const PERIODS: { key: PeriodKey; label: string }[] = [
+const PERIODS: { key: Exclude<PeriodKey, "custom">; label: string }[] = [
   { key: "7d", label: "7 dias" },
   { key: "14d", label: "14 dias" },
   { key: "month", label: "Mês atual" },
 ];
 
 const toISO = (d: Date) => d.toISOString().slice(0, 10);
+const fmtShort = (d: Date) => `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`;
 
-const periodRange = (key: PeriodKey): { startDate: string; endDate: string } => {
+// Atalhos vão até o FIM DO DIA ANTERIOR fechado — o dia atual está incompleto e contamina o ROAS.
+const periodRange = (key: Exclude<PeriodKey, "custom">): { startDate: string; endDate: string } => {
   const today = new Date();
-  const end = toISO(today);
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+  const end = toISO(yesterday);
   if (key === "month") {
-    const first = new Date(today.getFullYear(), today.getMonth(), 1);
-    return { startDate: toISO(first), endDate: end };
+    const startISO = toISO(new Date(today.getFullYear(), today.getMonth(), 1));
+    // Dia 1 do mês: "ontem" cai no mês passado → usa o próprio dia 1.
+    return { startDate: startISO, endDate: end < startISO ? startISO : end };
   }
-  const days = key === "7d" ? 6 : 13;
-  const start = new Date(today);
-  start.setDate(start.getDate() - days);
+  const days = key === "7d" ? 7 : 14;
+  const start = new Date(yesterday);
+  start.setDate(start.getDate() - (days - 1));
   return { startDate: toISO(start), endDate: end };
+};
+
+type SortKey = "spend" | "roas" | "profit" | "commission" | "cpc" | "orders";
+
+const SORT_OPTIONS: { key: SortKey; label: string }[] = [
+  { key: "spend", label: "Gasto" },
+  { key: "roas", label: "ROAS" },
+  { key: "profit", label: "Lucro" },
+  { key: "commission", label: "Comissão" },
+  { key: "cpc", label: "CPC" },
+  { key: "orders", label: "Pedidos" },
+];
+
+// Sempre decrescente (maior no topo). Não vinculadas vão pro fim nas métricas de comissão.
+const SORT_GETTERS: Record<SortKey, (c: Campaign) => number> = {
+  spend: (c) => c.metrics.spend,
+  roas: (c) => (c.linked && c.metrics.spend > 0 ? c.metrics.roas : -1),
+  profit: (c) => (c.linked ? c.metrics.profit : Number.NEGATIVE_INFINITY),
+  commission: (c) => (c.linked ? c.metrics.commission : -1),
+  cpc: (c) => c.metrics.cpc ?? -1,
+  orders: (c) => (c.linked ? c.metrics.orders : -1),
 };
 
 const profitClass = (v: number) => (v >= 0 ? "text-success" : "text-destructive");
@@ -84,25 +128,47 @@ const fmtPct = (v: number | null) => (v == null ? "—" : `${v.toFixed(1)}%`);
 
 const Campanhas = () => {
   const navigate = useNavigate();
+  const { toast } = useToast();
   const { campaigns, kpis, loading, error, hydrated, fetch, patchCampaign } = useCampaignsStore();
 
   const [period, setPeriod] = useState<PeriodKey>("7d");
+  const [customRange, setCustomRange] = useState<DateRange | undefined>();
   const [search, setSearch] = useState("");
-  const [onlyActive, setOnlyActive] = useState(false);
+  const [status, setStatus] = useState<CampaignStatusFilter>("all");
+  const [sortKey, setSortKey] = useState<SortKey>("spend");
   const [healthFilter, setHealthFilter] = useState<CampaignHealth | null>(null);
   const [fbConnected, setFbConnected] = useState<boolean | null>(null);
+  const [exporting, setExporting] = useState(false);
 
-  const range = useMemo(() => periodRange(period), [period]);
+  const range = useMemo(() => {
+    if (period === "custom" && customRange?.from && customRange?.to) {
+      const [a, b] =
+        customRange.from <= customRange.to ? [customRange.from, customRange.to] : [customRange.to, customRange.from];
+      return { startDate: toISO(a), endDate: toISO(b) };
+    }
+    return periodRange(period === "custom" ? "7d" : period);
+  }, [period, customRange]);
 
   const reload = () => {
-    fetch({ startDate: range.startDate, endDate: range.endDate, onlyActive, search: search || undefined });
+    fetch({ startDate: range.startDate, endDate: range.endDate, status, search: search || undefined });
   };
 
-  // Recarrega quando período / filtro de ativas mudam
+  // Recarrega quando o período (ou range personalizado) / status mudam.
   useEffect(() => {
-    fetch({ startDate: range.startDate, endDate: range.endDate, onlyActive });
+    fetch({ startDate: range.startDate, endDate: range.endDate, status });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [period, onlyActive]);
+  }, [range.startDate, range.endDate, status]);
+
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      await exportCampaigns({ startDate: range.startDate, endDate: range.endDate, status, search: search || undefined });
+    } catch (e) {
+      toast({ title: "Erro ao exportar", description: (e as Error).message, variant: "destructive" });
+    } finally {
+      setExporting(false);
+    }
+  };
 
   // Status da integração (para empty state)
   useEffect(() => {
@@ -119,8 +185,9 @@ const Campanhas = () => {
       const t = search.trim().toLowerCase();
       list = list.filter((c) => c.name.toLowerCase().includes(t));
     }
-    return list;
-  }, [campaigns, healthFilter, search]);
+    const getVal = SORT_GETTERS[sortKey];
+    return [...list].sort((a, b) => getVal(b) - getVal(a));
+  }, [campaigns, healthFilter, search, sortKey]);
 
   const unlinkedCount = campaigns.filter((c) => !c.linked).length;
   const unlinkedSpend = campaigns.filter((c) => !c.linked).reduce((acc, c) => acc + c.metrics.spend, 0);
@@ -134,16 +201,27 @@ const Campanhas = () => {
       title="Campanhas"
       subtitle="Ative, pause e ajuste o orçamento. Vincule ao Sub ID para ver as vendas."
       action={
-        <Button variant="outline" size="sm" onClick={reload} disabled={loading}>
-          <RefreshCw className={cn("w-4 h-4 mr-2", loading && "animate-spin")} />
-          Atualizar
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExport}
+            disabled={exporting || loading || campaigns.length === 0}
+          >
+            <Download className={cn("w-4 h-4 mr-2", exporting && "animate-pulse")} />
+            Exportar
+          </Button>
+          <Button variant="outline" size="sm" onClick={reload} disabled={loading}>
+            <RefreshCw className={cn("w-4 h-4 mr-2", loading && "animate-spin")} />
+            Atualizar
+          </Button>
+        </div>
       }
     >
       <div className="space-y-5">
         {/* Filtros */}
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-          <div className="relative flex-1">
+        <div className="flex flex-col gap-3">
+          <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
               placeholder="Buscar campanha"
@@ -152,25 +230,71 @@ const Campanhas = () => {
               className="pl-9"
             />
           </div>
-          <div className="flex items-center gap-2">
-            <Button variant={onlyActive ? "default" : "outline"} onClick={() => setOnlyActive((v) => !v)}>
-              {onlyActive ? "Somente ativas" : "Todas"}
-            </Button>
-            <div className="inline-flex rounded-lg border border-border bg-card p-1">
-              {PERIODS.map((p) => (
-                <button
-                  key={p.key}
-                  onClick={() => setPeriod(p.key)}
-                  className={cn(
-                    "rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
-                    period === p.key
-                      ? "bg-primary text-primary-foreground"
-                      : "text-muted-foreground hover:text-foreground",
-                  )}
-                >
-                  {p.label}
-                </button>
-              ))}
+          <div className="flex flex-wrap items-center gap-2">
+            <Select value={status} onValueChange={(v) => setStatus(v as CampaignStatusFilter)}>
+              <SelectTrigger className="w-[120px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas</SelectItem>
+                <SelectItem value="active">Ativa</SelectItem>
+                <SelectItem value="paused">Pausada</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select value={sortKey} onValueChange={(v) => setSortKey(v as SortKey)}>
+              <SelectTrigger className="w-[150px]">
+                <ArrowUpDown className="mr-1.5 h-3.5 w-3.5 flex-shrink-0 text-muted-foreground" />
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {SORT_OPTIONS.map((o) => (
+                  <SelectItem key={o.key} value={o.key}>
+                    {o.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <div className="ml-auto flex items-center gap-2">
+              <div className="inline-flex rounded-lg border border-border bg-card p-1">
+                {PERIODS.map((p) => (
+                  <button
+                    key={p.key}
+                    onClick={() => setPeriod(p.key)}
+                    className={cn(
+                      "rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
+                      period === p.key
+                        ? "bg-primary text-primary-foreground"
+                        : "text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant={period === "custom" ? "default" : "outline"} size="sm" className="h-9">
+                    <CalendarRange className="mr-2 h-4 w-4" />
+                    {period === "custom" && customRange?.from && customRange?.to
+                      ? `${fmtShort(customRange.from)} – ${fmtShort(customRange.to)}`
+                      : "Personalizado"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="end">
+                  <Calendar
+                    mode="range"
+                    selected={customRange}
+                    onSelect={(r) => {
+                      setCustomRange(r);
+                      setPeriod("custom");
+                    }}
+                    numberOfMonths={1}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
           </div>
         </div>
@@ -342,7 +466,6 @@ const CampaignCard = ({
   const [budgetOpen, setBudgetOpen] = useState(false);
   const [budgetValue, setBudgetValue] = useState(String(campaign.daily_budget ?? ""));
   const [linkOpen, setLinkOpen] = useState(false);
-  const [subIdValue, setSubIdValue] = useState(campaign.sub_id ?? "");
 
   const toggleExpand = async () => {
     const next = !expanded;
@@ -388,21 +511,6 @@ const CampaignCard = ({
       toast({ title: "Orçamento atualizado no Facebook" });
     } catch (e) {
       toast({ title: "Erro ao alterar orçamento", description: (e as Error).message, variant: "destructive" });
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const handleSaveLink = async () => {
-    setBusy(true);
-    try {
-      const sub = subIdValue.trim() || null;
-      await linkCampaign(campaign.id, sub);
-      setLinkOpen(false);
-      toast({ title: sub ? "Campanha vinculada" : "Vínculo removido" });
-      onChanged(); // recarrega para recomputar métricas de comissão
-    } catch (e) {
-      toast({ title: "Erro ao vincular", description: (e as Error).message, variant: "destructive" });
     } finally {
       setBusy(false);
     }
@@ -470,10 +578,7 @@ const CampaignCard = ({
           <Button
             variant="outline"
             className="mt-4 w-full border-warning/40 text-warning hover:bg-warning/10 hover:text-warning"
-            onClick={() => {
-              setSubIdValue("");
-              setLinkOpen(true);
-            }}
+            onClick={() => setLinkOpen(true)}
           >
             <Link2 className="mr-1.5 h-4 w-4" /> Vincular ao Sub ID
           </Button>
@@ -531,10 +636,7 @@ const CampaignCard = ({
 
             {campaign.linked && (
               <button
-                onClick={() => {
-                  setSubIdValue(campaign.sub_id ?? "");
-                  setLinkOpen(true);
-                }}
+                onClick={() => setLinkOpen(true)}
                 className="mt-4 inline-flex items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
               >
                 <Unlink className="h-3 w-3" /> Alterar vínculo
@@ -571,25 +673,17 @@ const CampaignCard = ({
         </div>
       </ResponsiveModal>
 
-      {/* Modal vínculo */}
-      <ResponsiveModal
+      {/* Modal vínculo — seleção de Sub ID por lista (com sugestões e 1:1) */}
+      <LinkSubIdModal
         open={linkOpen}
         onOpenChange={setLinkOpen}
-        title={`Vincular ao Sub ID · ${campaign.name}`}
-        description="Informe o Sub ID usado nesta campanha para atribuir as vendas da Shopee. Deixe vazio para desvincular."
-      >
-        <div className="space-y-4">
-          <Input value={subIdValue} onChange={(e) => setSubIdValue(e.target.value)} placeholder="Ex: sutia1001205" />
-          <div className="flex flex-col-reverse gap-2 md:flex-row md:justify-end">
-            <Button variant="outline" className="w-full md:w-auto" onClick={() => setLinkOpen(false)} disabled={busy}>
-              Cancelar
-            </Button>
-            <Button className="w-full md:w-auto" onClick={handleSaveLink} disabled={busy}>
-              Salvar
-            </Button>
-          </div>
-        </div>
-      </ResponsiveModal>
+        campaign={campaign}
+        range={range}
+        onLinked={(updated) => {
+          onPatch(updated); // atualiza a linha na hora
+          onChanged(); // recarrega lista p/ KPIs e avisos
+        }}
+      />
     </div>
   );
 };
