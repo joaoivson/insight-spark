@@ -49,7 +49,7 @@ import {
   setCampaignBudget,
   setCampaignStatus,
 } from "@/services/campaigns.service";
-import { getFacebookStatus } from "@/services/facebook.service";
+import { getFacebookStatus, triggerFacebookSync } from "@/services/facebook.service";
 import type {
   Campaign,
   CampaignDailyPoint,
@@ -125,6 +125,14 @@ const profitClass = (v: number) => (v >= 0 ? "text-success" : "text-destructive"
 const roasClass = (roas: number) => (roas >= 1.5 ? "text-success" : roas >= 1 ? "text-warning" : "text-destructive");
 const fmtRoas = (r: number) => `${r.toFixed(2)}x`;
 const fmtPct = (v: number | null) => (v == null ? "—" : `${v.toFixed(1)}%`);
+const fmtSync = (iso: string | null) => {
+  if (!iso) return "nunca";
+  try {
+    return new Date(iso).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+  } catch {
+    return "—";
+  }
+};
 
 const Campanhas = () => {
   const navigate = useNavigate();
@@ -139,6 +147,8 @@ const Campanhas = () => {
   const [healthFilter, setHealthFilter] = useState<CampaignHealth | null>(null);
   const [fbConnected, setFbConnected] = useState<boolean | null>(null);
   const [exporting, setExporting] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [lastSyncAt, setLastSyncAt] = useState<string | null>(null);
 
   const range = useMemo(() => {
     if (period === "custom" && customRange?.from && customRange?.to) {
@@ -170,12 +180,50 @@ const Campanhas = () => {
     }
   };
 
-  // Status da integração (para empty state)
+  // Status da integração (para empty state + última sincronização do Facebook)
   useEffect(() => {
     getFacebookStatus()
-      .then((s) => setFbConnected(Boolean(s?.ad_account_id)))
+      .then((s) => {
+        setFbConnected(Boolean(s?.ad_account_id));
+        setLastSyncAt(s?.last_sync_at ?? null);
+      })
       .catch(() => setFbConnected(false));
   }, []);
+
+  // Força um sync do Facebook (gasto/CPC/impressões mudam ao longo do dia) e recarrega.
+  // A Shopee não entra aqui — ela só atualiza 1x/dia, não tem dado em tempo real.
+  const handleSync = async () => {
+    setSyncing(true);
+    const before = lastSyncAt;
+    try {
+      await triggerFacebookSync();
+      toast({ title: "Atualizando dados do Facebook…", description: "Puxando gasto e CPC mais recentes. Pode levar 1-2 min." });
+      const start = Date.now();
+      let advanced = false;
+      while (Date.now() - start < 240_000) {
+        await new Promise((r) => setTimeout(r, 5000));
+        const s = await getFacebookStatus().catch(() => null);
+        if (s?.last_sync_at && s.last_sync_at !== before) {
+          setLastSyncAt(s.last_sync_at);
+          advanced = true;
+          break;
+        }
+      }
+      reload();
+      toast(
+        advanced
+          ? { title: "Dados atualizados", description: "Gasto e CPC do Facebook sincronizados." }
+          : {
+              title: "Sincronização em andamento",
+              description: "Os dados aparecem em instantes. Se não atualizar, o worker pode estar fora do ar.",
+            },
+      );
+    } catch (e) {
+      toast({ title: "Erro ao atualizar", description: (e as Error).message, variant: "destructive" });
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   const visibleCampaigns = useMemo(() => {
     let list = campaigns;
@@ -202,6 +250,9 @@ const Campanhas = () => {
       subtitle="Ative, pause e ajuste o orçamento. Vincule ao Sub ID para ver as vendas."
       action={
         <div className="flex items-center gap-2">
+          <span className="hidden md:inline text-xs text-muted-foreground">
+            Facebook · {fmtSync(lastSyncAt)}
+          </span>
           <Button
             variant="outline"
             size="sm"
@@ -211,9 +262,9 @@ const Campanhas = () => {
             <Download className={cn("w-4 h-4 mr-2", exporting && "animate-pulse")} />
             Exportar
           </Button>
-          <Button variant="outline" size="sm" onClick={reload} disabled={loading}>
-            <RefreshCw className={cn("w-4 h-4 mr-2", loading && "animate-spin")} />
-            Atualizar
+          <Button variant="default" size="sm" onClick={handleSync} disabled={syncing || loading}>
+            <RefreshCw className={cn("w-4 h-4 mr-2", syncing && "animate-spin")} />
+            {syncing ? "Atualizando…" : "Atualizar dados"}
           </Button>
         </div>
       }
