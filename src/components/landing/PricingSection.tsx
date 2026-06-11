@@ -13,14 +13,14 @@ const PricingSection = () => {
   const { toast } = useToast();
 
   const features = [
-    "KPIs essenciais (Faturamento, Comissão, Ads, Lucro, ROAS)",
-    "Painel por canal, plataforma e categoria",
+    "Lucro líquido real (comissão − ads − impostos)",
+    "Análise por Sub ID, canal e plataforma",
+    "Integração Shopee + Meta Ads",
+    "Controle de campanha: pausar e ajustar orçamento",
+    "ROAS, ROI e CPA por campanha",
     "Importação de CSV ilimitada",
-    "Gestão de gastos em anúncios",
-    "Relatórios mensais e filtros avançados",
-    "Atualização rápida com cache local",
-    "Segurança e privacidade dos dados",
-    "Acesso ilimitado",
+    "Gestão de gastos com anúncios",
+    "IA, tempo real e WhatsApp inclusos (em breve)",
   ];
 
   useEffect(() => {

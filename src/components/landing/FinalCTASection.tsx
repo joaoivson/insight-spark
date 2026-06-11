@@ -1,7 +1,6 @@
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Loader2 } from "lucide-react";
-import { Link } from "react-router-dom";
 import { useSubscribe } from "@/shared/hooks/useSubscribe";
 
 const FinalCTASection = () => {
@@ -18,13 +17,13 @@ const FinalCTASection = () => {
         >
           {/* Background Glow */}
           <div className="absolute inset-0 bg-gradient-to-br from-accent/5 to-transparent pointer-events-none" />
-          
+
           <div className="relative z-10">
             <h2 className="font-display text-2xl sm:text-4xl md:text-6xl font-bold text-foreground mb-6">
-              Suba seus CSVs e descubra hoje onde está seu lucro real.
+              Assuma o controle das suas vendas na Shopee hoje.
             </h2>
             <p className="text-muted-foreground text-base sm:text-xl mb-8 md:mb-10 max-w-2xl mx-auto">
-              Pare de queimar dinheiro com achismo. Tenha a clareza que os grandes afiliados da Shopee usam para escalar.
+              Pare de queimar verba com achismo. Saiba seu lucro real por campanha e Sub ID, escale o que funciona e pause o que dá prejuízo — tudo no mesmo painel.
             </p>
 
             <div className="flex flex-col sm:flex-row items-center justify-center gap-6 mb-8 md:mb-10">
@@ -56,7 +55,7 @@ const FinalCTASection = () => {
               <span>•</span>
               <span>✓ Suporte em português</span>
               <span>•</span>
-              <span>✓ Todas as funcionalidades incluídas</span>
+              <span>✓ Shopee + Meta integrados</span>
               <span>•</span>
               <span className="font-semibold text-accent">✓ 7 dias de Garantia</span>
             </div>

@@ -1,7 +1,6 @@
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Eye, TrendingUp, Loader2 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { ArrowRight, Zap, ShieldCheck, Loader2 } from "lucide-react";
 import { useSubscribe } from "@/shared/hooks/useSubscribe";
 
 const HeroSection = () => {
@@ -10,13 +9,13 @@ const HeroSection = () => {
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden pt-24 pb-16 md:pt-20">
       {/* Background Elements */}
       <div className="absolute inset-0 bg-[var(--gradient-hero)]" />
-      
+
       {/* Decorative circles */}
       <div className="absolute top-20 left-10 w-72 h-72 bg-accent/10 rounded-full blur-3xl animate-float" />
       <div className="absolute bottom-20 right-10 w-96 h-96 bg-primary/10 rounded-full blur-3xl animate-float" style={{ animationDelay: "-3s" }} />
-      
+
       {/* Grid Pattern */}
-      <div 
+      <div
         className="absolute inset-0 opacity-[0.03]"
         style={{
           backgroundImage: `linear-gradient(hsl(var(--foreground)) 1px, transparent 1px), linear-gradient(90deg, hsl(var(--foreground)) 1px, transparent 1px)`,
@@ -33,8 +32,8 @@ const HeroSection = () => {
             transition={{ duration: 0.5, delay: 0.05 }}
             className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-accent/10 border border-accent/20 text-accent text-sm font-medium mb-6 mt-8"
           >
-            <Eye className="w-4 h-4" />
-            Enxergue seus resultados antes do painel oficial
+            <Zap className="w-4 h-4" />
+            Shopee + Meta Ads em um só painel
           </motion.div>
 
           {/* Headline */}
@@ -44,7 +43,7 @@ const HeroSection = () => {
             transition={{ duration: 0.5, delay: 0.1 }}
             className="font-display text-3xl sm:text-4xl md:text-5xl lg:text-7xl font-bold text-foreground leading-tight mb-6"
           >
-            Pare de adivinhar. Veja exatamente quais links da Shopee estão te dando <span className="gradient-text">lucro real.</span>
+            Sua central de comando como afiliado Shopee. Saiba o que escalar e o que pausar para ter <span className="gradient-text">lucro real.</span>
           </motion.h1>
 
           {/* Subheadline */}
@@ -54,7 +53,7 @@ const HeroSection = () => {
             transition={{ duration: 0.5, delay: 0.2 }}
             className="text-base sm:text-lg md:text-2xl text-muted-foreground max-w-3xl mx-auto mb-8 md:mb-10"
           >
-            O MarketDash transforma seus CSVs de cliques e comissões em insights claros para você escalar o que funciona e cortar o que dá prejuízo.
+            O MarketDash cruza suas comissões da Shopee com o gasto dos seus anúncios no Meta, mostra seu <strong className="text-foreground">lucro líquido por campanha e Sub ID</strong> — e deixa você pausar e ajustar o orçamento sem sair do painel.
           </motion.p>
 
           {/* CTA Buttons */}
@@ -91,9 +90,10 @@ const HeroSection = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.5, delay: 0.4 }}
-            className="text-sm text-muted-foreground"
+            className="inline-flex items-center gap-2 text-sm text-muted-foreground"
           >
-            ✓ Setup em 2 minutos • ✓ Suporte em português • ✓ 7 dias de Garantia
+            <ShieldCheck className="w-4 h-4 text-accent" />
+            Setup em 2 minutos • Suporte em português • 7 dias de garantia
           </motion.p>
 
           {/* Stats */}
@@ -104,15 +104,15 @@ const HeroSection = () => {
             className="mt-12 md:mt-16 grid grid-cols-3 gap-4 sm:gap-8 max-w-lg mx-auto"
           >
             {[
-              { value: "5 min", label: "para começar" },
-              { value: "ROAS", label: "em tempo real" },
-              { value: "+Insights", label: "por canal" },
+              { value: "Lucro", label: "líquido, já com impostos" },
+              { value: "Por Sub ID", label: "saiba qual link lucra" },
+              { value: "1 clique", label: "pausar e ajustar orçamento" },
             ].map((stat, index) => (
               <div key={index} className="text-center">
-                <div className="font-display text-2xl md:text-3xl font-bold text-foreground">
+                <div className="font-display text-xl sm:text-2xl md:text-3xl font-bold text-foreground">
                   {stat.value}
                 </div>
-                <div className="text-sm text-muted-foreground">{stat.label}</div>
+                <div className="text-xs sm:text-sm text-muted-foreground">{stat.label}</div>
               </div>
             ))}
           </motion.div>

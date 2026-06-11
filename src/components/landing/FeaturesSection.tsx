@@ -1,46 +1,71 @@
 import { motion } from "framer-motion";
-import { 
-  Upload, BarChart3, Filter, Target, ShoppingCart, 
-  DollarSign, TrendingUp, MousePointer, Hash
+import {
+  DollarSign, Hash, SlidersHorizontal, Plug,
+  Activity, MessageCircle, Sparkles, Bot,
+  type LucideIcon,
 } from "lucide-react";
 
-const benefits = [
+type Benefit = {
+  icon: LucideIcon;
+  title: string;
+  description: string;
+  impact: string;
+  soon?: boolean;
+};
+
+const benefits: Benefit[] = [
   {
-    icon: Upload,
-    title: "Upload simples de CSV",
-    description: "Transforme dados brutos da Shopee em relatórios financeiros em segundos. Sem fórmulas, sem perda de tempo.",
-    impact: "Clareza instantânea"
+    icon: DollarSign,
+    title: "Lucro real, não faturamento",
+    description: "Comissão menos gasto com anúncios — já considerando seus impostos. Pare de comemorar venda que dá prejuízo.",
+    impact: "Lucro líquido",
   },
   {
     icon: Hash,
-    title: "Análise por Canal e SubID",
-    description: "Identifique exatamente qual link do Instagram, TikTok ou WhatsApp está colocando dinheiro no seu bolso.",
-    impact: "Controle total"
+    title: "Análise por Sub ID e canal",
+    description: "Veja exatamente qual link do Instagram, TikTok ou WhatsApp coloca dinheiro no seu bolso — e qual só queima verba.",
+    impact: "Controle total",
   },
   {
-    icon: Target,
-    title: "Identificação de Lucro Real",
-    description: "Veja seu lucro líquido após descontar gastos com anúncios. Saiba onde escalar e onde cortar custos.",
-    impact: "Escala profissional"
+    icon: SlidersHorizontal,
+    title: "Controle de campanha no painel",
+    description: "Pause, ative e ajuste o orçamento das campanhas do Meta sem sair do MarketDash. Decisão e ação no mesmo lugar.",
+    impact: "Aja na hora",
   },
   {
-    icon: TrendingUp,
-    title: "Top Produtos e Categorias",
-    description: "Descubra os campeões de vendas e categorias que mais convertem para focar seus esforços no que dá resultado.",
-    impact: "Foco no lucro"
+    icon: Plug,
+    title: "Shopee + Meta Ads conectados",
+    description: "Suas comissões da Shopee e o gasto dos anúncios do Meta no mesmo painel, atribuídos por Sub ID. ROAS e ROI de verdade.",
+    impact: "Visão unificada",
   },
   {
-    icon: MousePointer,
-    title: "Métricas de Cliques Reais",
-    description: "Acompanhe cliques, conversão e CPC real. Saiba se seu tráfego pago está valendo a pena em tempo real.",
-    impact: "Decisão baseada em dados"
+    icon: Activity,
+    title: "Monitor de vendas em tempo real",
+    description: "Acompanhe cada venda nova da Shopee assim que cai — com alerta na hora, sem esperar o relatório do dia seguinte.",
+    impact: "Tempo real",
+    soon: true,
   },
   {
-    icon: Filter,
-    title: "Filtros Estratégicos",
-    description: "Analise performance por período, status de pedido e categorias para entender o comportamento do seu público.",
-    impact: "Inteligência de mercado"
-  }
+    icon: MessageCircle,
+    title: "Disparos no WhatsApp",
+    description: "Envie suas promoções para listas de contatos e grupos direto do painel, com ritmo seguro para não derrubar seu número.",
+    impact: "Venda mais",
+    soon: true,
+  },
+  {
+    icon: Sparkles,
+    title: "IA: o que escalar e o que pausar",
+    description: "A inteligência analisa cada campanha e Sub ID e te entrega a ação do dia: escalar a vencedora, matar a perdedora.",
+    impact: "Decisão guiada",
+    soon: true,
+  },
+  {
+    icon: Bot,
+    title: "Chat de IA do seu negócio",
+    description: "Pergunte 'qual minha melhor campanha?' e tenha resposta baseada nos seus números reais — sem planilha, sem achismo.",
+    impact: "Seu copiloto",
+    soon: true,
+  },
 ];
 
 const FeaturesSection = () => {
@@ -56,14 +81,14 @@ const FeaturesSection = () => {
           className="text-center max-w-3xl mx-auto mb-12 md:mb-20"
         >
           <span className="inline-block px-4 py-1 rounded-full bg-accent/10 text-accent text-sm font-medium mb-4">
-            Na Prática
+            Tudo em um só lugar
           </span>
           <h2 className="font-display text-3xl md:text-4xl lg:text-5xl font-bold text-foreground mb-6">
-            O que você consegue fazer com o{" "}
-            <span className="text-accent">MarketDash hoje?</span>
+            A central de comando do{" "}
+            <span className="text-accent">afiliado profissional</span>
           </h2>
           <p className="text-base md:text-xl text-muted-foreground">
-            Ferramentas pensadas para quem vive de performance e não tem tempo a perder com planilhas.
+            Do lucro real ao disparo da promoção: as ferramentas de quem vive de performance e não tem tempo a perder com planilha.
           </p>
         </motion.div>
 
@@ -74,9 +99,14 @@ const FeaturesSection = () => {
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
-              transition={{ duration: 0.5, delay: index * 0.1 }}
-              className="group bg-card/50 backdrop-blur-sm border border-border rounded-2xl p-6 md:p-8 hover:border-accent/40 transition-all hover:shadow-md hover:shadow-accent/5"
+              transition={{ duration: 0.5, delay: index * 0.08 }}
+              className="group relative bg-card/50 backdrop-blur-sm border border-border rounded-2xl p-6 md:p-8 hover:border-accent/40 transition-all hover:shadow-md hover:shadow-accent/5"
             >
+              {benefit.soon && (
+                <span className="absolute right-4 top-4 rounded-full bg-primary/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-primary">
+                  Em breve
+                </span>
+              )}
               <div className="w-14 h-14 rounded-xl bg-accent/10 flex items-center justify-center mb-6 group-hover:bg-accent/20 transition-colors">
                 <benefit.icon className="w-7 h-7 text-accent" />
               </div>
