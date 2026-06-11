@@ -50,6 +50,7 @@ import {
   setCampaignStatus,
 } from "@/services/campaigns.service";
 import { getFacebookStatus, triggerFacebookSync } from "@/services/facebook.service";
+import { getShopeeStatus } from "@/services/shopee.service";
 import type {
   Campaign,
   CampaignDailyPoint,
@@ -149,6 +150,7 @@ const Campanhas = () => {
   const [exporting, setExporting] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [lastSyncAt, setLastSyncAt] = useState<string | null>(null);
+  const [lastSyncShopee, setLastSyncShopee] = useState<string | null>(null);
 
   const range = useMemo(() => {
     if (period === "custom" && customRange?.from && customRange?.to) {
@@ -188,6 +190,9 @@ const Campanhas = () => {
         setLastSyncAt(s?.last_sync_at ?? null);
       })
       .catch(() => setFbConnected(false));
+    getShopeeStatus()
+      .then((s) => setLastSyncShopee(s?.last_sync_at ?? null))
+      .catch(() => {});
   }, []);
 
   // Força um sync do Facebook (gasto/CPC/impressões mudam ao longo do dia) e recarrega.
@@ -250,8 +255,9 @@ const Campanhas = () => {
       subtitle="Ative, pause e ajuste o orçamento. Vincule ao Sub ID para ver as vendas."
       action={
         <div className="flex items-center gap-2">
-          <span className="hidden md:inline text-xs text-muted-foreground">
-            Facebook · {fmtSync(lastSyncAt)}
+          <span className="hidden md:flex flex-col items-end text-[11px] leading-tight text-muted-foreground">
+            <span>Facebook · {fmtSync(lastSyncAt)}</span>
+            <span>Shopee · {fmtSync(lastSyncShopee)}</span>
           </span>
           <Button
             variant="outline"
@@ -599,9 +605,14 @@ const CampaignCard = ({
             <span className="min-w-0">
               <span className="block truncate text-sm font-semibold">{campaign.name}</span>
               {campaign.linked ? (
-                <span className="mt-0.5 inline-flex items-center gap-1 text-[11px] text-primary">
+                <button
+                  type="button"
+                  onClick={() => setLinkOpen(true)}
+                  title="Trocar ou desvincular"
+                  className="mt-0.5 inline-flex items-center gap-1 rounded text-[11px] text-primary transition-colors hover:text-primary/80 hover:underline"
+                >
                   <Link2 className="h-3 w-3" /> {campaign.sub_id}
-                </span>
+                </button>
               ) : (
                 <span className="text-[11px] text-warning">não vinculada</span>
               )}
@@ -629,8 +640,8 @@ const CampaignCard = ({
           </span>
         </div>
 
-        {/* Métricas principais */}
-        <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {/* Métricas principais (5): Gasto · Comissão · Lucro · ROAS Real · CPC */}
+        <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-5">
           <Metric
             label="Gasto"
             value={formatCurrency(hasTax ? m.spend_with_tax : m.spend)}
@@ -651,6 +662,7 @@ const CampaignCard = ({
             value={campaign.linked && m.spend > 0 ? fmtRoas(m.roas) : "—"}
             valueClass={campaign.linked && m.spend > 0 ? roasClass(m.roas) : undefined}
           />
+          <Metric label="CPC" value={m.cpc == null ? "—" : formatCurrency(m.cpc)} />
         </div>
 
         {/* Não vinculada → CTA */}
@@ -667,8 +679,10 @@ const CampaignCard = ({
         {/* Expandido */}
         {expanded && (
           <div className="mt-4 border-t border-border pt-4">
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-              <Metric label="CPC" value={m.cpc == null ? "—" : formatCurrency(m.cpc)} />
+            {/* Métricas secundárias (5): Alcance · Cliques · CTR · Pedidos · Diretos */}
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+              <Metric label="Alcance" value={m.reach > 0 ? m.reach.toLocaleString("pt-BR") : "—"} />
+              <Metric label="Cliques" value={m.clicks > 0 ? m.clicks.toLocaleString("pt-BR") : "—"} />
               <Metric label="CTR" value={fmtPct(m.ctr)} />
               <Metric label="Pedidos" value={campaign.linked ? String(m.orders) : "—"} />
               <Metric

@@ -5,6 +5,7 @@ export interface CampaignMetrics {
   spend_with_tax: number;   // gasto com imposto (= spend se sem imposto)
   clicks: number;
   impressions: number;
+  reach: number;
   cpc: number | null;
   ctr: number | null;
   commission: number;       // comissão bruta
