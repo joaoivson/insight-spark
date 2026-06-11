@@ -1,17 +1,19 @@
 export type CampaignHealth = "healthy" | "warning" | "loss" | "unlinked";
 
 export interface CampaignMetrics {
-  spend: number;
+  spend: number;            // gasto bruto (sem imposto)
+  spend_with_tax: number;   // gasto com imposto (= spend se sem imposto)
   clicks: number;
   impressions: number;
   cpc: number | null;
   ctr: number | null;
-  commission: number;
+  commission: number;       // comissão bruta
+  commission_net: number;   // comissão líquida (= commission se sem imposto)
   revenue: number;
   orders: number;
   direct_orders: number;
-  profit: number;
-  roas: number;
+  profit: number;           // lucro líquido = commission_net - spend_with_tax
+  roas: number;             // ROAS Real = commission_net / spend_with_tax
 }
 
 export interface Campaign {
@@ -32,7 +34,9 @@ export interface Campaign {
 export interface CampaignKPIs {
   avg_cpc: number | null;
   total_spend: number;
+  total_spend_with_tax: number;
   total_commission: number;
+  total_commission_net: number;
   total_profit: number;
   avg_roas: number;
   total_daily_budget: number;
@@ -41,16 +45,19 @@ export interface CampaignKPIs {
 export interface CampaignListResponse {
   kpis: CampaignKPIs;
   campaigns: Campaign[];
+  has_tax: boolean;
 }
 
 export interface CampaignDailyPoint {
   date: string;
   spend: number;
+  spend_with_tax: number;
   clicks: number;
   impressions: number;
   cpc: number | null;
   ctr: number | null;
   commission: number;
+  commission_net: number;
   revenue: number;
   orders: number;
   profit: number;
@@ -60,6 +67,7 @@ export interface CampaignDailyPoint {
 export interface CampaignDetailResponse {
   campaign: Campaign;
   daily: CampaignDailyPoint[];
+  has_tax: boolean;
 }
 
 export type CampaignStatusFilter = "all" | "active" | "paused";

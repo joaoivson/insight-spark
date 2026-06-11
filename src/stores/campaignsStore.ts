@@ -5,7 +5,9 @@ import type { Campaign, CampaignKPIs } from "@/shared/types/campaign";
 const EMPTY_KPIS: CampaignKPIs = {
   avg_cpc: null,
   total_spend: 0,
+  total_spend_with_tax: 0,
   total_commission: 0,
+  total_commission_net: 0,
   total_profit: 0,
   avg_roas: 0,
   total_daily_budget: 0,
@@ -14,6 +16,7 @@ const EMPTY_KPIS: CampaignKPIs = {
 type CampaignsState = {
   campaigns: Campaign[];
   kpis: CampaignKPIs;
+  hasTax: boolean;
   loading: boolean;
   error: string | null;
   hydrated: boolean;
@@ -25,6 +28,7 @@ type CampaignsState = {
 export const useCampaignsStore = create<CampaignsState>((set, get) => ({
   campaigns: [],
   kpis: EMPTY_KPIS,
+  hasTax: false,
   loading: false,
   error: null,
   hydrated: false,
@@ -33,7 +37,7 @@ export const useCampaignsStore = create<CampaignsState>((set, get) => ({
     set({ loading: true, error: null });
     try {
       const data = await listCampaigns(params);
-      set({ campaigns: data.campaigns, kpis: data.kpis, hydrated: true });
+      set({ campaigns: data.campaigns, kpis: data.kpis, hasTax: data.has_tax, hydrated: true });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : "Erro ao carregar campanhas";
       set({ error: message });

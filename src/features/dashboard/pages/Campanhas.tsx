@@ -137,7 +137,7 @@ const fmtSync = (iso: string | null) => {
 const Campanhas = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { campaigns, kpis, loading, error, hydrated, fetch, patchCampaign } = useCampaignsStore();
+  const { campaigns, kpis, hasTax, loading, error, hydrated, fetch, patchCampaign } = useCampaignsStore();
 
   const [period, setPeriod] = useState<PeriodKey>("7d");
   const [customRange, setCustomRange] = useState<DateRange | undefined>();
@@ -353,10 +353,22 @@ const Campanhas = () => {
         {/* KPIs */}
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
           <KpiCard label="CPC médio" value={kpis.avg_cpc == null ? "—" : formatCurrency(kpis.avg_cpc)} icon={MousePointerClick} loading={initialLoading} />
-          <KpiCard label="Gasto" value={formatCurrency(kpis.total_spend)} icon={Wallet} loading={initialLoading} />
-          <KpiCard label="Comissão" value={formatCurrency(kpis.total_commission)} icon={Coins} loading={initialLoading} />
+          <KpiCard
+            label="Gasto"
+            value={formatCurrency(hasTax ? kpis.total_spend_with_tax : kpis.total_spend)}
+            sub={hasTax ? `sem imposto: ${formatCurrency(kpis.total_spend)}` : undefined}
+            icon={Wallet}
+            loading={initialLoading}
+          />
+          <KpiCard
+            label="Comissão"
+            value={formatCurrency(hasTax ? kpis.total_commission_net : kpis.total_commission)}
+            sub={hasTax ? `bruto: ${formatCurrency(kpis.total_commission)}` : undefined}
+            icon={Coins}
+            loading={initialLoading}
+          />
           <KpiCard label="Lucro" value={formatCurrency(kpis.total_profit)} icon={TrendingUp} valueClass={profitClass(kpis.total_profit)} loading={initialLoading} />
-          <KpiCard label="ROAS médio" value={fmtRoas(kpis.avg_roas)} icon={Target} valueClass={kpis.avg_roas > 0 ? roasClass(kpis.avg_roas) : undefined} loading={initialLoading} />
+          <KpiCard label="ROAS Real" value={fmtRoas(kpis.avg_roas)} icon={Target} valueClass={kpis.avg_roas > 0 ? roasClass(kpis.avg_roas) : undefined} loading={initialLoading} />
           <KpiCard label="Orç./dia" value={formatCurrency(kpis.total_daily_budget)} icon={CalendarRange} valueClass="text-primary" accent loading={initialLoading} />
         </div>
 
@@ -404,6 +416,7 @@ const Campanhas = () => {
                 key={c.id}
                 campaign={c}
                 range={range}
+                hasTax={hasTax}
                 onPatch={(patch) => patchCampaign(c.id, patch)}
                 onChanged={reload}
               />
@@ -425,6 +438,7 @@ const Campanhas = () => {
 const KpiCard = ({
   label,
   value,
+  sub,
   icon: Icon,
   valueClass,
   accent,
@@ -432,6 +446,7 @@ const KpiCard = ({
 }: {
   label: string;
   value: string;
+  sub?: string;
   icon: LucideIcon;
   valueClass?: string;
   accent?: boolean;
@@ -446,7 +461,10 @@ const KpiCard = ({
       {loading ? (
         <Skeleton className="h-6 w-20" />
       ) : (
-        <div className={cn("text-lg font-semibold tracking-tight tabular-nums md:text-xl", valueClass)}>{value}</div>
+        <>
+          <div className={cn("text-lg font-semibold tracking-tight tabular-nums md:text-xl", valueClass)}>{value}</div>
+          {sub && <div className="mt-0.5 text-[11px] text-muted-foreground tabular-nums">{sub}</div>}
+        </>
       )}
     </CardContent>
   </Card>
@@ -486,10 +504,11 @@ const AlertBanner = ({
   );
 };
 
-const Metric = ({ label, value, valueClass }: { label: string; value: string; valueClass?: string }) => (
+const Metric = ({ label, value, sub, valueClass }: { label: string; value: string; sub?: string; valueClass?: string }) => (
   <div className="min-w-0">
     <p className="text-[11px] text-muted-foreground">{label}</p>
     <p className={cn("mt-1 text-sm font-semibold tabular-nums", valueClass)}>{value}</p>
+    {sub && <p className="text-[10px] text-muted-foreground tabular-nums">{sub}</p>}
   </div>
 );
 
@@ -498,11 +517,13 @@ const Metric = ({ label, value, valueClass }: { label: string; value: string; va
 const CampaignCard = ({
   campaign,
   range,
+  hasTax,
   onPatch,
   onChanged,
 }: {
   campaign: Campaign;
   range: { startDate: string; endDate: string };
+  hasTax: boolean;
   onPatch: (patch: Partial<Campaign>) => void;
   onChanged: () => void;
 }) => {
@@ -610,15 +631,23 @@ const CampaignCard = ({
 
         {/* Métricas principais */}
         <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <Metric label="Gasto" value={formatCurrency(m.spend)} />
-          <Metric label="Comissão" value={campaign.linked ? formatCurrency(m.commission) : "—"} />
+          <Metric
+            label="Gasto"
+            value={formatCurrency(hasTax ? m.spend_with_tax : m.spend)}
+            sub={hasTax ? `sem imposto: ${formatCurrency(m.spend)}` : undefined}
+          />
+          <Metric
+            label="Comissão"
+            value={campaign.linked ? formatCurrency(hasTax ? m.commission_net : m.commission) : "—"}
+            sub={campaign.linked && hasTax ? `bruto: ${formatCurrency(m.commission)}` : undefined}
+          />
           <Metric
             label="Lucro"
             value={campaign.linked ? `${m.profit >= 0 ? "+" : ""}${formatCurrency(m.profit)}` : "—"}
             valueClass={campaign.linked ? profitClass(m.profit) : undefined}
           />
           <Metric
-            label="ROAS"
+            label="ROAS Real"
             value={campaign.linked && m.spend > 0 ? fmtRoas(m.roas) : "—"}
             valueClass={campaign.linked && m.spend > 0 ? roasClass(m.roas) : undefined}
           />
@@ -669,8 +698,8 @@ const CampaignCard = ({
                         <td className="py-2 text-left text-muted-foreground">
                           {d.date.slice(8, 10)}/{d.date.slice(5, 7)}
                         </td>
-                        <td>{d.spend.toFixed(2)}</td>
-                        <td>{d.commission.toFixed(2)}</td>
+                        <td>{d.spend_with_tax.toFixed(2)}</td>
+                        <td>{d.commission_net.toFixed(2)}</td>
                         <td className={profitClass(d.profit)}>
                           {d.profit >= 0 ? "+" : ""}
                           {d.profit.toFixed(2)}
