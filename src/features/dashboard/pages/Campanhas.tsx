@@ -202,10 +202,10 @@ const Campanhas = () => {
     const before = lastSyncAt;
     try {
       await triggerFacebookSync();
-      toast({ title: "Atualizando dados do Facebook…", description: "Puxando gasto e CPC mais recentes. Pode levar 1-2 min." });
+      toast({ title: "Atualizando dados do Facebook…", description: "Buscando o gasto e o CPC mais recentes. Pode levar alguns minutos." });
       const start = Date.now();
       let advanced = false;
-      while (Date.now() - start < 240_000) {
+      while (Date.now() - start < 180_000) {
         await new Promise((r) => setTimeout(r, 5000));
         const s = await getFacebookStatus().catch(() => null);
         if (s?.last_sync_at && s.last_sync_at !== before) {
@@ -217,14 +217,14 @@ const Campanhas = () => {
       reload();
       toast(
         advanced
-          ? { title: "Dados atualizados", description: "Gasto e CPC do Facebook sincronizados." }
+          ? { title: "Dados atualizados!", description: "O gasto e o CPC do Facebook estão em dia." }
           : {
-              title: "Sincronização em andamento",
-              description: "Os dados aparecem em instantes. Se não atualizar, o worker pode estar fora do ar.",
+              title: "Atualização em andamento",
+              description: "Os números do Facebook serão atualizados em alguns minutos — pode seguir usando normalmente.",
             },
       );
-    } catch (e) {
-      toast({ title: "Erro ao atualizar", description: (e as Error).message, variant: "destructive" });
+    } catch {
+      toast({ title: "Não foi possível atualizar agora", description: "Tente novamente em instantes.", variant: "destructive" });
     } finally {
       setSyncing(false);
     }
