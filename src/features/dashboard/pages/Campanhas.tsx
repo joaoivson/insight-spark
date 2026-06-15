@@ -681,7 +681,7 @@ const CampaignCard = ({
           <div className="mt-4 border-t border-border pt-4">
             {/* Métricas secundárias (5): Alcance · Cliques · CTR · Pedidos · Diretos */}
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
-              <Metric label="Alcance" value={m.reach > 0 ? m.reach.toLocaleString("pt-BR") : "—"} />
+              <Metric label="Impressões" value={m.impressions > 0 ? m.impressions.toLocaleString("pt-BR") : "—"} />
               <Metric label="Cliques" value={m.clicks > 0 ? m.clicks.toLocaleString("pt-BR") : "—"} />
               <Metric label="CTR" value={fmtPct(m.ctr)} />
               <Metric label="Pedidos" value={campaign.linked ? String(m.orders) : "—"} />
@@ -701,6 +701,7 @@ const CampaignCard = ({
                     <tr className="text-right text-muted-foreground">
                       <th className="pb-2 text-left font-normal">Data</th>
                       <th className="pb-2 font-normal">Gasto</th>
+                      <th className="pb-2 font-normal">CPC</th>
                       <th className="pb-2 font-normal">Comissão</th>
                       <th className="pb-2 font-normal">Lucro</th>
                       <th className="pb-2 font-normal">ROAS</th>
@@ -713,6 +714,7 @@ const CampaignCard = ({
                           {d.date.slice(8, 10)}/{d.date.slice(5, 7)}
                         </td>
                         <td>{d.spend_with_tax.toFixed(2)}</td>
+                        <td>{d.cpc == null ? "—" : d.cpc.toFixed(2)}</td>
                         <td>{d.commission_net.toFixed(2)}</td>
                         <td className={profitClass(d.profit)}>
                           {d.profit >= 0 ? "+" : ""}

@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { tokenStorage } from '@/shared/lib/storage';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -21,4 +22,25 @@ if (!supabaseUrl || !supabaseAnonKey) {
     throw new Error(errorMsg);
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+    auth: {
+        // Renova o access_token em background antes de expirar (mantém a sessão viva
+        // durante o uso) e persiste a sessão entre reloads.
+        autoRefreshToken: true,
+        persistSession: true,
+        detectSessionInUrl: true,
+    },
+});
+
+// Mantém o token do app (tokenStorage) em sincronia com a renovação automática do Supabase.
+// Sem isso, o Supabase renova a sessão dele mas o app continua usando o token velho → 401 →
+// logout no meio do uso (bug de "deslogou sozinho").
+supabase.auth.onAuthStateChange((event, session) => {
+    if ((event === 'TOKEN_REFRESHED' || event === 'SIGNED_IN') && session?.access_token) {
+        try {
+            tokenStorage.set(session.access_token);
+        } catch {
+            /* storage indisponível — ignora */
+        }
+    }
+});

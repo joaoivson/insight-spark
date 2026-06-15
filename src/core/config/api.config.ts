@@ -123,9 +123,28 @@ export const fetchPublic = async (
 };
 
 /**
- * Função helper para fazer requisições autenticadas
- * Adiciona automaticamente o token JWT no header Authorization
- * Trata erros 401 removendo token e redirecionando para login
+ * Renova o access_token via Supabase e sincroniza o tokenStorage.
+ * Retorna o novo token, ou null se não houver sessão válida para renovar.
+ */
+const refreshSupabaseToken = async (): Promise<string | null> => {
+  try {
+    const { supabase } = await import('@/shared/lib/supabase');
+    const { data, error } = await supabase.auth.refreshSession();
+    const newToken = data?.session?.access_token;
+    if (!error && newToken) {
+      tokenStorage.set(newToken);
+      return newToken;
+    }
+  } catch {
+    /* sessão indisponível — segue para logout */
+  }
+  return null;
+};
+
+/**
+ * Função helper para fazer requisições autenticadas.
+ * Adiciona o token JWT no header. No 401, tenta RENOVAR a sessão e repetir a request
+ * (evita deslogar no meio do uso e renderizar dado pela metade); só desloga se a renovação falhar.
  */
 export const fetchWithAuth = async (
   url: string,
@@ -184,39 +203,35 @@ export const fetchWithAuth = async (
     headers,
   });
 
-  // Se receber 401, token está inválido ou expirado - limpar e redirecionar
-  // MAS não fazer isso para rotas de autenticação (login/register) ou durante o processo de login
+  // 401 = token inválido/expirado. Em vez de deslogar na hora (que, com requests paralelas,
+  // deixa a tela renderizar com dado pela metade), tentamos RENOVAR a sessão do Supabase UMA
+  // vez e repetir a request. Só desloga se a renovação falhar (fail-fast, sem dado falso).
   const isAuthRoute = url.includes('/auth/login') || url.includes('/auth/register');
   const isOnLoginPage = typeof window !== 'undefined' && window.location.pathname.includes('/login');
   const isMeRoute = url.includes('/auth/me'); // Rota de perfil pode ser chamada durante login
-  
-  // Verificar se o token foi criado recentemente (últimos 5 segundos)
-  // Isso evita remover o token logo após o login
-  const tokenCreatedAt = typeof window !== 'undefined' 
+  const tokenCreatedAt = typeof window !== 'undefined'
     ? sessionStorage.getItem('token_created_at')
     : null;
-  const isRecentToken = tokenCreatedAt 
-    ? (Date.now() - parseInt(tokenCreatedAt, 10)) < 5000 // 5 segundos
+  const isRecentToken = tokenCreatedAt
+    ? (Date.now() - parseInt(tokenCreatedAt, 10)) < 5000
     : false;
-  
-  // Só tratar 401 se:
-  // 1. Não for rota de autenticação
-  // 2. Não for rota /me (pode ser chamada durante login)
-  // 3. Não estiver na página de login (evita interferir no processo de login)
-  // 4. Já havia um token (não é uma primeira requisição sem token)
-  // 5. O token não foi criado recentemente (evita remover token logo após login)
-  // 
-  // IMPORTANTE: Não tratar 401 durante login ou logo após login para evitar remover token recém-criado
-  if (response.status === 401 && !isAuthRoute && !isMeRoute && !isOnLoginPage && token && !isRecentToken) {
-    // Remover token e dados do usuário
-    tokenStorage.remove();
-    userStorage.remove();
-    if (typeof window !== 'undefined') {
-      sessionStorage.removeItem('token_created_at');
+
+  if (response.status === 401 && !isAuthRoute && !isMeRoute && !isOnLoginPage && token) {
+    const renewed = await refreshSupabaseToken();
+    if (renewed) {
+      headers.set('Authorization', `Bearer ${renewed}`);
+      const retry = await fetch(finalUrl, { ...options, headers });
+      if (retry.status !== 401) return retry; // renovou e funcionou → sem logout, sem dado parcial
     }
-    
-    // Redirecionar para login
-    window.location.href = APP_CONFIG.ROUTES.LOGIN;
+    // Sessão realmente inválida → desloga e vai pro login (sem deixar a tela montar pela metade).
+    if (!isRecentToken) {
+      tokenStorage.remove();
+      userStorage.remove();
+      if (typeof window !== 'undefined') {
+        sessionStorage.removeItem('token_created_at');
+        window.location.href = APP_CONFIG.ROUTES.LOGIN;
+      }
+    }
   }
 
   // Tratamento de erro 403 - Assinatura inativa
