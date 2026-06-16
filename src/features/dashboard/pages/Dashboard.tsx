@@ -92,7 +92,7 @@ const Dashboard = () => {
   }, [rows, clicks]);
 
   return (
-    <DashboardLayout title="Dashboard" subtitle="Visão geral da operação">
+    <DashboardLayout title="Dashboard">
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
         <div className="space-y-6">
           <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
@@ -100,14 +100,14 @@ const Dashboard = () => {
               <TabsList className="grid h-12 w-full grid-cols-2 rounded-xl border border-accent/20 bg-secondary/40 p-1 shadow-lg shadow-black/20 ring-1 ring-white/5 backdrop-blur-sm md:w-[400px]">
                 <TabsTrigger
                   value="comissao"
-                  className="flex h-full items-center gap-2 rounded-lg font-bold transition-colors duration-200 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg data-[state=active]:shadow-primary/20"
+                  className="flex h-full items-center gap-2 rounded-lg font-bold transition-colors duration-200 data-[state=active]:bg-[rgba(49,140,233,0.12)] data-[state=active]:border data-[state=active]:border-[rgba(49,140,233,0.38)] data-[state=active]:text-[#7CB8F2]"
                 >
                   <LayoutDashboard className="h-4 w-4" />
                   Comissão
                 </TabsTrigger>
                 <TabsTrigger
                   value="cliques"
-                  className="flex h-full items-center gap-2 rounded-lg font-bold transition-colors duration-200 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg data-[state=active]:shadow-primary/20"
+                  className="flex h-full items-center gap-2 rounded-lg font-bold transition-colors duration-200 data-[state=active]:bg-[rgba(49,140,233,0.12)] data-[state=active]:border data-[state=active]:border-[rgba(49,140,233,0.38)] data-[state=active]:text-[#7CB8F2]"
                 >
                   <MousePointerClick className="h-4 w-4" />
                   Cliques

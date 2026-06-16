@@ -75,7 +75,9 @@ const CommissionChart = ({ daySeries, monthSeries }: Props) => {
               onClick={() => setMode(m)}
               className={cn(
                 "rounded-md px-3 py-1.5 transition-colors",
-                mode === m ? "bg-primary font-medium text-primary-foreground" : "text-muted-foreground hover:text-foreground",
+                mode === m
+                  ? "border border-[rgba(49,140,233,0.38)] bg-[rgba(49,140,233,0.12)] font-medium text-[#7CB8F2]"
+                  : "text-muted-foreground hover:text-foreground",
               )}
             >
               {m === "day" ? "Dia" : "Mês"}

@@ -2,10 +2,8 @@ import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
   Target,
-  Wallet,
   Link2,
   MoreHorizontal,
-  Upload,
   MousePointerClick,
   Globe,
   Settings,
@@ -38,16 +36,14 @@ interface NavItem {
 const primaryItems: NavItem[] = [
   { icon: LayoutDashboard, label: "Início", path: "/dashboard" },
   { icon: Target, label: "Campanhas", path: "/dashboard/campanhas", isNew: true },
-  { icon: Wallet, label: "Custos", path: "/dashboard/investimentos" },
+  { icon: MousePointerClick, label: "Upload Cliques", path: "/dashboard/upload-cliques" },
   { icon: Link2, label: "Links", path: "/dashboard/links" },
 ];
 
 // Demais ações vão para o drawer "Mais"
 const moreItems: NavItem[] = [
-  { icon: Upload, label: "Upload Comissão", path: "/dashboard/upload" },
-  { icon: MousePointerClick, label: "Upload Cliques", path: "/dashboard/upload-cliques" },
   { icon: Globe, label: "Página de Captura", path: "/dashboard/captura" },
-  { icon: Settings, label: "Configurações", path: "/dashboard/configuracoes", isNew: true },
+  { icon: Settings, label: "Configurações", path: "/dashboard/configuracoes" },
 ];
 
 const WHATSAPP_NUMBER = import.meta.env.VITE_WHATSAPP_NUMBER;
@@ -106,7 +102,7 @@ const MobileBottomNav = () => {
                 className={cn(
                   tabBase,
                   isActive
-                    ? "text-primary"
+                    ? "text-[#7CB8F2]"
                     : "text-muted-foreground hover:text-foreground"
                 )}
                 aria-label={item.label}
@@ -159,7 +155,7 @@ const MobileBottomNav = () => {
                     className={cn(
                       "flex flex-col items-center justify-center gap-2 rounded-xl border p-4 text-center transition-colors min-h-[88px]",
                       isActive
-                        ? "border-primary/40 bg-primary/10 text-primary"
+                        ? "border-[rgba(49,140,233,0.38)] bg-[rgba(49,140,233,0.12)] text-[#7CB8F2]"
                         : "border-border bg-card text-foreground hover:bg-accent"
                     )}
                   >

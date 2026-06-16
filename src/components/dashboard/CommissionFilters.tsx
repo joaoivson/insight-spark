@@ -70,7 +70,7 @@ const Chip = ({ active, onClick, children }: { active: boolean; onClick: () => v
     className={cn(
       "rounded-lg border px-3.5 py-2 text-[12.5px] transition-colors",
       active
-        ? "border-primary bg-primary font-semibold text-primary-foreground"
+        ? "border-[rgba(49,140,233,0.38)] bg-[rgba(49,140,233,0.12)] font-semibold text-[#7CB8F2]"
         : "border-border bg-card text-muted-foreground hover:border-white/15",
     )}
   >
@@ -196,7 +196,7 @@ const CommissionFilters = ({
       className={cn(
         "inline-flex items-center gap-1.5 rounded-lg border px-3.5 py-2 text-[12.5px] transition-colors",
         customActive
-          ? "border-primary bg-primary font-semibold text-primary-foreground"
+          ? "border-[rgba(49,140,233,0.38)] bg-[rgba(49,140,233,0.12)] font-semibold text-[#7CB8F2]"
           : "border-border bg-card text-muted-foreground hover:border-white/15",
       )}
       aria-label="Selecionar período personalizado"

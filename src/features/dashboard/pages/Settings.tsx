@@ -153,7 +153,7 @@ const SettingsPage = () => {
   };
 
   return (
-    <DashboardLayout title="Configurações" subtitle="Gerencie sua conta e preferências">
+    <DashboardLayout title="Configurações">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}

@@ -1097,10 +1097,7 @@ export const CapturaSite = () => {
   };
 
   return (
-    <DashboardLayout
-      title="Gestão de Páginas"
-      subtitle="Gerencie e personalize seus sites de captura de alto impacto."
-    >
+    <DashboardLayout title="Gestão de Páginas">
       <div className="flex-1 min-h-screen py-4">
         {viewMode === 'list' ? renderListView() : renderEditorView()}
       </div>

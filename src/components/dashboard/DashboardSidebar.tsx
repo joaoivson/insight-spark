@@ -1,20 +1,13 @@
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
-  Upload,
-  FileText,
-  Puzzle,
   LogOut,
   LayoutDashboard,
   ChevronLeft,
   ChevronRight,
-  Wallet,
   X,
   MousePointerClick,
   Globe,
   Link2,
-  Plug,
-  Users,
-  ShieldCheck,
   Target,
   Settings,
 } from "lucide-react";
@@ -37,13 +30,11 @@ import { useIsMobile } from "@/shared/hooks/use-mobile";
 
 const menuItems = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
-  { icon: Upload, label: "Upload Comissão", path: "/dashboard/upload" },
-  { icon: MousePointerClick, label: "Upload Cliques", path: "/dashboard/upload-cliques" },
   { icon: Target, label: "Campanhas", path: "/dashboard/campanhas", isNew: true },
-  { icon: Wallet, label: "Custos de Anúncios", path: "/dashboard/investimentos" },
+  { icon: MousePointerClick, label: "Upload Cliques", path: "/dashboard/upload-cliques" },
   { icon: Globe, label: "Página de Captura", path: "/dashboard/captura" },
   { icon: Link2, label: "Meus Links", path: "/dashboard/links" },
-  { icon: Settings, label: "Configurações", path: "/dashboard/configuracoes", isNew: true },
+  { icon: Settings, label: "Configurações", path: "/dashboard/configuracoes" },
   // { icon: Users, label: "Indique & Ganhe", path: "/dashboard/afiliados", isNew: true },
 ];
 
@@ -159,18 +150,18 @@ const DashboardSidebar = ({ mobileMenuOpen = false, onMobileMenuClose }: Dashboa
           {visibleMenu.map((item) => {
             const isActive = location.pathname === item.path && !isDemo;
             const classes = cn(
-              "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200",
+              "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 border-l-[3px] border-l-transparent",
               "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent",
-              isActive && "bg-sidebar-primary text-sidebar-primary-foreground hover:bg-sidebar-primary",
+              isActive && "bg-[rgba(49,140,233,0.12)] border-l-[#318CE9] hover:bg-[rgba(49,140,233,0.12)]",
               collapsed && !isMobile && "justify-center px-0",
               "w-full"
             );
             const itemContent = (
               <>
-                <item.icon className="w-5 h-5 flex-shrink-0" aria-hidden="true" />
+                <item.icon className={cn("w-5 h-5 flex-shrink-0", isActive && "text-[#318CE9]")} aria-hidden="true" />
                 {(!collapsed || isMobile) && (
                   <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 min-w-0 flex-1">
-                    <span className="font-medium">{item.label}</span>
+                    <span className={cn("font-medium", isActive && "text-white")}>{item.label}</span>
                     {item.isNew && (
                       <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-primary/20 text-primary flex-shrink-0">
                         Novo

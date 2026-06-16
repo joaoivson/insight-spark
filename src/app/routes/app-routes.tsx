@@ -20,7 +20,6 @@ import UploadCSV from "@/features/dashboard/pages/UploadCSV";
 import Reports from "@/features/dashboard/pages/Reports";
 import Modules from "@/features/dashboard/pages/Modules";
 import Settings from "@/features/dashboard/pages/Settings";
-import AdSpends from "@/features/dashboard/pages/AdSpends";
 import CapturaSite from "@/features/dashboard/pages/CapturaSite";
 import CustomLinks from "@/features/dashboard/pages/CustomLinks";
 import CaptureViewer from "@/features/landing/pages/CaptureViewer";
@@ -164,12 +163,12 @@ export const AppRoutes = () => {
         {/* Protected Routes */}
         <Route path="/dashboard" element={<ProtectedRoute element={<Dashboard />} />} />
         <Route path="/dashboard/captura" element={<ProtectedRoute element={<CapturaSite />} />} />
-        <Route path="/dashboard/upload" element={<ProtectedRoute element={<UploadCSV />} />} />
+        {/* "Upload Comissão" (/dashboard/upload) removido: comissão vem 100% da API Shopee. */}
         <Route path="/dashboard/upload-cliques" element={<ProtectedRoute element={<UploadCSV />} />} />
         <Route path="/dashboard/reports" element={<ProtectedRoute element={<Reports />} />} />
         <Route path="/dashboard/modules" element={<ProtectedRoute element={<Modules />} />} />
         <Route path="/dashboard/settings" element={<ProtectedRoute element={<Settings />} />} />
-        <Route path="/dashboard/investimentos" element={<ProtectedRoute element={<AdSpends />} />} />
+        {/* "Custos de Anúncios" (/dashboard/investimentos) removido: gasto vem 100% da API Meta. */}
         <Route path="/dashboard/campanhas" element={<ProtectedRoute element={<Campanhas />} />} />
         <Route path="/dashboard/configuracoes" element={<ProtectedRoute element={<Configuracoes />} />} />
         <Route path="/dashboard/links" element={<ProtectedRoute element={<CustomLinks />} />} />

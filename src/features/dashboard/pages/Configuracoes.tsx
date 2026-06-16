@@ -24,7 +24,7 @@ const Configuracoes = () => {
   const [tab, setTab] = useState<string>(resolveInitialTab);
 
   return (
-    <DashboardLayout title="Configurações" subtitle="Gerencie suas integrações e preferências">
+    <DashboardLayout title="Configurações">
       <Tabs value={tab} onValueChange={setTab} className="max-w-3xl">
         <div className="-mx-4 px-4 md:mx-0 md:px-0 overflow-x-auto mb-6">
           <TabsList className="w-max">
