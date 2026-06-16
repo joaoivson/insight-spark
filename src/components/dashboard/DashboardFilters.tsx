@@ -1,7 +1,15 @@
-import { Calendar, FilterX } from "lucide-react";
+import { Calendar, Filter, X, FilterX, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import {
   Sheet,
   SheetContent,
@@ -13,11 +21,11 @@ import {
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useState, useMemo } from "react";
-import { parseDateOnly, toDateKey } from "@/shared/lib/date";
-import { cn } from "@/shared/lib/utils";
+import { parseDateOnly } from "@/shared/lib/date";
 import { useIsMobile } from "@/shared/hooks/use-mobile";
 
 type DateRange = { from?: Date; to?: Date };
@@ -28,6 +36,7 @@ interface DashboardFiltersProps {
   onClear: () => void;
   hasActive: boolean;
   loading?: boolean;
+  // Additional filters
   statusFilter?: string;
   categoryFilter?: string;
   subIdFilter?: string;
@@ -37,46 +46,21 @@ interface DashboardFiltersProps {
   statusOptions?: string[];
   categoryOptions?: string[];
   subIdOptions?: string[];
+  // Year and Mes/Ano
+  yearFilter?: string;
+  onYearFilterChange?: (value: string) => void;
+  yearOptions?: string[];
+  mesAnoFilter?: string;
+  onMesAnoFilterChange?: (value: string) => void;
+  mesAnoOptions?: string[];
+  // Search
+  searchTerm?: string;
+  onSearchChange?: (value: string) => void;
+  // Data for calculating max date
   rows?: Array<{ date: string }>;
   adSpends?: Array<{ date: string }>;
   clicks?: Array<{ date: string }>;
 }
-
-/** Fim do dia anterior fechado (não inclui o dia atual, que é parcial). */
-function yesterday(): Date {
-  const d = new Date();
-  d.setDate(d.getDate() - 1);
-  return d;
-}
-
-/** Atalhos cortam em ontem. 7d/14d = janela terminando ontem; mês atual = 1º do mês → ontem. */
-function presetRange(kind: "7d" | "14d" | "month"): DateRange {
-  const to = yesterday();
-  if (kind === "month") {
-    const now = new Date();
-    const from = new Date(now.getFullYear(), now.getMonth(), 1);
-    return { from: from > to ? to : from, to };
-  }
-  const days = kind === "7d" ? 7 : 14;
-  const from = new Date(to);
-  from.setDate(to.getDate() - (days - 1));
-  return { from, to };
-}
-
-const Chip = ({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) => (
-  <button
-    type="button"
-    onClick={onClick}
-    className={cn(
-      "rounded-lg border px-3.5 py-2 text-[12.5px] transition-colors",
-      active
-        ? "border-primary bg-primary font-semibold text-primary-foreground"
-        : "border-border bg-card text-muted-foreground hover:border-white/15",
-    )}
-  >
-    {children}
-  </button>
-);
 
 const DashboardFilters = ({
   dateRange,
@@ -93,75 +77,135 @@ const DashboardFilters = ({
   statusOptions = [],
   categoryOptions = [],
   subIdOptions = [],
+  yearFilter = "",
+  onYearFilterChange,
+  yearOptions = [],
+  mesAnoFilter = "",
+  onMesAnoFilterChange,
+  mesAnoOptions = [],
   rows = [],
   adSpends = [],
   clicks = [],
+  searchTerm = "",
+  onSearchChange,
 }: DashboardFiltersProps) => {
   const isMobile = useIsMobile();
   const [open, setOpen] = useState(false);
   const [localRange, setLocalRange] = useState<DateRange>({ from: dateRange.from, to: dateRange.to });
 
   const today = new Date();
-
+  
+  // Calculate min and max dates from available data (rows, adSpends, clicks)
   const { minDate, maxDate } = useMemo(() => {
     const dates: Date[] = [];
-    const processItems = (items: Array<{ date: string }>) => {
+    
+    const processItems = (items: any[]) => {
       items.forEach((item) => {
         if (item.date) {
           const date = parseDateOnly(item.date);
-          if (date && !isNaN(date.getTime())) dates.push(date);
+          if (date && !isNaN(date.getTime())) {
+            dates.push(date);
+          }
         }
       });
     };
+
     processItems(rows);
     processItems(adSpends);
     processItems(clicks);
-
+    
+    if (dates.length === 0) {
+      const defaultMin = new Date(today);
+      defaultMin.setDate(today.getDate() - 89); // Default to last 90 days if no data
+      return { minDate: defaultMin, maxDate: today };
+    }
+    
+    const min = new Date(Math.min(...dates.map(d => d.getTime())));
+    const max = new Date(Math.max(...dates.map(d => d.getTime())));
+    
+    // Ensure minDate is at least 90 days ago if the oldest data is more recent
     const ninetyDaysAgo = new Date(today);
     ninetyDaysAgo.setDate(today.getDate() - 89);
-
-    if (dates.length === 0) return { minDate: ninetyDaysAgo, maxDate: today };
-    const min = new Date(Math.min(...dates.map((d) => d.getTime())));
-    const max = new Date(Math.max(...dates.map((d) => d.getTime())));
-    return { minDate: min < ninetyDaysAgo ? min : ninetyDaysAgo, maxDate: max > today ? max : today };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    
+    return {
+      minDate: min < ninetyDaysAgo ? min : ninetyDaysAgo,
+      maxDate: max > today ? max : today
+    };
   }, [rows, adSpends, clicks]);
-
+  
+  const maxDays = useMemo(() => {
+    if (!minDate || !maxDate) return 90;
+    return Math.ceil(Math.abs(maxDate.getTime() - minDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+  }, [minDate, maxDate]);
+  
+  // Calculate previous month for defaultMonth (to show "Previous Month | Current Month")
   const previousMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
 
-  // Qual chip está ativo (compara as date-keys do range atual com cada preset).
-  const keyEq = (a?: Date, b?: Date) => !!a && !!b && toDateKey(a) === toDateKey(b);
-  const matchesPreset = (kind: "7d" | "14d" | "month") => {
-    const p = presetRange(kind);
-    return keyEq(dateRange.from, p.from) && keyEq(dateRange.to, p.to);
-  };
-  const active7 = matchesPreset("7d");
-  const active14 = matchesPreset("14d");
-  const activeMonth = matchesPreset("month");
-  const customActive = (!!dateRange.from || !!dateRange.to) && !active7 && !active14 && !activeMonth;
-
-  const applyPreset = (kind: "7d" | "14d" | "month") => {
-    const range = presetRange(kind);
-    setLocalRange(range);
+  const applyPreset = (days: number | "all" | "currentMonth" | "previousMonth") => {
+    if (days === "all") {
+      setLocalRange({});
+      setOpen(false);
+      onDateRangeApply({});
+      return;
+    }
+    if (days === "currentMonth") {
+      const now = new Date();
+      const from = new Date(now.getFullYear(), now.getMonth(), 1);
+      const to = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+      setLocalRange({ from, to });
+      setOpen(false);
+      onDateRangeApply({ from, to });
+      return;
+    }
+    if (days === "previousMonth") {
+      const now = new Date();
+      const from = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const to = new Date(now.getFullYear(), now.getMonth(), 0);
+      setLocalRange({ from, to });
+      setOpen(false);
+      onDateRangeApply({ from, to });
+      return;
+    }
+    const to = new Date();
+    const from = new Date();
+    from.setDate(to.getDate() - (days - 1));
+    setLocalRange({ from, to });
     setOpen(false);
-    onDateRangeApply(range);
+    onDateRangeApply({ from, to });
   };
-
-  const isValidRange = !!(localRange.from && localRange.to && localRange.from <= localRange.to);
 
   const handleApply = () => {
-    if (isValidRange) {
+    if (localRange.from && localRange.to && isValidRange) {
       setOpen(false);
       onDateRangeApply(localRange);
     }
   };
+
+  const isValidRange = (() => {
+    const { from, to } = localRange;
+    if (from && to) {
+      const diff = Math.abs(to.getTime() - from.getTime());
+      return diff <= maxDays * 24 * 60 * 60 * 1000 && from >= minDate && to <= maxDate;
+    }
+    return false;
+  })();
 
   const calendarContent = (
     <>
       <CalendarComponent
         mode="range"
         selected={{ from: localRange.from, to: localRange.to }}
-        onSelect={(range) => setLocalRange({ from: range?.from, to: range?.to })}
+        onSelect={(range) => {
+          let from = range?.from;
+          let to = range?.to;
+          if (from && from < minDate) from = minDate;
+          if (to && to < minDate) to = minDate;
+          if (from && to) {
+            const diff = Math.abs(to.getTime() - from.getTime());
+            if (diff > maxDays * 24 * 60 * 60 * 1000) return;
+          }
+          setLocalRange({ from, to });
+        }}
         locale={ptBR}
         numberOfMonths={isMobile ? 1 : 2}
         defaultMonth={isMobile ? today : previousMonth}
@@ -169,64 +213,91 @@ const DashboardFilters = ({
         toDate={maxDate}
         className={isMobile ? "w-full" : ""}
       />
-      <div className="space-y-2 border-t border-border p-3">
-        <Button
-          size="sm"
-          onClick={handleApply}
-          disabled={!isValidRange || loading}
-          loading={loading}
-          loadingText="Aplicando..."
-          className="w-full sm:w-auto"
-          aria-label="Aplicar período personalizado"
-        >
-          Aplicar
-        </Button>
+      <div className="p-3 border-t border-border space-y-2">
+        <div className="text-xs text-muted-foreground">Atalhos</div>
+        <div className="flex flex-wrap gap-2">
+          <Button size="sm" variant="secondary" onClick={() => applyPreset("all")}>
+            Todo período
+          </Button>
+          <Button size="sm" variant="secondary" onClick={() => applyPreset(7)}>
+            Últimos 7 dias
+          </Button>
+          <Button size="sm" variant="secondary" onClick={() => applyPreset("currentMonth")}>
+            Mês atual
+          </Button>
+          <Button size="sm" variant="secondary" onClick={() => applyPreset("previousMonth")}>
+            Mês Passado
+          </Button>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button size="sm" variant="secondary" onClick={() => applyPreset(15)}>
+            Últimos 15 dias
+          </Button>
+          <Button size="sm" variant="secondary" onClick={() => applyPreset(30)}>
+            Últimos 30 dias
+          </Button>
+          <Button size="sm" variant="secondary" onClick={() => applyPreset(60)}>
+            Últimos 60 dias
+          </Button>
+        </div>
+            <div className="flex items-center gap-2">
+              <Button 
+                size="sm" 
+                onClick={handleApply} 
+                disabled={!isValidRange || loading}
+                loading={loading}
+                loadingText="Aplicando..."
+                className="w-full sm:w-auto"
+                aria-label="Aplicar filtro de data"
+              >
+                Aplicar
+              </Button>
+            </div>
       </div>
     </>
   );
 
-  const customLabel =
-    customActive && dateRange.from && dateRange.to
-      ? `${format(dateRange.from, "dd/MM", { locale: ptBR })} – ${format(dateRange.to, "dd/MM", { locale: ptBR })}`
-      : "Personalizado";
-
-  const customChip = (
-    <button
-      type="button"
-      className={cn(
-        "inline-flex items-center gap-1.5 rounded-lg border px-3.5 py-2 text-[12.5px] transition-colors",
-        customActive
-          ? "border-primary bg-primary font-semibold text-primary-foreground"
-          : "border-border bg-card text-muted-foreground hover:border-white/15",
+  const dateButton = (
+    <Button variant="outline" className="w-full sm:w-auto sm:min-w-[220px] justify-start" aria-label="Selecionar período">
+      <Calendar className="w-4 h-4 mr-2" aria-hidden="true" />
+      {dateRange.from || dateRange.to ? (
+        dateRange.from && dateRange.to ? (
+          <>
+            {format(dateRange.from, "dd/MM/yy", { locale: ptBR })} -{" "}
+            {format(dateRange.to, "dd/MM/yy", { locale: ptBR })}
+          </>
+        ) : dateRange.from ? (
+          format(dateRange.from, "dd/MM/yyyy", { locale: ptBR })
+        ) : dateRange.to ? (
+          format(dateRange.to, "dd/MM/yyyy", { locale: ptBR })
+        ) : null
+      ) : (
+        "Todo período"
       )}
-      aria-label="Selecionar período personalizado"
-    >
-      <Calendar className="h-3.5 w-3.5" />
-      {customLabel}
-    </button>
+    </Button>
   );
 
   return (
-    <div className="mb-6 flex flex-col gap-3 rounded-xl border border-border bg-card p-3 md:flex-row md:flex-wrap md:items-center md:gap-x-3 md:gap-y-2 md:p-4">
-      {/* Período em chips (cortam no fim de ontem) */}
-      <div className="flex flex-wrap items-center gap-2">
-        <Chip active={active7} onClick={() => applyPreset("7d")}>7 dias</Chip>
-        <Chip active={active14} onClick={() => applyPreset("14d")}>14 dias</Chip>
-        <Chip active={activeMonth} onClick={() => applyPreset("month")}>Mês atual</Chip>
+    <div className="bg-card rounded-xl border border-border p-3 md:p-4 mb-6 flex flex-col gap-3 md:flex-row md:flex-wrap md:items-center md:gap-x-3 md:gap-y-2">
+      {/* Date Range - Mobile uses Sheet, Desktop uses Popover */}
+      <div className="flex flex-col gap-1.5 md:flex-row md:items-center">
+        <Label htmlFor="period-filter" className="text-xs font-medium text-muted-foreground whitespace-nowrap">
+          Período:
+        </Label>
         {isMobile ? (
           <Sheet open={open} onOpenChange={setOpen}>
-            <SheetTrigger asChild>{customChip}</SheetTrigger>
+            <SheetTrigger asChild>{dateButton}</SheetTrigger>
             <SheetContent side="bottom" className="h-[90vh] overflow-y-auto">
               <SheetHeader>
-                <SheetTitle>Período personalizado</SheetTitle>
-                <SheetDescription>Escolha o intervalo de datas</SheetDescription>
+                <SheetTitle>Selecionar Período</SheetTitle>
+                <SheetDescription>Escolha o intervalo de datas para filtrar os dados</SheetDescription>
               </SheetHeader>
               <div className="mt-4">{calendarContent}</div>
             </SheetContent>
           </Sheet>
         ) : (
           <Popover open={open} onOpenChange={setOpen}>
-            <PopoverTrigger asChild>{customChip}</PopoverTrigger>
+            <PopoverTrigger asChild>{dateButton}</PopoverTrigger>
             <PopoverContent className="w-auto p-0" align="start">
               {calendarContent}
             </PopoverContent>
@@ -234,14 +305,14 @@ const DashboardFilters = ({
         )}
       </div>
 
-      {/* Status */}
+      {/* Status Filter */}
       {onStatusFilterChange && (
         <div className="flex flex-col gap-1.5 md:flex-row md:items-center">
-          <Label htmlFor="status-filter" className="whitespace-nowrap text-xs font-medium text-muted-foreground">
+          <Label htmlFor="status-filter" className="text-xs font-medium text-muted-foreground whitespace-nowrap">
             Status:
           </Label>
           <Select value={statusFilter || "all"} onValueChange={(v) => onStatusFilterChange(v === "all" ? "" : v)}>
-            <SelectTrigger id="status-filter" className="h-9 w-full sm:w-[140px]" aria-label="Filtrar por status">
+            <SelectTrigger id="status-filter" className="w-full sm:w-[140px] h-9" aria-label="Filtrar por status do pedido">
               <SelectValue placeholder="Todos" />
             </SelectTrigger>
             <SelectContent>
@@ -254,14 +325,14 @@ const DashboardFilters = ({
         </div>
       )}
 
-      {/* Categoria */}
+      {/* Category Filter */}
       {onCategoryFilterChange && (
         <div className="flex flex-col gap-1.5 md:flex-row md:items-center">
-          <Label htmlFor="category-filter" className="whitespace-nowrap text-xs font-medium text-muted-foreground">
+          <Label htmlFor="category-filter" className="text-xs font-medium text-muted-foreground whitespace-nowrap">
             Categoria:
           </Label>
           <Select value={categoryFilter || "all"} onValueChange={(v) => onCategoryFilterChange(v === "all" ? "" : v)}>
-            <SelectTrigger id="category-filter" className="h-9 w-full sm:w-[140px]" aria-label="Filtrar por categoria">
+            <SelectTrigger id="category-filter" className="w-full sm:w-[140px] h-9" aria-label="Filtrar por categoria global">
               <SelectValue placeholder="Todas" />
             </SelectTrigger>
             <SelectContent>
@@ -274,14 +345,14 @@ const DashboardFilters = ({
         </div>
       )}
 
-      {/* Sub ID */}
+      {/* Sub ID Filter */}
       {onSubIdFilterChange && (
         <div className="flex flex-col gap-1.5 md:flex-row md:items-center">
-          <Label htmlFor="subid-filter" className="whitespace-nowrap text-xs font-medium text-muted-foreground">
-            Sub ID:
+          <Label htmlFor="subid-filter" className="text-xs font-medium text-muted-foreground whitespace-nowrap">
+            SubId:
           </Label>
           <Select value={subIdFilter || "all"} onValueChange={(v) => onSubIdFilterChange(v === "all" ? "" : v)}>
-            <SelectTrigger id="subid-filter" className="h-9 w-full sm:w-[140px]" aria-label="Filtrar por sub ID">
+            <SelectTrigger id="subid-filter" className="w-full sm:w-[140px] h-9" aria-label="Filtrar por canal ou sub ID">
               <SelectValue placeholder="Todos" />
             </SelectTrigger>
             <SelectContent>
@@ -294,30 +365,68 @@ const DashboardFilters = ({
         </div>
       )}
 
-      <div className="md:ml-auto">
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant={hasActive ? "destructive" : "ghost"}
-              size="icon"
-              onClick={onClear}
-              disabled={loading || !hasActive}
-              className={cn(
-                "h-10 w-10 shrink-0 rounded-lg transition-all duration-300",
-                hasActive
-                  ? "shadow-sm shadow-destructive/20"
-                  : "text-muted-foreground hover:bg-destructive/10 hover:text-destructive",
-              )}
-              aria-label="Limpar filtros"
-            >
-              <FilterX className={cn(hasActive ? "h-5 w-5" : "h-4 w-4", "transition-all")} />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>Limpar filtros</p>
-          </TooltipContent>
-        </Tooltip>
-      </div>
+      {/* Year Filter */}
+      {onYearFilterChange && (
+        <div className="flex flex-col gap-1.5 md:flex-row md:items-center">
+          <Label htmlFor="year-filter" className="text-xs font-medium text-muted-foreground whitespace-nowrap">
+            Ano:
+          </Label>
+          <Select value={yearFilter || "all"} onValueChange={(v) => onYearFilterChange(v === "all" ? "" : v)}>
+            <SelectTrigger id="year-filter" className="w-full sm:w-[100px] h-9">
+              <SelectValue placeholder="Todos" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos</SelectItem>
+              {yearOptions.map((y) => (
+                <SelectItem key={y} value={y}>{y}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+
+      {/* Mes/Ano Filter */}
+      {onMesAnoFilterChange && (
+        <div className="flex flex-col gap-1.5 md:flex-row md:items-center">
+          <Label htmlFor="mes-ano-filter" className="text-xs font-medium text-muted-foreground whitespace-nowrap">
+            Mês/Ano:
+          </Label>
+          <Select value={mesAnoFilter || "all"} onValueChange={(v) => onMesAnoFilterChange(v === "all" ? "" : v)}>
+            <SelectTrigger id="mes-ano-filter" className="w-full sm:w-[120px] h-9">
+              <SelectValue placeholder="Todos" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos</SelectItem>
+              {mesAnoOptions.map((ma) => (
+                <SelectItem key={ma} value={ma}>{ma}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+
+      {/* Clear */}
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button 
+            variant={hasActive ? "destructive" : "ghost"} 
+            size="icon" 
+            onClick={onClear} 
+            disabled={loading || !hasActive} 
+            className={`h-10 w-10 rounded-lg shrink-0 transition-all duration-300 ${
+              hasActive 
+                ? "shadow-sm shadow-destructive/20 animate-in fade-in zoom-in duration-300" 
+                : "text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+            }`}
+            aria-label="Limpar filtros"
+          >
+            <FilterX className={`${hasActive ? "w-5 h-5" : "w-4 h-4"} transition-all`} aria-hidden="true" />
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>
+          <p>Limpar filtros</p>
+        </TooltipContent>
+      </Tooltip>
     </div>
   );
 };

@@ -2,7 +2,7 @@ import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import DashboardKpiCards from "@/components/dashboard/DashboardKpiCards";
 import CommissionChart from "@/components/dashboard/CommissionChart";
 import CommissionBlocks from "@/components/dashboard/CommissionBlocks";
-import DashboardFilters from "@/components/dashboard/DashboardFilters";
+import CommissionFilters from "@/components/dashboard/CommissionFilters";
 import DashboardClicks from "@/components/dashboard/DashboardClicks";
 import { motion } from "framer-motion";
 import { useEffect, useMemo, useState } from "react";
@@ -116,7 +116,7 @@ const Dashboard = () => {
             </Tabs>
           </div>
 
-          <DashboardFilters
+          <CommissionFilters
             dateRange={dateRange}
             onDateRangeApply={(range) => {
               setDateRange(range);
