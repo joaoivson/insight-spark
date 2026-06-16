@@ -10,7 +10,6 @@ export const APP_CONFIG = {
     HOME: '/',
     LOGIN: '/login',
     DASHBOARD: '/dashboard',
-    DASHBOARD_UPLOAD: '/dashboard/upload',
     DASHBOARD_REPORTS: '/dashboard/reports',
     DASHBOARD_MODULES: '/dashboard/modules',
     DASHBOARD_SETTINGS: '/dashboard/settings',
