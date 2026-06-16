@@ -26,8 +26,9 @@ const Footer = () => {
               Transforme seus CSVs em insights acionáveis.
             </p>
             <div className="mt-4 text-primary-foreground/60 text-xs leading-relaxed">
+              <p className="font-medium text-primary-foreground/75">Desenvolvido por</p>
               <p>ORQUESTRA IA - TRANSFORMANDO SOLUÇÕES LTDA — CNPJ: 66.641.347/0001-21</p>
-              <p>Rua da Carioca, número 1379, Uberlândia-MG – CEP 38.411-151</p>
+              <p>Rua da Carioca, 1379 — Morada da Colina, Uberlândia-MG — CEP 38.411-151</p>
             </div>
           </div>
 
