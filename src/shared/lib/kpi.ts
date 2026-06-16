@@ -31,6 +31,8 @@ export const calcTotals = (
   opts: { dateRange?: DateRange; subIdFilter?: string; tax?: TaxRates }
 ) => {
   const tax = opts.tax ?? ZERO_TAX;
+  // NB: espera `rows` JÁ filtradas por dateRange pelo chamador (o Dashboard passa filteredRows).
+  // O gasto (adSpends) é filtrado por data/subId aqui mesmo, logo abaixo.
   const kpiRows = filterKpiRows(rows);
 
   // Trunca (Math.floor) por linha e soma — alinha ao relatório original Shopee
@@ -50,7 +52,7 @@ export const calcTotals = (
   const comissao = Math.round(netCommission(comissaoBruta, tax) * 100) / 100;
   const gastoAnuncios = Math.round(grossUpSpend(gastoPago, tax) * 100) / 100;
   const lucro = Math.round((comissao - gastoAnuncios) * 100) / 100;
-  const roas = gastoAnuncios > 0 ? comissao / gastoAnuncios : 0;
+  const roas = gastoAnuncios > 0 ? Math.round((comissao / gastoAnuncios) * 100) / 100 : 0;
 
   // `comissao`/`gastoAnuncios` já vêm com imposto aplicado (líquida / com markup).
   // `comissaoBruta`/`gastoPago` expõem os valores sem imposto quando necessário.

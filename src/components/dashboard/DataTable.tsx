@@ -34,9 +34,12 @@ export interface DatasetRow {
   product: string;
   platform: string;
   channel?: string | null;
+  /** attributionType da Shopee: "ORDERED_IN_SAME_SHOP" = pedido direto; demais = indireto/cookie. */
+  attribution_type?: string | null;
   category: string;
   status: string;
   sub_id1: string;
+  order_id?: string | null;
   revenue: number;
   commission: number;
   cost: number;
