@@ -640,8 +640,9 @@ const CampaignCard = ({
           </span>
         </div>
 
-        {/* Métricas principais (5): Gasto · Comissão · Lucro · ROAS Real · CPC */}
-        <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-5">
+        {/* Métricas principais (5): Gasto · Comissão · Lucro · ROAS Real · CPC.
+            text-right espelha a tabela do dia a dia (números alinhados à direita). */}
+        <div className="mt-4 grid grid-cols-2 gap-3 text-right sm:grid-cols-5">
           <Metric
             label="Gasto"
             value={formatCurrency(hasTax ? m.spend_with_tax : m.spend)}
@@ -701,10 +702,10 @@ const CampaignCard = ({
                     <tr className="text-right text-muted-foreground">
                       <th className="pb-2 text-left font-normal">Data</th>
                       <th className="pb-2 font-normal">Gasto</th>
-                      <th className="pb-2 font-normal">CPC</th>
                       <th className="pb-2 font-normal">Comissão</th>
                       <th className="pb-2 font-normal">Lucro</th>
                       <th className="pb-2 font-normal">ROAS</th>
+                      <th className="pb-2 font-normal">CPC</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -714,13 +715,13 @@ const CampaignCard = ({
                           {d.date.slice(8, 10)}/{d.date.slice(5, 7)}
                         </td>
                         <td>{d.spend_with_tax.toFixed(2)}</td>
-                        <td>{d.cpc == null ? "—" : d.cpc.toFixed(2)}</td>
                         <td>{d.commission_net.toFixed(2)}</td>
                         <td className={profitClass(d.profit)}>
                           {d.profit >= 0 ? "+" : ""}
                           {d.profit.toFixed(2)}
                         </td>
                         <td className={d.spend > 0 ? roasClass(d.roas) : undefined}>{d.spend > 0 ? fmtRoas(d.roas) : "—"}</td>
+                        <td>{d.cpc == null ? "—" : d.cpc.toFixed(2)}</td>
                       </tr>
                     ))}
                   </tbody>
