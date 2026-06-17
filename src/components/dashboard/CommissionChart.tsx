@@ -104,7 +104,6 @@ const CommissionChart = ({ daySeries, monthSeries }: Props) => {
         <LegendItem color={BLUE} label="Comissão líquida" />
         <LegendItem color={CORAL} label="Gasto c/ imposto" />
         <LegendItem color={GREEN} label="Lucro" line />
-        <span className="ml-auto text-muted-foreground/70">ROAS aparece ao passar o mouse</span>
       </div>
     </div>
   );

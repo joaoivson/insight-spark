@@ -15,7 +15,7 @@ import { isBeforeDateKey, isAfterDateKey } from "@/shared/lib/date";
 import {
   calcDashTotals,
   buildSeries,
-  groupByChannel,
+  groupByChannelFromClicks,
   groupByCategoryAll,
   groupBySubIdCommission,
 } from "@/shared/lib/chart-utils";
@@ -74,7 +74,10 @@ const Dashboard = () => {
   const totals = useMemo(() => calcDashTotals(filteredRows, adSpends, opts), [filteredRows, adSpends, opts]);
   const daySeries = useMemo(() => buildSeries(filteredRows, adSpends, opts, "day"), [filteredRows, adSpends, opts]);
   const monthSeries = useMemo(() => buildSeries(filteredRows, adSpends, opts, "month"), [filteredRows, adSpends, opts]);
-  const channelData = useMemo(() => groupByChannel(filteredRows, dateRange, tax), [filteredRows, dateRange, tax]);
+  const channelData = useMemo(
+    () => groupByChannelFromClicks(filteredRows, clicks, dateRange, tax),
+    [filteredRows, clicks, dateRange, tax],
+  );
   const categoryData = useMemo(() => groupByCategoryAll(filteredRows, dateRange, tax), [filteredRows, dateRange, tax]);
   const subIdData = useMemo(
     () => groupBySubIdCommission(filteredRows, dateRange, tax).slice(0, SUBID_BLOCK_LIMIT),

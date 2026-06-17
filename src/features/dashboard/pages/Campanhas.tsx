@@ -38,6 +38,16 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ResponsiveModal } from "@/components/shared/ResponsiveModal";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { LinkSubIdModal } from "@/features/dashboard/components/LinkSubIdModal";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/shared/lib/utils";
@@ -246,6 +256,13 @@ const Campanhas = () => {
   const unlinkedSpend = campaigns.filter((c) => !c.linked).reduce((acc, c) => acc + c.metrics.spend, 0);
   const lossCount = campaigns.filter((c) => c.linked && c.metrics.roas < 1 && c.metrics.spend > 0).length;
 
+  // A3: se o banner que ativa o filtro deixa de existir (condição zerou — ex.: vinculou
+  // todas as sem-vínculo), volta sozinho pra "Todas" em vez de prender numa tela vazia.
+  useEffect(() => {
+    if (healthFilter === "unlinked" && unlinkedCount === 0) setHealthFilter(null);
+    if (healthFilter === "loss" && lossCount === 0) setHealthFilter(null);
+  }, [healthFilter, unlinkedCount, lossCount]);
+
   const showEmptyState = hydrated && !loading && campaigns.length === 0;
   const initialLoading = loading && !hydrated;
 
@@ -378,9 +395,9 @@ const Campanhas = () => {
           <KpiCard label="Orç./dia" value={formatCurrency(kpis.total_daily_budget)} icon={CalendarRange} valueClass="text-primary" accent loading={initialLoading} />
         </div>
 
-        {/* Avisos */}
+        {/* Avisos — grade de largura fixa (~1/3), alinhados à esquerda; não esticam com um só. */}
         {(unlinkedCount > 0 || lossCount > 0) && !showEmptyState && (
-          <div className="flex flex-col gap-3 sm:flex-row">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             {unlinkedCount > 0 && (
               <AlertBanner
                 variant="warning"
@@ -498,7 +515,7 @@ const AlertBanner = ({
   return (
     <button
       onClick={onClick}
-      className={cn("flex flex-1 items-center gap-3 rounded-xl border px-4 py-3 text-left transition-colors", tone.bg, tone.border)}
+      className={cn("flex items-center gap-3 rounded-xl border px-4 py-3 text-left transition-colors", tone.bg, tone.border)}
     >
       <Icon className={cn("h-4 w-4 flex-shrink-0", tone.text)} aria-hidden="true" />
       <span className="min-w-0">
@@ -543,7 +560,21 @@ const CampaignCard = ({
 
   const [budgetOpen, setBudgetOpen] = useState(false);
   const [budgetValue, setBudgetValue] = useState(String(campaign.daily_budget ?? ""));
+  const [confirmBudgetOpen, setConfirmBudgetOpen] = useState(false);
   const [linkOpen, setLinkOpen] = useState(false);
+
+  // A2: o dia a dia tem que reagir ao período. Ao mudar o range, invalida o cache da
+  // expansão; se o card está aberto, re-busca na hora (antes só buscava 1x na 1ª abertura).
+  useEffect(() => {
+    setDaily(null);
+    if (!expanded) return;
+    setLoadingDaily(true);
+    getCampaignDetail(campaign.id, range)
+      .then((detail) => setDaily(detail.daily))
+      .catch(() => toast({ title: "Erro ao carregar dia a dia", variant: "destructive" }))
+      .finally(() => setLoadingDaily(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [range.startDate, range.endDate]);
 
   const toggleExpand = async () => {
     const next = !expanded;
@@ -575,16 +606,25 @@ const CampaignCard = ({
     }
   };
 
-  const handleSaveBudget = async () => {
+  // A1: valida e ABRE a confirmação antes de qualquer chamada à API (orçamento gasta
+  // dinheiro real — única ação que exige confirmar; pausar/ativar segue direto).
+  const requestSaveBudget = () => {
     const val = parseFloat(budgetValue.replace(",", "."));
     if (isNaN(val) || val <= 0) {
       toast({ title: "Informe um orçamento válido", variant: "destructive" });
       return;
     }
+    setConfirmBudgetOpen(true);
+  };
+
+  const handleSaveBudget = async () => {
+    const val = parseFloat(budgetValue.replace(",", "."));
+    if (isNaN(val) || val <= 0) return;
     setBusy(true);
     try {
       await setCampaignBudget(campaign.id, val);
       onPatch({ daily_budget: val });
+      setConfirmBudgetOpen(false);
       setBudgetOpen(false);
       toast({ title: "Orçamento atualizado no Facebook" });
     } catch (e) {
@@ -641,8 +681,10 @@ const CampaignCard = ({
         </div>
 
         {/* Métricas principais (5): Gasto · Comissão · Lucro · ROAS Real · CPC.
-            text-right espelha a tabela do dia a dia (números alinhados à direita). */}
-        <div className="mt-4 grid grid-cols-2 gap-3 text-right sm:grid-cols-5">
+            B3: no desktop usa o MESMO template de colunas do dia a dia (1ª col = rótulo, alinhada
+            com "Data"), pra cada métrica de cima ficar exatamente sobre a coluna de baixo. */}
+        <div className="mt-4 grid grid-cols-2 gap-3 text-right sm:grid-cols-[minmax(56px,0.8fr)_repeat(5,1fr)]">
+          <div className="hidden text-left text-[11px] text-muted-foreground sm:flex sm:items-end">Resumo</div>
           <Metric
             label="Gasto"
             value={formatCurrency(hasTax ? m.spend_with_tax : m.spend)}
@@ -697,35 +739,35 @@ const CampaignCard = ({
               <Skeleton className="h-20 w-full" />
             ) : daily && daily.length > 0 ? (
               <div className="overflow-x-auto">
-                <table className="w-full text-xs tabular-nums">
-                  <thead>
-                    <tr className="text-right text-muted-foreground">
-                      <th className="pb-2 text-left font-normal">Data</th>
-                      <th className="pb-2 font-normal">Gasto</th>
-                      <th className="pb-2 font-normal">Comissão</th>
-                      <th className="pb-2 font-normal">Lucro</th>
-                      <th className="pb-2 font-normal">ROAS</th>
-                      <th className="pb-2 font-normal">CPC</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {daily.map((d) => (
-                      <tr key={d.date} className="border-t border-border text-right">
-                        <td className="py-2 text-left text-muted-foreground">
-                          {d.date.slice(8, 10)}/{d.date.slice(5, 7)}
-                        </td>
-                        <td>{d.spend_with_tax.toFixed(2)}</td>
-                        <td>{d.commission_net.toFixed(2)}</td>
-                        <td className={profitClass(d.profit)}>
-                          {d.profit >= 0 ? "+" : ""}
-                          {d.profit.toFixed(2)}
-                        </td>
-                        <td className={d.spend > 0 ? roasClass(d.roas) : undefined}>{d.spend > 0 ? fmtRoas(d.roas) : "—"}</td>
-                        <td>{d.cpc == null ? "—" : d.cpc.toFixed(2)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                {/* B3: mesmo template de colunas do resumo de cima → colunas alinhadas verticalmente. */}
+                <div className="min-w-[420px] text-xs tabular-nums">
+                  <div className="grid grid-cols-[minmax(56px,0.8fr)_repeat(5,1fr)] gap-x-3 pb-2 text-right text-muted-foreground">
+                    <span className="text-left font-normal">Data</span>
+                    <span className="font-normal">Gasto</span>
+                    <span className="font-normal">Comissão</span>
+                    <span className="font-normal">Lucro</span>
+                    <span className="font-normal">ROAS</span>
+                    <span className="font-normal">CPC</span>
+                  </div>
+                  {daily.map((d) => (
+                    <div
+                      key={d.date}
+                      className="grid grid-cols-[minmax(56px,0.8fr)_repeat(5,1fr)] gap-x-3 border-t border-border py-2 text-right"
+                    >
+                      <span className="text-left text-muted-foreground">
+                        {d.date.slice(8, 10)}/{d.date.slice(5, 7)}
+                      </span>
+                      <span>{d.spend_with_tax.toFixed(2)}</span>
+                      <span>{d.commission_net.toFixed(2)}</span>
+                      <span className={profitClass(d.profit)}>
+                        {d.profit >= 0 ? "+" : ""}
+                        {d.profit.toFixed(2)}
+                      </span>
+                      <span className={d.spend > 0 ? roasClass(d.roas) : undefined}>{d.spend > 0 ? fmtRoas(d.roas) : "—"}</span>
+                      <span>{d.cpc == null ? "—" : d.cpc.toFixed(2)}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
             ) : (
               <p className="text-xs text-muted-foreground">Sem dados no período.</p>
@@ -763,12 +805,32 @@ const CampaignCard = ({
             <Button variant="outline" className="w-full md:w-auto" onClick={() => setBudgetOpen(false)} disabled={busy}>
               Cancelar
             </Button>
-            <Button className="w-full md:w-auto" onClick={handleSaveBudget} disabled={busy}>
+            <Button className="w-full md:w-auto" onClick={requestSaveBudget} disabled={busy}>
               Salvar no Facebook
             </Button>
           </div>
         </div>
       </ResponsiveModal>
+
+      {/* A1: confirmação antes de gravar o orçamento no Facebook */}
+      <AlertDialog open={confirmBudgetOpen} onOpenChange={setConfirmBudgetOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Alterar orçamento?</AlertDialogTitle>
+            <AlertDialogDescription>
+              De {formatCurrency(campaign.daily_budget ?? 0)} para{" "}
+              {formatCurrency(parseFloat(budgetValue.replace(",", ".")) || 0)} por dia. Isso altera o gasto
+              direto no Facebook.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={busy}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleSaveBudget} disabled={busy}>
+              Confirmar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Modal vínculo — seleção de Sub ID por lista (com sugestões e 1:1) */}
       <LinkSubIdModal

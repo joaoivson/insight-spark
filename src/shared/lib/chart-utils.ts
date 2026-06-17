@@ -291,6 +291,68 @@ export function groupBySubIdCommission(rows: DatasetRow[], dateRange: DateRange,
     .sort((a, b) => b.value - a.value);
 }
 
+type ClickLike = { channel?: string | null; sub_id?: string | null; clicks?: number | null };
+
+function displayChannel(channel?: string | null): string {
+  const t = (channel || "").trim();
+  if (!t) return "Outros";
+  return t.charAt(0).toUpperCase() + t.slice(1).toLowerCase();
+}
+
+/**
+ * B4: mapa sub_id (normalizado, lowercase) → canal dominante, derivado dos CLIQUES
+ * (mesma classificação de origem que a aba Cliques: Instagram/Facebook/Outros...).
+ * Para cada sub_id, escolhe o canal com mais cliques.
+ */
+export function buildSubIdChannelMap(clicks: ClickLike[]): Map<string, string> {
+  const bySub = new Map<string, Map<string, number>>();
+  clicks.forEach((c) => {
+    const sub = normalizeSubId(c.sub_id || "").toLowerCase();
+    if (!sub || sub === "sem sub id") return;
+    const ch = displayChannel(c.channel);
+    if (!bySub.has(sub)) bySub.set(sub, new Map());
+    const m = bySub.get(sub)!;
+    m.set(ch, (m.get(ch) ?? 0) + (c.clicks ?? 0));
+  });
+  const result = new Map<string, string>();
+  bySub.forEach((m, sub) => {
+    let best = "Outros";
+    let bestN = -1;
+    m.forEach((n, ch) => {
+      if (n > bestN) {
+        bestN = n;
+        best = ch;
+      }
+    });
+    result.set(sub, best);
+  });
+  return result;
+}
+
+/**
+ * B4: comissão líquida por CANAL usando a classificação dos cliques (sub_id→canal).
+ * Comissão cujo sub_id não tem clique mapeado cai em "Outros". A Shopee não devolve
+ * canal no conversionReport — então reusa a origem que os cliques já trazem.
+ */
+export function groupByChannelFromClicks(
+  rows: DatasetRow[],
+  clicks: ClickLike[],
+  dateRange: DateRange,
+  tax: TaxRates = ZERO_TAX,
+): { name: string; value: number }[] {
+  const subToChannel = buildSubIdChannelMap(clicks);
+  const filtered = filterKpiRows(filterRowsByDateRange(rows, dateRange));
+  const byChannel = new Map<string, number>();
+  filtered.forEach((r) => {
+    const sub = normalizeSubId(r.sub_id1 || "").toLowerCase();
+    const name = subToChannel.get(sub) || "Outros";
+    byChannel.set(name, (byChannel.get(name) ?? 0) + getComissaoAfiliado(r));
+  });
+  return Array.from(byChannel.entries())
+    .map(([name, value]) => ({ name, value: round2(netCommission(value, tax)) }))
+    .sort((a, b) => b.value - a.value);
+}
+
 /** Comissão líquida por categoria, TODAS (sem corte), maior → menor. */
 export function groupByCategoryAll(rows: DatasetRow[], dateRange: DateRange, tax: TaxRates = ZERO_TAX): { name: string; value: number }[] {
   const filtered = filterKpiRows(filterRowsByDateRange(rows, dateRange));

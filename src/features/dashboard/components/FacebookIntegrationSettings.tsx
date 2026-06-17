@@ -155,6 +155,13 @@ export const FacebookIntegrationSettings = () => {
           Conecte sua conta do Facebook para sincronizar campanhas, gasto e métricas, e controlar pausar/ativar e
           orçamento direto daqui.
         </p>
+        <div className="flex items-start gap-2 rounded-lg border border-border bg-muted/40 p-3 text-xs text-muted-foreground">
+          <Clock className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" />
+          <span>
+            Ao conectar o Meta, o gasto e os cliques do período coberto passam a vir do Meta e substituem
+            lançamentos manuais nesse intervalo. Lançamentos anteriores são mantidos.
+          </span>
+        </div>
         <Button onClick={handleConnect} disabled={busy} className="w-full md:w-auto">
           {busy ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Facebook className="w-4 h-4 mr-2" />}
           Conectar com Facebook

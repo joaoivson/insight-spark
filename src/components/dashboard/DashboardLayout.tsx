@@ -2,9 +2,6 @@ import { ReactNode, useState } from "react";
 import DashboardSidebar from "./DashboardSidebar";
 import DashboardHeader from "./DashboardHeader";
 import MobileBottomNav from "./MobileBottomNav";
-import { useGlobalDataLoading } from "@/shared/hooks/useGlobalDataLoading";
-import { LoadingDataOverlay } from "./LoadingDataOverlay";
-import { AnimatePresence } from "framer-motion";
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -16,14 +13,11 @@ interface DashboardLayoutProps {
 
 const DashboardLayout = ({ children, title, subtitle, subtitleSize, action }: DashboardLayoutProps) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const { showInitialOverlay } = useGlobalDataLoading();
 
+  // E (rodada 5): SEM overlay de bloqueio no login. Com a persistência, os dados já estão no
+  // banco — abre direto com a última sync e o sync roda em background (cron/botão Atualizar).
   return (
     <div className="min-h-screen bg-background flex flex-col md:flex-row">
-      <AnimatePresence>
-        {showInitialOverlay && <LoadingDataOverlay />}
-      </AnimatePresence>
-
       {/* Sidebar - Renders as aside on desktop, Sheet on mobile */}
       <DashboardSidebar mobileMenuOpen={mobileMenuOpen} onMobileMenuClose={() => setMobileMenuOpen(false)} />
       
