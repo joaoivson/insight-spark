@@ -47,6 +47,8 @@ const getInitialState = () => {
 
 export const useAdSpendsStore = create<AdSpendsState>((set, get) => {
   const initial = getInitialState();
+  // Evita revalidações concorrentes em background (stale-while-revalidate).
+  let revalidating = false;
   return {
     adSpends: initial.adSpends,
     fullAdSpends: initial.fullAdSpends,
@@ -64,53 +66,62 @@ export const useAdSpendsStore = create<AdSpendsState>((set, get) => {
     fetchAdSpends: async (opts = {}) => {
       const userId = getUserId();
       const cacheKey = getScopedKey(CACHE_KEY_BASE);
-      const { fullAdSpends, hydrated, loading, loadedUserId } = get();
+
+      // Busca tudo da API e atualiza estado + localStorage. Quando `background=true`
+      // NÃO mexe em `loading` (não pisca o skeleton do dashboard durante a revalidação).
+      const fetchFromApi = async (background: boolean): Promise<AdSpend[]> => {
+        try {
+          // ALWAYS fetch all ad spends for the cache
+          const apiData = await listAdSpends();
+          const now = Date.now();
+          set({ adSpends: apiData, fullAdSpends: apiData, hydrated: true, lastUpdated: now, loadedUserId: getUserId() });
+          localStorage.setItem(cacheKey, JSON.stringify({ adSpends: apiData, lastUpdated: now }));
+          return apiData;
+        } catch (error: any) {
+          if (!background) set({ error: error?.message || "Erro ao carregar investimentos" });
+          return get().adSpends;
+        }
+      };
+
+      // Dispara uma revalidação em background (no máx. 1 em voo).
+      const revalidateInBackground = () => {
+        if (revalidating || get().loading) return;
+        revalidating = true;
+        void fetchFromApi(true).finally(() => { revalidating = false; });
+      };
 
       // Garantia: Se o usuário logado mudou, recarrega do cache dele ou limpa a memória
-      if (userId !== loadedUserId) {
+      if (userId !== get().loadedUserId) {
         const cached = safeGetJSON<{ adSpends: AdSpend[]; lastUpdated?: number }>(cacheKey);
         if (cached && Array.isArray(cached.adSpends)) {
           const now = cached.lastUpdated ?? Date.now();
           set({ adSpends: cached.adSpends, fullAdSpends: cached.adSpends, hydrated: true, lastUpdated: now, loadedUserId: userId });
-          if (!opts.force) return cached.adSpends;
+          if (!opts.force) {
+            revalidateInBackground();
+            return cached.adSpends;
+          }
         } else {
           set({ adSpends: [], fullAdSpends: [], hydrated: false, lastUpdated: null, loadedUserId: userId });
         }
       }
 
-      // 1. Se já temos dados na memória e não foi forçado, apenas retorna
+      const { fullAdSpends, hydrated, loading } = get();
+
+      // 1. Cache quente: retorna imediato E revalida em background (stale-while-revalidate).
+      //    Sem isso, o gasto espelhado do Meta (gravado pelo cron NO SERVIDOR, que não
+      //    invalida o cache do front) NUNCA chegava ao dashboard — o cache localStorage
+      //    ficava preso até um create/update/delete manual de investimento.
       if (hydrated && fullAdSpends.length > 0 && !opts.force) {
         set({ adSpends: fullAdSpends });
+        revalidateInBackground();
         return fullAdSpends;
       }
 
-      // 2. Busca da API
+      // 2. Sem cache (ou force): busca bloqueante (com skeleton).
       if (loading) return get().adSpends;
       set({ loading: true, error: null });
-      
       try {
-        // ALWAYS fetch all ad spends for the cache
-        const apiData = await listAdSpends(); 
-
-        const now = Date.now();
-        // GARANTIA: Seta no estado e NO localStorage IMEDIATAMENTE após o retorno
-        set({ 
-          adSpends: apiData, 
-          fullAdSpends: apiData, 
-          hydrated: true, 
-          lastUpdated: now,
-          loadedUserId: userId
-        });
-
-        localStorage.setItem(cacheKey, JSON.stringify({ 
-          adSpends: apiData, 
-          lastUpdated: now 
-        }));
-
-        return apiData;
-      } catch (error: any) {
-        set({ error: error?.message || "Erro ao carregar investimentos" });
-        return get().adSpends;
+        return await fetchFromApi(false);
       } finally {
         set({ loading: false });
       }
