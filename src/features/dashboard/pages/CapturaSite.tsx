@@ -685,7 +685,7 @@ export const CapturaSite = () => {
                     onChange={(e) => setUrgencyText(e.target.value)}
                   />
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label className="text-[10px] font-bold uppercase text-muted-foreground">Cor do Banner</Label>
                       <div className="flex gap-2">
