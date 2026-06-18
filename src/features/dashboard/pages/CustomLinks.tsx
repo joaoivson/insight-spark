@@ -9,8 +9,11 @@ import { Badge } from "@/components/ui/badge";
 import {
     Plus, ArrowLeft, Copy, Pencil, Trash2, ExternalLink,
     Link2, MousePointerClick, Loader2, Check, AlertCircle,
-    CalendarIcon, X
+    CalendarIcon, X, BarChart3
 } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import ConverterTab from "@/features/dashboard/components/ConverterTab";
+import LinkInsightModal from "@/features/dashboard/components/LinkInsightModal";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -51,6 +54,8 @@ const CustomLinks = () => {
     const [editingLink, setEditingLink] = useState<CustomLink | null>(null);
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [linkToDelete, setLinkToDelete] = useState<CustomLink | null>(null);
+    const [activeTab, setActiveTab] = useState<"converter" | "links">("links");
+    const [insightLink, setInsightLink] = useState<CustomLink | null>(null);
 
     // Form state
     const [formName, setFormName] = useState("");
@@ -95,6 +100,18 @@ const CustomLinks = () => {
             return;
         }
         resetForm();
+        setView("editor");
+    };
+
+    // Ponte da aba "Converter": leva o link curto gerado para o fluxo "Novo Link".
+    const handleConvert = (shortLink: string) => {
+        setActiveTab("links");
+        if (links.length >= MAX_CUSTOM_LINKS) {
+            toast({ title: "Limite de links atingido", description: `Seu plano permite até ${MAX_CUSTOM_LINKS} links personalizados.`, variant: "destructive" });
+            return;
+        }
+        resetForm();
+        setFormUrl(shortLink);
         setView("editor");
     };
 
@@ -338,6 +355,14 @@ const CustomLinks = () => {
                                 </a>
                                 <Button
                                     variant="ghost" size="sm"
+                                    onClick={() => setInsightLink(link)}
+                                    className="h-9 w-9 px-0"
+                                    aria-label="Ver insights do link"
+                                >
+                                    <BarChart3 className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                    variant="ghost" size="sm"
                                     onClick={() => { setLinkToDelete(link); setDeleteDialogOpen(true); }}
                                     className="h-9 w-9 px-0 ml-auto text-destructive hover:text-destructive"
                                     aria-label="Deletar link"
@@ -567,8 +592,40 @@ const CustomLinks = () => {
     return (
         <DashboardLayout>
             <div className="max-w-6xl mx-auto p-4 md:p-6">
-                {view === "list" ? renderList() : renderEditor()}
+                <Tabs
+                    value={activeTab}
+                    onValueChange={(v) => setActiveTab(v as "converter" | "links")}
+                    className="space-y-6"
+                >
+                    <TabsList className="grid w-full max-w-md grid-cols-2">
+                        <TabsTrigger
+                            value="converter"
+                            className="data-[state=active]:border data-[state=active]:border-[rgba(49,140,233,0.38)] data-[state=active]:bg-[rgba(49,140,233,0.12)] data-[state=active]:text-[#7CB8F2]"
+                        >
+                            Converter
+                        </TabsTrigger>
+                        <TabsTrigger
+                            value="links"
+                            className="data-[state=active]:border data-[state=active]:border-[rgba(49,140,233,0.38)] data-[state=active]:bg-[rgba(49,140,233,0.12)] data-[state=active]:text-[#7CB8F2]"
+                        >
+                            Meus Links
+                        </TabsTrigger>
+                    </TabsList>
+
+                    <TabsContent value="converter" className="mt-0">
+                        <ConverterTab onConvert={handleConvert} />
+                    </TabsContent>
+
+                    <TabsContent value="links" className="mt-0">
+                        {view === "list" ? renderList() : renderEditor()}
+                    </TabsContent>
+                </Tabs>
             </div>
+
+            <LinkInsightModal
+                link={insightLink ? { id: insightLink.id, title: insightLink.name, slug: insightLink.slug } : null}
+                onClose={() => setInsightLink(null)}
+            />
 
             <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
                 <AlertDialogContent>

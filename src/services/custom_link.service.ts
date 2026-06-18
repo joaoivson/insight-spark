@@ -37,6 +37,28 @@ export interface SlugCheckResponse {
     suggested_slug: string;
 }
 
+export interface LinkInsight {
+    total_clicks: number;
+    last_click_at: string | null;
+    avg_per_day: number;
+    granularity: string;
+    series: { label: string; value: number }[];
+    series_started_at: string | null;
+}
+
+export async function getLinkInsight(
+    linkId: number,
+    granularity: 'day' | 'month'
+): Promise<LinkInsight> {
+    const url = getApiUrl(`/api/v1/links/${linkId}/insight?granularity=${granularity}`);
+    const res = await fetchWithAuth(url);
+    if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text || "Erro ao carregar insight do link");
+    }
+    return res.json();
+}
+
 export const checkLinkSlug = async (slug: string): Promise<SlugCheckResponse> => {
     const url = getApiUrl(`/api/v1/links/check-slug?slug=${encodeURIComponent(slug)}`);
     const res = await fetchWithAuth(url);
