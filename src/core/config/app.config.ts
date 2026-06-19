@@ -22,6 +22,9 @@ export const APP_CONFIG = {
   },
   EXTERNALS: {
     SUBSCRIBE_URL: 'https://www.cakto.com.br/#integracoes',
+    // Indique & Ganhe — programa de afiliados gerenciado 100% na Kiwify (só link externo,
+    // sem controle no app). Item de menu apenas abre esta URL em nova aba.
+    KIWIFY_AFFILIATE_URL: 'https://dashboard.kiwify.com/join/affiliate/zdxOeVdD',
   },
   STORAGE_KEYS: {
     USER: 'user',

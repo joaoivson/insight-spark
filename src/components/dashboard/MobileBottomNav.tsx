@@ -10,6 +10,7 @@ import {
   Sun,
   Moon,
   LogOut,
+  Gift,
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/shared/lib/utils";
@@ -167,6 +168,19 @@ const MobileBottomNav = () => {
             </div>
 
             <div className="mt-4 grid grid-cols-1 gap-2">
+              {!isDemo && (
+                <a
+                  href={APP_CONFIG.EXTERNALS.KIWIFY_AFFILIATE_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => setMoreOpen(false)}
+                  className="flex items-center gap-3 rounded-xl border border-[#F0A94A]/30 bg-[#F0A94A]/5 px-4 py-3 text-sm font-medium text-foreground transition-colors hover:bg-[#F0A94A]/10"
+                >
+                  <Gift className="w-5 h-5 text-[#F0A94A]" />
+                  Indique &amp; Ganhe
+                </a>
+              )}
+
               <button
                 type="button"
                 onClick={() => {

@@ -10,6 +10,7 @@ import {
   Link2,
   Target,
   Settings,
+  Gift,
 } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -228,6 +229,22 @@ const DashboardSidebar = ({ mobileMenuOpen = false, onMobileMenuClose }: Dashboa
 
       {/* Logout */}
       <div className="border-t border-sidebar-border p-3 flex-shrink-0 flex flex-col gap-1">
+        {!isDemo && (
+          <a
+            href={APP_CONFIG.EXTERNALS.KIWIFY_AFFILIATE_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={cn(
+              "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 w-full",
+              "text-sidebar-foreground/70 hover:text-[#F0A94A] hover:bg-[#F0A94A]/10",
+              collapsed && !isMobile && "justify-center px-0"
+            )}
+            aria-label="Indique e Ganhe"
+          >
+            <Gift className="w-5 h-5 flex-shrink-0 text-[#F0A94A]" aria-hidden="true" />
+            {(!collapsed || isMobile) && <span className="font-medium">Indique &amp; Ganhe</span>}
+          </a>
+        )}
         {waUrl && !isDemo && (
           <a
             href={waUrl}
