@@ -7,6 +7,8 @@ type PlanData = {
   big: string;
   unit: string;
   pill: string;
+  /** Desconto do plano vs. pagar no mensal (vazio no período mensal). */
+  discount: string;
   link: string;
 };
 
@@ -17,20 +19,22 @@ type PeriodData = {
 
 const PERIODS: Record<string, PeriodData> = {
   mensal: {
-    essencial: { big: 'R$ 47', unit: '/mês', pill: '', link: 'uMRfGkI' },
-    pro: { big: 'R$ 67', unit: '/mês', pill: '', link: 'u12boOS' },
+    essencial: { big: 'R$ 47', unit: '/mês', pill: '', discount: '', link: 'uMRfGkI' },
+    pro: { big: 'R$ 67', unit: '/mês', pill: '', discount: '', link: 'u12boOS' },
   },
   trimestral: {
     essencial: {
       big: 'R$ 117',
       unit: '/trimestre',
       pill: 'cobrança trimestral · equivale a R$ 39/mês',
+      discount: '17%',
       link: 'vkKX959',
     },
     pro: {
       big: 'R$ 147',
       unit: '/trimestre',
       pill: 'cobrança trimestral · equivale a R$ 49/mês',
+      discount: '27%',
       link: '9B9lXa6',
     },
   },
@@ -39,12 +43,14 @@ const PERIODS: Record<string, PeriodData> = {
       big: 'R$ 327',
       unit: '/ano',
       pill: 'cobrança anual · equivale a R$ 27,25/mês',
+      discount: '42%',
       link: 'EZ81jlu',
     },
     pro: {
       big: 'R$ 447',
       unit: '/ano',
       pill: 'cobrança anual · equivale a R$ 37,25/mês',
+      discount: '44%',
       link: '4lhuudg',
     },
   },
@@ -70,9 +76,9 @@ const PRO_EXTRA_FEATURES = [
 ];
 
 const TOGGLE_OPTIONS = [
-  { value: 'mensal', label: 'Mensal', badge: '' },
-  { value: 'trimestral', label: 'Trimestral', badge: '-17%' },
-  { value: 'anual', label: 'Anual', badge: '-42%' },
+  { value: 'mensal', label: 'Mensal' },
+  { value: 'trimestral', label: 'Trimestral' },
+  { value: 'anual', label: 'Anual' },
 ];
 
 function FeatureItem({ children, accent }: { children: string; accent?: boolean }) {
@@ -87,6 +93,16 @@ function FeatureItem({ children, accent }: { children: string; accent?: boolean 
       </span>
       <span className="text-sm leading-relaxed text-[#9aa3b2]">{children}</span>
     </li>
+  );
+}
+
+/** Pílula verde com o desconto do plano para o período selecionado. */
+function DiscountPill({ discount }: { discount: string }) {
+  if (!discount) return null;
+  return (
+    <span className="self-center rounded-full bg-[#2BD699]/15 px-2 py-0.5 font-jbmono text-[11px] font-medium leading-none text-[#2BD699]">
+      −{discount}
+    </span>
   );
 }
 
@@ -113,7 +129,7 @@ export default function SalesPrecos() {
 
         {/* Toggle de período */}
         <div className="mt-8 flex justify-center">
-          <div className="flex w-full max-w-[460px] items-stretch gap-1 rounded-xl border border-white/[0.08] bg-[#10141F] p-[5px]">
+          <div className="flex w-full max-w-[420px] items-stretch gap-1 rounded-xl border border-white/[0.08] bg-[#10141F] p-[5px]">
             {TOGGLE_OPTIONS.map((opt) => {
               const active = period === opt.value;
               return (
@@ -121,18 +137,13 @@ export default function SalesPrecos() {
                   key={opt.value}
                   type="button"
                   onClick={() => setPeriod(opt.value)}
-                  className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg px-2 py-2.5 text-sm font-medium transition-colors sm:gap-2 sm:px-4 ${
+                  className={`flex flex-1 items-center justify-center rounded-lg px-2 py-2.5 text-sm font-medium transition-colors sm:px-4 ${
                     active
                       ? 'border border-[#318CE9]/50 bg-[#318CE9]/[0.16] text-[#7CB8F2]'
                       : 'border border-transparent text-[#9aa3b2] hover:text-[#F5F7FA]'
                   }`}
                 >
                   <span className="truncate">{opt.label}</span>
-                  {opt.badge && (
-                    <span className="rounded-full bg-[#2BD699]/15 px-1.5 py-0.5 font-jbmono text-[10px] leading-none text-[#2BD699]">
-                      {opt.badge}
-                    </span>
-                  )}
                 </button>
               );
             })}
@@ -148,11 +159,12 @@ export default function SalesPrecos() {
               Veja o lucro real e controle suas campanhas.
             </p>
 
-            <div className="mt-6 flex items-baseline gap-1.5">
+            <div className="mt-6 flex flex-wrap items-baseline gap-x-2 gap-y-1">
               <span className="font-grotesk text-[46px] font-bold leading-none text-[#F5F7FA]">
                 {data.essencial.big}
               </span>
               <span className="text-sm text-[#9aa3b2]">{data.essencial.unit}</span>
+              <DiscountPill discount={data.essencial.discount} />
             </div>
             {data.essencial.pill && (
               <p className="mt-3 font-jbmono text-xs text-[#6B7280]">
@@ -192,11 +204,12 @@ export default function SalesPrecos() {
               Tudo pra ver, operar e escalar num lugar só.
             </p>
 
-            <div className="mt-6 flex items-baseline gap-1.5">
+            <div className="mt-6 flex flex-wrap items-baseline gap-x-2 gap-y-1">
               <span className="font-grotesk text-[46px] font-bold leading-none text-[#F5F7FA]">
                 {data.pro.big}
               </span>
               <span className="text-sm text-[#9aa3b2]">{data.pro.unit}</span>
+              <DiscountPill discount={data.pro.discount} />
             </div>
             {data.pro.pill && (
               <p className="mt-3 font-jbmono text-xs text-[#7CB8F2]">{data.pro.pill}</p>
