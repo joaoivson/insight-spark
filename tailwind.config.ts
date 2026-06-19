@@ -16,6 +16,10 @@ export default {
       fontFamily: {
         sans: ['Inter', 'sans-serif'],
         display: ['Sora', 'sans-serif'],
+        // Nova página de vendas (landing) — não altera o dashboard (sans/display seguem Inter/Sora)
+        grotesk: ['"Space Grotesk"', 'sans-serif'],
+        manrope: ['Manrope', 'sans-serif'],
+        jbmono: ['"JetBrains Mono"', 'monospace'],
       },
       colors: {
         border: "hsl(var(--border))",

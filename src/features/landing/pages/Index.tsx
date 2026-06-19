@@ -1,33 +1,16 @@
-import { lazy, Suspense, useEffect } from "react";
-import Header from "@/components/landing/Header";
-import Footer from "@/components/landing/Footer";
-import { Skeleton } from "@/components/ui/skeleton";
+import { useEffect } from "react";
 import { setAffiliateRef } from "@/shared/utils/affiliate";
-
-// Lazy load de seções pesadas para melhor performance
-const HeroSection = lazy(() => import("@/components/landing/HeroSection"));
-const ProblemSection = lazy(() => import("@/components/landing/ProblemSection"));
-const TransformationSection = lazy(() => import("@/components/landing/TransformationSection"));
-const FeaturesSection = lazy(() => import("@/components/landing/FeaturesSection"));
-const StrategySection = lazy(() => import("@/components/landing/StrategySection"));
-const PricingSection = lazy(() => import("@/components/landing/PricingSection"));
-const FAQSection = lazy(() => import("@/components/landing/FAQSection"));
-const FinalCTASection = lazy(() => import("@/components/landing/FinalCTASection"));
-
-// Skeleton loader para seções
-const SectionSkeleton = () => (
-  <div className="py-24">
-    <div className="container mx-auto px-4">
-      <Skeleton className="h-12 w-64 mb-4 mx-auto" />
-      <Skeleton className="h-6 w-96 mb-8 mx-auto" />
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {[...Array(6)].map((_, i) => (
-          <Skeleton key={i} className="h-48 w-full rounded-xl" />
-        ))}
-      </div>
-    </div>
-  </div>
-);
+import SalesHeader from "@/features/landing/sales/SalesHeader";
+import SalesHero from "@/features/landing/sales/SalesHero";
+import SalesProblema from "@/features/landing/sales/SalesProblema";
+import SalesComoFunciona from "@/features/landing/sales/SalesComoFunciona";
+import SalesRoasReal from "@/features/landing/sales/SalesRoasReal";
+import SalesPainelReal from "@/features/landing/sales/SalesPainelReal";
+import SalesFuncionalidades from "@/features/landing/sales/SalesFuncionalidades";
+import SalesPrecos from "@/features/landing/sales/SalesPrecos";
+import SalesFAQ from "@/features/landing/sales/SalesFAQ";
+import SalesFinalCTA from "@/features/landing/sales/SalesFinalCTA";
+import SalesFooter from "@/features/landing/sales/SalesFooter";
 
 const Index = () => {
   useEffect(() => {
@@ -37,45 +20,22 @@ const Index = () => {
   }, []);
 
   return (
-    <div className="min-h-screen bg-background">
-      <Header />
+    <div className="font-manrope bg-[#090D16] text-[#F5F7FA] min-h-screen">
+      <SalesHeader />
       <main>
-        <Suspense fallback={<SectionSkeleton />}>
-          <HeroSection />
-        </Suspense>
-        
-        <Suspense fallback={<SectionSkeleton />}>
-          <ProblemSection />
-        </Suspense>
-
-        <Suspense fallback={<SectionSkeleton />}>
-          <TransformationSection />
-        </Suspense>
-
-        <Suspense fallback={<SectionSkeleton />}>
-          <FeaturesSection />
-        </Suspense>
-
-        <Suspense fallback={<SectionSkeleton />}>
-          <StrategySection />
-        </Suspense>
-
-        <Suspense fallback={<SectionSkeleton />}>
-          <PricingSection />
-        </Suspense>
-
-        <Suspense fallback={<SectionSkeleton />}>
-          <FAQSection />
-        </Suspense>
-
-        <Suspense fallback={<SectionSkeleton />}>
-          <FinalCTASection />
-        </Suspense>
+        <SalesHero />
+        <SalesProblema />
+        <SalesComoFunciona />
+        <SalesRoasReal />
+        <SalesPainelReal />
+        <SalesFuncionalidades />
+        <SalesPrecos />
+        <SalesFAQ />
+        <SalesFinalCTA />
       </main>
-      <Footer />
+      <SalesFooter />
     </div>
   );
 };
 
 export default Index;
-
