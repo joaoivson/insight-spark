@@ -11,6 +11,7 @@ import {
   Target,
   Settings,
   Gift,
+  type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -29,14 +30,31 @@ import {
 } from "@/components/ui/sheet";
 import { useIsMobile } from "@/shared/hooks/use-mobile";
 
-const menuItems = [
+type MenuItem = {
+  icon: LucideIcon;
+  label: string;
+  path?: string;
+  href?: string;
+  external?: boolean;
+  isNew?: boolean;
+  iconClass?: string;
+};
+
+const menuItems: MenuItem[] = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
   { icon: Target, label: "Campanhas", path: "/dashboard/campanhas", isNew: true },
   { icon: MousePointerClick, label: "Upload Cliques", path: "/dashboard/upload-cliques" },
   { icon: Globe, label: "Página de Captura", path: "/dashboard/captura" },
   { icon: Link2, label: "Meus Links", path: "/dashboard/links" },
+  // Link externo (Kiwify) — programa de afiliados gerenciado 100% na Kiwify, sem rota interna.
+  {
+    icon: Gift,
+    label: "Indique & Ganhe",
+    href: APP_CONFIG.EXTERNALS.KIWIFY_AFFILIATE_URL,
+    external: true,
+    iconClass: "text-[#F0A94A]",
+  },
   { icon: Settings, label: "Configurações", path: "/dashboard/configuracoes" },
-  // { icon: Users, label: "Indique & Ganhe", path: "/dashboard/afiliados", isNew: true },
 ];
 
 // Programa de afiliados oculto até liberação. Endpoints/rotas/webhook continuam ativos.
@@ -149,7 +167,7 @@ const DashboardSidebar = ({ mobileMenuOpen = false, onMobileMenuClose }: Dashboa
       <nav className="flex-1 py-4 md:py-6 px-3 overflow-y-auto" aria-label="Navegação principal">
         <ul className="flex flex-col gap-1" role="list">
           {visibleMenu.map((item) => {
-            const isActive = location.pathname === item.path && !isDemo;
+            const isActive = !!item.path && location.pathname === item.path && !isDemo;
             const classes = cn(
               "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 border-l-[3px] border-l-transparent",
               "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent",
@@ -159,7 +177,7 @@ const DashboardSidebar = ({ mobileMenuOpen = false, onMobileMenuClose }: Dashboa
             );
             const itemContent = (
               <>
-                <item.icon className={cn("w-5 h-5 flex-shrink-0", isActive && "text-[#318CE9]")} aria-hidden="true" />
+                <item.icon className={cn("w-5 h-5 flex-shrink-0", item.iconClass, isActive && "text-[#318CE9]")} aria-hidden="true" />
                 {(!collapsed || isMobile) && (
                   <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 min-w-0 flex-1">
                     <span className={cn("font-medium", isActive && "text-white")}>{item.label}</span>
@@ -173,7 +191,7 @@ const DashboardSidebar = ({ mobileMenuOpen = false, onMobileMenuClose }: Dashboa
               </>
             );
             return (
-              <li key={item.path} className="w-full">
+              <li key={item.path ?? item.href ?? item.label} className="w-full">
                 {isDemo ? (
                   <button
                     type="button"
@@ -184,9 +202,20 @@ const DashboardSidebar = ({ mobileMenuOpen = false, onMobileMenuClose }: Dashboa
                   >
                     {itemContent}
                   </button>
+                ) : item.external ? (
+                  <a
+                    href={item.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={classes}
+                    aria-label={item.label}
+                    onClick={handleNavClick}
+                  >
+                    {itemContent}
+                  </a>
                 ) : (
                   <NavLink
-                    to={item.path}
+                    to={item.path ?? "#"}
                     className={classes}
                     aria-label={item.label}
                     aria-current={isActive ? "page" : undefined}
@@ -229,22 +258,6 @@ const DashboardSidebar = ({ mobileMenuOpen = false, onMobileMenuClose }: Dashboa
 
       {/* Logout */}
       <div className="border-t border-sidebar-border p-3 flex-shrink-0 flex flex-col gap-1">
-        {!isDemo && (
-          <a
-            href={APP_CONFIG.EXTERNALS.KIWIFY_AFFILIATE_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={cn(
-              "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 w-full",
-              "text-sidebar-foreground/70 hover:text-[#F0A94A] hover:bg-[#F0A94A]/10",
-              collapsed && !isMobile && "justify-center px-0"
-            )}
-            aria-label="Indique e Ganhe"
-          >
-            <Gift className="w-5 h-5 flex-shrink-0 text-[#F0A94A]" aria-hidden="true" />
-            {(!collapsed || isMobile) && <span className="font-medium">Indique &amp; Ganhe</span>}
-          </a>
-        )}
         {waUrl && !isDemo && (
           <a
             href={waUrl}
