@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { DatasetRow } from "../../DataTable";
 import { AdSpend } from "@/shared/types/adspend";
 import { isBeforeDateKey, isAfterDateKey, parseDateOnly } from "@/shared/lib/date";
-import { filterKpiRows, getComissaoCents } from "@/shared/lib/kpi";
+import { filterKpiRows, getComissaoAfiliado } from "@/shared/lib/kpi";
 import { normalizeSubId } from "@/shared/lib/utils";
 import { grossUpSpend, netCommission, ZERO_TAX, type TaxRates } from "@/shared/lib/tax";
 import { DateRange, ChannelMetric, DayMetric } from "../types";
@@ -46,7 +46,7 @@ export const useChannelMetrics = (
             const channel = rawId === "Sem Sub ID" ? "orgânico/outros" : rawId;
             const current = channelMap.get(channel) || { commission: 0, spend: 0, orders: 0 };
 
-            const commission = getComissaoCents(row) / 100;
+            const commission = getComissaoAfiliado(row); // valor cru; arredonda só no agregado (netCommission)
 
             channelMap.set(channel, {
                 ...current,
@@ -110,7 +110,7 @@ export const useChannelMetrics = (
 
         filteredRows.forEach((row) => {
             const day = row.date || "Sem data";
-            const commission = getComissaoCents(row) / 100;
+            const commission = getComissaoAfiliado(row); // valor cru; arredonda só no agregado (netCommission)
             const cur = dayMap.get(day) || { commission: 0, spend: 0, orders: 0 };
             dayMap.set(day, {
                 commission: cur.commission + commission,
