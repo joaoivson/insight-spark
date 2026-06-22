@@ -46,14 +46,8 @@ const menuItems: MenuItem[] = [
   { icon: MousePointerClick, label: "Upload Cliques", path: "/dashboard/upload-cliques" },
   { icon: Globe, label: "Página de Captura", path: "/dashboard/captura" },
   { icon: Link2, label: "Meus Links", path: "/dashboard/links" },
-  // Link externo (Kiwify) — programa de afiliados gerenciado 100% na Kiwify, sem rota interna.
-  {
-    icon: Gift,
-    label: "Indique & Ganhe",
-    href: APP_CONFIG.EXTERNALS.KIWIFY_AFFILIATE_URL,
-    external: true,
-    iconClass: "text-[#F0A94A]",
-  },
+  // Rota interna: abre a página Indique & Ganhe (o link da Kiwify fica no CTA da página).
+  { icon: Gift, label: "Indique & Ganhe", path: "/dashboard/indique", iconClass: "text-[#F0A94A]" },
   { icon: Settings, label: "Configurações", path: "/dashboard/configuracoes" },
 ];
 
