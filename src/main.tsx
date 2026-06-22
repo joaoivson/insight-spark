@@ -2,7 +2,6 @@ import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
 import "@/shared/styles/index.scss";
-import favicon from "@/assets/logo/marketdash-symbol.svg";
 import ogImage from "@/assets/logo/logo_name.png";
 import { setupSubscriptionListener } from "@/shared/utils/subscription-events";
 
@@ -33,7 +32,7 @@ const applyBranding = () => {
 
   existingFavicon.rel = "icon";
   existingFavicon.type = "image/svg+xml";
-  existingFavicon.href = favicon;
+  existingFavicon.href = "/marketdash-symbol.svg";
   if (!existingFavicon.parentNode) {
     document.head.appendChild(existingFavicon);
   }

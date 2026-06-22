@@ -19,8 +19,7 @@ import { useState } from "react";
 import { tokenStorage, userStorage, storage } from "@/shared/lib/storage";
 import { APP_CONFIG } from "@/core/config/app.config";
 import { supabase } from "@/shared/lib/supabase";
-import logoIcon from "@/assets/logo/marketdash-symbol.svg";
-import logoName from "@/assets/logo/marketdash-logo.svg";
+import { BrandLogo, BrandSymbol } from "@/components/brand/BrandLogo";
 import {
   Sheet,
   SheetContent,
@@ -115,34 +114,12 @@ const DashboardSidebar = ({ mobileMenuOpen = false, onMobileMenuClose }: Dashboa
         collapsed && !isMobile ? "justify-center" : "justify-between"
       )}>
         {(!collapsed || isMobile) && (
-          <div className="flex items-center gap-2 flex-1 min-w-0">
-            <img
-              src={logoIcon}
-              alt="Logo MarketDash"
-              className="w-9 h-9 rounded-lg object-contain p-1.5 brand-logo-mark flex-shrink-0"
-            />
-            {!isMobile && (
-              <img
-                src={logoName}
-                alt="MarketDash"
-                className="h-7 w-auto brand-logo-name flex-shrink-0"
-              />
-            )}
-            {isMobile && (
-              <img
-                src={logoName}
-                alt="MarketDash"
-                className="h-6 w-auto brand-logo-name flex-shrink-0"
-              />
-            )}
+          <div className="flex items-center flex-1 min-w-0">
+            <BrandLogo className={cn("w-auto flex-shrink-0", isMobile ? "h-7" : "h-8")} />
           </div>
         )}
         {collapsed && !isMobile && (
-          <img
-            src={logoIcon}
-            alt="Logo MarketDash"
-            className="w-9 h-9 rounded-lg object-contain p-1.5 brand-logo-mark flex-shrink-0"
-          />
+          <BrandSymbol className="w-9 h-9 flex-shrink-0" />
         )}
         {isMobile && (
           <Button

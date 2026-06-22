@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Menu, X } from "lucide-react";
-import marketdashLogo from "@/assets/logo/marketdash-logo.svg";
+import { BrandLogo } from "@/components/brand/BrandLogo";
 
 const NAV_LINKS = [
   { label: "O problema", href: "#problema" },
@@ -18,7 +18,7 @@ export default function SalesHeader() {
       <div className="mx-auto flex h-[70px] max-w-[1140px] items-center px-6">
         {/* Logo */}
         <a href="#top" className="flex items-center">
-          <img src={marketdashLogo} alt="MarketDash" className="h-8 w-auto" />
+          <BrandLogo className="h-8 w-auto" />
         </a>
 
         {/* Desktop nav */}

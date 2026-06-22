@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import marketdashLogo from "@/assets/logo/marketdash-logo.svg";
+import { BrandLogo } from "@/components/brand/BrandLogo";
 
 const PRODUTO_LINKS = [
   { label: "Funcionalidades", href: "#painel" },
@@ -15,7 +15,7 @@ export default function SalesFooter() {
         <div className="flex flex-wrap justify-between gap-10">
           {/* Coluna esquerda — marca */}
           <div className="max-w-[320px]">
-            <img src={marketdashLogo} alt="MarketDash" className="h-8 w-auto" />
+            <BrandLogo className="h-8 w-auto" />
 
             <p className="mt-4 text-sm leading-relaxed text-[#9aa3b2]">
               Conecte Shopee e Meta e veja o lucro real de cada campanha. Para

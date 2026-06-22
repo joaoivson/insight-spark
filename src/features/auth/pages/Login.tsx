@@ -12,8 +12,7 @@ import { getApiUrl, fetchWithAuth } from "@/core/config/api.config";
 import { APP_CONFIG } from "@/core/config/app.config";
 import { SubscriptionPlanModal } from "@/features/subscription/components/SubscriptionPlanModal";
 import "../styles/index.scss";
-import logoName from "@/assets/logo/marketdash-logo.svg";
-import logoIcon from "@/assets/logo/marketdash-symbol.svg";
+import { BrandLogo } from "@/components/brand/BrandLogo";
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -99,8 +98,7 @@ const Login = () => {
         >
           {/* Logo */}
           <Link to={APP_CONFIG.ROUTES.HOME} className="auth-logo">
-            <img src={logoIcon} alt="Logo MarketDash" className="auth-logo-icon brand-logo-mark" />
-            <img src={logoName} alt="MarketDash" className="auth-logo-name brand-logo-name" />
+            <BrandLogo className="h-10 w-auto" />
           </Link>
 
           <h1 className="auth-title">

@@ -1,7 +1,7 @@
 import { ReactNode, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
-import logoName from "@/assets/logo/marketdash-logo.svg";
+import { BrandLogo } from "@/components/brand/BrandLogo";
 
 interface LegalLayoutProps {
   title: string;
@@ -29,7 +29,7 @@ const LegalLayout = ({ title, updatedAt, children }: LegalLayoutProps) => {
       <header className="border-b border-border">
         <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-4">
           <Link to="/" className="flex items-center gap-2">
-            <img src={logoName} alt="MarketDash" className="h-7 w-auto brand-logo-name" />
+            <BrandLogo className="h-7 w-auto" />
           </Link>
           <Link to="/" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
             <ArrowLeft className="h-4 w-4" /> Voltar ao início

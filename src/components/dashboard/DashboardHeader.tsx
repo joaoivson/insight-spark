@@ -1,7 +1,7 @@
 import { ReactNode, useState, useEffect } from "react";
 import { User, Sun, Moon } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import logoIcon from "@/assets/logo/marketdash-symbol.svg";
+import { BrandSymbol } from "@/components/brand/BrandLogo";
 import { useToast } from "@/hooks/use-toast";
 import { useTheme } from "@/shared/hooks/useTheme";
 import { useDatasetStore } from "@/stores/datasetStore";
@@ -76,11 +76,7 @@ const DashboardHeader = ({ title, subtitle, subtitleSize = "sm", action, onMobil
     <header className="bg-card border-b border-border px-4 md:px-6 py-3 flex flex-col gap-3 flex-shrink-0" role="banner">
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3 min-w-0 flex-1">
-          <img
-            src={logoIcon}
-            alt="MarketDash"
-            className="md:hidden w-8 h-8 rounded-lg object-contain p-1 brand-logo-mark flex-shrink-0"
-          />
+          <BrandSymbol className="md:hidden w-8 h-8 flex-shrink-0" />
           <div className="min-w-0">
             <h1 className="font-display font-bold text-lg md:text-xl text-foreground leading-tight truncate">{title}</h1>
             {subtitle && <p className={`truncate md:whitespace-normal md:line-clamp-2 ${subtitleSize === "xs" ? "text-[10px] md:text-xs text-muted-foreground" : "text-xs md:text-sm text-muted-foreground"}`}>{subtitle}</p>}
