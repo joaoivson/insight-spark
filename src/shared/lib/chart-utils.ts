@@ -337,9 +337,11 @@ export function buildSubIdChannelMap(clicks: ClickLike[]): Map<string, string> {
 }
 
 /**
- * B4: comissão líquida por CANAL usando a classificação dos cliques (sub_id→canal).
- * Comissão cujo sub_id não tem clique mapeado cai em "Outros". A Shopee não devolve
- * canal no conversionReport — então reusa a origem que os cliques já trazem.
+ * Comissão líquida por CANAL. Fonte PRIMÁRIA: o canal do relatório da Shopee
+ * (row.channel = channelType, ex.: Instagram/Others/Websites). FALLBACK: a
+ * classificação por cliques (sub_id→canal dominante) quando a linha não tem channel
+ * válido. Dados antigos gravavam attributionType em `channel` (ATTR_LEAK) → ignorados
+ * como canal, caindo no fallback de cliques (e, sem clique, em "Outros").
  */
 export function groupByChannelFromClicks(
   rows: DatasetRow[],
@@ -347,12 +349,15 @@ export function groupByChannelFromClicks(
   dateRange: DateRange,
   tax: TaxRates = ZERO_TAX,
 ): { name: string; value: number }[] {
+  const ATTR_LEAK = new Set(["ORDERED_IN_SAME_SHOP", "DIFFERENT_SHOP", "ORDERED_IN_DIFFERENT_SHOP"]);
   const subToChannel = buildSubIdChannelMap(clicks);
   const filtered = filterKpiRows(filterRowsByDateRange(rows, dateRange));
   const byChannel = new Map<string, number>();
   filtered.forEach((r) => {
+    const raw = r.channel?.trim() || "";
+    const fromShopee = raw && !ATTR_LEAK.has(raw) ? displayChannel(raw) : "";
     const sub = normalizeSubId(r.sub_id1 || "").toLowerCase();
-    const name = subToChannel.get(sub) || "Outros";
+    const name = fromShopee || subToChannel.get(sub) || "Outros";
     byChannel.set(name, (byChannel.get(name) ?? 0) + getComissaoAfiliado(r));
   });
   return Array.from(byChannel.entries())
