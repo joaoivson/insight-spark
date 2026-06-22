@@ -255,6 +255,8 @@ const Campanhas = () => {
   const unlinkedCount = campaigns.filter((c) => !c.linked).length;
   const unlinkedSpend = campaigns.filter((c) => !c.linked).reduce((acc, c) => acc + c.metrics.spend, 0);
   const lossCount = campaigns.filter((c) => c.linked && c.metrics.roas < 1 && c.metrics.spend > 0).length;
+  // Campanhas ativas (status Ativa) — casa com o Orç./dia, que soma só o orçamento das ativas.
+  const activeCount = campaigns.filter((c) => c.is_active).length;
 
   // A3: se o banner que ativa o filtro deixa de existir (condição zerou — ex.: vinculou
   // todas as sem-vínculo), volta sozinho pra "Todas" em vez de prender numa tela vazia.
@@ -391,7 +393,7 @@ const Campanhas = () => {
           />
           <KpiCard label="Lucro" value={formatCurrency(kpis.total_profit)} icon={TrendingUp} valueClass={profitClass(kpis.total_profit)} loading={initialLoading} />
           <KpiCard label="ROAS Real" value={fmtRoas(kpis.avg_roas)} icon={Target} valueClass={kpis.avg_roas > 0 ? roasClass(kpis.avg_roas) : undefined} loading={initialLoading} />
-          <KpiCard label="Orç./dia" value={formatCurrency(kpis.total_daily_budget)} icon={CalendarRange} valueClass="text-primary" accent loading={initialLoading} />
+          <KpiCard label="Orç./dia" value={formatCurrency(kpis.total_daily_budget)} sub={`${activeCount} ${activeCount === 1 ? "campanha ativa" : "campanhas ativas"}`} icon={CalendarRange} valueClass="text-primary" accent loading={initialLoading} />
         </div>
 
         {/* Avisos — grade de largura fixa (~1/3), alinhados à esquerda; não esticam com um só. */}
@@ -562,8 +564,10 @@ const CampaignCard = ({
   const [confirmBudgetOpen, setConfirmBudgetOpen] = useState(false);
   const [linkOpen, setLinkOpen] = useState(false);
 
-  // A2: o dia a dia tem que reagir ao período. Ao mudar o range, invalida o cache da
-  // expansão; se o card está aberto, re-busca na hora (antes só buscava 1x na 1ª abertura).
+  // A2: o dia a dia tem que reagir ao período E ao vínculo (Sub ID). Ao mudar o range ou
+  // trocar o vínculo, invalida o cache da expansão; se o card está aberto, re-busca na hora
+  // (antes só buscava 1x na 1ª abertura e não reagia à troca de vínculo — total e dia a dia
+  // ficavam contando coisas diferentes).
   useEffect(() => {
     setDaily(null);
     if (!expanded) return;
@@ -573,7 +577,7 @@ const CampaignCard = ({
       .catch(() => toast({ title: "Erro ao carregar dia a dia", variant: "destructive" }))
       .finally(() => setLoadingDaily(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [range.startDate, range.endDate]);
+  }, [range.startDate, range.endDate, campaign.sub_id]);
 
   const toggleExpand = async () => {
     const next = !expanded;
