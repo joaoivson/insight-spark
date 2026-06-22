@@ -12,8 +12,8 @@ import { getApiUrl, fetchWithAuth } from "@/core/config/api.config";
 import { APP_CONFIG } from "@/core/config/app.config";
 import { SubscriptionPlanModal } from "@/features/subscription/components/SubscriptionPlanModal";
 import "../styles/index.scss";
-import logoName from "@/assets/logo/logo_name.png";
-import logoIcon from "@/assets/logo/logo.png";
+import logoName from "@/assets/logo/marketdash-logo.svg";
+import logoIcon from "@/assets/logo/marketdash-symbol.svg";
 
 const Login = () => {
   const [email, setEmail] = useState("");

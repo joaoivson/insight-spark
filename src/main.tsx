@@ -2,7 +2,7 @@ import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
 import "@/shared/styles/index.scss";
-import favicon from "@/assets/logo/favicon-32x32.png";
+import favicon from "@/assets/logo/marketdash-symbol.svg";
 import ogImage from "@/assets/logo/logo_name.png";
 import { setupSubscriptionListener } from "@/shared/utils/subscription-events";
 
@@ -32,7 +32,7 @@ const applyBranding = () => {
     document.createElement("link");
 
   existingFavicon.rel = "icon";
-  existingFavicon.type = "image/png";
+  existingFavicon.type = "image/svg+xml";
   existingFavicon.href = favicon;
   if (!existingFavicon.parentNode) {
     document.head.appendChild(existingFavicon);

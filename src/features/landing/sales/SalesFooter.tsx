@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { TrendingUp } from "lucide-react";
+import marketdashLogo from "@/assets/logo/marketdash-logo.svg";
 
 const PRODUTO_LINKS = [
   { label: "Funcionalidades", href: "#painel" },
@@ -15,14 +15,7 @@ export default function SalesFooter() {
         <div className="flex flex-wrap justify-between gap-10">
           {/* Coluna esquerda — marca */}
           <div className="max-w-[320px]">
-            <div className="flex items-center gap-2.5">
-              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-[#1c3c5e] to-[#0d1726]">
-                <TrendingUp className="h-[18px] w-[18px] text-[#7CB8F2]" />
-              </span>
-              <span className="font-grotesk text-[17px] font-bold text-[#F5F7FA]">
-                MarketDash
-              </span>
-            </div>
+            <img src={marketdashLogo} alt="MarketDash" className="h-8 w-auto" />
 
             <p className="mt-4 text-sm leading-relaxed text-[#9aa3b2]">
               Conecte Shopee e Meta e veja o lucro real de cada campanha. Para

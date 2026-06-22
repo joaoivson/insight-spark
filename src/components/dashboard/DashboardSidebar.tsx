@@ -19,8 +19,8 @@ import { useState } from "react";
 import { tokenStorage, userStorage, storage } from "@/shared/lib/storage";
 import { APP_CONFIG } from "@/core/config/app.config";
 import { supabase } from "@/shared/lib/supabase";
-import logoIcon from "@/assets/logo/logo.png";
-import logoName from "@/assets/logo/logo_name.png";
+import logoIcon from "@/assets/logo/marketdash-symbol.svg";
+import logoName from "@/assets/logo/marketdash-logo.svg";
 import {
   Sheet,
   SheetContent,

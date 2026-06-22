@@ -1,7 +1,7 @@
 import { ReactNode, useState, useEffect } from "react";
 import { User, Sun, Moon } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import logoIcon from "@/assets/logo/logo.png";
+import logoIcon from "@/assets/logo/marketdash-symbol.svg";
 import { useToast } from "@/hooks/use-toast";
 import { useTheme } from "@/shared/hooks/useTheme";
 import { useDatasetStore } from "@/stores/datasetStore";

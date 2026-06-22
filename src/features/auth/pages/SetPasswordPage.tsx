@@ -9,8 +9,8 @@ import { useToast } from "@/hooks/use-toast";
 import { passwordService } from "../services";
 import { APP_CONFIG } from "@/core/config/app.config";
 import "../styles/index.scss";
-import logoName from "@/assets/logo/logo_name.png";
-import logoIcon from "@/assets/logo/logo.png";
+import logoName from "@/assets/logo/marketdash-logo.svg";
+import logoIcon from "@/assets/logo/marketdash-symbol.svg";
 
 const SetPasswordPage = () => {
   const [searchParams] = useSearchParams();

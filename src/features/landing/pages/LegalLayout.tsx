@@ -1,7 +1,7 @@
 import { ReactNode, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
-import logoName from "@/assets/logo/logo_name.png";
+import logoName from "@/assets/logo/marketdash-logo.svg";
 
 interface LegalLayoutProps {
   title: string;
