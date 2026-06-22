@@ -269,7 +269,6 @@ const Campanhas = () => {
   return (
     <DashboardLayout
       title="Campanhas"
-      subtitle="Ative, pause e ajuste o orçamento. Vincule ao Sub ID para ver as vendas."
       action={
         <div className="flex items-center gap-2">
           <span className="hidden md:flex flex-col items-end text-[11px] leading-tight text-muted-foreground">

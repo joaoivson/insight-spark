@@ -134,7 +134,7 @@
 }
 
 .auth-link {
-  color: hsl(var(--accent));
+  color: hsl(var(--primary));
   text-decoration: none;
   
   &:hover {
@@ -182,13 +182,13 @@
   &--large {
     width: 24rem;
     height: 24rem;
-    background: hsl(var(--accent) / 0.2);
+    background: hsl(var(--primary) / 0.2);
   }
   
   &--small {
     width: 18rem;
     height: 18rem;
-    background: hsl(var(--accent) / 0.1);
+    background: hsl(var(--primary) / 0.1);
   }
   
   &--top-left {
@@ -223,7 +223,7 @@
   width: 5rem;
   height: 5rem;
   border-radius: $radius-xl;
-  background: hsl(var(--accent) / 0.2);
+  background: hsl(var(--primary) / 0.2);
   @include flex-center;
   margin: 0 auto $spacing-xl;
   @include glass-effect;
@@ -261,7 +261,7 @@
   width: 1.5rem;
   height: 1.5rem;
   border-radius: $radius-full;
-  background: hsl(var(--accent) / 0.2);
+  background: hsl(var(--primary) / 0.2);
   @include flex-center;
 }
 
@@ -274,9 +274,9 @@
   margin-top: $spacing-2xl;
   padding: $spacing-md;
   border-radius: $radius-xl;
-  background: hsl(var(--accent) / 0.1);
+  background: hsl(var(--primary) / 0.1);
   @include glass-effect;
-  border: 1px solid hsl(var(--accent) / 0.2);
+  border: 1px solid hsl(var(--primary) / 0.2);
 }
 
 .auth-pricing-amount {

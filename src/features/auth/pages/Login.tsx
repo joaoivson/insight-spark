@@ -161,7 +161,7 @@ const Login = () => {
               </Link>
             </div>
 
-            <Button type="submit" variant="hero" size="lg" className="w-full" disabled={isLoading}>
+            <Button type="submit" variant="default" size="lg" className="w-full" disabled={isLoading}>
               {isLoading ? "Entrando..." : "Entrar"}
               <ArrowRight className="w-5 h-5" />
             </Button>
@@ -205,7 +205,7 @@ const Login = () => {
           className="auth-decorative-content"
         >
           <div className="auth-decorative-icon">
-            <BarChart3 className="w-10 h-10 text-accent" />
+            <BarChart3 className="w-10 h-10 text-primary" />
           </div>
           <h2 className="auth-decorative-title">
             Transforme dados em decisões

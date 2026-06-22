@@ -75,10 +75,12 @@ const PRO_EXTRA_FEATURES = [
   'Suporte prioritário',
 ];
 
+// Teaser do toggle = MAIOR desconto entre os planos (Essencial/Pro): Trimestral 27% e
+// Anual 44% (ambos do Pro). Por isso o "até". A pílula exata por plano fica em cada card.
 const TOGGLE_OPTIONS = [
-  { value: 'mensal', label: 'Mensal' },
-  { value: 'trimestral', label: 'Trimestral' },
-  { value: 'anual', label: 'Anual' },
+  { value: 'mensal', label: 'Mensal', teaser: '' },
+  { value: 'trimestral', label: 'Trimestral', teaser: 'até 27%' },
+  { value: 'anual', label: 'Anual', teaser: 'até 44%' },
 ];
 
 function FeatureItem({ children, accent }: { children: string; accent?: boolean }) {
@@ -137,13 +139,18 @@ export default function SalesPrecos() {
                   key={opt.value}
                   type="button"
                   onClick={() => setPeriod(opt.value)}
-                  className={`flex flex-1 items-center justify-center rounded-lg px-2 py-2.5 text-sm font-medium transition-colors sm:px-4 ${
+                  className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg px-2 py-2.5 text-sm font-medium transition-colors sm:px-4 ${
                     active
                       ? 'border border-[#318CE9]/50 bg-[#318CE9]/[0.16] text-[#7CB8F2]'
                       : 'border border-transparent text-[#9aa3b2] hover:text-[#F5F7FA]'
                   }`}
                 >
                   <span className="truncate">{opt.label}</span>
+                  {opt.teaser && (
+                    <span className="rounded-full bg-[#2BD699]/15 px-1.5 py-0.5 font-jbmono text-[10px] font-medium leading-none text-[#2BD699]">
+                      {opt.teaser}
+                    </span>
+                  )}
                 </button>
               );
             })}

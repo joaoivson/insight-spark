@@ -365,7 +365,7 @@ export const CapturaSite = () => {
             </span>
           </p>
         </div>
-        <Button onClick={handleNew} disabled={sites.length >= MAX_CAPTURE_SITES} className="w-full sm:w-auto gap-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 transition-colors duration-150">
+        <Button onClick={handleNew} disabled={sites.length >= MAX_CAPTURE_SITES} className="w-full sm:w-auto gap-2">
           <Plus className="w-4 h-4" /> Criar Novo Site
         </Button>
       </div>
@@ -949,7 +949,7 @@ export const CapturaSite = () => {
           <Button
             onClick={handleSave}
             disabled={saving}
-            className="w-full h-14 text-lg font-bold bg-emerald-600 hover:bg-emerald-700 shadow-lg shadow-emerald-500/20 gap-3"
+            className="w-full h-14 text-lg font-bold gap-3"
           >
             {saving ? <RefreshCw className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
             SALVAR ALTERAÇÕES

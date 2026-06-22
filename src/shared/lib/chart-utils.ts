@@ -194,6 +194,11 @@ export interface DashSeriesPoint {
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
+// Pedido 100% cancelado não é venda (comissão R$0) — usado para tirá-lo só da
+// CONTAGEM de pedidos. As somas de comissão/lucro continuam iguais (cancelado soma 0).
+const CANCELLED_STATUSES = new Set(["cancelado", "cancelled"]);
+const isCancelledStatus = (s?: string | null) => CANCELLED_STATUSES.has((s || "").toLowerCase());
+
 /** Totais do dashboard: KPIs com imposto (reusa calcTotals) + pedidos/diretos. */
 export function calcDashTotals(
   rows: DatasetRow[],
@@ -202,12 +207,14 @@ export function calcDashTotals(
 ): DashTotals {
   const t = calcTotals(rows, adSpends, opts);
   const kpiRows = filterKpiRows(rows);
-  const allOrders = new Set<string>();
+  // Conta pedidos distintos EXCLUINDO os 100% cancelados: um pedido só entra se tiver
+  // ao menos um item não-cancelado. As somas (comissão/lucro) seguem inalteradas.
+  const orders = new Set<string>();
   const direct = new Set<string>();
   kpiRows.forEach((r) => {
-    if (!r.order_id) return;
+    if (!r.order_id || isCancelledStatus(r.status)) return;
     const oid = String(r.order_id);
-    allOrders.add(oid);
+    orders.add(oid);
     if ((r.attribution_type || "") === DIRECT_ATTRIBUTION) direct.add(oid);
   });
   return {
@@ -217,7 +224,7 @@ export function calcDashTotals(
     gastoPago: t.gastoPago,
     lucro: t.lucro,
     roas: t.roas,
-    orders: allOrders.size,
+    orders: orders.size,
     directOrders: direct.size,
   };
 }
