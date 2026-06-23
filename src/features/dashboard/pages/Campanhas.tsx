@@ -84,9 +84,10 @@ const HEALTH_BORDER: Record<CampaignHealth, string> = {
   unlinked: "border-warning/30",
 };
 
-type PeriodKey = "7d" | "14d" | "month" | "custom";
+type PeriodKey = "yesterday" | "7d" | "14d" | "month" | "custom";
 
 const PERIODS: { key: Exclude<PeriodKey, "custom">; label: string }[] = [
+  { key: "yesterday", label: "Ontem" },
   { key: "7d", label: "7 dias" },
   { key: "14d", label: "14 dias" },
   { key: "month", label: "Mês atual" },

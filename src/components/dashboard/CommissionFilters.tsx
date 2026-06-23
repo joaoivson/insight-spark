@@ -17,7 +17,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useState, useMemo } from "react";
 import { parseDateOnly, toDateKey, presetRangeDates } from "@/shared/lib/date";
-import { cn } from "@/shared/lib/utils";
+import { cn, statusLabel } from "@/shared/lib/utils";
 import { useIsMobile } from "@/shared/hooks/use-mobile";
 
 type DateRange = { from?: Date; to?: Date };
@@ -43,7 +43,7 @@ interface CommissionFiltersProps {
 }
 
 /** Atalhos cortam no fim do dia anterior fechado EM BRASÍLIA (o dia atual é parcial). */
-function presetRange(kind: "7d" | "14d" | "month"): DateRange {
+function presetRange(kind: "yesterday" | "7d" | "14d" | "month"): DateRange {
   return presetRangeDates(kind);
 }
 
@@ -115,16 +115,18 @@ const CommissionFilters = ({
 
   // Qual chip está ativo (compara as date-keys do range atual com cada preset).
   const keyEq = (a?: Date, b?: Date) => !!a && !!b && toDateKey(a) === toDateKey(b);
-  const matchesPreset = (kind: "7d" | "14d" | "month") => {
+  const matchesPreset = (kind: "yesterday" | "7d" | "14d" | "month") => {
     const p = presetRange(kind);
     return keyEq(dateRange.from, p.from) && keyEq(dateRange.to, p.to);
   };
+  const activeYesterday = matchesPreset("yesterday");
   const active7 = matchesPreset("7d");
   const active14 = matchesPreset("14d");
   const activeMonth = matchesPreset("month");
-  const customActive = (!!dateRange.from || !!dateRange.to) && !active7 && !active14 && !activeMonth;
+  const customActive =
+    (!!dateRange.from || !!dateRange.to) && !activeYesterday && !active7 && !active14 && !activeMonth;
 
-  const applyPreset = (kind: "7d" | "14d" | "month") => {
+  const applyPreset = (kind: "yesterday" | "7d" | "14d" | "month") => {
     const range = presetRange(kind);
     setLocalRange(range);
     setOpen(false);
@@ -194,6 +196,7 @@ const CommissionFilters = ({
     <div className="mb-6 flex flex-col gap-3 rounded-xl border border-border bg-card p-3 md:flex-row md:flex-wrap md:items-center md:gap-x-3 md:gap-y-2 md:p-4">
       {/* Período em chips (cortam no fim de ontem) */}
       <div className="flex flex-wrap items-center gap-2">
+        <Chip active={activeYesterday} onClick={() => applyPreset("yesterday")}>Ontem</Chip>
         <Chip active={active7} onClick={() => applyPreset("7d")}>7 dias</Chip>
         <Chip active={active14} onClick={() => applyPreset("14d")}>14 dias</Chip>
         <Chip active={activeMonth} onClick={() => applyPreset("month")}>Mês atual</Chip>
@@ -231,7 +234,7 @@ const CommissionFilters = ({
             <SelectContent>
               <SelectItem value="all">Todos</SelectItem>
               {statusOptions.map((s) => (
-                <SelectItem key={s} value={s || "unknown"}>{s}</SelectItem>
+                <SelectItem key={s} value={s || "unknown"}>{statusLabel(s)}</SelectItem>
               ))}
             </SelectContent>
           </Select>

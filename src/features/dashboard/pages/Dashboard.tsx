@@ -18,6 +18,7 @@ import {
   groupByChannelFromClicks,
   groupByCategoryAll,
   groupBySubIdCommission,
+  SHOPEE_L1_CATEGORIES,
 } from "@/shared/lib/chart-utils";
 import { normalizeSubId } from "@/shared/lib/utils";
 import { useTaxSettingsStore } from "@/stores/taxSettingsStore";
@@ -83,7 +84,12 @@ const Dashboard = () => {
   const isEmpty = totals.comissao === 0 && totals.gasto === 0 && totals.orders === 0;
 
   const statusOptions = useMemo(() => Array.from(new Set(rows.map((r) => r.status).filter(Boolean))).sort(), [rows]);
-  const categoryOptions = useMemo(() => Array.from(new Set(rows.map((r) => r.category).filter(Boolean))).sort(), [rows]);
+  // Filtro de Categoria = só as categorias Global L1 (igual ao bloco "Por categoria"). As
+  // subcategorias L2/L3 que a Shopee às vezes devolve ficam de fora (evita lista gigante).
+  const categoryOptions = useMemo(
+    () => Array.from(new Set(rows.map((r) => r.category).filter((c): c is string => !!c && SHOPEE_L1_CATEGORIES.has(c)))).sort(),
+    [rows],
+  );
   const subIdOptions = useMemo(() => {
     const fromSales = rows.map((r) => normalizeSubId(r.sub_id1)).filter((s) => s !== "Sem Sub ID");
     const fromClicks = clicks.map((c) => normalizeSubId(c.sub_id)).filter((s) => s !== "Sem Sub ID");

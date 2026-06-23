@@ -25,3 +25,16 @@ export function normalizeSubId(subId: string | null | undefined): string {
   return cleaned.toLowerCase();
 }
 
+/**
+ * Rótulo PT do status do pedido para exibição/filtro. A Shopee já devolve quase tudo
+ * normalizado em PT (Concluído/Pendente/Cancelado), mas "UNPAID" escapa do normalize do
+ * backend — traduz aqui (label only; o valor do filtro continua sendo o status cru do banco).
+ */
+const STATUS_LABELS: Record<string, string> = {
+  unpaid: "Não pago",
+};
+export function statusLabel(status: string | null | undefined): string {
+  const s = (status || "").trim();
+  return STATUS_LABELS[s.toLowerCase()] ?? s;
+}
+

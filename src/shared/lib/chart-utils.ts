@@ -306,6 +306,10 @@ function displayChannel(channel?: string | null): string {
   return t.charAt(0).toUpperCase() + t.slice(1).toLowerCase();
 }
 
+/** Baldes genéricos do channelType da Shopee que NÃO são canal de origem real (umbrella).
+ *  Comparado já na forma do displayChannel (1ª maiúscula, resto minúsculo). */
+const GENERIC_CHANNEL = new Set<string>(["Social medias", "Social media"]);
+
 /**
  * B4: mapa sub_id (normalizado, lowercase) → canal dominante, derivado dos CLIQUES
  * (mesma classificação de origem que a aba Cliques: Instagram/Facebook/Outros...).
@@ -353,17 +357,69 @@ export function groupByChannelFromClicks(
   const subToChannel = buildSubIdChannelMap(clicks);
   const filtered = filterKpiRows(filterRowsByDateRange(rows, dateRange));
   const byChannel = new Map<string, number>();
+  // CANAL = mesma fonte do bloco "Cliques por Canal": o canal REAL dos cliques (sub_id→canal:
+  // Instagram/Facebook/WhatsApp/Websites...). O channelType da Shopee (row.channel) entra só como
+  // FALLBACK, e o balde genérico "Social medias" é descartado (não é canal de origem) — senão
+  // tudo colapsa em "Social medias 100%". Sem clique nem canal granular → "Outros".
   filtered.forEach((r) => {
-    const raw = r.channel?.trim() || "";
-    const fromShopee = raw && !ATTR_LEAK.has(raw) ? displayChannel(raw) : "";
     const sub = normalizeSubId(r.sub_id1 || "").toLowerCase();
-    const name = fromShopee || subToChannel.get(sub) || "Outros";
+    const fromClicks = subToChannel.get(sub) || "";
+    const raw = r.channel?.trim() || "";
+    const shopeeCh = raw && !ATTR_LEAK.has(raw) ? displayChannel(raw) : "";
+    const fromShopee = GENERIC_CHANNEL.has(shopeeCh) ? "" : shopeeCh;
+    const name = fromClicks || fromShopee || "Outros";
     byChannel.set(name, (byChannel.get(name) ?? 0) + getComissaoAfiliado(r));
   });
   return Array.from(byChannel.entries())
     .map(([name, value]) => ({ name, value: round2(netCommission(value, tax)) }))
     .sort((a, b) => b.value - a.value);
 }
+
+/**
+ * Categorias Global L1 da Shopee. Usadas no FILTRO de Categoria do dashboard p/ não listar
+ * as subcategorias L2/L3 (a Shopee às vezes devolve só L2/L3 quando o L1 vem vazio, gerando
+ * uma lista enorme: "Abrilhantadores", "Capas", "Calças"...). O bloco "Por categoria" já mostra
+ * L1 no topo porque ordena por valor; o filtro precisa desta lista canônica. Categoria no dado
+ * que não estiver aqui (subcategoria) fica de fora do filtro.
+ */
+export const SHOPEE_L1_CATEGORIES = new Set<string>([
+  "Acessórios de Moda",
+  "Alimentos e Bebidas",
+  "Animais Domésticos",
+  "Áudio",
+  "Bebês e Crianças",
+  "Beleza",
+  "Bolsas Femininas",
+  "Bolsas Masculinas",
+  "Brinquedos",
+  "Câmeras e Drones",
+  "Casa e Construção",
+  "Casa e Decoração",
+  "Celulares e Dispositivos",
+  "Computadores e Acessórios",
+  "Eletrodomésticos",
+  "Eletrônicos",
+  "Esportes e Atividades ao Ar Livre",
+  "Ferramentas",
+  "Hobbies e Coleções",
+  "Ingressos e Vouchers",
+  "Jogos e Consoles",
+  "Joias e Acessórios",
+  "Livros e Revistas",
+  "Mãe e Bebê",
+  "Moda Infantil",
+  "Motos e Acessórios",
+  "Outros",
+  "Papelaria",
+  "Peças e Acessórios para Veículos",
+  "Relógios",
+  "Roupas Femininas",
+  "Roupas Masculinas",
+  "Sapatos Femininos",
+  "Sapatos Masculinos",
+  "Saúde",
+  "Viagens e Bagagens",
+]);
 
 /** Comissão líquida por categoria, TODAS (sem corte), maior → menor. */
 export function groupByCategoryAll(rows: DatasetRow[], dateRange: DateRange, tax: TaxRates = ZERO_TAX): { name: string; value: number }[] {
