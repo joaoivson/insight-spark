@@ -93,3 +93,49 @@ export const formatHourRange = (time?: string | null): string => {
   const hNext = String((hour + 1) % 24).padStart(2, "0");
   return `Entre ${h} e ${hNext}:00`;
 };
+
+// ── Período em horário de Brasília (America/Sao_Paulo, UTC−3) ──────────────────
+// Os atalhos (7/14 dias, mês) cortam no FIM DO DIA ANTERIOR FECHADO em Brasília.
+// Calcular em UTC / fuso-do-navegador fazia o dia corrente (parcial) entrar à noite
+// (após 21h BRT = 00h UTC): o Gasto entrava sem a Comissão correspondente, derrubando
+// ROAS/Lucro. Aqui ancoramos tudo em Brasília, independente do fuso de quem acessa.
+const SP_TZ = "America/Sao_Paulo";
+
+/** "Hoje" em Brasília como YYYY-MM-DD — independe do fuso do navegador/servidor. */
+export const todayKeyBR = (): string =>
+  new Intl.DateTimeFormat("en-CA", {
+    timeZone: SP_TZ,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+
+/** Soma `n` dias a uma data-chave YYYY-MM-DD (math em UTC puro — a chave é só rótulo de dia). */
+export const addDaysKey = (key: string, n: number): string => {
+  const [y, m, d] = key.split("-").map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  dt.setUTCDate(dt.getUTCDate() + n);
+  return dt.toISOString().slice(0, 10);
+};
+
+/** Ontem (último dia FECHADO) em Brasília — limite superior dos atalhos de período. */
+export const yesterdayKeyBR = (): string => addDaysKey(todayKeyBR(), -1);
+
+/** Intervalo de um atalho de período (string keys), cortando no fim do dia anterior fechado (BRT). */
+export const presetRangeKeys = (
+  kind: "7d" | "14d" | "month",
+): { startDate: string; endDate: string } => {
+  const end = yesterdayKeyBR();
+  if (kind === "month") {
+    const start = `${todayKeyBR().slice(0, 8)}01`; // 1º dia do mês atual (BRT)
+    return { startDate: start, endDate: end < start ? start : end };
+  }
+  const days = kind === "7d" ? 7 : 14;
+  return { startDate: addDaysKey(end, -(days - 1)), endDate: end };
+};
+
+/** Mesmo intervalo, como objetos Date (para componentes que usam {from, to}). */
+export const presetRangeDates = (kind: "7d" | "14d" | "month"): { from: Date; to: Date } => {
+  const { startDate, endDate } = presetRangeKeys(kind);
+  return { from: parseDateOnly(startDate) as Date, to: parseDateOnly(endDate) as Date };
+};

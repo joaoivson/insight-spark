@@ -11,7 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useDatasetStore } from "@/stores/datasetStore";
 import { useAdSpendsStore } from "@/stores/adSpendsStore";
 import { useClicksStore } from "@/stores/clicksStore";
-import { isBeforeDateKey, isAfterDateKey } from "@/shared/lib/date";
+import { isBeforeDateKey, isAfterDateKey, presetRangeDates } from "@/shared/lib/date";
 import {
   calcDashTotals,
   buildSeries,
@@ -39,14 +39,10 @@ const Dashboard = () => {
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [categoryFilter, setCategoryFilter] = useState<string>("");
   const [subIdFilter, setSubIdFilter] = useState<string>("");
-  const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>(() => {
-    // Default: últimos 7 dias até ONTEM (o dia atual é parcial e contamina o ROAS).
-    const to = new Date();
-    to.setDate(to.getDate() - 1);
-    const from = new Date(to);
-    from.setDate(to.getDate() - 6);
-    return { from, to };
-  });
+  const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>(() =>
+    // Default: últimos 7 dias até ONTEM em Brasília (o dia atual é parcial e contamina o ROAS).
+    presetRangeDates("7d"),
+  );
 
   const loading = rowsLoading || spendsLoading || clicksLoading;
 

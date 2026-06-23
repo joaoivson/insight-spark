@@ -16,7 +16,7 @@ import { Label } from "@/components/ui/label";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useState, useMemo } from "react";
-import { parseDateOnly, toDateKey } from "@/shared/lib/date";
+import { parseDateOnly, toDateKey, presetRangeDates } from "@/shared/lib/date";
 import { cn } from "@/shared/lib/utils";
 import { useIsMobile } from "@/shared/hooks/use-mobile";
 
@@ -42,25 +42,9 @@ interface CommissionFiltersProps {
   clicks?: Array<{ date: string }>;
 }
 
-/** Fim do dia anterior fechado (não inclui o dia atual, que é parcial). */
-function yesterday(): Date {
-  const d = new Date();
-  d.setDate(d.getDate() - 1);
-  return d;
-}
-
-/** Atalhos cortam em ontem. 7d/14d = janela terminando ontem; mês atual = 1º do mês → ontem. */
+/** Atalhos cortam no fim do dia anterior fechado EM BRASÍLIA (o dia atual é parcial). */
 function presetRange(kind: "7d" | "14d" | "month"): DateRange {
-  const to = yesterday();
-  if (kind === "month") {
-    const now = new Date();
-    const from = new Date(now.getFullYear(), now.getMonth(), 1);
-    return { from: from > to ? to : from, to };
-  }
-  const days = kind === "7d" ? 7 : 14;
-  const from = new Date(to);
-  from.setDate(to.getDate() - (days - 1));
-  return { from, to };
+  return presetRangeDates(kind);
 }
 
 const Chip = ({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) => (

@@ -52,6 +52,7 @@ import { LinkSubIdModal } from "@/features/dashboard/components/LinkSubIdModal";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/shared/lib/utils";
 import { formatCurrency } from "@/shared/lib/chart-utils";
+import { presetRangeKeys } from "@/shared/lib/date";
 import { useCampaignsStore } from "@/stores/campaignsStore";
 import {
   exportCampaigns,
@@ -91,25 +92,15 @@ const PERIODS: { key: Exclude<PeriodKey, "custom">; label: string }[] = [
   { key: "month", label: "Mês atual" },
 ];
 
-const toISO = (d: Date) => d.toISOString().slice(0, 10);
+// Data-chave YYYY-MM-DD pelo CALENDÁRIO LOCAL (getDate, não toISOString/UTC) — usada só
+// no range personalizado, onde o usuário escolhe os dias explicitamente no date-picker.
+const toISO = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 const fmtShort = (d: Date) => `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`;
 
-// Atalhos vão até o FIM DO DIA ANTERIOR fechado — o dia atual está incompleto e contamina o ROAS.
-const periodRange = (key: Exclude<PeriodKey, "custom">): { startDate: string; endDate: string } => {
-  const today = new Date();
-  const yesterday = new Date(today);
-  yesterday.setDate(yesterday.getDate() - 1);
-  const end = toISO(yesterday);
-  if (key === "month") {
-    const startISO = toISO(new Date(today.getFullYear(), today.getMonth(), 1));
-    // Dia 1 do mês: "ontem" cai no mês passado → usa o próprio dia 1.
-    return { startDate: startISO, endDate: end < startISO ? startISO : end };
-  }
-  const days = key === "7d" ? 7 : 14;
-  const start = new Date(yesterday);
-  start.setDate(start.getDate() - (days - 1));
-  return { startDate: toISO(start), endDate: end };
-};
+// Atalhos vão até o FIM DO DIA ANTERIOR fechado em Brasília (o dia atual é parcial e contamina o ROAS).
+const periodRange = (key: Exclude<PeriodKey, "custom">): { startDate: string; endDate: string } =>
+  presetRangeKeys(key);
 
 type SortKey = "spend" | "roas" | "profit" | "commission" | "cpc" | "orders";
 
