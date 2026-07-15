@@ -1,4 +1,4 @@
-import { Calendar, FilterX } from "lucide-react";
+import { Calendar, ChevronDown, Filter, FilterX } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -47,7 +47,17 @@ function presetRange(kind: "yesterday" | "7d" | "14d" | "month"): DateRange {
   return presetRangeDates(kind);
 }
 
-const Chip = ({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) => (
+const Chip = ({
+  active,
+  onClick,
+  children,
+  className,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+  className?: string;
+}) => (
   <button
     type="button"
     onClick={onClick}
@@ -56,6 +66,7 @@ const Chip = ({ active, onClick, children }: { active: boolean; onClick: () => v
       active
         ? "border-[rgba(49,140,233,0.38)] bg-[rgba(49,140,233,0.12)] font-semibold text-[#7CB8F2]"
         : "border-border bg-card text-muted-foreground hover:border-white/15",
+      className,
     )}
   >
     {children}
@@ -83,9 +94,13 @@ const CommissionFilters = ({
 }: CommissionFiltersProps) => {
   const isMobile = useIsMobile();
   const [open, setOpen] = useState(false);
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [localRange, setLocalRange] = useState<DateRange>({ from: dateRange.from, to: dateRange.to });
 
   const today = new Date();
+  const hasAdvancedFilters = !!(statusFilter || categoryFilter || subIdFilter);
+  const showAdvanced =
+    !!onStatusFilterChange || !!onCategoryFilterChange || !!onSubIdFilterChange;
 
   const { minDate, maxDate } = useMemo(() => {
     const dates: Date[] = [];
@@ -176,7 +191,7 @@ const CommissionFilters = ({
       ? `${format(dateRange.from, "dd/MM", { locale: ptBR })} – ${format(dateRange.to, "dd/MM", { locale: ptBR })}`
       : "Personalizado";
 
-  const customChip = (
+  const desktopCustomChip = (
     <button
       type="button"
       className={cn(
@@ -192,17 +207,144 @@ const CommissionFilters = ({
     </button>
   );
 
+  const mobileCalendarChip = (
+    <button
+      type="button"
+      className={cn(
+        "flex h-[38px] w-[42px] shrink-0 items-center justify-center rounded-lg border transition-colors",
+        customActive
+          ? "border-[rgba(49,140,233,0.38)] bg-[rgba(49,140,233,0.12)] text-[#7CB8F2]"
+          : "border-border bg-transparent text-muted-foreground hover:border-white/15",
+      )}
+      aria-label="Selecionar período personalizado"
+    >
+      <Calendar className="h-4 w-4" />
+    </button>
+  );
+
+  const statusSelect = onStatusFilterChange ? (
+    <div className="flex flex-col gap-1.5 md:flex-row md:items-center">
+      <Label htmlFor="status-filter" className="whitespace-nowrap text-xs font-medium text-muted-foreground">
+        Status:
+      </Label>
+      <Select value={statusFilter || "all"} onValueChange={(v) => onStatusFilterChange(v === "all" ? "" : v)}>
+        <SelectTrigger id="status-filter" className="h-9 w-full sm:w-[140px]" aria-label="Filtrar por status">
+          <SelectValue placeholder="Todos" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">Todos</SelectItem>
+          {statusOptions.map((s) => (
+            <SelectItem key={s} value={s || "unknown"}>
+              {statusLabel(s)}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  ) : null;
+
+  const categorySelect = onCategoryFilterChange ? (
+    <div className="flex flex-col gap-1.5 md:flex-row md:items-center">
+      <Label htmlFor="category-filter" className="whitespace-nowrap text-xs font-medium text-muted-foreground">
+        Categoria:
+      </Label>
+      <Select value={categoryFilter || "all"} onValueChange={(v) => onCategoryFilterChange(v === "all" ? "" : v)}>
+        <SelectTrigger id="category-filter" className="h-9 w-full sm:w-[140px]" aria-label="Filtrar por categoria">
+          <SelectValue placeholder="Todas" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">Todas</SelectItem>
+          {categoryOptions.map((c) => (
+            <SelectItem key={c} value={c || "unknown"}>
+              {c}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  ) : null;
+
+  const subIdSelect = onSubIdFilterChange ? (
+    <div className="flex flex-col gap-1.5 md:flex-row md:items-center">
+      <Label htmlFor="subid-filter" className="whitespace-nowrap text-xs font-medium text-muted-foreground">
+        Sub ID:
+      </Label>
+      <Select value={subIdFilter || "all"} onValueChange={(v) => onSubIdFilterChange(v === "all" ? "" : v)}>
+        <SelectTrigger id="subid-filter" className="h-9 w-full sm:w-[140px]" aria-label="Filtrar por sub ID">
+          <SelectValue placeholder="Todos" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">Todos</SelectItem>
+          {subIdOptions.map((s) => (
+            <SelectItem key={s} value={s || "unknown"}>
+              {s}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  ) : null;
+
+  const clearIconButton = (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          variant={hasActive ? "destructive" : "ghost"}
+          size="icon"
+          onClick={onClear}
+          disabled={loading || !hasActive}
+          className={cn(
+            "h-10 w-10 shrink-0 rounded-lg transition-all duration-300",
+            hasActive
+              ? "shadow-sm shadow-destructive/20"
+              : "text-muted-foreground hover:bg-destructive/10 hover:text-destructive",
+          )}
+          aria-label="Limpar filtros"
+        >
+          <FilterX className={cn(hasActive ? "h-5 w-5" : "h-4 w-4", "transition-all")} />
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent>
+        <p>Limpar filtros</p>
+      </TooltipContent>
+    </Tooltip>
+  );
+
   return (
     <div className="mb-6 flex flex-col gap-3 rounded-xl border border-border bg-card p-3 md:flex-row md:flex-wrap md:items-center md:gap-x-3 md:gap-y-2 md:p-4">
       {/* Período em chips (cortam no fim de ontem) */}
-      <div className="flex flex-wrap items-center gap-2">
-        <Chip active={activeYesterday} onClick={() => applyPreset("yesterday")}>Ontem</Chip>
-        <Chip active={active7} onClick={() => applyPreset("7d")}>7 dias</Chip>
-        <Chip active={active14} onClick={() => applyPreset("14d")}>14 dias</Chip>
-        <Chip active={activeMonth} onClick={() => applyPreset("month")}>Mês atual</Chip>
+      <div className={cn("flex items-center gap-2", isMobile && "w-full gap-1.5")}>
+        <Chip
+          active={activeYesterday}
+          onClick={() => applyPreset("yesterday")}
+          className={isMobile ? "flex-1 px-2 py-2.5 text-center text-[12.5px] font-semibold" : undefined}
+        >
+          Ontem
+        </Chip>
+        <Chip
+          active={active7}
+          onClick={() => applyPreset("7d")}
+          className={isMobile ? "flex-1 px-2 py-2.5 text-center text-[12.5px] font-semibold" : undefined}
+        >
+          7 dias
+        </Chip>
+        <Chip
+          active={active14}
+          onClick={() => applyPreset("14d")}
+          className={isMobile ? "flex-1 px-2 py-2.5 text-center text-[12.5px] font-semibold" : undefined}
+        >
+          14 dias
+        </Chip>
+        <Chip
+          active={activeMonth}
+          onClick={() => applyPreset("month")}
+          className={isMobile ? "flex-1 px-2 py-2.5 text-center text-[12.5px] font-semibold" : undefined}
+        >
+          {isMobile ? "Mês" : "Mês atual"}
+        </Chip>
         {isMobile ? (
           <Sheet open={open} onOpenChange={setOpen}>
-            <SheetTrigger asChild>{customChip}</SheetTrigger>
+            <SheetTrigger asChild>{mobileCalendarChip}</SheetTrigger>
             <SheetContent side="bottom" className="h-[90vh] overflow-y-auto">
               <SheetHeader>
                 <SheetTitle>Período personalizado</SheetTitle>
@@ -213,7 +355,7 @@ const CommissionFilters = ({
           </Sheet>
         ) : (
           <Popover open={open} onOpenChange={setOpen}>
-            <PopoverTrigger asChild>{customChip}</PopoverTrigger>
+            <PopoverTrigger asChild>{desktopCustomChip}</PopoverTrigger>
             <PopoverContent className="w-auto p-0" align="start">
               {calendarContent}
             </PopoverContent>
@@ -221,90 +363,56 @@ const CommissionFilters = ({
         )}
       </div>
 
-      {/* Status */}
-      {onStatusFilterChange && (
-        <div className="flex flex-col gap-1.5 md:flex-row md:items-center">
-          <Label htmlFor="status-filter" className="whitespace-nowrap text-xs font-medium text-muted-foreground">
-            Status:
-          </Label>
-          <Select value={statusFilter || "all"} onValueChange={(v) => onStatusFilterChange(v === "all" ? "" : v)}>
-            <SelectTrigger id="status-filter" className="h-9 w-full sm:w-[140px]" aria-label="Filtrar por status">
-              <SelectValue placeholder="Todos" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos</SelectItem>
-              {statusOptions.map((s) => (
-                <SelectItem key={s} value={s || "unknown"}>{statusLabel(s)}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+      {/* Mobile: Status / Categoria / Sub ID atrás de "Filtros" */}
+      {isMobile && showAdvanced && (
+        <>
+          <button
+            type="button"
+            onClick={() => setMobileFiltersOpen((v) => !v)}
+            className="flex w-full items-center gap-2 rounded-lg border border-border px-3 py-2.5 text-[13.5px] font-semibold text-foreground"
+            aria-expanded={mobileFiltersOpen}
+            aria-controls="mobile-advanced-filters"
+          >
+            <Filter className="h-3.5 w-3.5" />
+            Filtros
+            {hasAdvancedFilters && (
+              <span className="h-1.5 w-1.5 rounded-full bg-[#318CE9]" title="filtros ativos" aria-hidden />
+            )}
+            <ChevronDown
+              className={cn("ml-auto h-4 w-4 text-muted-foreground transition-transform", mobileFiltersOpen && "rotate-180")}
+            />
+          </button>
+          {mobileFiltersOpen && (
+            <div id="mobile-advanced-filters" className="flex w-full flex-col gap-2.5">
+              {statusSelect}
+              {categorySelect}
+              {subIdSelect}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={onClear}
+                disabled={loading || !hasActive}
+                className="w-fit gap-2 border-destructive/30 bg-destructive/10 text-destructive hover:bg-destructive/15 hover:text-destructive"
+                aria-label="Limpar filtros"
+              >
+                <FilterX className="h-3.5 w-3.5" />
+                Limpar filtros
+              </Button>
+            </div>
+          )}
+        </>
       )}
 
-      {/* Categoria */}
-      {onCategoryFilterChange && (
-        <div className="flex flex-col gap-1.5 md:flex-row md:items-center">
-          <Label htmlFor="category-filter" className="whitespace-nowrap text-xs font-medium text-muted-foreground">
-            Categoria:
-          </Label>
-          <Select value={categoryFilter || "all"} onValueChange={(v) => onCategoryFilterChange(v === "all" ? "" : v)}>
-            <SelectTrigger id="category-filter" className="h-9 w-full sm:w-[140px]" aria-label="Filtrar por categoria">
-              <SelectValue placeholder="Todas" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todas</SelectItem>
-              {categoryOptions.map((c) => (
-                <SelectItem key={c} value={c || "unknown"}>{c}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+      {/* Desktop: filtros sempre visíveis */}
+      {!isMobile && (
+        <>
+          {statusSelect}
+          {categorySelect}
+          {subIdSelect}
+          <div className="md:ml-auto">{clearIconButton}</div>
+        </>
       )}
-
-      {/* Sub ID */}
-      {onSubIdFilterChange && (
-        <div className="flex flex-col gap-1.5 md:flex-row md:items-center">
-          <Label htmlFor="subid-filter" className="whitespace-nowrap text-xs font-medium text-muted-foreground">
-            Sub ID:
-          </Label>
-          <Select value={subIdFilter || "all"} onValueChange={(v) => onSubIdFilterChange(v === "all" ? "" : v)}>
-            <SelectTrigger id="subid-filter" className="h-9 w-full sm:w-[140px]" aria-label="Filtrar por sub ID">
-              <SelectValue placeholder="Todos" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos</SelectItem>
-              {subIdOptions.map((s) => (
-                <SelectItem key={s} value={s || "unknown"}>{s}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      )}
-
-      <div className="md:ml-auto">
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant={hasActive ? "destructive" : "ghost"}
-              size="icon"
-              onClick={onClear}
-              disabled={loading || !hasActive}
-              className={cn(
-                "h-10 w-10 shrink-0 rounded-lg transition-all duration-300",
-                hasActive
-                  ? "shadow-sm shadow-destructive/20"
-                  : "text-muted-foreground hover:bg-destructive/10 hover:text-destructive",
-              )}
-              aria-label="Limpar filtros"
-            >
-              <FilterX className={cn(hasActive ? "h-5 w-5" : "h-4 w-4", "transition-all")} />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>Limpar filtros</p>
-          </TooltipContent>
-        </Tooltip>
-      </div>
     </div>
   );
 };

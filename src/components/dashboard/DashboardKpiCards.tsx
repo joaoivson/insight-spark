@@ -79,16 +79,16 @@ const DashboardKpiCards = ({ totals, series, hasTax }: Props) => {
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
       <Card
         label="Comissão"
-        value={formatCurrency(totals.comissao)}
-        sub={hasTax ? `bruto: ${formatCurrency(totals.comissaoBruta)}` : undefined}
+        value={formatCurrency(hasTax ? totals.comissaoBruta : totals.comissao)}
+        sub={hasTax ? `líquido − imposto: ${formatCurrency(totals.comissao)}` : undefined}
         icon={BarChart2}
         accent={BLUE}
         spark={comissaoSpark}
       />
       <Card
         label="Gasto Anúncios"
-        value={formatCurrency(totals.gasto)}
-        sub={hasTax ? `sem imposto: ${formatCurrency(totals.gastoPago)}` : undefined}
+        value={formatCurrency(hasTax ? totals.gastoPago : totals.gasto)}
+        sub={hasTax ? `com imposto: ${formatCurrency(totals.gasto)}` : undefined}
         icon={ShoppingCart}
         accent={CORAL}
       />

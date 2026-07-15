@@ -735,9 +735,10 @@ const CampaignCard = ({
             ) : daily && daily.length > 0 ? (
               <div className="overflow-x-auto">
                 {/* B3: mesmo template de colunas do resumo de cima → colunas alinhadas verticalmente. */}
-                <div className="min-w-[420px] text-xs tabular-nums">
-                  <div className="grid grid-cols-[minmax(56px,0.8fr)_repeat(5,1fr)] gap-x-3 pb-2 text-right text-muted-foreground">
+                <div className="min-w-[480px] text-xs tabular-nums">
+                  <div className="grid grid-cols-[minmax(56px,0.8fr)_repeat(6,1fr)] gap-x-3 pb-2 text-right text-muted-foreground">
                     <span className="text-left font-normal">Data</span>
+                    <span className="font-normal">Pedidos</span>
                     <span className="font-normal">Gasto</span>
                     <span className="font-normal">Comissão</span>
                     <span className="font-normal">Lucro</span>
@@ -747,11 +748,12 @@ const CampaignCard = ({
                   {daily.map((d) => (
                     <div
                       key={d.date}
-                      className="grid grid-cols-[minmax(56px,0.8fr)_repeat(5,1fr)] gap-x-3 border-t border-border py-2 text-right"
+                      className="grid grid-cols-[minmax(56px,0.8fr)_repeat(6,1fr)] gap-x-3 border-t border-border py-2 text-right"
                     >
                       <span className="text-left text-muted-foreground">
                         {d.date.slice(8, 10)}/{d.date.slice(5, 7)}
                       </span>
+                      <span>{campaign.linked ? d.orders : "—"}</span>
                       <span>{d.spend_with_tax.toFixed(2)}</span>
                       <span>{d.commission_net.toFixed(2)}</span>
                       <span className={profitClass(d.profit)}>
