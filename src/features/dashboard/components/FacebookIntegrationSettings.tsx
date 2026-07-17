@@ -26,6 +26,9 @@ import {
 import type { FacebookAdAccount, FacebookIntegrationStatus } from "@/shared/types/campaign";
 
 const REDIRECT_PATH = "/dashboard/configuracoes";
+const META_OAUTH_SUCCESS = "meta_oauth_success";
+const META_OAUTH_ERROR = "meta_oauth_error";
+const POPUP_FEATURES = "width=600,height=750,menubar=no,toolbar=no";
 
 // Id no formato "act_123" (usado pela API e armazenado na integração).
 const fullAccountId = (a: FacebookAdAccount) => a.id || `act_${a.account_id}`;
@@ -38,6 +41,9 @@ const formatDate = (iso: string | null) => {
     return iso;
   }
 };
+
+const isOAuthPopup = () =>
+  typeof window !== "undefined" && !!window.opener && !window.opener.closed;
 
 export const FacebookIntegrationSettings = () => {
   const { toast } = useToast();
@@ -70,20 +76,81 @@ export const FacebookIntegrationSettings = () => {
     }
   };
 
+  const refreshAfterConnect = async () => {
+    const s = await loadStatus();
+    if (s) await loadAccounts();
+  };
+
+  // Popup OAuth: a aba original escuta o postMessage do callback.
+  useEffect(() => {
+    const onMessage = (event: MessageEvent) => {
+      if (event.origin !== window.location.origin) return;
+      const type = event.data?.type;
+      if (type === META_OAUTH_SUCCESS) {
+        void (async () => {
+          setBusy(true);
+          try {
+            await refreshAfterConnect();
+            toast({ title: "Facebook conectado com sucesso" });
+          } finally {
+            setBusy(false);
+          }
+        })();
+      } else if (type === META_OAUTH_ERROR) {
+        toast({
+          title: "Falha ao conectar Facebook",
+          description: typeof event.data?.message === "string" ? event.data.message : "Tente novamente.",
+          variant: "destructive",
+        });
+        setBusy(false);
+      }
+    };
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Captura o ?code=... do retorno do OAuth e finaliza a conexão.
   useEffect(() => {
     const run = async () => {
       const params = new URLSearchParams(window.location.search);
       const code = params.get("code");
+      const oauthError = params.get("error_description") || params.get("error");
+      const inPopup = isOAuthPopup();
+
+      if (oauthError && !code) {
+        window.history.replaceState({}, "", REDIRECT_PATH);
+        if (inPopup) {
+          window.opener?.postMessage(
+            { type: META_OAUTH_ERROR, message: oauthError },
+            window.location.origin,
+          );
+          window.close();
+          return;
+        }
+        toast({ title: "Falha ao conectar Facebook", description: oauthError, variant: "destructive" });
+      }
+
       if (code) {
         // Limpa a URL para não reprocessar o code
         window.history.replaceState({}, "", REDIRECT_PATH);
         setBusy(true);
         try {
           await completeFacebookOAuth(code, redirectUri);
+          if (inPopup) {
+            window.opener?.postMessage({ type: META_OAUTH_SUCCESS }, window.location.origin);
+            window.close();
+            return;
+          }
           toast({ title: "Facebook conectado com sucesso" });
         } catch (e) {
-          toast({ title: "Falha ao conectar Facebook", description: (e as Error).message, variant: "destructive" });
+          const message = (e as Error).message;
+          if (inPopup) {
+            window.opener?.postMessage({ type: META_OAUTH_ERROR, message }, window.location.origin);
+            window.close();
+            return;
+          }
+          toast({ title: "Falha ao conectar Facebook", description: message, variant: "destructive" });
         } finally {
           setBusy(false);
         }
@@ -100,7 +167,19 @@ export const FacebookIntegrationSettings = () => {
     setBusy(true);
     try {
       const url = await getFacebookOAuthUrl(redirectUri);
-      window.location.href = url;
+      const popup = window.open(url, "meta_oauth", POPUP_FEATURES);
+      if (!popup) {
+        // Fallback: popup bloqueado → redirect na mesma aba (comportamento anterior).
+        window.location.href = url;
+        return;
+      }
+      // Libera o botão se o usuário fechar o popup sem concluir.
+      const timer = window.setInterval(() => {
+        if (popup.closed) {
+          window.clearInterval(timer);
+          setBusy(false);
+        }
+      }, 500);
     } catch (e) {
       toast({ title: "Erro ao iniciar conexão", description: (e as Error).message, variant: "destructive" });
       setBusy(false);
