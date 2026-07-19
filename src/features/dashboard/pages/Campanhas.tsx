@@ -264,24 +264,31 @@ const Campanhas = () => {
     <DashboardLayout
       title="Campanhas"
       action={
-        <div className="flex items-center gap-2">
+        <div className="flex flex-col items-end gap-2 sm:flex-row sm:items-center">
+          <span className="text-[10px] leading-tight text-muted-foreground sm:hidden">
+            <div>Facebook · {fmtSync(lastSyncAt)}</div>
+            <div>Shopee · {fmtSync(lastSyncShopee)}</div>
+          </span>
           <span className="hidden md:flex flex-col items-end text-[11px] leading-tight text-muted-foreground">
             <span>Facebook · {fmtSync(lastSyncAt)}</span>
             <span>Shopee · {fmtSync(lastSyncShopee)}</span>
           </span>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleExport}
-            disabled={exporting || loading || campaigns.length === 0}
-          >
-            <Download className={cn("w-4 h-4 mr-2", exporting && "animate-pulse")} />
-            Exportar
-          </Button>
-          <Button variant="default" size="sm" onClick={handleSync} disabled={syncing || loading}>
-            <RefreshCw className={cn("w-4 h-4 mr-2", syncing && "animate-spin")} />
-            {syncing ? "Atualizando…" : "Atualizar dados"}
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExport}
+              disabled={exporting || loading || campaigns.length === 0}
+              className="hidden sm:inline-flex"
+            >
+              <Download className={cn("w-4 h-4 mr-2", exporting && "animate-pulse")} />
+              Exportar
+            </Button>
+            <Button variant="default" size="sm" onClick={handleSync} disabled={syncing || loading}>
+              <RefreshCw className={cn("w-4 h-4", syncing && "animate-spin", !syncing && "mr-2")} />
+              <span className="hidden sm:inline">{syncing ? "Atualizando…" : "Atualizar dados"}</span>
+            </Button>
+          </div>
         </div>
       }
     >
@@ -297,7 +304,7 @@ const Campanhas = () => {
               className="pl-9"
             />
           </div>
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
             <Select value={status} onValueChange={(v) => setStatus(v as CampaignStatusFilter)}>
               <SelectTrigger className="w-[120px]">
                 <SelectValue />
@@ -323,14 +330,14 @@ const Campanhas = () => {
               </SelectContent>
             </Select>
 
-            <div className="ml-auto flex items-center gap-2">
-              <div className="inline-flex rounded-lg border border-border bg-card p-1">
+            <div className="flex flex-1 items-center gap-2 overflow-x-auto sm:ml-auto">
+              <div className="inline-flex flex-shrink-0 rounded-lg border border-border bg-card p-1">
                 {PERIODS.map((p) => (
                   <button
                     key={p.key}
                     onClick={() => setPeriod(p.key)}
                     className={cn(
-                      "rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
+                      "rounded-md px-2.5 py-1 text-xs font-medium transition-colors whitespace-nowrap",
                       period === p.key
                         ? "bg-primary text-primary-foreground"
                         : "text-muted-foreground hover:text-foreground",
@@ -342,11 +349,13 @@ const Campanhas = () => {
               </div>
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button variant={period === "custom" ? "default" : "outline"} size="sm" className="h-9">
-                    <CalendarRange className="mr-2 h-4 w-4" />
-                    {period === "custom" && customRange?.from && customRange?.to
-                      ? `${fmtShort(customRange.from)} – ${fmtShort(customRange.to)}`
-                      : "Personalizado"}
+                  <Button variant={period === "custom" ? "default" : "outline"} size="sm" className="h-9 flex-shrink-0">
+                    <CalendarRange className="h-4 w-4 sm:mr-2" />
+                    <span className="hidden sm:inline">
+                      {period === "custom" && customRange?.from && customRange?.to
+                        ? `${fmtShort(customRange.from)} – ${fmtShort(customRange.to)}`
+                        : "Personalizado"}
+                    </span>
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="end">
@@ -676,31 +685,35 @@ const CampaignCard = ({
         </div>
 
         {/* Métricas principais (5): Gasto · Comissão · Lucro · ROAS Real · CPC.
-            B3: no desktop usa o MESMO template de colunas do dia a dia (1ª col = rótulo, alinhada
-            com "Data"), pra cada métrica de cima ficar exatamente sobre a coluna de baixo. */}
-        <div className="mt-4 grid grid-cols-2 gap-3 text-right sm:grid-cols-[minmax(56px,0.8fr)_repeat(5,1fr)]">
+            Mobile: 2 colunas (Gasto|Comissão, Lucro|ROAS, CPC full-width).
+            Desktop: 1 coluna Resumo + 5 métricas alinhadas com dia a dia. */}
+        <div className="mt-4 grid gap-3 sm:grid-cols-[minmax(56px,0.8fr)_repeat(5,1fr)]">
           <div className="hidden text-left text-[11px] text-muted-foreground sm:flex sm:items-end">Resumo</div>
-          <Metric
-            label="Gasto"
-            value={formatCurrency(hasTax ? m.spend_with_tax : m.spend)}
-            sub={hasTax ? `sem imposto: ${formatCurrency(m.spend)}` : undefined}
-          />
-          <Metric
-            label="Comissão"
-            value={campaign.linked ? formatCurrency(hasTax ? m.commission_net : m.commission) : "—"}
-            sub={campaign.linked && hasTax ? `bruto: ${formatCurrency(m.commission)}` : undefined}
-          />
-          <Metric
-            label="Lucro"
-            value={campaign.linked ? `${m.profit >= 0 ? "+" : ""}${formatCurrency(m.profit)}` : "—"}
-            valueClass={campaign.linked ? profitClass(m.profit) : undefined}
-          />
-          <Metric
-            label="ROAS Real"
-            value={campaign.linked && m.spend > 0 ? fmtRoas(m.roas) : "—"}
-            valueClass={campaign.linked && m.spend > 0 ? roasClass(m.roas) : undefined}
-          />
-          <Metric label="CPC" value={m.cpc == null ? "—" : formatCurrency(m.cpc)} />
+          <div className="grid grid-cols-2 gap-3 sm:contents">
+            <Metric
+              label="Gasto"
+              value={formatCurrency(hasTax ? m.spend_with_tax : m.spend)}
+              sub={hasTax ? `sem imposto: ${formatCurrency(m.spend)}` : undefined}
+            />
+            <Metric
+              label="Comissão"
+              value={campaign.linked ? formatCurrency(hasTax ? m.commission_net : m.commission) : "—"}
+              sub={campaign.linked && hasTax ? `bruto: ${formatCurrency(m.commission)}` : undefined}
+            />
+            <Metric
+              label="Lucro"
+              value={campaign.linked ? `${m.profit >= 0 ? "+" : ""}${formatCurrency(m.profit)}` : "—"}
+              valueClass={campaign.linked ? profitClass(m.profit) : undefined}
+            />
+            <Metric
+              label="ROAS Real"
+              value={campaign.linked && m.spend > 0 ? fmtRoas(m.roas) : "—"}
+              valueClass={campaign.linked && m.spend > 0 ? roasClass(m.roas) : undefined}
+            />
+            <div className="col-span-2 sm:col-span-1">
+              <Metric label="CPC" value={m.cpc == null ? "—" : formatCurrency(m.cpc)} />
+            </div>
+          </div>
         </div>
 
         {/* Não vinculada → CTA */}
@@ -717,16 +730,20 @@ const CampaignCard = ({
         {/* Expandido */}
         {expanded && (
           <div className="mt-4 border-t border-border pt-4">
-            {/* Métricas secundárias (5): Alcance · Cliques · CTR · Pedidos · Diretos */}
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
-              <Metric label="Impressões" value={m.impressions > 0 ? m.impressions.toLocaleString("pt-BR") : "—"} />
-              <Metric label="Cliques" value={m.clicks > 0 ? m.clicks.toLocaleString("pt-BR") : "—"} />
-              <Metric label="CTR" value={fmtPct(m.ctr)} />
-              <Metric label="Pedidos" value={campaign.linked ? String(m.orders) : "—"} />
-              <Metric
-                label="Diretos"
-                value={campaign.linked && m.orders > 0 ? `${m.direct_orders} · ${Math.round((m.direct_orders / m.orders) * 100)}%` : "—"}
-              />
+            {/* Métricas secundárias (5): Impressões · Cliques · CTR · Pedidos · Diretos.
+                Mobile: 2 linhas / 3 colunas (Impressões|Cliques|CTR, Pedidos|Diretos).
+                Desktop: 5 colunas. */}
+            <div className="grid gap-3 sm:grid-cols-5">
+              <div className="grid grid-cols-3 gap-3 sm:contents">
+                <Metric label="Impressões" value={m.impressions > 0 ? m.impressions.toLocaleString("pt-BR") : "—"} />
+                <Metric label="Cliques" value={m.clicks > 0 ? m.clicks.toLocaleString("pt-BR") : "—"} />
+                <Metric label="CTR" value={fmtPct(m.ctr)} />
+                <Metric label="Pedidos" value={campaign.linked ? String(m.orders) : "—"} />
+                <Metric
+                  label="Diretos"
+                  value={campaign.linked && m.orders > 0 ? `${m.direct_orders} · ${Math.round((m.direct_orders / m.orders) * 100)}%` : "—"}
+                />
+              </div>
             </div>
 
             <p className="mb-2 mt-5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Desempenho dia a dia</p>
