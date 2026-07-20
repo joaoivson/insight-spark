@@ -294,7 +294,7 @@ const Campanhas = () => {
       }
     >
       <div className="space-y-3 md:space-y-5">
-        {/* Filtros */}
+        {/* Filtros — mobile empilha; desktop: Todas/Gasto + período na mesma linha */}
         <div className="flex flex-col gap-2 md:gap-3">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -305,79 +305,81 @@ const Campanhas = () => {
               className="pl-9"
             />
           </div>
-          <div className="flex gap-2">
-            <Select value={status} onValueChange={(v) => setStatus(v as CampaignStatusFilter)}>
-              <SelectTrigger className="flex-1 sm:flex-none sm:w-[120px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todas</SelectItem>
-                <SelectItem value="active">Ativa</SelectItem>
-                <SelectItem value="paused">Pausada</SelectItem>
-              </SelectContent>
-            </Select>
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-2">
+            <div className="flex gap-2">
+              <Select value={status} onValueChange={(v) => setStatus(v as CampaignStatusFilter)}>
+                <SelectTrigger className="flex-1 sm:flex-none sm:w-[120px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas</SelectItem>
+                  <SelectItem value="active">Ativa</SelectItem>
+                  <SelectItem value="paused">Pausada</SelectItem>
+                </SelectContent>
+              </Select>
 
-            <Select value={sortKey} onValueChange={(v) => setSortKey(v as SortKey)}>
-              <SelectTrigger className="flex-1 sm:flex-none sm:w-[150px]">
-                <ArrowUpDown className="mr-1.5 h-3.5 w-3.5 flex-shrink-0 text-muted-foreground" />
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {SORT_OPTIONS.map((o) => (
-                  <SelectItem key={o.key} value={o.key}>
-                    {o.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="flex gap-2 overflow-x-auto">
-            <div className="inline-flex flex-shrink-0 rounded-lg border border-border bg-card p-1">
-              {PERIODS.map((p) => (
-                <button
-                  key={p.key}
-                  onClick={() => setPeriod(p.key)}
-                  className={cn(
-                    "rounded-md px-2.5 py-1 text-xs font-medium transition-colors whitespace-nowrap",
-                    period === p.key
-                      ? "bg-primary text-primary-foreground"
-                      : "text-muted-foreground hover:text-foreground",
-                  )}
-                >
-                  {p.label}
-                </button>
-              ))}
+              <Select value={sortKey} onValueChange={(v) => setSortKey(v as SortKey)}>
+                <SelectTrigger className="flex-1 sm:flex-none sm:w-[150px]">
+                  <ArrowUpDown className="mr-1.5 h-3.5 w-3.5 flex-shrink-0 text-muted-foreground" />
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {SORT_OPTIONS.map((o) => (
+                    <SelectItem key={o.key} value={o.key}>
+                      {o.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant={period === "custom" ? "default" : "outline"} size="sm" className="h-9 flex-shrink-0">
-                  <CalendarRange className="h-4 w-4 sm:mr-2" />
-                  <span className="hidden sm:inline">
-                    {period === "custom" && customRange?.from && customRange?.to
-                      ? `${fmtShort(customRange.from)} – ${fmtShort(customRange.to)}`
-                      : "Personalizado"}
-                  </span>
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="end">
-                <Calendar
-                  mode="range"
-                  selected={customRange}
-                  onSelect={(r) => {
-                    setCustomRange(r);
-                    setPeriod("custom");
-                  }}
-                  numberOfMonths={1}
-                  initialFocus
-                />
-              </PopoverContent>
-            </Popover>
+
+            <div className="flex gap-2 overflow-x-auto sm:ml-auto">
+              <div className="inline-flex flex-shrink-0 rounded-lg border border-border bg-card p-1">
+                {PERIODS.map((p) => (
+                  <button
+                    key={p.key}
+                    onClick={() => setPeriod(p.key)}
+                    className={cn(
+                      "rounded-md px-2.5 py-1 text-xs font-medium transition-colors whitespace-nowrap",
+                      period === p.key
+                        ? "bg-primary text-primary-foreground"
+                        : "text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant={period === "custom" ? "default" : "outline"} size="sm" className="h-9 flex-shrink-0">
+                    <CalendarRange className="h-4 w-4 sm:mr-2" />
+                    <span className="hidden sm:inline">
+                      {period === "custom" && customRange?.from && customRange?.to
+                        ? `${fmtShort(customRange.from)} – ${fmtShort(customRange.to)}`
+                        : "Personalizado"}
+                    </span>
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="end">
+                  <Calendar
+                    mode="range"
+                    selected={customRange}
+                    onSelect={(r) => {
+                      setCustomRange(r);
+                      setPeriod("custom");
+                    }}
+                    numberOfMonths={1}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
           </div>
         </div>
 
-        {/* KPIs */}
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
+        {/* KPIs — 2 cols mobile, 3 tablet, 6 em desktop (lg+) */}
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
           <KpiCard label="CPC médio" value={kpis.avg_cpc == null ? "—" : formatCurrency(kpis.avg_cpc)} icon={MousePointerClick} loading={initialLoading} />
           <KpiCard
             label="Gasto"
@@ -398,9 +400,9 @@ const Campanhas = () => {
           <KpiCard label="Orç./dia" value={formatCurrency(kpis.total_daily_budget)} sub={`${activeCount} ${activeCount === 1 ? "campanha ativa" : "campanhas ativas"}`} icon={CalendarRange} valueClass="text-primary" accent loading={initialLoading} />
         </div>
 
-        {/* Avisos — grade de largura fixa (~1/3), alinhados à esquerda; não esticam com um só. */}
+        {/* Avisos — no mobile empilham; no desktop compartilham a linha e esticam */}
         {(unlinkedCount > 0 || lossCount > 0) && !showEmptyState && (
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <div className="flex flex-col gap-3 sm:flex-row">
             {unlinkedCount > 0 && (
               <AlertBanner
                 variant="warning"
@@ -518,7 +520,7 @@ const AlertBanner = ({
   return (
     <button
       onClick={onClick}
-      className={cn("flex items-center gap-3 rounded-xl border px-4 py-3 text-left transition-colors", tone.bg, tone.border)}
+      className={cn("flex flex-1 items-center gap-3 rounded-xl border px-4 py-3 text-left transition-colors", tone.bg, tone.border)}
     >
       <Icon className={cn("h-4 w-4 flex-shrink-0", tone.text)} aria-hidden="true" />
       <span className="min-w-0">
