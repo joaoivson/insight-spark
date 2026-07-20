@@ -105,9 +105,9 @@ export const ShopeeIntegrationSettings = () => {
       await triggerManualSync(days);
       setSyncStep("saving");
 
-      // Polling: a cada 5s checa se last_sync_at mudou. Timeout 5 minutos.
-      const POLL_INTERVAL_MS = 5_000;
-      const MAX_POLL_MS = 5 * 60 * 1000;
+      // Polling mais agressivo em janelas curtas (7/14 dias terminam rápido).
+      const POLL_INTERVAL_MS = days <= 14 ? 2_000 : 5_000;
+      const MAX_POLL_MS = days <= 14 ? 2 * 60 * 1000 : 5 * 60 * 1000;
       const startedAt = Date.now();
       let updated: ShopeeStatus | null = null;
       while (Date.now() - startedAt < MAX_POLL_MS) {
@@ -136,7 +136,10 @@ export const ShopeeIntegrationSettings = () => {
       setSyncStep("done");
       setStatus(updated);
       await new Promise((r) => setTimeout(r, 800));
-      toast({ title: "Sincronização concluída", description: "Dados Shopee atualizados com sucesso." });
+      toast({
+        title: "Sincronização concluída",
+        description: `Dados Shopee dos últimos ${days} dias atualizados.`,
+      });
     } catch (err) {
       toast({
         title: "Erro na sincronização",
