@@ -97,7 +97,7 @@ const CHART_MAX = 100;
 
 export default function SalesHero() {
   return (
-    <header className="relative overflow-hidden bg-[#090D16] px-6 py-24 font-manrope text-[#F5F7FA]">
+    <header className="relative overflow-hidden bg-[#090D16] px-6 pt-8 pb-16 md:py-24 font-manrope text-[#F5F7FA]">
       {/* Brilho radial azul no topo */}
       <div
         aria-hidden="true"
