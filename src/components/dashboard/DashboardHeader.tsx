@@ -73,19 +73,29 @@ const DashboardHeader = ({ title, subtitle, subtitleSize = "sm", action, onMobil
   const isMobile = useIsMobile();
 
   return (
-    <header className="bg-card border-b border-border px-4 md:px-6 py-3 flex-shrink-0" role="banner">
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3 min-w-0 flex-1">
-          <BrandSymbol className="md:hidden w-8 h-8 flex-shrink-0" />
+    <header className="bg-card border-b border-border px-3 md:px-6 py-2 md:py-3 flex-shrink-0" role="banner">
+      <div className="flex items-center justify-between gap-2 md:gap-3">
+        <div className="flex items-center gap-2 md:gap-3 min-w-0 flex-1">
+          <BrandSymbol className="md:hidden w-7 h-7 flex-shrink-0" />
           <div className="min-w-0">
-            <h1 className="font-display font-bold text-lg md:text-xl text-foreground leading-tight truncate">{title}</h1>
-            {subtitle && <p className={`truncate md:whitespace-normal md:line-clamp-2 ${subtitleSize === "xs" ? "text-[10px] md:text-xs text-muted-foreground" : "text-xs md:text-sm text-muted-foreground"}`}>{subtitle}</p>}
+            <h1 className="font-display font-bold text-base md:text-xl text-foreground leading-tight truncate">{title}</h1>
+            {subtitle && (
+              <p
+                className={`truncate md:whitespace-normal md:line-clamp-2 leading-snug ${
+                  subtitleSize === "xs"
+                    ? "text-[10px] md:text-xs text-muted-foreground"
+                    : "text-[11px] md:text-sm text-muted-foreground"
+                }`}
+              >
+                {subtitle}
+              </p>
+            )}
           </div>
         </div>
 
-        <div className="flex items-center gap-2 md:gap-3 flex-shrink-0">
+        <div className="flex items-center gap-1.5 md:gap-3 flex-shrink-0">
           {action && (
-            <div className="flex items-center gap-2 md:gap-3 shrink-0 [&>*]:flex-none">
+            <div className="flex items-center gap-1.5 md:gap-3 shrink-0 [&>*]:flex-none">
               {action}
               <div className="hidden md:block h-6 w-px bg-border mx-1" />
             </div>
@@ -95,7 +105,7 @@ const DashboardHeader = ({ title, subtitle, subtitleSize = "sm", action, onMobil
             {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
           </Button>
 
-          <div className="flex items-center gap-3 pl-2 border-l border-border/50">
+          <div className="flex items-center gap-2 md:gap-3 pl-1.5 md:pl-2 border-l border-border/50">
             {!isMobile && userName && (
               <div className="flex flex-col items-end">
                 <span className="text-xs font-semibold text-foreground leading-none">
@@ -114,15 +124,8 @@ const DashboardHeader = ({ title, subtitle, subtitleSize = "sm", action, onMobil
               onClick={() => !isDemo && navigate(APP_CONFIG.ROUTES.DASHBOARD_SETTINGS)}
               disabled={isDemo}
             >
-              <div className="flex items-center gap-2">
-                {isMobile && userName && (
-                  <span className="text-xs font-medium text-foreground pr-1 max-w-[90px] truncate">
-                    {userName}
-                  </span>
-                )}
-                <div className="w-8 h-8 md:w-9 md:h-9 rounded-full bg-accent/10 border border-accent/20 flex items-center justify-center transition-colors hover:bg-accent/20">
-                  <User className="w-4 h-4 md:w-5 md:h-5 text-accent" aria-hidden="true" />
-                </div>
+              <div className="w-8 h-8 md:w-9 md:h-9 rounded-full bg-accent/10 border border-accent/20 flex items-center justify-center transition-colors hover:bg-accent/20">
+                <User className="w-4 h-4 md:w-5 md:h-5 text-accent" aria-hidden="true" />
               </div>
             </Button>
           </div>

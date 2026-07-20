@@ -25,7 +25,7 @@ export default function SalesHeader() {
 
   return (
     <header className="sticky top-0 z-50 border-b border-white/[0.07] bg-[#090D16]/[.78] backdrop-blur font-manrope">
-      <div className="mx-auto flex h-[70px] max-w-[1140px] items-center px-6">
+      <div className="mx-auto flex h-14 md:h-[70px] max-w-[1140px] items-center px-4 md:px-6">
         {/* Logo */}
         <a href="#top" className="flex items-center">
           <BrandLogo className="h-8 w-auto" />
@@ -101,24 +101,24 @@ export default function SalesHeader() {
               </button>
             </div>
 
-            <nav className="mt-8 flex flex-1 flex-col gap-1">
+            <nav className="mt-6 flex flex-col gap-0.5">
               {NAV_LINKS.map((link) => (
                 <a
                   key={link.href}
                   href={link.href}
                   onClick={() => setOpen(false)}
-                  className="rounded-lg px-2 py-3 text-base text-[#9aa3b2] transition-colors hover:bg-white/[0.04] hover:text-[#F5F7FA]"
+                  className="rounded-lg px-2 py-2.5 text-base text-[#9aa3b2] transition-colors hover:bg-white/[0.04] hover:text-[#F5F7FA]"
                 >
                   {link.label}
                 </a>
               ))}
             </nav>
 
-            <div className="mt-auto flex flex-col gap-3 border-t border-white/[0.08] pt-5">
+            <div className="mt-5 flex flex-col gap-2.5 border-t border-white/[0.08] pt-4">
               <Link
                 to="/login"
                 onClick={() => setOpen(false)}
-                className="rounded-lg px-2 py-3 text-base text-[#9aa3b2] transition-colors hover:text-[#F5F7FA]"
+                className="rounded-lg px-2 py-2.5 text-base text-[#9aa3b2] transition-colors hover:text-[#F5F7FA]"
               >
                 Entrar
               </Link>

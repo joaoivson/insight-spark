@@ -30,7 +30,7 @@ const DashboardLayout = ({ children, title, subtitle, subtitleSize, action }: Da
           onMobileMenuToggle={() => setMobileMenuOpen(!mobileMenuOpen)}
         />
         <main
-          className="flex-1 overflow-y-auto p-4 md:p-6 pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-6"
+          className="flex-1 overflow-y-auto px-3 pt-3 pb-[calc(5rem+env(safe-area-inset-bottom))] md:p-6 md:pb-6"
           role="main"
           aria-label="Conteúdo principal"
         >
