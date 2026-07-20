@@ -49,12 +49,9 @@ export const deleteShopeeCredentials = async (): Promise<void> => {
 };
 
 export const triggerManualSync = async (days: number): Promise<void> => {
-  const url = getApiUrl(`/api/v1/shopee/sync?days=${days}`);
-  const res = await fetchWithAuth(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ days }),
-  });
+  // Backend develop: POST /api/v1/shopee/sync/manual?period=7|14|30|60|90
+  const url = getApiUrl(`/api/v1/shopee/sync/manual?period=${days}`);
+  const res = await fetchWithAuth(url, { method: "POST" });
   if (!res.ok && res.status !== 202) {
     const text = await res.text();
     throw new Error(text || "Erro ao iniciar sincronização Shopee");
