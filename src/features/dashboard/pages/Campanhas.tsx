@@ -263,32 +263,33 @@ const Campanhas = () => {
   return (
     <DashboardLayout
       title="Campanhas"
+      subtitle={`Shopee · ${fmtSync(lastSyncShopee)} · Facebook ${lastSyncAt ? fmtSync(lastSyncAt) : "nunca"}`}
+      subtitleSize="xs"
       action={
-        <div className="flex flex-col items-end gap-2 sm:flex-row sm:items-center">
-          <span className="text-[10px] leading-tight text-muted-foreground sm:hidden">
-            <div>Facebook · {fmtSync(lastSyncAt)}</div>
-            <div>Shopee · {fmtSync(lastSyncShopee)}</div>
-          </span>
-          <span className="hidden md:flex flex-col items-end text-[11px] leading-tight text-muted-foreground">
-            <span>Facebook · {fmtSync(lastSyncAt)}</span>
-            <span>Shopee · {fmtSync(lastSyncShopee)}</span>
-          </span>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleExport}
-              disabled={exporting || loading || campaigns.length === 0}
-              className="hidden sm:inline-flex"
-            >
-              <Download className={cn("w-4 h-4 mr-2", exporting && "animate-pulse")} />
-              Exportar
-            </Button>
-            <Button variant="default" size="sm" onClick={handleSync} disabled={syncing || loading}>
-              <RefreshCw className={cn("w-4 h-4", syncing && "animate-spin", !syncing && "mr-2")} />
-              <span className="hidden sm:inline">{syncing ? "Atualizando…" : "Atualizar dados"}</span>
-            </Button>
-          </div>
+        <div className="flex items-center gap-2 md:gap-3">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExport}
+            disabled={exporting || loading || campaigns.length === 0}
+            className="hidden sm:inline-flex"
+          >
+            <Download className={cn("w-4 h-4 mr-2", exporting && "animate-pulse")} />
+            Exportar
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleSync}
+            disabled={syncing || loading}
+            className="h-8 w-8"
+            title={syncing ? "Atualizando…" : "Atualizar dados"}
+          >
+            <RefreshCw className={cn("w-4 h-4", syncing && "animate-spin")} />
+          </Button>
+          <Button variant="default" size="sm" onClick={handleSync} disabled={syncing || loading} className="hidden md:inline-flex">
+            {syncing ? "Atualizando…" : "Atualizar dados"}
+          </Button>
         </div>
       }
     >
@@ -304,9 +305,9 @@ const Campanhas = () => {
               className="pl-9"
             />
           </div>
-          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+          <div className="flex gap-2">
             <Select value={status} onValueChange={(v) => setStatus(v as CampaignStatusFilter)}>
-              <SelectTrigger className="w-[120px]">
+              <SelectTrigger className="flex-1 sm:flex-none sm:w-[120px]">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -317,7 +318,7 @@ const Campanhas = () => {
             </Select>
 
             <Select value={sortKey} onValueChange={(v) => setSortKey(v as SortKey)}>
-              <SelectTrigger className="w-[150px]">
+              <SelectTrigger className="flex-1 sm:flex-none sm:w-[150px]">
                 <ArrowUpDown className="mr-1.5 h-3.5 w-3.5 flex-shrink-0 text-muted-foreground" />
                 <SelectValue />
               </SelectTrigger>
@@ -329,49 +330,49 @@ const Campanhas = () => {
                 ))}
               </SelectContent>
             </Select>
+          </div>
 
-            <div className="flex flex-1 items-center gap-2 overflow-x-auto sm:ml-auto">
-              <div className="inline-flex flex-shrink-0 rounded-lg border border-border bg-card p-1">
-                {PERIODS.map((p) => (
-                  <button
-                    key={p.key}
-                    onClick={() => setPeriod(p.key)}
-                    className={cn(
-                      "rounded-md px-2.5 py-1 text-xs font-medium transition-colors whitespace-nowrap",
-                      period === p.key
-                        ? "bg-primary text-primary-foreground"
-                        : "text-muted-foreground hover:text-foreground",
-                    )}
-                  >
-                    {p.label}
-                  </button>
-                ))}
-              </div>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant={period === "custom" ? "default" : "outline"} size="sm" className="h-9 flex-shrink-0">
-                    <CalendarRange className="h-4 w-4 sm:mr-2" />
-                    <span className="hidden sm:inline">
-                      {period === "custom" && customRange?.from && customRange?.to
-                        ? `${fmtShort(customRange.from)} – ${fmtShort(customRange.to)}`
-                        : "Personalizado"}
-                    </span>
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="end">
-                  <Calendar
-                    mode="range"
-                    selected={customRange}
-                    onSelect={(r) => {
-                      setCustomRange(r);
-                      setPeriod("custom");
-                    }}
-                    numberOfMonths={1}
-                    initialFocus
-                  />
-                </PopoverContent>
-              </Popover>
+          <div className="flex gap-2 overflow-x-auto">
+            <div className="inline-flex flex-shrink-0 rounded-lg border border-border bg-card p-1">
+              {PERIODS.map((p) => (
+                <button
+                  key={p.key}
+                  onClick={() => setPeriod(p.key)}
+                  className={cn(
+                    "rounded-md px-2.5 py-1 text-xs font-medium transition-colors whitespace-nowrap",
+                    period === p.key
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  {p.label}
+                </button>
+              ))}
             </div>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant={period === "custom" ? "default" : "outline"} size="sm" className="h-9 flex-shrink-0">
+                  <CalendarRange className="h-4 w-4 sm:mr-2" />
+                  <span className="hidden sm:inline">
+                    {period === "custom" && customRange?.from && customRange?.to
+                      ? `${fmtShort(customRange.from)} – ${fmtShort(customRange.to)}`
+                      : "Personalizado"}
+                  </span>
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="end">
+                <Calendar
+                  mode="range"
+                  selected={customRange}
+                  onSelect={(r) => {
+                    setCustomRange(r);
+                    setPeriod("custom");
+                  }}
+                  numberOfMonths={1}
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
           </div>
         </div>
 

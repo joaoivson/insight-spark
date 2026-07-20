@@ -284,6 +284,7 @@ const DashboardSidebar = ({ mobileMenuOpen = false, onMobileMenuClose }: Dashboa
         <SheetContent
           side="left"
           className="w-full sm:w-80 p-0 bg-sidebar border-sidebar-border [&>button]:hidden"
+          style={{ backgroundColor: "hsl(var(--sidebar-background))" }}
         >
           <aside className="bg-sidebar flex flex-col h-full w-full overflow-hidden">
             {sidebarContent}
