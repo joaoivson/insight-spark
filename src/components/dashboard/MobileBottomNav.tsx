@@ -87,7 +87,7 @@ const MobileBottomNav = () => {
   return (
     <>
       <nav
-        className="md:hidden fixed bottom-0 inset-x-0 z-40 border-t border-border bg-card/95 backdrop-blur-lg pb-[env(safe-area-inset-bottom)]"
+        className="md:hidden fixed bottom-0 inset-x-0 z-40 border-t border-border bg-card pb-[env(safe-area-inset-bottom)]"
         aria-label="Navegação inferior"
       >
         <div className="flex items-stretch">

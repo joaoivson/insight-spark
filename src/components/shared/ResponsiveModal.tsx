@@ -48,7 +48,7 @@ export function ResponsiveModal({
     return (
       <Drawer open={open} onOpenChange={onOpenChange}>
         {trigger && <DrawerTrigger asChild>{trigger}</DrawerTrigger>}
-        <DrawerContent className="max-h-[90vh]">
+        <DrawerContent className="max-h-[90vh] bg-background" style={{ backgroundColor: "hsl(var(--background))" }}>
           <DrawerHeader className="text-left">
             <DrawerTitle>{title}</DrawerTitle>
             {description && <DrawerDescription>{description}</DrawerDescription>}

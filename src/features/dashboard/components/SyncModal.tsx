@@ -3,42 +3,46 @@ import { Check, RefreshCw, Database, LayoutDashboard } from "lucide-react";
 
 type Step = "syncing" | "saving" | "refreshing" | "done";
 
-const STEPS: { key: Step; label: string; sub: string; icon: React.ReactNode }[] = [
-  {
-    key: "syncing",
-    label: "Conectando à API Shopee",
-    sub: "Buscando comissões dos últimos 90 dias...",
-    icon: <RefreshCw className="w-5 h-5" />,
-  },
-  {
-    key: "saving",
-    label: "Salvando no banco de dados",
-    sub: "Inserindo novas comissões...",
-    icon: <Database className="w-5 h-5" />,
-  },
-  {
-    key: "refreshing",
-    label: "Atualizando dashboard",
-    sub: "Recarregando dados do painel...",
-    icon: <LayoutDashboard className="w-5 h-5" />,
-  },
-  {
-    key: "done",
-    label: "Sincronização concluída",
-    sub: "Seus dados estão atualizados.",
-    icon: <Check className="w-5 h-5" />,
-  },
-];
+const buildSteps = (days: number) =>
+  [
+    {
+      key: "syncing" as const,
+      label: "Conectando à API Shopee",
+      sub: `Buscando comissões dos últimos ${days} dias...`,
+      icon: <RefreshCw className="w-5 h-5" />,
+    },
+    {
+      key: "saving" as const,
+      label: "Salvando no banco de dados",
+      sub: "Inserindo novas comissões...",
+      icon: <Database className="w-5 h-5" />,
+    },
+    {
+      key: "refreshing" as const,
+      label: "Atualizando dashboard",
+      sub: "Recarregando dados do painel...",
+      icon: <LayoutDashboard className="w-5 h-5" />,
+    },
+    {
+      key: "done" as const,
+      label: "Sincronização concluída",
+      sub: "Seus dados estão atualizados.",
+      icon: <Check className="w-5 h-5" />,
+    },
+  ] as const;
 
-const stepIndex = (step: Step) => STEPS.findIndex((s) => s.key === step);
+const stepIndex = (steps: ReturnType<typeof buildSteps>, step: Step) =>
+  steps.findIndex((s) => s.key === step);
 
 interface SyncModalProps {
   open: boolean;
   step: Step;
+  days?: number;
 }
 
-export const SyncModal = ({ open, step }: SyncModalProps) => {
-  const current = stepIndex(step);
+export const SyncModal = ({ open, step, days = 90 }: SyncModalProps) => {
+  const STEPS = buildSteps(days);
+  const current = stepIndex(STEPS, step);
 
   return (
     <AnimatePresence>
@@ -49,7 +53,7 @@ export const SyncModal = ({ open, step }: SyncModalProps) => {
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.25 }}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-[#090D16]/95"
         >
           <motion.div
             key="sync-modal"
@@ -57,7 +61,8 @@ export const SyncModal = ({ open, step }: SyncModalProps) => {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.92, y: 16 }}
             transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-            className="relative w-full max-w-sm mx-4 bg-card border border-border rounded-2xl shadow-2xl p-6 md:p-8 overflow-hidden"
+            className="relative w-full max-w-sm mx-4 border border-border rounded-2xl shadow-2xl p-6 md:p-8 overflow-hidden"
+            style={{ backgroundColor: "hsl(var(--card))" }}
           >
             {/* Glow de fundo animado */}
             <motion.div

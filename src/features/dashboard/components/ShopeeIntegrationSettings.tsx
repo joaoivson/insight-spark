@@ -7,6 +7,7 @@ import { z } from "zod";
 import { Eye, EyeOff, Loader2, Pencil, RefreshCw, Unplug, X } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { SyncModal } from "./SyncModal";
+import { SyncDaysDialog, SyncDaysOption } from "./SyncDaysDialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -58,6 +59,8 @@ export const ShopeeIntegrationSettings = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncStep, setSyncStep] = useState<"syncing" | "saving" | "refreshing" | "done">("syncing");
+  const [syncDays, setSyncDays] = useState<SyncDaysOption>(30);
+  const [showSyncDaysDialog, setShowSyncDaysDialog] = useState(false);
   const [showDisconnectDialog, setShowDisconnectDialog] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
 
@@ -92,14 +95,14 @@ export const ShopeeIntegrationSettings = () => {
     }
   };
 
-  const handleSync = async () => {
+  const handleSync = async (days: SyncDaysOption) => {
+    setShowSyncDaysDialog(false);
+    setSyncDays(days);
     setIsSyncing(true);
     setSyncStep("syncing");
     const previousSyncAt = status?.last_sync_at ?? null;
     try {
-      // Backend retorna 202 e processa em background via Celery worker
-      // (sync de 88 dias leva minutos e estoura timeout de gateway).
-      await triggerManualSync();
+      await triggerManualSync(days);
       setSyncStep("saving");
 
       // Polling: a cada 5s checa se last_sync_at mudou. Timeout 5 minutos.
@@ -293,7 +296,7 @@ export const ShopeeIntegrationSettings = () => {
         <div className="flex flex-col sm:flex-row sm:flex-wrap gap-3 pt-4 border-t border-border">
           <Button
             variant="outline"
-            onClick={handleSync}
+            onClick={() => setShowSyncDaysDialog(true)}
             disabled={isSyncing}
             className="gap-2 w-full sm:w-auto"
           >
@@ -316,8 +319,14 @@ export const ShopeeIntegrationSettings = () => {
         </div>
       )}
 
-      {/* Sync modal */}
-      <SyncModal open={isSyncing} step={syncStep} />
+      {/* Sync days picker + progress modal */}
+      <SyncDaysDialog
+        open={showSyncDaysDialog}
+        onOpenChange={setShowSyncDaysDialog}
+        onConfirm={handleSync}
+        loading={isSyncing}
+      />
+      <SyncModal open={isSyncing} step={syncStep} days={syncDays} />
 
       {/* Disconnect confirmation dialog */}
       <AlertDialog open={showDisconnectDialog} onOpenChange={setShowDisconnectDialog}>

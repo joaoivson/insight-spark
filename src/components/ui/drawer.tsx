@@ -44,6 +44,7 @@ const DrawerContent = React.forwardRef<
         "fixed inset-x-0 bottom-0 z-50 mt-24 flex h-auto flex-col rounded-t-2xl border border-border bg-background",
         className
       )}
+      style={{ backgroundColor: "hsl(var(--background))" }}
       {...props}
     >
       <div className="mx-auto mt-3 h-1.5 w-12 rounded-full bg-muted" />

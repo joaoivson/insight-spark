@@ -73,7 +73,7 @@ const DashboardHeader = ({ title, subtitle, subtitleSize = "sm", action, onMobil
   const isMobile = useIsMobile();
 
   return (
-    <header className="bg-card border-b border-border px-4 md:px-6 py-3 flex flex-col gap-3 flex-shrink-0" role="banner">
+    <header className="bg-card border-b border-border px-4 md:px-6 py-3 flex-shrink-0" role="banner">
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3 min-w-0 flex-1">
           <BrandSymbol className="md:hidden w-8 h-8 flex-shrink-0" />
@@ -84,11 +84,10 @@ const DashboardHeader = ({ title, subtitle, subtitleSize = "sm", action, onMobil
         </div>
 
         <div className="flex items-center gap-2 md:gap-3 flex-shrink-0">
-          {/* Ação da página: inline a partir de md. Abaixo disso vai para a 2ª linha (largura total). */}
           {action && (
-            <div className="hidden md:flex items-center gap-3">
+            <div className="flex items-center gap-2 md:gap-3 shrink-0 [&>*]:flex-none">
               {action}
-              <div className="h-6 w-px bg-border mx-1" />
+              <div className="hidden md:block h-6 w-px bg-border mx-1" />
             </div>
           )}
 
@@ -129,13 +128,6 @@ const DashboardHeader = ({ title, subtitle, subtitleSize = "sm", action, onMobil
           </div>
         </div>
       </div>
-
-      {/* Ação da página em linha própria abaixo de md (evita esmagar o título) */}
-      {action && (
-        <div className="md:hidden flex gap-2 [&>*]:flex-1">
-          {action}
-        </div>
-      )}
     </header>
   );
 };

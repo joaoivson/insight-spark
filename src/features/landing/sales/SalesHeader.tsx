@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
 import { Menu, X } from "lucide-react";
 import { BrandLogo } from "@/components/brand/BrandLogo";
@@ -12,6 +13,15 @@ const NAV_LINKS = [
 
 export default function SalesHeader() {
   const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [open]);
 
   return (
     <header className="sticky top-0 z-50 border-b border-white/[0.07] bg-[#090D16]/[.78] backdrop-blur font-manrope">
@@ -61,64 +71,69 @@ export default function SalesHeader() {
         </div>
       </div>
 
-      {/* Mobile drawer */}
-      {/* Overlay */}
-      <div
-        onClick={() => setOpen(false)}
-        className={`fixed inset-0 z-40 bg-black/60 transition-opacity duration-300 md:hidden ${
-          open ? "opacity-100" : "pointer-events-none opacity-0"
-        }`}
-      />
-      {/* Painel lateral */}
-      <aside
-        className={`fixed right-0 top-0 z-50 flex h-full w-80 max-w-[80%] flex-col border-l border-white/[0.08] bg-[#0B1018] px-6 py-5 transition-transform duration-300 ease-out md:hidden ${
-          open ? "translate-x-0" : "translate-x-full"
-        }`}
-      >
-        <div className="flex items-center justify-between">
-          <span className="font-grotesk text-[17px] font-bold text-[#F5F7FA]">
-            MarketDash
-          </span>
-          <button
-            type="button"
-            aria-label="Fechar menu"
+      {createPortal(
+        <>
+          <div
             onClick={() => setOpen(false)}
-            className="flex h-10 w-10 items-center justify-center rounded-lg text-[#9aa3b2] transition-colors hover:bg-white/[0.06] hover:text-[#F5F7FA]"
+            aria-hidden={!open}
+            className={`fixed inset-0 z-[100] bg-black/80 transition-opacity duration-300 md:hidden ${
+              open ? "opacity-100" : "pointer-events-none opacity-0"
+            }`}
+          />
+          <aside
+            aria-hidden={!open}
+            className={`fixed right-0 top-0 z-[110] flex h-dvh min-h-screen w-80 max-w-[80%] flex-col border-l border-white/[0.08] bg-[#0B1018] px-6 py-5 transition-transform duration-300 ease-out md:hidden ${
+              open ? "translate-x-0" : "pointer-events-none translate-x-full"
+            }`}
+            style={{ backgroundColor: "#0B1018" }}
           >
-            <X className="h-6 w-6" />
-          </button>
-        </div>
+            <div className="flex items-center justify-between">
+              <span className="font-grotesk text-[17px] font-bold text-[#F5F7FA]">
+                MarketDash
+              </span>
+              <button
+                type="button"
+                aria-label="Fechar menu"
+                onClick={() => setOpen(false)}
+                className="flex h-10 w-10 items-center justify-center rounded-lg text-[#9aa3b2] transition-colors hover:bg-white/[0.06] hover:text-[#F5F7FA]"
+              >
+                <X className="h-6 w-6" />
+              </button>
+            </div>
 
-        <nav className="mt-8 flex flex-col gap-1">
-          {NAV_LINKS.map((link) => (
-            <a
-              key={link.href}
-              href={link.href}
-              onClick={() => setOpen(false)}
-              className="rounded-lg px-2 py-3 text-base text-[#9aa3b2] transition-colors hover:bg-white/[0.04] hover:text-[#F5F7FA]"
-            >
-              {link.label}
-            </a>
-          ))}
-        </nav>
+            <nav className="mt-8 flex flex-1 flex-col gap-1">
+              {NAV_LINKS.map((link) => (
+                <a
+                  key={link.href}
+                  href={link.href}
+                  onClick={() => setOpen(false)}
+                  className="rounded-lg px-2 py-3 text-base text-[#9aa3b2] transition-colors hover:bg-white/[0.04] hover:text-[#F5F7FA]"
+                >
+                  {link.label}
+                </a>
+              ))}
+            </nav>
 
-        <div className="mt-auto flex flex-col gap-3 border-t border-white/[0.08] pt-5">
-          <Link
-            to="/login"
-            onClick={() => setOpen(false)}
-            className="rounded-lg px-2 py-3 text-base text-[#9aa3b2] transition-colors hover:text-[#F5F7FA]"
-          >
-            Entrar
-          </Link>
-          <a
-            href="#precos"
-            onClick={() => setOpen(false)}
-            className="rounded-xl bg-[#318CE9] px-[18px] py-[12px] text-center text-base font-bold text-[#031426] transition-opacity hover:opacity-90"
-          >
-            Começar agora
-          </a>
-        </div>
-      </aside>
+            <div className="mt-auto flex flex-col gap-3 border-t border-white/[0.08] pt-5">
+              <Link
+                to="/login"
+                onClick={() => setOpen(false)}
+                className="rounded-lg px-2 py-3 text-base text-[#9aa3b2] transition-colors hover:text-[#F5F7FA]"
+              >
+                Entrar
+              </Link>
+              <a
+                href="#precos"
+                onClick={() => setOpen(false)}
+                className="rounded-xl bg-[#318CE9] px-[18px] py-[12px] text-center text-base font-bold text-[#031426] transition-opacity hover:opacity-90"
+              >
+                Começar agora
+              </a>
+            </div>
+          </aside>
+        </>,
+        document.body,
+      )}
     </header>
   );
 }
