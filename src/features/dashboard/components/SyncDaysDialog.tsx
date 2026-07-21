@@ -14,7 +14,7 @@ interface SyncDaysDialogProps {
 }
 
 export const SyncDaysDialog = ({ open, onOpenChange, onConfirm, loading }: SyncDaysDialogProps) => {
-  const [selectedDays, setSelectedDays] = useState<SyncDaysOption>(30);
+  const [selectedDays, setSelectedDays] = useState<SyncDaysOption>(7);
 
   const handleConfirm = () => {
     onConfirm(selectedDays);
