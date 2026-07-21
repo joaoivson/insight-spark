@@ -49,8 +49,8 @@ const Configuracoes = () => {
               <div className="min-w-0">
                 <h3 className="text-lg font-bold text-foreground">Shopee Afiliados</h3>
                 <p className="text-sm text-muted-foreground">
-                  Sincroniza automaticamente suas <strong>comissões</strong> toda manhã às 7h. Dados de cliques devem ser
-                  importados via Upload Cliques.
+                  Sincroniza automaticamente suas <strong>comissões</strong> de hora em hora (incremental) e um
+                  reconcile completo na madrugada. Dados de cliques devem ser importados via Upload Cliques.
                 </p>
               </div>
             </div>
