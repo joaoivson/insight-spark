@@ -167,6 +167,8 @@ export const FacebookIntegrationSettings = () => {
     setBusy(true);
     try {
       const url = await getFacebookOAuthUrl(redirectUri);
+      // Facilita auditoria: barra do popup trunca; DevTools mostra a URL completa.
+      console.info("[facebook-oauth] dialog url", url);
       const popup = window.open(url, "meta_oauth", POPUP_FEATURES);
       if (!popup) {
         // Fallback: popup bloqueado → redirect na mesma aba (comportamento anterior).
