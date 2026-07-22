@@ -50,7 +50,7 @@ const isOAuthPopup = () =>
 
 export const FacebookIntegrationSettings = () => {
   const { toast } = useToast();
-  const { isDemo, fetch: fetchPlan } = usePlanStore();
+  const { isDemo, loaded: planLoaded, fetch: fetchPlan } = usePlanStore();
   const [status, setStatus] = useState<FacebookIntegrationStatus | null>(null);
   const [accounts, setAccounts] = useState<FacebookAdAccount[]>([]);
   const [loading, setLoading] = useState(true);
@@ -77,6 +77,8 @@ export const FacebookIntegrationSettings = () => {
   };
 
   const loadAccounts = async () => {
+    // Conta demo: nunca chama Graph API (token placeholder).
+    if (usePlanStore.getState().isDemo) return;
     try {
       const accs = await listFacebookAdAccounts();
       setAccounts(accs);
@@ -86,6 +88,7 @@ export const FacebookIntegrationSettings = () => {
   };
 
   const refreshAfterConnect = async () => {
+    if (usePlanStore.getState().isDemo) return;
     const s = await loadStatus();
     if (s) await loadAccounts();
   };
@@ -119,9 +122,16 @@ export const FacebookIntegrationSettings = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Captura o ?code=... do retorno do OAuth e finaliza a conexão.
+  // Espera o plano (is_demo) antes de tocar em status/contas — evita toast no user demo.
   useEffect(() => {
+    if (!planLoaded) return;
+
     const run = async () => {
+      if (isDemo) {
+        setLoading(false);
+        return;
+      }
+
       const params = new URLSearchParams(window.location.search);
       const code = params.get("code");
       const oauthError = params.get("error_description") || params.get("error");
@@ -168,9 +178,9 @@ export const FacebookIntegrationSettings = () => {
       if (s) await loadAccounts();
       setLoading(false);
     };
-    run();
+    void run();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [planLoaded, isDemo]);
 
   const handleConnect = async () => {
     setBusy(true);
@@ -243,7 +253,7 @@ export const FacebookIntegrationSettings = () => {
     }
   };
 
-  if (loading) {
+  if (!planLoaded || loading) {
     return (
       <div className="flex items-center justify-center py-8 text-muted-foreground">
         <Loader2 className="w-5 h-5 animate-spin mr-2" /> Carregando…
