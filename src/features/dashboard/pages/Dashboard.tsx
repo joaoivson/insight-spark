@@ -23,8 +23,31 @@ import {
 import { normalizeSubId } from "@/shared/lib/utils";
 import { useTaxSettingsStore } from "@/stores/taxSettingsStore";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { DemoDataBanner } from "@/features/dashboard/components/DemoDataBanner";
+import { FacebookConnectionBanner } from "@/features/dashboard/components/FacebookConnectionBanner";
+import { usePlanStore } from "@/stores/planStore";
+import { useFacebookConnectionStore } from "@/stores/facebookConnectionStore";
 
 const SUBID_BLOCK_LIMIT = 50; // "os que mais vendem" — top N com scroll interno
+
+function DemoDataBannerIfNeeded() {
+  const { isDemo, fetch } = usePlanStore();
+  useEffect(() => {
+    void fetch();
+  }, [fetch]);
+  if (!isDemo) return null;
+  return <DemoDataBanner />;
+}
+
+function FacebookBannerIfNeeded() {
+  const { isDemo } = usePlanStore();
+  const { connectionState, fetch } = useFacebookConnectionStore();
+  useEffect(() => {
+    void fetch();
+  }, [fetch]);
+  if (isDemo) return null;
+  return <FacebookConnectionBanner state={connectionState} />;
+}
 
 const Dashboard = () => {
   const { rows, loading: rowsLoading, fetchRows } = useDatasetStore();
@@ -100,6 +123,8 @@ const Dashboard = () => {
     <DashboardLayout title="Dashboard">
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
         <div className="space-y-6">
+          <DemoDataBannerIfNeeded />
+          <FacebookBannerIfNeeded />
           <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full md:w-auto">
               <TabsList className="grid h-12 w-full grid-cols-2 rounded-xl border border-accent/20 bg-secondary/40 p-1 shadow-lg shadow-black/20 ring-1 ring-white/5 backdrop-blur-sm md:w-[400px]">

@@ -1,5 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
+import { DemoDataBanner } from "@/features/dashboard/components/DemoDataBanner";
+import { usePlanStore } from "@/stores/planStore";
 import { LoadingDataOverlay } from "@/components/dashboard/LoadingDataOverlay";
 import { motion, AnimatePresence } from "framer-motion";
 import { Upload, FileText, Check, AlertCircle, X, Eye, FileSpreadsheet, Trash2, MousePointerClick, Loader2 } from "lucide-react";
@@ -62,6 +64,11 @@ const UploadCSV = () => {
 
   const { fetchRows, invalidate: invalidateSales } = useDatasetStore();
   const { fetchClicks, invalidate: invalidateClicks } = useClicksStore();
+  const { isDemo, fetch: fetchPlan } = usePlanStore();
+
+  useEffect(() => {
+    void fetchPlan();
+  }, [fetchPlan]);
 
   const jobType: JobType = isClicksMode ? "click" : "transaction";
   const config = {
@@ -284,6 +291,7 @@ const UploadCSV = () => {
         </AlertDialog>
       }
     >
+      {isDemo && <div className="mb-4"><DemoDataBanner /></div>}
       <AnimatePresence>
         {showDatasetPolling && datasetId && (
           <LoadingDataOverlay

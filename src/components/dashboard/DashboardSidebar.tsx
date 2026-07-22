@@ -1,4 +1,4 @@
-import { NavLink, useLocation, useNavigate } from "react-router-dom";
+import { NavLink, useLocation } from "react-router-dom";
 import {
   LogOut,
   LayoutDashboard,
@@ -11,12 +11,13 @@ import {
   Target,
   Settings,
   Gift,
+  Lock,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
 import { Button } from "@/components/ui/button";
-import { useState } from "react";
-import { tokenStorage, userStorage, storage } from "@/shared/lib/storage";
+import { useEffect, useState } from "react";
+import { storage } from "@/shared/lib/storage";
 import { APP_CONFIG } from "@/core/config/app.config";
 import { supabase } from "@/shared/lib/supabase";
 import { BrandLogo, BrandSymbol } from "@/components/brand/BrandLogo";
@@ -28,6 +29,9 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { useIsMobile } from "@/shared/hooks/use-mobile";
+import { usePlanStore } from "@/stores/planStore";
+import { PATH_TO_MENU } from "@/shared/lib/plans";
+import { UpgradeProModal } from "@/features/subscription/components/UpgradeProModal";
 
 type MenuItem = {
   icon: LucideIcon;
@@ -37,23 +41,18 @@ type MenuItem = {
   external?: boolean;
   isNew?: boolean;
   iconClass?: string;
+  menuKey?: string;
 };
 
 const menuItems: MenuItem[] = [
-  { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
-  { icon: Target, label: "Campanhas", path: "/dashboard/campanhas", isNew: true },
-  { icon: MousePointerClick, label: "Upload Cliques", path: "/dashboard/upload-cliques" },
-  { icon: Globe, label: "Página de Captura", path: "/dashboard/captura" },
-  { icon: Link2, label: "Meus Links", path: "/dashboard/links" },
-  // Rota interna: abre a página Indique & Ganhe (o link da Kiwify fica no CTA da página).
-  { icon: Gift, label: "Indique & Ganhe", path: "/dashboard/indique", iconClass: "text-[#F0A94A]" },
-  { icon: Settings, label: "Configurações", path: "/dashboard/configuracoes" },
+  { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard", menuKey: "dashboard" },
+  { icon: Target, label: "Campanhas", path: "/dashboard/campanhas", isNew: true, menuKey: "campanhas" },
+  { icon: MousePointerClick, label: "Upload Cliques", path: "/dashboard/upload-cliques", menuKey: "upload_cliques" },
+  { icon: Globe, label: "Página de Captura", path: "/dashboard/captura", menuKey: "captura" },
+  { icon: Link2, label: "Meus Links", path: "/dashboard/links", menuKey: "meus_links" },
+  { icon: Gift, label: "Indique & Ganhe", path: "/dashboard/indique", iconClass: "text-[#F0A94A]", menuKey: "indique_ganhe" },
+  { icon: Settings, label: "Configurações", path: "/dashboard/configuracoes", menuKey: "configuracoes" },
 ];
-
-// Programa de afiliados oculto até liberação. Endpoints/rotas/webhook continuam ativos.
-// const adminMenuItems = [
-//   { icon: ShieldCheck, label: "Afiliados pendentes", path: "/dashboard/admin/afiliados", isAdmin: true },
-// ];
 
 interface DashboardSidebarProps {
   mobileMenuOpen?: boolean;
@@ -74,29 +73,25 @@ const WhatsAppLogo = ({ className }: { className?: string }) => (
 
 const DashboardSidebar = ({ mobileMenuOpen = false, onMobileMenuClose }: DashboardSidebarProps) => {
   const location = useLocation();
-  const navigate = useNavigate();
-  const isDemo = location.pathname.startsWith("/demo");
+  const isDemoRoute = location.pathname.startsWith("/demo");
   const [collapsed, setCollapsed] = useState(false);
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
   const isMobile = useIsMobile();
-  // const storedUser = userStorage.get() as { is_admin?: boolean } | null;
-  // const isAdmin = Boolean(storedUser?.is_admin);
-  // const visibleMenu = isAdmin ? [...menuItems, ...adminMenuItems] : menuItems;
+  const { fetch: fetchPlan, allowsMenu } = usePlanStore();
   const visibleMenu = menuItems;
+
+  useEffect(() => {
+    if (!isDemoRoute) void fetchPlan();
+  }, [fetchPlan, isDemoRoute]);
 
   const cleanNumber = WHATSAPP_NUMBER && typeof WHATSAPP_NUMBER === "string" ? WHATSAPP_NUMBER.replace(/\D/g, "") : null;
   const waUrl = cleanNumber ? `https://wa.me/${cleanNumber}` : null;
 
   const handleLogout = async () => {
-    // Invalidar sessão no servidor Supabase
     await supabase.auth.signOut();
-
-    // Apagar absolutamente todos os dados do localStorage e sessionStorage
     storage.clear();
     sessionStorage.clear();
-
     onMobileMenuClose?.();
-
-    // Forçar reload completo para destruir qualquer estado em memória (React Query, Zustand, etc)
     window.location.href = APP_CONFIG.ROUTES.HOME;
   };
 
@@ -108,7 +103,6 @@ const DashboardSidebar = ({ mobileMenuOpen = false, onMobileMenuClose }: Dashboa
 
   const sidebarContent = (
     <>
-      {/* Header */}
       <div className={cn(
         "h-16 flex items-center border-b border-sidebar-border px-4 flex-shrink-0",
         collapsed && !isMobile ? "justify-center" : "justify-between"
@@ -134,42 +128,59 @@ const DashboardSidebar = ({ mobileMenuOpen = false, onMobileMenuClose }: Dashboa
         )}
       </div>
 
-      {/* Navigation */}
       <nav className="flex-1 py-4 md:py-6 px-3 overflow-y-auto" aria-label="Navegação principal">
         <ul className="flex flex-col gap-1" role="list">
           {visibleMenu.map((item) => {
-            const isActive = !!item.path && location.pathname === item.path && !isDemo;
+            const menuKey = item.menuKey || (item.path ? PATH_TO_MENU[item.path] : undefined);
+            const locked = !isDemoRoute && !!menuKey && !allowsMenu(menuKey);
+            const isActive = !!item.path && location.pathname === item.path && !isDemoRoute;
             const classes = cn(
               "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 border-l-[3px] border-l-transparent",
-              "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent",
-              isActive && "bg-[rgba(49,140,233,0.12)] border-l-[#318CE9] hover:bg-[rgba(49,140,233,0.12)]",
+              locked
+                ? "text-sidebar-foreground/40 opacity-70 cursor-pointer"
+                : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent",
+              isActive && !locked && "bg-[rgba(49,140,233,0.12)] border-l-[#318CE9] hover:bg-[rgba(49,140,233,0.12)]",
               collapsed && !isMobile && "justify-center px-0",
               "w-full"
             );
             const itemContent = (
               <>
-                <item.icon className={cn("w-5 h-5 flex-shrink-0", item.iconClass, isActive && "text-[#318CE9]")} aria-hidden="true" />
+                <item.icon className={cn("w-5 h-5 flex-shrink-0", item.iconClass, isActive && !locked && "text-[#318CE9]")} aria-hidden="true" />
                 {(!collapsed || isMobile) && (
                   <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 min-w-0 flex-1">
-                    <span className={cn("font-medium", isActive && "text-white")}>{item.label}</span>
-                    {item.isNew && (
+                    <span className={cn("font-medium", isActive && !locked && "text-white")}>{item.label}</span>
+                    {item.isNew && !locked && (
                       <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-primary/20 text-primary flex-shrink-0">
                         Novo
                       </span>
                     )}
                   </div>
                 )}
+                {locked && (!collapsed || isMobile) && (
+                  <Lock className="w-4 h-4 flex-shrink-0 text-sidebar-foreground/50" aria-hidden />
+                )}
               </>
             );
             return (
               <li key={item.path ?? item.href ?? item.label} className="w-full">
-                {isDemo ? (
+                {isDemoRoute ? (
                   <button
                     type="button"
                     className={classes}
                     onClick={(e) => e.preventDefault()}
                     aria-label={item.label}
-                    aria-current={isActive ? "page" : undefined}
+                  >
+                    {itemContent}
+                  </button>
+                ) : locked ? (
+                  <button
+                    type="button"
+                    className={classes}
+                    onClick={() => {
+                      setUpgradeOpen(true);
+                      handleNavClick();
+                    }}
+                    aria-label={`${item.label} (plano Pro)`}
                   >
                     {itemContent}
                   </button>
@@ -201,7 +212,6 @@ const DashboardSidebar = ({ mobileMenuOpen = false, onMobileMenuClose }: Dashboa
         </ul>
       </nav>
 
-      {/* Collapse Toggle - Only on desktop */}
       {!isMobile && (
         <div className="px-3 pb-2 flex-shrink-0">
           <Button
@@ -227,9 +237,8 @@ const DashboardSidebar = ({ mobileMenuOpen = false, onMobileMenuClose }: Dashboa
         </div>
       )}
 
-      {/* Logout */}
       <div className="border-t border-sidebar-border p-3 flex-shrink-0 flex flex-col gap-1">
-        {waUrl && !isDemo && (
+        {waUrl && !isDemoRoute && (
           <a
             href={waUrl}
             target="_blank"
@@ -245,7 +254,7 @@ const DashboardSidebar = ({ mobileMenuOpen = false, onMobileMenuClose }: Dashboa
             {(!collapsed || isMobile) && <span className="font-medium">Suporte</span>}
           </a>
         )}
-        {isDemo ? (
+        {isDemoRoute ? (
           <button
             type="button"
             className={cn(
@@ -274,10 +283,10 @@ const DashboardSidebar = ({ mobileMenuOpen = false, onMobileMenuClose }: Dashboa
           </button>
         )}
       </div>
+      <UpgradeProModal open={upgradeOpen} onOpenChange={setUpgradeOpen} />
     </>
   );
 
-  // Mobile: Use Sheet overlay
   if (isMobile) {
     return (
       <Sheet open={mobileMenuOpen} onOpenChange={(open) => !open && onMobileMenuClose?.()}>
@@ -286,6 +295,10 @@ const DashboardSidebar = ({ mobileMenuOpen = false, onMobileMenuClose }: Dashboa
           className="w-full sm:w-80 p-0 bg-sidebar border-sidebar-border [&>button]:hidden"
           style={{ backgroundColor: "hsl(var(--sidebar-background))" }}
         >
+          <SheetHeader className="sr-only">
+            <SheetTitle>Menu</SheetTitle>
+            <SheetDescription>Navegação do dashboard</SheetDescription>
+          </SheetHeader>
           <aside className="bg-sidebar flex flex-col h-full w-full overflow-hidden">
             {sidebarContent}
           </aside>
@@ -294,7 +307,6 @@ const DashboardSidebar = ({ mobileMenuOpen = false, onMobileMenuClose }: Dashboa
     );
   }
 
-  // Desktop: Regular sidebar
   return (
     <aside
       className={cn(

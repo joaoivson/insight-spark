@@ -81,3 +81,24 @@ export const triggerFacebookSync = async (): Promise<void> => {
   const res = await fetchWithAuth(url, { method: "POST" });
   if (!res.ok) throw new Error((await res.text()) || "Erro ao iniciar sincronização do Facebook");
 };
+
+export const validateFacebookToken = async (): Promise<{
+  valid: boolean;
+  status: string;
+  connection_state: string;
+}> => {
+  const url = getApiUrl("/api/v1/facebook/validate-token");
+  const res = await fetchWithAuth(url);
+  if (!res.ok) throw new Error((await res.text()) || "Erro ao validar token Facebook");
+  return res.json();
+};
+
+export const clearFacebookAdsData = async (): Promise<void> => {
+  const url = getApiUrl("/api/v1/facebook/clear-ads-data");
+  const res = await fetchWithAuth(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ confirm: true }),
+  });
+  if (!res.ok) throw new Error((await res.text()) || "Erro ao limpar dados de anúncios");
+};

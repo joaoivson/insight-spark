@@ -22,8 +22,11 @@ import {
   getFacebookStatus,
   listFacebookAdAccounts,
   selectFacebookAdAccounts,
+  clearFacebookAdsData,
 } from "@/services/facebook.service";
 import type { FacebookAdAccount, FacebookIntegrationStatus } from "@/shared/types/campaign";
+import { usePlanStore } from "@/stores/planStore";
+import { Trash2 } from "lucide-react";
 
 const REDIRECT_PATH = "/dashboard/configuracoes";
 const META_OAUTH_SUCCESS = "meta_oauth_success";
@@ -47,12 +50,18 @@ const isOAuthPopup = () =>
 
 export const FacebookIntegrationSettings = () => {
   const { toast } = useToast();
+  const { isDemo, fetch: fetchPlan } = usePlanStore();
   const [status, setStatus] = useState<FacebookIntegrationStatus | null>(null);
   const [accounts, setAccounts] = useState<FacebookAdAccount[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [selectedAccounts, setSelectedAccounts] = useState<string[]>([]);
   const [disconnectOpen, setDisconnectOpen] = useState(false);
+  const [clearOpen, setClearOpen] = useState(false);
+
+  useEffect(() => {
+    void fetchPlan();
+  }, [fetchPlan]);
 
   const redirectUri = typeof window !== "undefined" ? `${window.location.origin}${REDIRECT_PATH}` : REDIRECT_PATH;
 
@@ -221,6 +230,19 @@ export const FacebookIntegrationSettings = () => {
     }
   };
 
+  const handleClearAds = async () => {
+    setBusy(true);
+    try {
+      await clearFacebookAdsData();
+      toast({ title: "Dados de anúncios removidos" });
+    } catch (e) {
+      toast({ title: "Erro ao limpar dados", description: (e as Error).message, variant: "destructive" });
+    } finally {
+      setBusy(false);
+      setClearOpen(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-8 text-muted-foreground">
@@ -229,7 +251,20 @@ export const FacebookIntegrationSettings = () => {
     );
   }
 
-  if (!status) {
+  if (isDemo) {
+    return (
+      <div className="space-y-4">
+        <Badge className="bg-amber-500/10 text-amber-400 border-amber-500/25 gap-1">
+          <CheckCircle2 className="w-3.5 h-3.5" /> Conectado · dados demonstrativos
+        </Badge>
+        <p className="text-sm text-muted-foreground">
+          Esta conta usa dados demonstrativos para treinamento. Nenhuma conta real está conectada.
+        </p>
+      </div>
+    );
+  }
+
+  if (!status || status.connection_state === "nunca") {
     return (
       <div className="space-y-4">
         <p className="text-sm text-muted-foreground">
@@ -312,6 +347,14 @@ export const FacebookIntegrationSettings = () => {
         >
           <Unplug className="w-4 h-4 mr-2" /> Desconectar
         </Button>
+        <Button
+          variant="outline"
+          className="w-full sm:w-auto"
+          onClick={() => setClearOpen(true)}
+          disabled={busy}
+        >
+          <Trash2 className="w-4 h-4 mr-2" /> Limpar todos os dados de anúncios
+        </Button>
       </div>
 
       <AlertDialog open={disconnectOpen} onOpenChange={setDisconnectOpen}>
@@ -320,12 +363,35 @@ export const FacebookIntegrationSettings = () => {
             <AlertDialogTitle>Desconectar Facebook?</AlertDialogTitle>
             <AlertDialogDescription>
               As campanhas sincronizadas deixarão de ser atualizadas. Você pode reconectar a qualquer momento.
+              Os dados históricos não são apagados automaticamente.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={busy}>Cancelar</AlertDialogCancel>
             <AlertDialogAction onClick={handleDisconnect} disabled={busy}>
               Desconectar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={clearOpen} onOpenChange={setClearOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Limpar todos os dados de anúncios?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Isso apaga campanhas, gastos (Meta e manual) e cliques desta conta. Dados da Shopee
+              (comissões) não são afetados. Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={busy}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleClearAds}
+              disabled={busy}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Limpar tudo
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -52,6 +52,7 @@ import {
   uploadImage,
 } from "@/services/capture_site.service";
 import { getSiteEventStats } from "@/services/page_events.service";
+import { usePlanStore } from "@/stores/planStore";
 
 // Um regex mínimo para retirar carateres especiais caso o usuário digite
 const slugify = (str: string) => {
@@ -79,6 +80,10 @@ const DEFAULT_IMAGE = "/default-logo.png";
 
 export const CapturaSite = () => {
   const { toast } = useToast();
+  const fetchPlan = usePlanStore((s) => s.fetch);
+  useEffect(() => {
+    void fetchPlan();
+  }, [fetchPlan]);
   const [viewMode, setViewMode] = useState<'list' | 'editor'>('list');
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -182,7 +187,7 @@ export const CapturaSite = () => {
     setViewMode('editor');
   };
 
-  const MAX_CAPTURE_SITES = 30;
+  const MAX_CAPTURE_SITES = usePlanStore((s) => s.context?.limites_paginas_captura ?? 15);
 
   const handleNew = () => {
     if (sites.length >= MAX_CAPTURE_SITES) {

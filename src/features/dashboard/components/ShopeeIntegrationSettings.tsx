@@ -4,7 +4,7 @@ import { useDatasetStore } from "@/stores/datasetStore";
 import { useClicksStore } from "@/stores/clicksStore";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Eye, EyeOff, Loader2, Pencil, RefreshCw, Unplug, X } from "lucide-react";
+import { Eye, EyeOff, Loader2, Pencil, RefreshCw, Unplug, X, CheckCircle2 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { SyncModal } from "./SyncModal";
 import { SyncDaysDialog, SyncDaysOption } from "./SyncDaysDialog";
@@ -30,6 +30,7 @@ import {
   ShopeeStatus,
   triggerManualSync,
 } from "@/services/shopee.service";
+import { usePlanStore } from "@/stores/planStore";
 
 const schema = z.object({
   appId: z.string().trim().min(1, "AppID é obrigatório"),
@@ -53,6 +54,7 @@ export const ShopeeIntegrationSettings = () => {
   const { toast } = useToast();
   const fetchRows = useDatasetStore((s) => s.fetchRows);
   const fetchClicks = useClicksStore((s) => s.fetchClicks);
+  const { isDemo, fetch: fetchPlan } = usePlanStore();
   const [status, setStatus] = useState<ShopeeStatus | null>(null);
   const [loadingStatus, setLoadingStatus] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
@@ -63,6 +65,10 @@ export const ShopeeIntegrationSettings = () => {
   const [showSyncDaysDialog, setShowSyncDaysDialog] = useState(false);
   const [showDisconnectDialog, setShowDisconnectDialog] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+
+  useEffect(() => {
+    void fetchPlan();
+  }, [fetchPlan]);
 
   const {
     register,
@@ -171,6 +177,19 @@ export const ShopeeIntegrationSettings = () => {
     return (
       <div className="flex items-center justify-center py-8">
         <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (isDemo) {
+    return (
+      <div className="space-y-4">
+        <Badge className="bg-amber-500/10 text-amber-400 border-amber-500/25 gap-1">
+          <CheckCircle2 className="w-3.5 h-3.5" /> Conectado · dados demonstrativos
+        </Badge>
+        <p className="text-sm text-muted-foreground">
+          Esta conta usa dados demonstrativos para treinamento. Nenhuma conta real está conectada.
+        </p>
       </div>
     );
   }

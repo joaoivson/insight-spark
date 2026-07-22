@@ -40,6 +40,8 @@ import Configuracoes from "@/features/dashboard/pages/Configuracoes";
 import IndiquePage from "@/features/dashboard/pages/IndiquePage";
 import AfiliadosPage from "@/features/dashboard/pages/Afiliados";
 import AfiliadosPendentesPage from "@/features/admin/pages/AfiliadosPendentes";
+import PlanosPage from "@/features/dashboard/pages/PlanosPage";
+import { RequirePlan } from "@/app/routes/RequirePlan";
 
 // Loading fallback component
 const LoadingFallback = () => (
@@ -163,7 +165,10 @@ export const AppRoutes = () => {
 
         {/* Protected Routes */}
         <Route path="/dashboard" element={<ProtectedRoute element={<Dashboard />} />} />
-        <Route path="/dashboard/captura" element={<ProtectedRoute element={<CapturaSite />} />} />
+        <Route
+          path="/dashboard/captura"
+          element={<ProtectedRoute element={<RequirePlan menuKey="captura" element={<CapturaSite />} />} />}
+        />
         {/* "Upload Comissão" (/dashboard/upload) removido: comissão vem 100% da API Shopee. */}
         <Route path="/dashboard/upload-cliques" element={<ProtectedRoute element={<UploadCSV />} />} />
         <Route path="/dashboard/reports" element={<ProtectedRoute element={<Reports />} />} />
@@ -172,8 +177,12 @@ export const AppRoutes = () => {
         {/* "Custos de Anúncios" (/dashboard/investimentos) removido: gasto vem 100% da API Meta. */}
         <Route path="/dashboard/campanhas" element={<ProtectedRoute element={<Campanhas />} />} />
         <Route path="/dashboard/configuracoes" element={<ProtectedRoute element={<Configuracoes />} />} />
+        <Route path="/dashboard/planos" element={<ProtectedRoute element={<PlanosPage />} />} />
         <Route path="/dashboard/indique" element={<ProtectedRoute element={<IndiquePage />} />} />
-        <Route path="/dashboard/links" element={<ProtectedRoute element={<CustomLinks />} />} />
+        <Route
+          path="/dashboard/links"
+          element={<ProtectedRoute element={<RequirePlan menuKey="meus_links" element={<CustomLinks />} />} />}
+        />
         <Route path="/dashboard/integracoes" element={<ProtectedRoute element={<IntegrationsPage />} />} />
         <Route path="/dashboard/impostos" element={<ProtectedRoute element={<ImpostosMeta />} />} />
         <Route path="/dashboard/afiliados" element={<ProtectedRoute element={<AfiliadosPage />} />} />

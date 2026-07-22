@@ -61,6 +61,17 @@ import {
   setCampaignStatus,
 } from "@/services/campaigns.service";
 import { getFacebookStatus, triggerFacebookSync } from "@/services/facebook.service";
+import { FacebookConnectionBanner } from "@/features/dashboard/components/FacebookConnectionBanner";
+import { DemoDataBanner } from "@/features/dashboard/components/DemoDataBanner";
+import { useFacebookConnectionStore } from "@/stores/facebookConnectionStore";
+import { usePlanStore } from "@/stores/planStore";
+import type { FacebookConnectionState } from "@/features/dashboard/components/FacebookConnectionBanner";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { getShopeeStatus } from "@/services/shopee.service";
 import type {
   Campaign,
@@ -153,6 +164,9 @@ const Campanhas = () => {
   const [syncing, setSyncing] = useState(false);
   const [lastSyncAt, setLastSyncAt] = useState<string | null>(null);
   const [lastSyncShopee, setLastSyncShopee] = useState<string | null>(null);
+  const { connectionState, fetch: fetchFbConn } = useFacebookConnectionStore();
+  const { isDemo, fetch: fetchPlan } = usePlanStore();
+  const fbControlsEnabled = connectionState === "conectado" || isDemo;
 
   const range = useMemo(() => {
     if (period === "custom" && customRange?.from && customRange?.to) {
@@ -186,16 +200,19 @@ const Campanhas = () => {
 
   // Status da integração (para empty state + última sincronização do Facebook)
   useEffect(() => {
+    void fetchFbConn({ force: true });
+    void fetchPlan();
     getFacebookStatus()
       .then((s) => {
-        setFbConnected(Boolean(s?.ad_account_id));
+        const state = (s?.connection_state || (s?.ad_account_ids?.length ? "conectado" : "nunca")) as FacebookConnectionState;
+        setFbConnected(state === "conectado");
         setLastSyncAt(s?.last_sync_at ?? null);
       })
       .catch(() => setFbConnected(false));
     getShopeeStatus()
       .then((s) => setLastSyncShopee(s?.last_sync_at ?? null))
       .catch(() => {});
-  }, []);
+  }, [fetchFbConn, fetchPlan]);
 
   // Força um sync do Facebook (gasto/CPC/impressões mudam ao longo do dia) e recarrega.
   // A Shopee não entra aqui — ela só atualiza 1x/dia, não tem dado em tempo real.
@@ -294,6 +311,8 @@ const Campanhas = () => {
       }
     >
       <div className="space-y-3 md:space-y-5">
+        {isDemo && <DemoDataBanner />}
+        {!isDemo && <FacebookConnectionBanner state={connectionState} />}
         {/* Filtros — mobile empilha; desktop: Todas/Gasto + período na mesma linha */}
         <div className="flex flex-col gap-2 md:gap-3">
           <div className="relative">
@@ -397,7 +416,9 @@ const Campanhas = () => {
           />
           <KpiCard label="Lucro" value={formatCurrency(kpis.total_profit)} icon={TrendingUp} valueClass={profitClass(kpis.total_profit)} loading={initialLoading} />
           <KpiCard label="ROAS Real" value={fmtRoas(kpis.avg_roas)} icon={Target} valueClass={kpis.avg_roas > 0 ? roasClass(kpis.avg_roas) : undefined} loading={initialLoading} />
-          <KpiCard label="Orç./dia" value={formatCurrency(kpis.total_daily_budget)} sub={`${activeCount} ${activeCount === 1 ? "campanha ativa" : "campanhas ativas"}`} icon={CalendarRange} valueClass="text-primary" accent loading={initialLoading} />
+          {fbControlsEnabled && (
+            <KpiCard label="Orç./dia" value={formatCurrency(kpis.total_daily_budget)} sub={`${activeCount} ${activeCount === 1 ? "campanha ativa" : "campanhas ativas"}`} icon={CalendarRange} valueClass="text-primary" accent loading={initialLoading} />
+          )}
         </div>
 
         {/* Avisos — no mobile empilham; no desktop compartilham a linha e esticam */}
@@ -445,6 +466,7 @@ const Campanhas = () => {
                 campaign={c}
                 range={range}
                 hasTax={hasTax}
+                controlsEnabled={fbControlsEnabled}
                 onPatch={(patch) => patchCampaign(c.id, patch)}
                 onChanged={reload}
               />
@@ -546,12 +568,14 @@ const CampaignCard = ({
   campaign,
   range,
   hasTax,
+  controlsEnabled,
   onPatch,
   onChanged,
 }: {
   campaign: Campaign;
   range: { startDate: string; endDate: string };
   hasTax: boolean;
+  controlsEnabled: boolean;
   onPatch: (patch: Partial<Campaign>) => void;
   onChanged: () => void;
 }) => {
@@ -648,7 +672,25 @@ const CampaignCard = ({
         {/* Header */}
         <div className="flex items-center justify-between gap-3">
           <span className="flex min-w-0 items-center gap-3">
-            <Switch checked={campaign.is_active} disabled={busy} onCheckedChange={handleToggleActive} aria-label="Ativar/pausar campanha" />
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span>
+                    <Switch
+                      checked={campaign.is_active}
+                      disabled={busy || !controlsEnabled}
+                      onCheckedChange={handleToggleActive}
+                      aria-label="Ativar/pausar campanha"
+                    />
+                  </span>
+                </TooltipTrigger>
+                {!controlsEnabled && (
+                  <TooltipContent>
+                    Conecte sua conta do Facebook para controlar campanhas.
+                  </TooltipContent>
+                )}
+              </Tooltip>
+            </TooltipProvider>
             <span className="min-w-0">
               <span className="block truncate text-sm font-semibold">{campaign.name}</span>
               {campaign.linked ? (
@@ -667,15 +709,30 @@ const CampaignCard = ({
           </span>
           <span className="flex flex-shrink-0 items-center gap-2">
             {campaign.daily_budget != null && (
-              <button
-                onClick={() => {
-                  setBudgetValue(String(campaign.daily_budget ?? ""));
-                  setBudgetOpen(true);
-                }}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-accent/40 hover:text-foreground"
-              >
-                {formatCurrency(campaign.daily_budget)} <Pencil className="h-3 w-3 text-primary" />
-              </button>
+              controlsEnabled ? (
+                <button
+                  onClick={() => {
+                    setBudgetValue(String(campaign.daily_budget ?? ""));
+                    setBudgetOpen(true);
+                  }}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-accent/40 hover:text-foreground"
+                >
+                  {formatCurrency(campaign.daily_budget)} <Pencil className="h-3 w-3 text-primary" />
+                </button>
+              ) : (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-2.5 py-1.5 text-xs text-muted-foreground opacity-70">
+                        {formatCurrency(campaign.daily_budget)}
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      Conecte sua conta do Facebook para controlar campanhas.
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )
             )}
             <button
               onClick={toggleExpand}

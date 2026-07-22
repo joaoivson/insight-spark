@@ -94,6 +94,8 @@ export interface FacebookIntegrationStatus {
   ad_account_name: string | null;
   ad_account_ids: string[];
   is_active: boolean;
+  /** conectado | nunca | desconectado */
+  connection_state?: "conectado" | "nunca" | "desconectado";
   last_sync_at: string | null;
   token_expires_at: string | null;
   created_at: string | null;

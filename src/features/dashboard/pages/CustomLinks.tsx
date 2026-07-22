@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useToast } from "@/hooks/use-toast";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
+import { usePlanStore } from "@/stores/planStore";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -47,6 +48,7 @@ const LINK_BASE_URL = getLinkBaseUrl();
 
 const CustomLinks = () => {
     const { toast } = useToast();
+    const fetchPlan = usePlanStore((s) => s.fetch);
     const [view, setView] = useState<ViewMode>("list");
     const [links, setLinks] = useState<CustomLink[]>([]);
     const [loading, setLoading] = useState(true);
@@ -79,8 +81,9 @@ const CustomLinks = () => {
     }, [toast]);
 
     useEffect(() => {
+        void fetchPlan();
         fetchLinks();
-    }, [fetchLinks]);
+    }, [fetchLinks, fetchPlan]);
 
     const resetForm = () => {
         setFormName("");
@@ -92,7 +95,7 @@ const CustomLinks = () => {
         setEditingLink(null);
     };
 
-    const MAX_CUSTOM_LINKS = 30;
+    const MAX_CUSTOM_LINKS = usePlanStore((s) => s.context?.limites_links ?? 30);
 
     const handleNew = () => {
         if (links.length >= MAX_CUSTOM_LINKS) {

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { ShoppingBag, Facebook, Receipt, Save, Loader2 } from "lucide-react";
+import { ShoppingBag, Facebook, Receipt, Save, Loader2, CreditCard } from "lucide-react";
+import { Link } from "react-router-dom";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
@@ -9,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { ShopeeIntegrationSettings } from "@/features/dashboard/components/ShopeeIntegrationSettings";
 import { FacebookIntegrationSettings } from "@/features/dashboard/components/FacebookIntegrationSettings";
 import { useTaxSettingsStore } from "@/stores/taxSettingsStore";
+import { usePlanStore } from "@/stores/planStore";
 
 // Define a aba inicial: retorno do OAuth (?code/?error) ou deep-link (?tab=) abrem Facebook.
 const resolveInitialTab = (): string => {
@@ -16,7 +18,7 @@ const resolveInitialTab = (): string => {
   const params = new URLSearchParams(window.location.search);
   if (params.get("code") || params.get("error")) return "facebook";
   const t = params.get("tab");
-  if (t === "facebook" || t === "shopee" || t === "impostos") return t;
+  if (t === "facebook" || t === "shopee" || t === "impostos" || t === "assinatura") return t;
   return "shopee";
 };
 
@@ -36,6 +38,9 @@ const Configuracoes = () => {
             </TabsTrigger>
             <TabsTrigger value="impostos" className="gap-2 whitespace-nowrap">
               <Receipt className="w-4 h-4" /> Impostos
+            </TabsTrigger>
+            <TabsTrigger value="assinatura" className="gap-2 whitespace-nowrap">
+              <CreditCard className="w-4 h-4" /> Assinatura
             </TabsTrigger>
           </TabsList>
         </div>
@@ -78,10 +83,61 @@ const Configuracoes = () => {
         <TabsContent value="impostos">
           <TaxSettingsCard />
         </TabsContent>
+
+        <TabsContent value="assinatura">
+          <AssinaturaCard />
+        </TabsContent>
       </Tabs>
     </DashboardLayout>
   );
 };
+
+function AssinaturaCard() {
+  const { context, fetch, loading } = usePlanStore();
+
+  useEffect(() => {
+    void fetch({ force: true });
+  }, [fetch]);
+
+  if (loading && !context) {
+    return (
+      <div className="flex items-center gap-2 text-muted-foreground py-8">
+        <Loader2 className="h-4 w-4 animate-spin" /> Carregando…
+      </div>
+    );
+  }
+
+  const vence = context?.assinatura_vence_em
+    ? new Date(context.assinatura_vence_em).toLocaleDateString("pt-BR")
+    : "—";
+
+  return (
+    <div className="bg-card border border-border rounded-2xl p-5 md:p-6 space-y-4">
+      <h3 className="text-lg font-bold">Sua assinatura</h3>
+      <dl className="grid gap-3 text-sm sm:grid-cols-2">
+        <div>
+          <dt className="text-muted-foreground">Plano</dt>
+          <dd className="font-medium">{context?.plano_label || "—"}</dd>
+        </div>
+        <div>
+          <dt className="text-muted-foreground">Período</dt>
+          <dd className="font-medium capitalize">{context?.periodo || "—"}</dd>
+        </div>
+        <div>
+          <dt className="text-muted-foreground">Status</dt>
+          <dd className="font-medium capitalize">{context?.assinatura_status || "—"}</dd>
+        </div>
+        <div>
+          <dt className="text-muted-foreground">Vence em</dt>
+          <dd className="font-medium">{vence}</dd>
+        </div>
+      </dl>
+      <Button asChild variant="outline">
+        <Link to="/dashboard/planos">Ver planos</Link>
+      </Button>
+    </div>
+  );
+}
 
 const TaxSettingsCard = () => {
   const { toast } = useToast();
