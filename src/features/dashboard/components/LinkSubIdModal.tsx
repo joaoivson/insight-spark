@@ -12,8 +12,8 @@ import type { Campaign, SubIdOption } from "@/shared/types/campaign";
 
 /**
  * Modal de vínculo campanha → Sub ID por SELEÇÃO de lista (não texto livre).
- * Lista os Sub IDs com histórico de venda, sugere os de nome parecido, bloqueia
- * os já vinculados (1:1) e recalcula as métricas da campanha na hora.
+ * Lista Sub IDs com venda (Shopee) e sem venda (upload de cliques), sugere
+ * os de nome parecido, bloqueia os já vinculados (1:1) e recalcula métricas.
  */
 export const LinkSubIdModal = ({
   open,
@@ -85,7 +85,9 @@ export const LinkSubIdModal = ({
             [0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-14 w-full rounded-lg" />)
           ) : filtered.length === 0 ? (
             <p className="py-8 text-center text-sm text-muted-foreground">
-              {options && options.length > 0 ? "Nenhum Sub ID encontrado." : "Nenhum Sub ID com venda ainda."}
+              {options && options.length > 0
+                ? "Nenhum Sub ID encontrado."
+                : "Nenhum Sub ID com venda ou cliques ainda."}
             </p>
           ) : (
             filtered.map((o) => {
@@ -117,8 +119,10 @@ export const LinkSubIdModal = ({
                         <span className="inline-flex items-center gap-1">
                           <Lock className="h-3 w-3" /> vinculado a “{o.linked_campaign_name}”
                         </span>
-                      ) : (
+                      ) : o.orders > 0 ? (
                         `${o.orders} ${o.orders === 1 ? "pedido" : "pedidos"} · ${formatCurrency(o.commission)}`
+                      ) : (
+                        "0 pedidos · R$ 0,00 · sem vendas"
                       )}
                     </span>
                   </span>
