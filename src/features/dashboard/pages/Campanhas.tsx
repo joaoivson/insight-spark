@@ -931,7 +931,7 @@ const EmptyState = ({ fbConnected, onGoSettings }: { fbConnected: boolean | null
     </h3>
     <p className="mb-5 max-w-md text-sm text-muted-foreground">
       {fbConnected
-        ? "Sincronize suas campanhas em Configurações ou aguarde a sincronização diária."
+        ? "Sincronize com Atualizar dados nesta tela, em Configurações, ou aguarde a sync automática horária."
         : "Para ver suas campanhas, gasto e ROAS aqui, conecte o Facebook Ads em Configurações."}
     </p>
     <Button onClick={onGoSettings}>

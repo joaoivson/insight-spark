@@ -40,8 +40,16 @@ import Configuracoes from "@/features/dashboard/pages/Configuracoes";
 import IndiquePage from "@/features/dashboard/pages/IndiquePage";
 import AfiliadosPage from "@/features/dashboard/pages/Afiliados";
 import AfiliadosPendentesPage from "@/features/admin/pages/AfiliadosPendentes";
+import AdminDashboardPage from "@/features/admin/pages/AdminDashboard";
+import AdminClientsPage from "@/features/admin/pages/AdminClients";
+import AdminClientDetailPage from "@/features/admin/pages/AdminClientDetail";
+import AdminExpensesPage from "@/features/admin/pages/AdminExpenses";
+import AdminDrePage from "@/features/admin/pages/AdminDre";
+import AdminUsagePage from "@/features/admin/pages/AdminUsage";
+import { AdminLayout } from "@/features/admin/components/AdminLayout";
 import PlanosPage from "@/features/dashboard/pages/PlanosPage";
 import { RequirePlan } from "@/app/routes/RequirePlan";
+import { RequireAdmin } from "@/app/routes/RequireAdmin";
 
 // Loading fallback component
 const LoadingFallback = () => (
@@ -187,6 +195,19 @@ export const AppRoutes = () => {
         <Route path="/dashboard/impostos" element={<ProtectedRoute element={<ImpostosMeta />} />} />
         <Route path="/dashboard/afiliados" element={<ProtectedRoute element={<AfiliadosPage />} />} />
         <Route path="/dashboard/admin/afiliados" element={<ProtectedRoute element={<AfiliadosPendentesPage />} />} />
+
+        {/* Admin interno — sem link no sidebar; RequireAdmin → 404 se não-admin */}
+        <Route
+          path="/admin"
+          element={<RequireAdmin element={<AdminLayout />} />}
+        >
+          <Route index element={<AdminDashboardPage />} />
+          <Route path="clientes" element={<AdminClientsPage />} />
+          <Route path="clientes/:userId" element={<AdminClientDetailPage />} />
+          <Route path="uso" element={<AdminUsagePage />} />
+          <Route path="despesas" element={<AdminExpensesPage />} />
+          <Route path="dre" element={<AdminDrePage />} />
+        </Route>
 
         {/* Capture Public Route */}
         <Route path="/c/:slug" element={<CaptureViewer />} />

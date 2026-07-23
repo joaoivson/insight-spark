@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Loader2, Unplug, Facebook, CheckCircle2, Clock } from "lucide-react";
+import { Loader2, Unplug, Facebook, CheckCircle2, Clock, RefreshCw } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -23,6 +23,7 @@ import {
   listFacebookAdAccounts,
   selectFacebookAdAccounts,
   clearFacebookAdsData,
+  triggerFacebookSync,
 } from "@/services/facebook.service";
 import type { FacebookAdAccount, FacebookIntegrationStatus } from "@/shared/types/campaign";
 import { usePlanStore } from "@/stores/planStore";
@@ -58,6 +59,7 @@ export const FacebookIntegrationSettings = () => {
   const [selectedAccounts, setSelectedAccounts] = useState<string[]>([]);
   const [disconnectOpen, setDisconnectOpen] = useState(false);
   const [clearOpen, setClearOpen] = useState(false);
+  const [syncing, setSyncing] = useState(false);
 
   useEffect(() => {
     void fetchPlan();
@@ -253,6 +255,47 @@ export const FacebookIntegrationSettings = () => {
     }
   };
 
+  const handleSyncNow = async () => {
+    if (!selectedAccounts.length) {
+      toast({
+        title: "Selecione uma conta",
+        description: "Marque ao menos uma conta de anúncio antes de sincronizar.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setSyncing(true);
+    const before = status?.last_sync_at ?? null;
+    try {
+      await triggerFacebookSync();
+      toast({
+        title: "Sincronização iniciada",
+        description: "Buscando campanhas e gasto no Meta. Pode levar alguns minutos.",
+      });
+      const start = Date.now();
+      while (Date.now() - start < 180_000) {
+        await new Promise((r) => setTimeout(r, 5000));
+        const s = await loadStatus();
+        if (s?.last_sync_at && s.last_sync_at !== before) {
+          toast({ title: "Sincronização concluída", description: `Última sync: ${formatDate(s.last_sync_at)}` });
+          return;
+        }
+      }
+      toast({
+        title: "Sincronização em andamento",
+        description: "Os dados devem atualizar em breve — você pode seguir usando o app.",
+      });
+    } catch (e) {
+      toast({
+        title: "Não foi possível sincronizar",
+        description: (e as Error).message,
+        variant: "destructive",
+      });
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   if (!planLoaded || loading) {
     return (
       <div className="flex items-center justify-center py-8 text-muted-foreground">
@@ -344,16 +387,28 @@ export const FacebookIntegrationSettings = () => {
         )}
 
         <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-          <Clock className="w-3.5 h-3.5" /> As campanhas são sincronizadas automaticamente a cada 1 hora.
+          <Clock className="w-3.5 h-3.5" /> Sync automática a cada 1 hora — ou use &quot;Sincronizar agora&quot; quando quiser atualizar na hora.
         </p>
       </div>
 
       <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2">
         <Button
+          className="w-full sm:w-auto"
+          onClick={() => void handleSyncNow()}
+          disabled={busy || syncing || selectedAccounts.length === 0}
+        >
+          {syncing ? (
+            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+          ) : (
+            <RefreshCw className="w-4 h-4 mr-2" />
+          )}
+          {syncing ? "Sincronizando…" : "Sincronizar agora"}
+        </Button>
+        <Button
           variant="outline"
           className="w-full sm:w-auto text-destructive border-destructive/30 hover:bg-destructive/10"
           onClick={() => setDisconnectOpen(true)}
-          disabled={busy}
+          disabled={busy || syncing}
         >
           <Unplug className="w-4 h-4 mr-2" /> Desconectar
         </Button>
@@ -361,7 +416,7 @@ export const FacebookIntegrationSettings = () => {
           variant="outline"
           className="w-full sm:w-auto"
           onClick={() => setClearOpen(true)}
-          disabled={busy}
+          disabled={busy || syncing}
         >
           <Trash2 className="w-4 h-4 mr-2" /> Limpar todos os dados de anúncios
         </Button>

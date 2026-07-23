@@ -111,9 +111,10 @@ export const ShopeeIntegrationSettings = () => {
       await triggerManualSync(days);
       setSyncStep("saving");
 
-      // Polling mais agressivo em janelas curtas (7/14 dias terminam rápido).
+      // Contas grandes (dezenas de milhares de rows) passam de 2–5 min fácil;
+      // timeout curto fazia o usuário achar que a sync "não funciona".
       const POLL_INTERVAL_MS = days <= 14 ? 2_000 : 5_000;
-      const MAX_POLL_MS = days <= 14 ? 2 * 60 * 1000 : 5 * 60 * 1000;
+      const MAX_POLL_MS = days <= 14 ? 10 * 60 * 1000 : 20 * 60 * 1000;
       const startedAt = Date.now();
       let updated: ShopeeStatus | null = null;
       while (Date.now() - startedAt < MAX_POLL_MS) {
@@ -211,6 +212,12 @@ export const ShopeeIntegrationSettings = () => {
             Última sync: {formatDate(status.last_sync_at)}
           </span>
         )}
+        {status?.last_sync_at &&
+          Date.now() - new Date(status.last_sync_at).getTime() > 24 * 60 * 60 * 1000 && (
+            <span className="text-xs text-amber-600 dark:text-amber-400">
+              Sync atrasada — use &quot;Sincronizar agora&quot; se os dados estiverem desatualizados.
+            </span>
+          )}
       </div>
 
       {/* Credentials: show form when not connected or editing */}
