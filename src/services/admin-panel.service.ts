@@ -152,6 +152,52 @@ export async function fetchUsage() {
   return json<any>(await fetchWithAuth(`${base()}/usage`));
 }
 
+export type SyncRun = {
+  id: number;
+  source: string;
+  trigger: string;
+  user_id: number | null;
+  days_back: number | null;
+  empty_attempt: number;
+  status: "running" | "success" | "failed" | "skipped_lock";
+  started_at: string | null;
+  finished_at: string | null;
+  duration_seconds: number | null;
+  records_fetched: number | null;
+  records_upserted: number | null;
+  is_suspected_partial: boolean;
+  is_stale_running: boolean;
+  error_message: string | null;
+  details: Record<string, unknown> | null;
+};
+
+export type SyncHealth = {
+  source: string;
+  trigger: string;
+  since: string;
+  total_ativos: number;
+  sucesso: number;
+  falha: number;
+  sem_execucao: number[];
+};
+
+export async function fetchSyncRuns(
+  params: { source?: string; trigger?: string; status?: string; user_id?: number; limit?: number } = {},
+) {
+  const qs = new URLSearchParams();
+  Object.entries(params).forEach(([k, v]) => {
+    if (v === undefined || v === "") return;
+    qs.set(k, String(v));
+  });
+  return json<SyncRun[]>(await fetchWithAuth(`${base()}/sync-runs?${qs}`));
+}
+
+export async function fetchSyncHealth(source: string, trigger: string) {
+  return json<SyncHealth>(
+    await fetchWithAuth(`${base()}/sync-runs/health?source=${source}&trigger=${trigger}`),
+  );
+}
+
 export async function postPageView(path: string) {
   try {
     await fetchWithAuth(`${base()}/page-views`, { method: "POST", body: JSON.stringify({ path }) });
