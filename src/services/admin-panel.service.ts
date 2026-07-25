@@ -182,8 +182,11 @@ export type SyncHealth = {
 };
 
 export async function fetchSyncRuns(
-  params: { source?: string; trigger?: string; status?: string; user_id?: number; limit?: number } = {},
+  params: { source?: string; trigger?: string; status?: string; filter_user_id?: number; limit?: number } = {},
 ) {
+  // Nota: o param de filtro é "filter_user_id" (não "user_id") — fetchWithAuth já
+  // anexa "user_id=user_<id>" em toda request; um filtro aqui chamado "user_id"
+  // colidiria com isso e o backend rejeitaria (422, "user_N" não é inteiro).
   const qs = new URLSearchParams();
   Object.entries(params).forEach(([k, v]) => {
     if (v === undefined || v === "") return;
