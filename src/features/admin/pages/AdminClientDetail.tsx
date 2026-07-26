@@ -4,7 +4,7 @@ import { ArrowLeft, Loader2, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
-import { addAdminNote, centsToBRL, fetchAdminClient } from "@/services/admin-panel.service";
+import { addAdminNote, centsToBRL, fetchAdminClient, translateFrequency } from "@/services/admin-panel.service";
 import { useToast } from "@/hooks/use-toast";
 
 export default function AdminClientDetailPage() {
@@ -87,7 +87,7 @@ export default function AdminClientDetailPage() {
           <CardContent className="space-y-1 text-sm">
             <p>
               Plano: <span className="capitalize font-medium">{sub.plan || data.plan}</span> ·{" "}
-              {sub.frequency || data.frequency || "—"}
+              {translateFrequency(sub.frequency || data.frequency)}
             </p>
             <p>Status: {sub.status || data.status}</p>
             <p>

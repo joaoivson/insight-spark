@@ -96,6 +96,30 @@ export type DreResponse = {
 export const centsToBRL = (cents: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format((cents || 0) / 100);
 
+const FREQUENCY_LABELS: Record<string, string> = {
+  monthly: "Mensal",
+  mensal: "Mensal",
+  quarterly: "Trimestral",
+  trimestral: "Trimestral",
+  yearly: "Anual",
+  annual: "Anual",
+  anual: "Anual",
+};
+
+export const translateFrequency = (frequency: string | null | undefined): string => {
+  if (!frequency) return "—";
+  return FREQUENCY_LABELS[frequency.toLowerCase()] || frequency;
+};
+
+const SEMAPHORE_LABELS: Record<string, string> = {
+  green: "Ativa e usando",
+  yellow: "Sinais parciais",
+  red: "Em risco — sem uso recente",
+};
+
+export const semaphoreLabel = (color: string | null | undefined): string =>
+  SEMAPHORE_LABELS[(color || "").toLowerCase()] || "Status desconhecido";
+
 export async function fetchAdminDashboard(year: number, month: number) {
   return json<AdminDashboard>(await fetchWithAuth(`${base()}/dashboard?year=${year}&month=${month}`));
 }

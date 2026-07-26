@@ -21,6 +21,8 @@ import {
 import {
   centsToBRL,
   fetchAdminClients,
+  semaphoreLabel,
+  translateFrequency,
   type AdminClient,
 } from "@/services/admin-panel.service";
 import { fetchWithAuth, getApiUrl } from "@/core/config/api.config";
@@ -32,7 +34,7 @@ function SemaphoreDot({ color }: { color: string }) {
       : color === "yellow"
         ? "bg-amber-400"
         : "bg-red-500";
-  return <span className={`inline-block h-2.5 w-2.5 rounded-full ${cls}`} title={color} />;
+  return <span className={`inline-block h-2.5 w-2.5 rounded-full ${cls}`} title={semaphoreLabel(color)} />;
 }
 
 export default function AdminClientsPage() {
@@ -171,7 +173,7 @@ export default function AdminClientsPage() {
                   </TableCell>
                   <TableCell className="text-sm">{r.email}</TableCell>
                   <TableCell className="capitalize">{r.plan}</TableCell>
-                  <TableCell>{r.frequency || "—"}</TableCell>
+                  <TableCell>{translateFrequency(r.frequency)}</TableCell>
                   <TableCell>{r.status}</TableCell>
                   <TableCell className="text-sm">
                     {r.next_payment ? new Date(r.next_payment).toLocaleDateString("pt-BR") : "—"}
