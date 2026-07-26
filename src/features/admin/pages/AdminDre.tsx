@@ -1,15 +1,5 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Legend,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
 import { Download, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -21,6 +11,7 @@ import {
 } from "@/services/admin-panel.service";
 import { fetchWithAuth, getApiUrl } from "@/core/config/api.config";
 import { useAdminPanelStore } from "@/stores/adminPanelStore";
+import { cn } from "@/shared/lib/utils";
 
 function LineRow({
   label,
@@ -46,7 +37,7 @@ function LineRow({
 }
 
 export default function AdminDrePage() {
-  const { year, month } = useAdminPanelStore();
+  const { year, month, setPeriod } = useAdminPanelStore();
   const [data, setData] = useState<DreResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -87,12 +78,9 @@ export default function AdminDrePage() {
     return <p className="text-destructive">{error || "Sem dados"}</p>;
   }
 
-  const series = (data.series || []).map((r) => ({
-    month: r.month,
-    receita: (r.revenue_net_cents || 0) / 100,
-    despesas: (r.expenses_total_cents || 0) / 100,
-    resultado: (r.result_cents || 0) / 100,
-  }));
+  // Meses disponíveis (mais recente primeiro) — vem da mesma série que antes
+  // alimentava o gráfico removido (DRE é pra ler número, não gráfico).
+  const availableMonths = [...(data.series || [])].reverse();
 
   return (
     <div className="space-y-6">
@@ -128,7 +116,42 @@ export default function AdminDrePage() {
         </div>
       )}
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid gap-4 lg:grid-cols-[180px_1fr]">
+        <Card className="h-fit">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">Meses</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-0.5 p-2">
+            {availableMonths.map((m) => {
+              const [y, mo] = m.month.split("-").map(Number);
+              const active = y === year && mo === month;
+              return (
+                <button
+                  key={m.month}
+                  onClick={() => setPeriod(y, mo)}
+                  className={cn(
+                    "rounded-md px-3 py-1.5 text-left text-sm transition-colors",
+                    active
+                      ? "border-l-2 font-medium"
+                      : "text-muted-foreground hover:bg-muted",
+                  )}
+                  style={
+                    active
+                      ? {
+                          background: "rgba(49,140,233,.12)",
+                          borderColor: "rgba(49,140,233,.38)",
+                          color: "#7CB8F2",
+                        }
+                      : undefined
+                  }
+                >
+                  {m.month}
+                </button>
+              );
+            })}
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader>
             <CardTitle className="text-base">
@@ -181,26 +204,6 @@ export default function AdminDrePage() {
                 cadastrado
               </p>
             )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Série 12 meses</CardTitle>
-          </CardHeader>
-          <CardContent className="h-80">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={series}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                <XAxis dataKey="month" tick={{ fontSize: 10 }} />
-                <YAxis tick={{ fontSize: 11 }} />
-                <Tooltip formatter={(v: number) => centsToBRL(Math.round(v * 100))} />
-                <Legend />
-                <Bar dataKey="receita" name="Receita líquida" fill="hsl(var(--primary))" stackId="a" />
-                <Bar dataKey="despesas" name="Despesas" fill="hsl(var(--muted-foreground))" stackId="b" />
-                <Bar dataKey="resultado" name="Resultado" fill="hsl(142 70% 40%)" />
-              </BarChart>
-            </ResponsiveContainer>
           </CardContent>
         </Card>
       </div>

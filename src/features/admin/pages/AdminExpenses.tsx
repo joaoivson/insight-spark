@@ -1,10 +1,18 @@
 import { FormEvent, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Loader2, Plus, Trash2 } from "lucide-react";
+import { Loader2, Pencil, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -27,6 +35,7 @@ import {
   deleteExpense,
   fetchExpenses,
   repeatExpenses,
+  updateExpense,
   type ExpenseItem,
 } from "@/services/admin-panel.service";
 import { useAdminPanelStore } from "@/stores/adminPanelStore";
@@ -53,6 +62,8 @@ export default function AdminExpensesPage() {
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
+  const [open, setOpen] = useState(false);
+  const [editingId, setEditingId] = useState<number | null>(null);
 
   const load = () => {
     setLoading(true);
@@ -69,8 +80,28 @@ export default function AdminExpensesPage() {
     load();
   }, [year, month]);
 
-  const onSubmit = async (e: FormEvent) => {
-    e.preventDefault();
+  const openNew = () => {
+    setEditingId(null);
+    setForm(emptyForm);
+    setOpen(true);
+  };
+
+  const openEdit = (e: ExpenseItem) => {
+    setEditingId(e.id);
+    setForm({
+      date: e.date,
+      category: e.category,
+      supplier: e.supplier || "",
+      description: e.description || "",
+      amount_reais: (e.amount_cents / 100).toFixed(2).replace(".", ","),
+      recurring: e.recurring,
+      notes: e.notes || "",
+    });
+    setOpen(true);
+  };
+
+  const onSubmit = async (ev: FormEvent) => {
+    ev.preventDefault();
     const amount_cents = Math.round(parseFloat(form.amount_reais.replace(",", ".")) * 100);
     if (!Number.isFinite(amount_cents) || amount_cents < 0) {
       toast({ title: "Valor inválido", variant: "destructive" });
@@ -78,7 +109,7 @@ export default function AdminExpensesPage() {
     }
     setSaving(true);
     try {
-      await createExpense({
+      const payload = {
         date: form.date,
         category: form.category,
         supplier: form.supplier || null,
@@ -86,9 +117,15 @@ export default function AdminExpensesPage() {
         amount_cents,
         recurring: form.recurring,
         notes: form.notes || null,
-      });
-      setForm({ ...emptyForm, date: form.date, category: form.category });
-      toast({ title: "Despesa lançada" });
+      };
+      if (editingId) {
+        await updateExpense(editingId, payload);
+        toast({ title: "Despesa atualizada" });
+      } else {
+        await createExpense(payload);
+        toast({ title: "Despesa lançada" });
+      }
+      setOpen(false);
       load();
     } catch (err) {
       toast({
@@ -123,12 +160,7 @@ export default function AdminExpensesPage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h2 className="text-lg font-semibold">Despesas</h2>
-          <p className="text-sm text-muted-foreground">
-            Total do mês: {centsToBRL(total)}
-          </p>
-        </div>
+        <h2 className="text-lg font-semibold">Despesas</h2>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={() => void onRepeat()}>
             Repetir mês anterior
@@ -136,158 +168,164 @@ export default function AdminExpensesPage() {
           <Button asChild size="sm" variant="secondary">
             <Link to="/admin/dre">Ver DRE do mês</Link>
           </Button>
+          <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+              <Button size="sm" onClick={openNew}>
+                <Plus className="mr-1 h-4 w-4" />
+                Nova despesa
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>{editingId ? "Editar despesa" : "Nova despesa"}</DialogTitle>
+              </DialogHeader>
+              <form className="space-y-3" onSubmit={onSubmit}>
+                <div>
+                  <Label>Data</Label>
+                  <Input
+                    type="date"
+                    value={form.date}
+                    onChange={(e) => setForm({ ...form, date: e.target.value })}
+                    required
+                  />
+                </div>
+                <div>
+                  <Label>Categoria</Label>
+                  <Select value={form.category} onValueChange={(v) => setForm({ ...form, category: v })}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {CATEGORIES.map((c) => (
+                        <SelectItem key={c} value={c}>
+                          {c}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Fornecedor</Label>
+                  <Input
+                    value={form.supplier}
+                    onChange={(e) => setForm({ ...form, supplier: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <Label>Descrição</Label>
+                  <Input
+                    value={form.description}
+                    onChange={(e) => setForm({ ...form, description: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <Label>Valor (R$)</Label>
+                  <Input
+                    inputMode="decimal"
+                    placeholder="0,00"
+                    value={form.amount_reais}
+                    onChange={(e) => setForm({ ...form, amount_reais: e.target.value })}
+                    required
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="recurring"
+                    checked={form.recurring}
+                    onCheckedChange={(v) => setForm({ ...form, recurring: Boolean(v) })}
+                  />
+                  <Label htmlFor="recurring">Recorrente</Label>
+                </div>
+                <DialogFooter>
+                  <Button type="submit" disabled={saving}>
+                    {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : editingId ? "Salvar" : "Lançar"}
+                  </Button>
+                </DialogFooter>
+              </form>
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-3">
-        <Card className="lg:col-span-1">
-          <CardHeader>
-            <CardTitle className="text-base">Nova despesa</CardTitle>
+      {/* Cards de total no topo */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Total do mês</CardTitle>
           </CardHeader>
           <CardContent>
-            <form className="space-y-3" onSubmit={onSubmit}>
-              <div>
-                <Label>Data</Label>
-                <Input
-                  type="date"
-                  value={form.date}
-                  onChange={(e) => setForm({ ...form, date: e.target.value })}
-                  required
-                />
-              </div>
-              <div>
-                <Label>Categoria</Label>
-                <Select
-                  value={form.category}
-                  onValueChange={(v) => setForm({ ...form, category: v })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {CATEGORIES.map((c) => (
-                      <SelectItem key={c} value={c}>
-                        {c}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label>Fornecedor</Label>
-                <Input
-                  value={form.supplier}
-                  onChange={(e) => setForm({ ...form, supplier: e.target.value })}
-                />
-              </div>
-              <div>
-                <Label>Descrição</Label>
-                <Input
-                  value={form.description}
-                  onChange={(e) => setForm({ ...form, description: e.target.value })}
-                />
-              </div>
-              <div>
-                <Label>Valor (R$)</Label>
-                <Input
-                  inputMode="decimal"
-                  placeholder="0,00"
-                  value={form.amount_reais}
-                  onChange={(e) => setForm({ ...form, amount_reais: e.target.value })}
-                  required
-                />
-              </div>
-              <div className="flex items-center gap-2">
-                <Checkbox
-                  id="recurring"
-                  checked={form.recurring}
-                  onCheckedChange={(v) => setForm({ ...form, recurring: Boolean(v) })}
-                />
-                <Label htmlFor="recurring">Recorrente</Label>
-              </div>
-              <Button type="submit" disabled={saving} className="w-full">
-                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : (
-                  <>
-                    <Plus className="mr-1 h-4 w-4" />
-                    Lançar
-                  </>
-                )}
-              </Button>
-            </form>
+            <div className="text-2xl font-semibold tracking-tight">{centsToBRL(total)}</div>
           </CardContent>
         </Card>
-
-        <div className="space-y-4 lg:col-span-2">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Por categoria</CardTitle>
+        {byCat.map((c) => (
+          <Card key={c.category}>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">{c.category}</CardTitle>
             </CardHeader>
-            <CardContent className="flex flex-wrap gap-3 text-sm">
-              {byCat.map((c) => (
-                <span key={c.category} className="rounded-md border px-3 py-1">
-                  {c.category}: {centsToBRL(c.amount_cents)}
-                </span>
-              ))}
-              {byCat.length === 0 && (
-                <span className="text-muted-foreground">Sem despesas neste mês</span>
-              )}
+            <CardContent>
+              <div className="text-2xl font-semibold tracking-tight">{centsToBRL(c.amount_cents)}</div>
             </CardContent>
           </Card>
-
-          {loading ? (
-            <div className="flex justify-center py-12">
-              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-            </div>
-          ) : (
-            <div className="overflow-x-auto rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Data</TableHead>
-                    <TableHead>Categoria</TableHead>
-                    <TableHead>Fornecedor</TableHead>
-                    <TableHead>Descrição</TableHead>
-                    <TableHead>Valor</TableHead>
-                    <TableHead />
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {items.map((e) => (
-                    <TableRow key={e.id}>
-                      <TableCell>{e.date}</TableCell>
-                      <TableCell>{e.category}</TableCell>
-                      <TableCell>{e.supplier || "—"}</TableCell>
-                      <TableCell>
-                        {e.description || "—"}
-                        {e.recurring && (
-                          <span className="ml-1 text-xs text-muted-foreground">(rec.)</span>
-                        )}
-                      </TableCell>
-                      <TableCell>{centsToBRL(e.amount_cents)}</TableCell>
-                      <TableCell>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => void onDelete(e.id)}
-                        >
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                  {items.length === 0 && (
-                    <TableRow>
-                      <TableCell colSpan={6} className="text-center text-muted-foreground">
-                        Lance despesas para fechar o resultado no DRE
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </div>
+        ))}
+        {byCat.length === 0 && (
+          <Card className="sm:col-span-2 lg:col-span-3">
+            <CardContent className="pt-6 text-sm text-muted-foreground">
+              Sem despesas neste mês
+            </CardContent>
+          </Card>
+        )}
       </div>
+
+      {/* Lista ocupa o corpo */}
+      {loading ? (
+        <div className="flex justify-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      ) : (
+        <div className="overflow-x-auto rounded-md border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Data</TableHead>
+                <TableHead>Categoria</TableHead>
+                <TableHead>Fornecedor</TableHead>
+                <TableHead>Descrição</TableHead>
+                <TableHead>Valor</TableHead>
+                <TableHead />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {items.map((e) => (
+                <TableRow key={e.id}>
+                  <TableCell>{e.date}</TableCell>
+                  <TableCell>{e.category}</TableCell>
+                  <TableCell>{e.supplier || "—"}</TableCell>
+                  <TableCell>
+                    {e.description || "—"}
+                    {e.recurring && <span className="ml-1 text-xs text-muted-foreground">(rec.)</span>}
+                  </TableCell>
+                  <TableCell>{centsToBRL(e.amount_cents)}</TableCell>
+                  <TableCell className="flex gap-1">
+                    <Button size="icon" variant="ghost" onClick={() => openEdit(e)}>
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button size="icon" variant="ghost" onClick={() => void onDelete(e.id)}>
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+              {items.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center text-muted-foreground">
+                    Lance despesas para fechar o resultado no DRE
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      )}
     </div>
   );
 }
