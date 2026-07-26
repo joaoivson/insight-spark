@@ -4,7 +4,6 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
-  Legend,
   Line,
   LineChart,
   ResponsiveContainer,
@@ -18,9 +17,19 @@ import { Badge } from "@/components/ui/badge";
 import {
   centsToBRL,
   fetchAdminDashboard,
+  translateFrequency,
   type AdminDashboard,
 } from "@/services/admin-panel.service";
 import { useAdminPanelStore } from "@/stores/adminPanelStore";
+import { AdminChartTooltip, CHART_COLORS } from "@/features/admin/components/AdminChartTooltip";
+
+/** Remove pontos-zero do INÍCIO da série (histórico ainda não começou) — mantém
+ * zeros no meio/fim, que são dado real (ex.: mês sem faturamento de verdade). */
+function trimLeadingEmpty<T extends { net: number; gross: number }>(series: T[]): T[] {
+  const firstReal = series.findIndex((p) => p.net !== 0 || p.gross !== 0);
+  if (firstReal <= 0) return series;
+  return series.slice(firstReal);
+}
 
 function MetricCard({
   title,
@@ -92,18 +101,20 @@ export default function AdminDashboardPage() {
     .map(([k, v]) => `${k} ${v}`)
     .join(" · ");
 
-  const mrrSeries = (data.series?.mrr || []).map((r) => ({
-    month: r.month,
-    líquido: (r.net || 0) / 100,
-  }));
-  const revSeries = (data.series?.revenue || []).map((r) => ({
-    month: r.month,
-    líquido: (r.net || 0) / 100,
-  }));
+  const mrrRaw = trimLeadingEmpty(data.series?.mrr || []);
+  const mrrSeries = mrrRaw.map((r) => ({ month: r.month, líquido: (r.net || 0) / 100 }));
+  const mrrTrimmed = mrrSeries.length < (data.series?.mrr || []).length;
+
+  const revRaw = trimLeadingEmpty(data.series?.revenue || []);
+  const revSeries = revRaw.map((r) => ({ month: r.month, líquido: (r.net || 0) / 100 }));
+  const revTrimmed = revSeries.length < (data.series?.revenue || []).length;
+
+  const planFreqMaxCount = Math.max(1, ...(data.plan_frequency || []).map((r) => r.count));
   const planFreq = (data.plan_frequency || []).map((r) => ({
-    name: `${r.plan}/${r.frequency || "—"}`,
+    name: `${r.plan} · ${translateFrequency(r.frequency)}`,
     count: r.count,
-    share: Math.round((r.revenue_share || 0) * 100),
+    sharePct: Math.round((r.revenue_share || 0) * 100),
+    barPct: Math.round((r.count / planFreqMaxCount) * 100),
   }));
 
   return (
@@ -180,11 +191,16 @@ export default function AdminDashboardPage() {
                 <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
                 <XAxis dataKey="month" tick={{ fontSize: 11 }} />
                 <YAxis tick={{ fontSize: 11 }} />
-                <Tooltip formatter={(v: number) => centsToBRL(Math.round(v * 100))} />
-                <Line type="monotone" dataKey="líquido" stroke="hsl(var(--primary))" strokeWidth={2} dot={false} />
+                <Tooltip content={<AdminChartTooltip valueFormatter={(v) => centsToBRL(Math.round(v * 100))} />} />
+                <Line type="monotone" dataKey="líquido" stroke={CHART_COLORS.blue} strokeWidth={2} dot={false} />
               </LineChart>
             </ResponsiveContainer>
           </CardContent>
+          {mrrTrimmed && (
+            <p className="px-6 pb-4 text-xs text-muted-foreground">
+              A série preenche conforme o histórico acumula.
+            </p>
+          )}
         </Card>
         <Card>
           <CardHeader>
@@ -196,29 +212,38 @@ export default function AdminDashboardPage() {
                 <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
                 <XAxis dataKey="month" tick={{ fontSize: 11 }} />
                 <YAxis tick={{ fontSize: 11 }} />
-                <Tooltip formatter={(v: number) => centsToBRL(Math.round(v * 100))} />
-                <Bar dataKey="líquido" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                <Tooltip content={<AdminChartTooltip valueFormatter={(v) => centsToBRL(Math.round(v * 100))} />} />
+                <Bar dataKey="líquido" fill={CHART_COLORS.blue} radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
+          {revTrimmed && (
+            <p className="px-6 pb-4 text-xs text-muted-foreground">
+              A série preenche conforme o histórico acumula.
+            </p>
+          )}
         </Card>
         <Card className="lg:col-span-2">
           <CardHeader>
             <CardTitle className="text-base">Plano × periodicidade</CardTitle>
           </CardHeader>
-          <CardContent className="h-72">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={planFreq}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                <XAxis dataKey="name" tick={{ fontSize: 11 }} />
-                <YAxis yAxisId="left" tick={{ fontSize: 11 }} />
-                <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 11 }} unit="%" />
-                <Tooltip />
-                <Legend />
-                <Bar yAxisId="left" dataKey="count" name="Qtd" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                <Bar yAxisId="right" dataKey="share" name="% receita" fill="hsl(var(--muted-foreground))" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+          <CardContent className="space-y-3">
+            {planFreq.map((r) => (
+              <div key={r.name} className="flex items-center gap-3 text-sm">
+                <span className="w-36 shrink-0 truncate">{r.name}</span>
+                <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
+                  <div
+                    className="h-full rounded-full"
+                    style={{ width: `${r.barPct}%`, background: CHART_COLORS.blue }}
+                  />
+                </div>
+                <span className="w-10 shrink-0 text-right tabular-nums text-muted-foreground">{r.count}</span>
+                <span className="w-14 shrink-0 text-right tabular-nums text-muted-foreground">{r.sharePct}%</span>
+              </div>
+            ))}
+            {planFreq.length === 0 && (
+              <p className="text-sm text-muted-foreground">Sem assinantes ativos ainda</p>
+            )}
           </CardContent>
         </Card>
       </div>

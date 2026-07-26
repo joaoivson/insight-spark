@@ -225,6 +225,26 @@ export async function fetchSyncHealth(source: string, trigger: string) {
   );
 }
 
+export type SyncSourceSummary = {
+  source: string;
+  last_sync_at: string | null;
+  last_status: string | null;
+  calls_24h: number;
+  errors_24h: number;
+};
+
+export type SyncDailyPoint = { date: string; calls: number; errors: number };
+
+export type SyncUsageSummary = {
+  shopee: SyncSourceSummary;
+  facebook: SyncSourceSummary;
+  daily: { shopee: SyncDailyPoint[]; facebook: SyncDailyPoint[] };
+};
+
+export async function fetchSyncUsageSummary(days = 30) {
+  return json<SyncUsageSummary>(await fetchWithAuth(`${base()}/sync-runs/usage-summary?days=${days}`));
+}
+
 export async function postPageView(path: string) {
   try {
     await fetchWithAuth(`${base()}/page-views`, { method: "POST", body: JSON.stringify({ path }) });
