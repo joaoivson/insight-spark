@@ -78,9 +78,13 @@ export default function AdminDrePage() {
     return <p className="text-destructive">{error || "Sem dados"}</p>;
   }
 
-  // Meses disponíveis (mais recente primeiro) — vem da mesma série que antes
-  // alimentava o gráfico removido (DRE é pra ler número, não gráfico).
-  const availableMonths = [...(data.series || [])].reverse();
+  // Meses com movimento (receita ou despesa ≠ 0), mais recente primeiro.
+  const availableMonths = [...(data.series || [])]
+    .filter(
+      (m) =>
+        (m.revenue_net_cents || 0) !== 0 || (m.expenses_total_cents || 0) !== 0,
+    )
+    .reverse();
 
   return (
     <div className="space-y-6">
@@ -92,14 +96,6 @@ export default function AdminDrePage() {
               não substitui contabilidade
             </Badge>
           </div>
-          {data.mom && (
-            <p className="mt-1 text-sm text-muted-foreground">
-              MoM resultado: {centsToBRL(data.mom.delta_cents)}
-              {data.mom.delta_pct != null
-                ? ` (${(data.mom.delta_pct * 100).toFixed(1)}%)`
-                : ""}
-            </p>
-          )}
         </div>
         <Button variant="outline" size="sm" onClick={() => void exportCsv()}>
           <Download className="mr-1.5 h-4 w-4" />
@@ -198,6 +194,13 @@ export default function AdminDrePage() {
                 data.margin == null ? "—" : `${(data.margin * 100).toFixed(1)}%`
               }
             />
+            {data.mom && (
+              <LineRow
+                label="vs mês anterior"
+                value={centsToBRL(data.mom.delta_cents)}
+                muted
+              />
+            )}
             {data.burn_avg_3m_cents != null && (
               <p className="mt-4 text-xs text-amber-700 dark:text-amber-400">
                 Burn médio 3m: {centsToBRL(data.burn_avg_3m_cents)} — sem saldo de caixa
