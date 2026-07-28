@@ -4,6 +4,8 @@ import {
   BarChart,
   CartesianGrid,
   Legend,
+  Line,
+  LineChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -22,6 +24,21 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { fetchUsage, fetchSyncUsageSummary, SyncSourceSummary, SyncUsageSummary } from "@/services/admin-panel.service";
 import { AdminChartTooltip, CHART_COLORS } from "@/features/admin/components/AdminChartTooltip";
+
+const DAYS = 30;
+
+function fill30Days(rows: { date: string; count: number }[]) {
+  const map = new Map(rows.map((r) => [r.date.slice(0, 10), r.count]));
+  const out: { date: string; count: number }[] = [];
+  for (let i = 29; i >= 0; i--) {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    d.setDate(d.getDate() - i);
+    const key = d.toISOString().slice(0, 10);
+    out.push({ date: key, count: map.get(key) ?? 0 });
+  }
+  return out;
+}
 
 function SourceStatusCard({ title, summary }: { title: string; summary: SyncSourceSummary | undefined }) {
   const ok = summary?.last_status === "success";
@@ -104,10 +121,9 @@ export default function AdminUsagePage() {
     return <p className="text-destructive">{error || "Sem dados"}</p>;
   }
 
-  const loginsPerDay = (data.logins_per_day || []) as { date: string; count: number }[];
+  const loginsPerDay = fill30Days((data.logins_per_day || []) as { date: string; count: number }[]);
   const loginsTotal = loginsPerDay.reduce((acc, r) => acc + (r.count || 0), 0);
-  const daysWithData = loginsPerDay.length || 1;
-  const loginsAvg = loginsTotal / daysWithData;
+  const loginsAvg = loginsTotal / DAYS;
   const lastLoginDay = [...loginsPerDay].reverse().find((r) => r.count > 0)?.date;
 
   const chartData = usage ? buildDailyChartData(usage) : [];
@@ -190,16 +206,17 @@ export default function AdminUsagePage() {
             <div>
               <p className="text-3xl font-semibold">{loginsTotal}</p>
               <p className="text-xs text-muted-foreground">
-                {loginsAvg.toFixed(1)}/dia · último acesso:{" "}
+                {loginsAvg.toFixed(1).replace(".", ",")}/dia · último acesso:{" "}
                 {lastLoginDay ? new Date(lastLoginDay).toLocaleDateString("pt-BR") : "—"}
               </p>
             </div>
-            <div className="h-16 flex-1 min-w-[200px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={loginsPerDay}>
+            <div style={{ height: 60 }} className="flex-1 min-w-[200px]">
+              <ResponsiveContainer width="100%" height={60}>
+                <LineChart data={loginsPerDay}>
+                  <YAxis hide domain={[0, "auto"]} />
                   <Tooltip content={<AdminChartTooltip />} />
-                  <Bar dataKey="count" fill={CHART_COLORS.blue} radius={[2, 2, 0, 0]} />
-                </BarChart>
+                  <Line type="monotone" dataKey="count" stroke="#318CE9" strokeWidth={1.5} dot={false} fill="none" />
+                </LineChart>
               </ResponsiveContainer>
             </div>
           </div>
