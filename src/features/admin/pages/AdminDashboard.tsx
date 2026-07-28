@@ -17,6 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   centsToBRL,
   fetchAdminDashboard,
+  formatPlanLabel,
   translateFrequency,
   type AdminDashboard,
 } from "@/services/admin-panel.service";
@@ -98,7 +99,7 @@ export default function AdminDashboardPage() {
   ].filter(Boolean) as { key: string; label: string }[];
 
   const planBits = Object.entries(data.active_by_plan || {})
-    .map(([k, v]) => `${k} ${v}`)
+    .map(([k, v]) => `${formatPlanLabel(k)} ${v}`)
     .join(" · ");
 
   const mrrRaw = trimLeadingEmpty(data.series?.mrr || []);
@@ -111,7 +112,7 @@ export default function AdminDashboardPage() {
 
   const planFreqMaxCount = Math.max(1, ...(data.plan_frequency || []).map((r) => r.count));
   const planFreq = (data.plan_frequency || []).map((r) => ({
-    name: `${r.plan} · ${translateFrequency(r.frequency)}`,
+    name: `${formatPlanLabel(r.plan)} · ${translateFrequency(r.frequency)}`,
     count: r.count,
     sharePct: Math.round((r.revenue_share || 0) * 100),
     barPct: Math.round((r.count / planFreqMaxCount) * 100),

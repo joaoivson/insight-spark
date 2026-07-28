@@ -9,6 +9,7 @@ import {
   addAdminNote,
   centsToBRL,
   fetchAdminClient,
+  formatPlanLabel,
   translateClientStatus,
   translateFrequency,
   translateRejectionReason,
@@ -125,8 +126,11 @@ export default function AdminClientDetailPage() {
           </CardHeader>
           <CardContent className="space-y-1 text-sm">
             <p>
-              Plano: <span className="capitalize font-medium">{sub.plan || data.plan}</span> ·{" "}
-              {translateFrequency(sub.frequency || data.frequency)}
+              Plano:{" "}
+              <span className="font-medium">
+                {formatPlanLabel(sub.plan || data.plan)} ·{" "}
+                {translateFrequency(sub.frequency || data.frequency)}
+              </span>
             </p>
             <p className="flex flex-wrap items-center gap-2">
               Status: {data.status ? <StatusBadge status={data.status} /> : (sub.status || "—")}

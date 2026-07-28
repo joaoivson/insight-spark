@@ -22,6 +22,7 @@ import {
 import {
   centsToBRL,
   fetchAdminClients,
+  formatPlanLabel,
   semaphoreLabel,
   translateClientStatus,
   translateFrequency,
@@ -204,7 +205,7 @@ export default function AdminClientsPage() {
                     )}
                   </TableCell>
                   <TableCell className="text-sm">{r.email}</TableCell>
-                  <TableCell className="capitalize">{r.plan}</TableCell>
+                  <TableCell>{formatPlanLabel(r.plan)}</TableCell>
                   <TableCell>{translateFrequency(r.frequency)}</TableCell>
                   <TableCell>
                     <StatusBadge status={r.status} />
