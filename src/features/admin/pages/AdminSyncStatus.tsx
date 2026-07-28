@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
   Bar,
@@ -12,7 +12,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { Loader2 } from "lucide-react";
+import { ChevronDown, ChevronUp, Loader2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -75,6 +75,45 @@ function formatDuration(seconds: number | null) {
   if (seconds === null) return "—";
   if (seconds < 60) return `${Math.round(seconds)}s`;
   return `${Math.floor(seconds / 60)}min ${Math.round(seconds % 60)}s`;
+}
+
+function CollapsibleCardHeader({
+  title,
+  open,
+  onToggle,
+  count,
+  trailing,
+}: {
+  title: string;
+  open: boolean;
+  onToggle: () => void;
+  count?: number;
+  trailing?: ReactNode;
+}) {
+  return (
+    <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3">
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={open}
+        className="flex min-w-0 items-center gap-2 text-left hover:opacity-90"
+      >
+        {open ? (
+          <ChevronUp className="h-4 w-4 shrink-0 text-muted-foreground" />
+        ) : (
+          <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+        )}
+        <CardTitle className="text-base">{title}</CardTitle>
+        {typeof count === "number" && (
+          <Badge variant="outline" className="tabular-nums font-normal">
+            {count}
+          </Badge>
+        )}
+        <span className="text-xs text-muted-foreground">{open ? "Recolher" : "Expandir"}</span>
+      </button>
+      {trailing ? <div className="flex flex-wrap gap-2">{trailing}</div> : null}
+    </CardHeader>
+  );
 }
 
 function HealthCard({ title, health, loading }: { title: string; health: SyncHealth | null; loading: boolean }) {
@@ -182,6 +221,8 @@ function SyncsTab() {
 
   const [sourceFilter, setSourceFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [errorsOpen, setErrorsOpen] = useState(false);
+  const [runsOpen, setRunsOpen] = useState(false);
 
   useEffect(() => {
     setHealthLoading(true);
@@ -270,40 +311,45 @@ function SyncsTab() {
           </Card>
 
           <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Erros de sync (últimos)</CardTitle>
-            </CardHeader>
-            <CardContent className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Quando</TableHead>
-                    <TableHead>User</TableHead>
-                    <TableHead>Fonte</TableHead>
-                    <TableHead>Erro</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {(usageData?.sync_errors || []).map((e: any) => (
-                    <TableRow key={e.id}>
-                      <TableCell className="whitespace-nowrap text-xs">
-                        {e.created_at ? new Date(e.created_at).toLocaleString("pt-BR") : "—"}
-                      </TableCell>
-                      <TableCell>{e.user_id ?? "—"}</TableCell>
-                      <TableCell>{e.source}</TableCell>
-                      <TableCell className="max-w-md truncate text-xs">{e.error_message}</TableCell>
-                    </TableRow>
-                  ))}
-                  {(usageData?.sync_errors || []).length === 0 && (
+            <CollapsibleCardHeader
+              title="Erros de sync (últimos)"
+              open={errorsOpen}
+              onToggle={() => setErrorsOpen((v) => !v)}
+              count={(usageData?.sync_errors || []).length}
+            />
+            {errorsOpen && (
+              <CardContent className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
                     <TableRow>
-                      <TableCell colSpan={4} className="text-center text-muted-foreground">
-                        Nenhum erro recente
-                      </TableCell>
+                      <TableHead>Quando</TableHead>
+                      <TableHead>User</TableHead>
+                      <TableHead>Fonte</TableHead>
+                      <TableHead>Erro</TableHead>
                     </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </CardContent>
+                  </TableHeader>
+                  <TableBody>
+                    {(usageData?.sync_errors || []).map((e: any) => (
+                      <TableRow key={e.id}>
+                        <TableCell className="whitespace-nowrap text-xs">
+                          {e.created_at ? new Date(e.created_at).toLocaleString("pt-BR") : "—"}
+                        </TableCell>
+                        <TableCell>{e.user_id ?? "—"}</TableCell>
+                        <TableCell>{e.source}</TableCell>
+                        <TableCell className="max-w-md truncate text-xs">{e.error_message}</TableCell>
+                      </TableRow>
+                    ))}
+                    {(usageData?.sync_errors || []).length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={4} className="text-center text-muted-foreground">
+                          Nenhum erro recente
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            )}
           </Card>
         </>
       )}
@@ -311,93 +357,102 @@ function SyncsTab() {
       {error && <p className="text-sm text-destructive">{error}</p>}
 
       <Card>
-        <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-4">
-          <CardTitle className="text-base">Execuções recentes</CardTitle>
-          <div className="flex gap-2">
-            <Select value={sourceFilter} onValueChange={setSourceFilter}>
-              <SelectTrigger className="w-36">
-                <SelectValue placeholder="Fonte" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todas as fontes</SelectItem>
-                <SelectItem value="shopee">Shopee</SelectItem>
-                <SelectItem value="facebook">Facebook</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-40">
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos os status</SelectItem>
-                <SelectItem value="running">Rodando</SelectItem>
-                <SelectItem value="success">Sucesso</SelectItem>
-                <SelectItem value="failed">Falhou</SelectItem>
-                <SelectItem value="skipped_lock">Já rodando (skip)</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </CardHeader>
-        <CardContent className="overflow-x-auto">
-          {runsLoading ? (
-            <div className="flex justify-center py-10">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Início</TableHead>
-                  <TableHead>Fonte</TableHead>
-                  <TableHead>Origem</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Duração</TableHead>
-                  <TableHead>Registros</TableHead>
-                  <TableHead>User</TableHead>
-                  <TableHead>Aviso</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {runs.map((r) => (
-                  <TableRow key={r.id}>
-                    <TableCell className="whitespace-nowrap text-xs">
-                      {r.started_at ? new Date(r.started_at).toLocaleString("pt-BR") : "—"}
-                    </TableCell>
-                    <TableCell className="capitalize">{r.source}</TableCell>
-                    <TableCell className="text-xs">{r.trigger}</TableCell>
-                    <TableCell>
-                      <StatusBadge run={r} />
-                    </TableCell>
-                    <TableCell className="text-xs">{formatDuration(r.duration_seconds)}</TableCell>
-                    <TableCell className="text-xs tabular-nums">
-                      {r.records_upserted ?? "—"}
-                    </TableCell>
-                    <TableCell className="text-xs">{r.user_id ?? "—"}</TableCell>
-                    <TableCell className="text-xs">
-                      {r.is_suspected_partial && (
-                        <Badge className="border-transparent bg-amber-500/15 text-amber-600">
-                          Possível parcial
-                        </Badge>
-                      )}
-                      {r.error_message && (
-                        <span className="block max-w-xs truncate text-destructive" title={r.error_message}>
-                          {r.error_message}
-                        </span>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))}
-                {runs.length === 0 && (
+        <CollapsibleCardHeader
+          title="Execuções recentes"
+          open={runsOpen}
+          onToggle={() => setRunsOpen((v) => !v)}
+          count={runs.length}
+          trailing={
+            runsOpen ? (
+              <>
+                <Select value={sourceFilter} onValueChange={setSourceFilter}>
+                  <SelectTrigger className="w-36">
+                    <SelectValue placeholder="Fonte" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todas as fontes</SelectItem>
+                    <SelectItem value="shopee">Shopee</SelectItem>
+                    <SelectItem value="facebook">Facebook</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger className="w-40">
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos os status</SelectItem>
+                    <SelectItem value="running">Rodando</SelectItem>
+                    <SelectItem value="success">Sucesso</SelectItem>
+                    <SelectItem value="failed">Falhou</SelectItem>
+                    <SelectItem value="skipped_lock">Já rodando (skip)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </>
+            ) : undefined
+          }
+        />
+        {runsOpen && (
+          <CardContent className="overflow-x-auto">
+            {runsLoading ? (
+              <div className="flex justify-center py-10">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : (
+              <Table>
+                <TableHeader>
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center text-muted-foreground">
-                      Nenhuma execução encontrada
-                    </TableCell>
+                    <TableHead>Início</TableHead>
+                    <TableHead>Fonte</TableHead>
+                    <TableHead>Origem</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Duração</TableHead>
+                    <TableHead>Registros</TableHead>
+                    <TableHead>User</TableHead>
+                    <TableHead>Aviso</TableHead>
                   </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
+                </TableHeader>
+                <TableBody>
+                  {runs.map((r) => (
+                    <TableRow key={r.id}>
+                      <TableCell className="whitespace-nowrap text-xs">
+                        {r.started_at ? new Date(r.started_at).toLocaleString("pt-BR") : "—"}
+                      </TableCell>
+                      <TableCell className="capitalize">{r.source}</TableCell>
+                      <TableCell className="text-xs">{r.trigger}</TableCell>
+                      <TableCell>
+                        <StatusBadge run={r} />
+                      </TableCell>
+                      <TableCell className="text-xs">{formatDuration(r.duration_seconds)}</TableCell>
+                      <TableCell className="text-xs tabular-nums">
+                        {r.records_upserted ?? "—"}
+                      </TableCell>
+                      <TableCell className="text-xs">{r.user_id ?? "—"}</TableCell>
+                      <TableCell className="text-xs">
+                        {r.is_suspected_partial && (
+                          <Badge className="border-transparent bg-amber-500/15 text-amber-600">
+                            Possível parcial
+                          </Badge>
+                        )}
+                        {r.error_message && (
+                          <span className="block max-w-xs truncate text-destructive" title={r.error_message}>
+                            {r.error_message}
+                          </span>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  {runs.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={8} className="text-center text-muted-foreground">
+                        Nenhuma execução encontrada
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        )}
       </Card>
     </div>
   );
