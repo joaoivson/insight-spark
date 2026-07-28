@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { Download, Loader2, Search } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -22,6 +23,7 @@ import {
   centsToBRL,
   fetchAdminClients,
   semaphoreLabel,
+  translateClientStatus,
   translateFrequency,
   type AdminClient,
 } from "@/services/admin-panel.service";
@@ -35,6 +37,35 @@ function SemaphoreDot({ color }: { color: string }) {
         ? "bg-amber-400"
         : "bg-red-500";
   return <span className={`inline-block h-2.5 w-2.5 rounded-full ${cls}`} title={semaphoreLabel(color)} />;
+}
+
+function StatusBadge({ status }: { status: string }) {
+  if (status === "atrasado") {
+    return (
+      <Badge className="border-amber-500/30 bg-amber-500/15 text-amber-600">
+        {translateClientStatus(status)}
+      </Badge>
+    );
+  }
+  if (status === "ativo") {
+    return (
+      <Badge className="border-emerald-500/30 bg-emerald-500/15 text-emerald-600">
+        {translateClientStatus(status)}
+      </Badge>
+    );
+  }
+  if (status === "cancelado_com_acesso") {
+    return (
+      <Badge className="border-sky-500/30 bg-sky-500/15 text-sky-600">
+        {translateClientStatus(status)}
+      </Badge>
+    );
+  }
+  return (
+    <Badge variant="secondary" className="text-muted-foreground">
+      {translateClientStatus(status)}
+    </Badge>
+  );
 }
 
 export default function AdminClientsPage() {
@@ -111,6 +142,7 @@ export default function AdminClientsPage() {
           <SelectContent>
             <SelectItem value="all">Todos status</SelectItem>
             <SelectItem value="ativo">Ativo</SelectItem>
+            <SelectItem value="atrasado">Atrasado</SelectItem>
             <SelectItem value="inativo">Inativo</SelectItem>
             <SelectItem value="cancelado_com_acesso">Cancelado c/ acesso</SelectItem>
           </SelectContent>
@@ -174,7 +206,9 @@ export default function AdminClientsPage() {
                   <TableCell className="text-sm">{r.email}</TableCell>
                   <TableCell className="capitalize">{r.plan}</TableCell>
                   <TableCell>{translateFrequency(r.frequency)}</TableCell>
-                  <TableCell>{r.status}</TableCell>
+                  <TableCell>
+                    <StatusBadge status={r.status} />
+                  </TableCell>
                   <TableCell className="text-sm">
                     {r.next_payment ? new Date(r.next_payment).toLocaleDateString("pt-BR") : "—"}
                   </TableCell>

@@ -59,6 +59,7 @@ export type AdminClient = {
   next_payment?: string | null;
   access_until?: string | null;
   total_paid_net_cents: number;
+  card_rejection_reason?: string | null;
   last_login_at?: string | null;
   integrations: { shopee: boolean; facebook: boolean };
   semaphore: string;
@@ -119,6 +120,27 @@ const SEMAPHORE_LABELS: Record<string, string> = {
 
 export const semaphoreLabel = (color: string | null | undefined): string =>
   SEMAPHORE_LABELS[(color || "").toLowerCase()] || "Status desconhecido";
+
+const REJECTION_REASON_LABELS: Record<string, string> = {
+  refused_bank: "Recusa: banco emissor",
+};
+
+export const translateRejectionReason = (reason: string | null | undefined): string => {
+  if (!reason) return "—";
+  return REJECTION_REASON_LABELS[reason.toLowerCase()] || reason;
+};
+
+const STATUS_LABELS: Record<string, string> = {
+  ativo: "Ativo",
+  atrasado: "Atrasado",
+  inativo: "Inativo",
+  cancelado_com_acesso: "Cancelado c/ acesso",
+};
+
+export const translateClientStatus = (status: string | null | undefined): string => {
+  if (!status) return "—";
+  return STATUS_LABELS[status.toLowerCase()] || status;
+};
 
 export async function fetchAdminDashboard(year: number, month: number) {
   return json<AdminDashboard>(await fetchWithAuth(`${base()}/dashboard?year=${year}&month=${month}`));

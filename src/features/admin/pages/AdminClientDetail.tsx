@@ -1,11 +1,48 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ArrowLeft, Loader2, MessageCircle } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
-import { addAdminNote, centsToBRL, fetchAdminClient, translateFrequency } from "@/services/admin-panel.service";
+import {
+  addAdminNote,
+  centsToBRL,
+  fetchAdminClient,
+  translateClientStatus,
+  translateFrequency,
+  translateRejectionReason,
+} from "@/services/admin-panel.service";
 import { useToast } from "@/hooks/use-toast";
+
+function StatusBadge({ status }: { status: string }) {
+  if (status === "atrasado") {
+    return (
+      <Badge className="border-amber-500/30 bg-amber-500/15 text-amber-600">
+        {translateClientStatus(status)}
+      </Badge>
+    );
+  }
+  if (status === "ativo") {
+    return (
+      <Badge className="border-emerald-500/30 bg-emerald-500/15 text-emerald-600">
+        {translateClientStatus(status)}
+      </Badge>
+    );
+  }
+  if (status === "cancelado_com_acesso") {
+    return (
+      <Badge className="border-sky-500/30 bg-sky-500/15 text-sky-600">
+        {translateClientStatus(status)}
+      </Badge>
+    );
+  }
+  return (
+    <Badge variant="secondary" className="text-muted-foreground">
+      {translateClientStatus(status)}
+    </Badge>
+  );
+}
 
 export default function AdminClientDetailPage() {
   const { userId } = useParams();
@@ -63,6 +100,7 @@ export default function AdminClientDetailPage() {
   const phone = data.contact?.phone || data.phone;
   const wa = phone ? `https://wa.me/55${String(phone).replace(/\D/g, "")}` : null;
   const sub = data.subscription_block || {};
+  const rejection = data.card_rejection_reason || sub.card_rejection_reason || null;
 
   return (
     <div className="space-y-6">
@@ -77,6 +115,7 @@ export default function AdminClientDetailPage() {
           <h2 className="text-xl font-semibold">{data.name || data.email}</h2>
           <p className="text-sm text-muted-foreground">{data.email}</p>
         </div>
+        {data.status && <StatusBadge status={data.status} />}
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
@@ -89,7 +128,14 @@ export default function AdminClientDetailPage() {
               Plano: <span className="capitalize font-medium">{sub.plan || data.plan}</span> ·{" "}
               {translateFrequency(sub.frequency || data.frequency)}
             </p>
-            <p>Status: {sub.status || data.status}</p>
+            <p className="flex flex-wrap items-center gap-2">
+              Status: {data.status ? <StatusBadge status={data.status} /> : (sub.status || "—")}
+            </p>
+            {rejection && (
+              <p className="text-amber-700 dark:text-amber-500">
+                {translateRejectionReason(rejection)}
+              </p>
+            )}
             <p>
               Próx. cobrança:{" "}
               {sub.next_payment
@@ -200,6 +246,11 @@ export default function AdminClientDetailPage() {
                   <span className="font-medium">{e.event_type}</span>
                   {e.is_plan_change && (
                     <span className="ml-2 text-xs text-amber-600">troca de plano</span>
+                  )}
+                  {e.card_rejection_reason && (
+                    <p className="text-xs text-amber-700 dark:text-amber-500">
+                      {translateRejectionReason(e.card_rejection_reason)}
+                    </p>
                   )}
                   <p className="text-xs text-muted-foreground">{e.plan_name}</p>
                 </div>
