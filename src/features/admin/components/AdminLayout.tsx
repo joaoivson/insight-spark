@@ -6,7 +6,6 @@ import { cn } from "@/shared/lib/utils";
 const TABS = [
   { to: "/admin", label: "Dashboard", exact: true },
   { to: "/admin/clientes", label: "Clientes" },
-  { to: "/admin/uso", label: "Uso" },
   { to: "/admin/sincronizacoes", label: "Sincronizações" },
   { to: "/admin/despesas", label: "Despesas" },
   { to: "/admin/dre", label: "DRE" },
