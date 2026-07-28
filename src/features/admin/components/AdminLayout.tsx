@@ -1,5 +1,5 @@
 import { Link, Outlet, useLocation } from "react-router-dom";
-import { BrandLogo } from "@/components/brand/BrandLogo";
+import { BrandLogo, BrandSymbol } from "@/components/brand/BrandLogo";
 import { MonthYearPicker } from "@/features/admin/components/MonthYearPicker";
 import { cn } from "@/shared/lib/utils";
 
@@ -19,11 +19,26 @@ export function AdminLayout() {
   return (
     <div className="flex min-h-screen bg-background text-foreground">
       <aside className="hidden w-56 shrink-0 border-r border-border bg-card/40 md:flex md:flex-col">
-        <div className="flex items-center gap-2 border-b border-border px-4 py-4">
-          <BrandLogo className="h-7 w-auto" />
-          <div>
-            <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Painel interno</p>
-            <h1 className="text-sm font-semibold">Admin MarketDash</h1>
+        <div className="border-b border-border px-5 py-5">
+          <div className="flex items-center gap-3">
+            <BrandSymbol className="h-8 w-8 shrink-0" />
+            <div className="min-w-0">
+              <p
+                className="text-base font-bold leading-tight tracking-tight"
+                style={{
+                  fontFamily: '"Space Grotesk", system-ui, sans-serif',
+                  fontWeight: 700,
+                }}
+              >
+                MarketDash
+              </p>
+              <p
+                className="mt-0.5 text-[10px] uppercase tracking-[0.14em] text-muted-foreground"
+                style={{ fontFamily: '"JetBrains Mono", ui-monospace, monospace' }}
+              >
+                Painel interno
+              </p>
+            </div>
           </div>
         </div>
         <nav className="flex flex-1 flex-col gap-0.5 p-2">
