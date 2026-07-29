@@ -188,7 +188,7 @@ export default function AdminClientsPage() {
                 <TableHead>Status</TableHead>
                 <TableHead>Próx. cobrança</TableHead>
                 <TableHead>Total pago</TableHead>
-                <TableHead>Último login</TableHead>
+                <TableHead>Último acesso</TableHead>
                 <TableHead>Integrações</TableHead>
                 <TableHead />
               </TableRow>

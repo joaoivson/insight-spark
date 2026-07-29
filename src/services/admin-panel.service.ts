@@ -285,3 +285,11 @@ export async function postPageView(path: string) {
     /* ignore */
   }
 }
+
+export async function postDailyAccess() {
+  try {
+    await fetchWithAuth(`${base()}/access`, { method: "POST" });
+  } catch {
+    /* ignore */
+  }
+}
