@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { BarChart3, Mail, Lock, ArrowRight, Eye, EyeOff } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { loginService } from "../services";
+import { postDailyAccess } from "@/services/admin-panel.service";
 import { userStorage, tokenStorage } from "@/shared/lib/storage";
 import { getApiUrl, fetchWithAuth } from "@/core/config/api.config";
 import { APP_CONFIG } from "@/core/config/app.config";
@@ -61,6 +62,7 @@ const Login = () => {
         });
 
         tokenStorage.set(result.token);
+        void postDailyAccess();
 
         if (typeof window !== 'undefined') {
           sessionStorage.setItem('token_created_at', Date.now().toString());
