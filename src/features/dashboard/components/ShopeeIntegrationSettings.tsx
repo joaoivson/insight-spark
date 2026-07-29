@@ -4,7 +4,7 @@ import { useDatasetStore } from "@/stores/datasetStore";
 import { useClicksStore } from "@/stores/clicksStore";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Eye, EyeOff, Loader2, Pencil, RefreshCw, Unplug, X, CheckCircle2 } from "lucide-react";
+import { AlertTriangle, Eye, EyeOff, Loader2, Pencil, RefreshCw, Unplug, X, CheckCircle2 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { SyncModal } from "./SyncModal";
 import { SyncDaysDialog, SyncDaysOption } from "./SyncDaysDialog";
@@ -33,7 +33,11 @@ import {
 import { usePlanStore } from "@/stores/planStore";
 
 const schema = z.object({
-  appId: z.string().trim().min(1, "AppID é obrigatório"),
+  appId: z
+    .string()
+    .trim()
+    .min(1, "AppID é obrigatório")
+    .regex(/^\d+$/, "Use o AppID numérico da Shopee (ex.: 18191340007), não o e-mail."),
   password: z.string().min(1, "Senha é obrigatória"),
 });
 
@@ -48,6 +52,19 @@ const formatDate = (iso: string | null) => {
     hour: "2-digit",
     minute: "2-digit",
   });
+};
+
+const reconnectInstructions = (reason: string | null | undefined) => {
+  if (reason === "invalid_app_id_non_numeric") {
+    return {
+      title: "AppID inválido — reconecte a Shopee",
+      body: "O valor salvo não é um AppID (parece e-mail ou texto). No painel de afiliados da Shopee, copie o AppID numérico e a senha/secret da API e atualize os campos abaixo. Depois de salvar, a sincronização automática volta.",
+    };
+  }
+  return {
+    title: "Sincronização pausada — reconecte a Shopee",
+    body: "As credenciais atuais não funcionam e a sincronização automática foi pausada. Atualize o AppID numérico e a senha/secret da API Shopee abaixo e salve. Em seguida use “Sincronizar agora” para confirmar.",
+  };
 };
 
 export const ShopeeIntegrationSettings = () => {
@@ -78,7 +95,11 @@ export const ShopeeIntegrationSettings = () => {
 
   useEffect(() => {
     getShopeeStatus()
-      .then(setStatus)
+      .then((s) => {
+        setStatus(s);
+        // Conta pausada: já abre o formulário pra o usuário corrigir as credenciais.
+        if (s?.sync_paused_at) setIsEditing(true);
+      })
       .catch(() => setStatus(null))
       .finally(() => setLoadingStatus(false));
   }, []);
@@ -89,7 +110,13 @@ export const ShopeeIntegrationSettings = () => {
       const updated = await saveShopeeCredentials(data.appId, data.password);
       setStatus(updated);
       setIsEditing(false);
-      toast({ title: "Credenciais salvas", description: "Integração Shopee configurada com sucesso." });
+      const wasPaused = Boolean(status?.sync_paused_at);
+      toast({
+        title: "Credenciais salvas",
+        description: wasPaused
+          ? "Pausa removida. Use “Sincronizar agora” para confirmar que a conexão funciona."
+          : "Integração Shopee configurada com sucesso.",
+      });
     } catch (err) {
       toast({
         title: "Erro ao salvar",
@@ -195,30 +222,54 @@ export const ShopeeIntegrationSettings = () => {
     );
   }
 
+  const isPaused = Boolean(status?.sync_paused_at);
+  const pauseCopy = reconnectInstructions(status?.sync_pause_reason);
+
   return (
     <div className="space-y-6">
       {/* Status badge */}
-      <div className="flex items-center gap-3">
-        {status?.is_active ? (
+      <div className="flex items-center gap-3 flex-wrap">
+        {status?.is_active && isPaused ? (
+          <Badge className="bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/25 gap-1">
+            <AlertTriangle className="w-3.5 h-3.5" />
+            Reconexão necessária
+          </Badge>
+        ) : status?.is_active ? (
           <Badge className="bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20">
             Conectado
           </Badge>
         ) : (
           <Badge variant="secondary">Não conectado</Badge>
         )}
-        {status?.last_sync_at && (
+        {status?.last_sync_at && !isPaused && (
           <span className="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full bg-orange-500/10 text-orange-500 border border-orange-500/20">
             <span className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse" />
             Última sync: {formatDate(status.last_sync_at)}
           </span>
         )}
         {status?.last_sync_at &&
+          !isPaused &&
           Date.now() - new Date(status.last_sync_at).getTime() > 24 * 60 * 60 * 1000 && (
             <span className="text-xs text-amber-600 dark:text-amber-400">
               Sync atrasada — use &quot;Sincronizar agora&quot; se os dados estiverem desatualizados.
             </span>
           )}
       </div>
+
+      {isPaused && (
+        <div
+          role="alert"
+          className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 space-y-1.5"
+        >
+          <p className="text-sm font-medium text-amber-700 dark:text-amber-300 flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 shrink-0" />
+            {pauseCopy.title}
+          </p>
+          <p className="text-sm text-amber-800/90 dark:text-amber-200/90 leading-relaxed">
+            {pauseCopy.body}
+          </p>
+        </div>
+      )}
 
       {/* Credentials: show form when not connected or editing */}
       <AnimatePresence initial={false}>
@@ -236,11 +287,16 @@ export const ShopeeIntegrationSettings = () => {
               <Label htmlFor="appId">AppID</Label>
               <Input
                 id="appId"
-                placeholder="Ex: 1234567890"
-                defaultValue={status?.app_id ?? ""}
+                placeholder="Ex: 18191340007"
+                defaultValue={
+                  status?.app_id && /^\d+$/.test(status.app_id) ? status.app_id : ""
+                }
                 {...register("appId")}
                 className="bg-background"
               />
+              <p className="text-xs text-muted-foreground">
+                Só números — o AppID do painel de afiliados Shopee, não o e-mail da conta.
+              </p>
               {errors.appId && (
                 <p className="text-sm text-destructive">{errors.appId.message}</p>
               )}
@@ -273,9 +329,9 @@ export const ShopeeIntegrationSettings = () => {
             <div className="flex gap-2">
               <Button type="submit" disabled={isSaving} className="w-full sm:w-auto">
                 {isSaving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-                {isSaving ? "Salvando..." : "Salvar"}
+                {isSaving ? "Salvando..." : isPaused ? "Salvar e retomar sync" : "Salvar"}
               </Button>
-              {isEditing && (
+              {isEditing && !isPaused && (
                 <Button
                   type="button"
                   variant="ghost"
@@ -326,7 +382,7 @@ export const ShopeeIntegrationSettings = () => {
           <Button
             variant="outline"
             onClick={() => setShowSyncDaysDialog(true)}
-            disabled={isSyncing}
+            disabled={isSyncing || isPaused}
             className="gap-2 w-full sm:w-auto"
           >
             {isSyncing ? (

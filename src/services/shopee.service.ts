@@ -6,6 +6,9 @@ export type ShopeeStatus = {
   app_id: string;
   is_active: boolean;
   last_sync_at: string | null;
+  /** Preenchido quando o cron pausou a conta (credencial inválida / never-synced). */
+  sync_paused_at?: string | null;
+  sync_pause_reason?: string | null;
   created_at: string | null;
   updated_at: string | null;
 };
