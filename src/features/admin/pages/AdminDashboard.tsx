@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
 import {
   Bar,
   BarChart,
@@ -90,14 +89,6 @@ export default function AdminDashboardPage() {
     return <p className="text-destructive">{error || "Sem dados"}</p>;
   }
 
-  const a = data.alerts;
-  const alertItems = [
-    a.expiring_7d > 0 && { key: "expiring_7d", label: `${a.expiring_7d} vencem em 7 dias` },
-    a.payment_failed > 0 && { key: "payment_failed", label: `${a.payment_failed} pagamento falhou` },
-    a.never_connected > 0 && { key: "never_connected", label: `${a.never_connected} nunca conectaram` },
-    a.no_login_10d > 0 && { key: "no_login_10d", label: `${a.no_login_10d} sem login há 10d` },
-  ].filter(Boolean) as { key: string; label: string }[];
-
   const planBits = Object.entries(data.active_by_plan || {})
     .map(([k, v]) => `${formatPlanLabel(k)} ${v}`)
     .join(" · ");
@@ -163,23 +154,6 @@ export default function AdminDashboardPage() {
           value={data.ltv_cents == null ? "—" : centsToBRL(data.ltv_cents)}
         />
       </div>
-
-      {alertItems.length > 0 && (
-        <div className="rounded-md border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm">
-          <span className="mr-2">⚠️</span>
-          {alertItems.map((item, i) => (
-            <span key={item.key}>
-              {i > 0 && <span className="mx-2 text-muted-foreground">·</span>}
-              <Link
-                to={`/admin/clientes?${item.key}=1`}
-                className="underline-offset-2 hover:underline"
-              >
-                {item.label}
-              </Link>
-            </span>
-          ))}
-        </div>
-      )}
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>

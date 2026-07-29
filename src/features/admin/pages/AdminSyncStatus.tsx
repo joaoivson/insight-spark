@@ -520,7 +520,7 @@ function UsoTab() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Telas mais acessadas</CardTitle>
+          <CardTitle className="text-base">Telas mais acessadas (30d)</CardTitle>
         </CardHeader>
         <CardContent>
           <ul className="space-y-2 text-sm">
