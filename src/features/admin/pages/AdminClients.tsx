@@ -156,6 +156,7 @@ export default function AdminClientsPage() {
             <SelectItem value="all">Todos planos</SelectItem>
             <SelectItem value="essencial">Essencial</SelectItem>
             <SelectItem value="pro">Pro</SelectItem>
+            <SelectItem value="max">Max</SelectItem>
           </SelectContent>
         </Select>
         {hasAlertFilter && (

@@ -113,11 +113,14 @@ export const translateFrequency = (frequency: string | null | undefined): string
 };
 
 export const formatPlanLabel = (plan: string | null | undefined): string => {
-  const p = (plan || "").toLowerCase();
-  if (p === "pro" || p === "max") return "Pro";
-  if (p === "essencial" || p === "essential") return "Essencial";
   if (!plan) return "—";
-  return plan.charAt(0).toUpperCase() + plan.slice(1);
+  const map: Record<string, string> = {
+    essencial: "Essencial",
+    essential: "Essencial",
+    pro: "Pro",
+    max: "Max",
+  };
+  return map[plan.toLowerCase()] ?? plan.charAt(0).toUpperCase() + plan.slice(1);
 };
 
 const SEMAPHORE_LABELS: Record<string, string> = {
