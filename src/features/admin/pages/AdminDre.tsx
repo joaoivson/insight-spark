@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Download, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -42,16 +42,27 @@ export default function AdminDrePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  const load = useCallback(async () => {
     setLoading(true);
-    fetchDre(year, month)
-      .then((d) => {
-        setData(d);
-        setError(null);
-      })
-      .catch((e) => setError(e instanceof Error ? e.message : "Erro"))
-      .finally(() => setLoading(false));
+    setError(null);
+    try {
+      const d = await fetchDre(year, month);
+      setData(d);
+    } catch (e) {
+      const raw = e instanceof Error ? e.message : "";
+      const friendly =
+        /failed to fetch|networkerror|load failed/i.test(raw) || !raw
+          ? "Não foi possível carregar o DRE. Verifique a conexão e tente de novo."
+          : raw;
+      setError(friendly);
+    } finally {
+      setLoading(false);
+    }
   }, [year, month]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
 
   const exportCsv = async () => {
     const res = await fetchWithAuth(
@@ -74,8 +85,19 @@ export default function AdminDrePage() {
     );
   }
 
-  if (error || !data) {
-    return <p className="text-destructive">{error || "Sem dados"}</p>;
+  if (error) {
+    return (
+      <div className="space-y-3 py-8 text-center">
+        <p className="text-sm text-muted-foreground">{error}</p>
+        <Button variant="outline" onClick={() => void load()}>
+          Tentar novamente
+        </Button>
+      </div>
+    );
+  }
+
+  if (!data) {
+    return <p className="text-sm text-muted-foreground">Sem dados</p>;
   }
 
   // Meses com movimento (receita ou despesa ≠ 0), mais recente primeiro.
