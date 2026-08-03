@@ -4,6 +4,7 @@ import { Download, Loader2, Search } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { capitalizeName, nextChargeLabel } from "@/features/admin/lib/format";
 import {
   Select,
   SelectContent,
@@ -177,11 +178,11 @@ export default function AdminClientsPage() {
       ) : error ? (
         <p className="text-destructive">{error}</p>
       ) : (
-        <div className="overflow-x-auto rounded-md border">
-          <Table>
+        <div className="w-full rounded-md border">
+          <Table className="w-full table-auto">
             <TableHeader>
               <TableRow>
-                <TableHead>Nome</TableHead>
+                <TableHead className="whitespace-nowrap">Nome</TableHead>
                 <TableHead>E-mail</TableHead>
                 <TableHead>Plano</TableHead>
                 <TableHead>Periodicidade</TableHead>
@@ -196,13 +197,13 @@ export default function AdminClientsPage() {
             <TableBody>
               {rows.map((r, i) => (
                 <TableRow key={`${r.user_id ?? r.email}-${i}`}>
-                  <TableCell>
+                  <TableCell className="whitespace-nowrap">
                     {r.user_id ? (
                       <Link className="font-medium hover:underline" to={`/admin/clientes/${r.user_id}`}>
-                        {r.name || "—"}
+                        {capitalizeName(r.name) || "—"}
                       </Link>
                     ) : (
-                      r.name || "—"
+                      capitalizeName(r.name) || "—"
                     )}
                   </TableCell>
                   <TableCell className="text-sm">{r.email}</TableCell>
@@ -211,8 +212,8 @@ export default function AdminClientsPage() {
                   <TableCell>
                     <StatusBadge status={r.status} />
                   </TableCell>
-                  <TableCell className="text-sm">
-                    {r.next_payment ? new Date(r.next_payment).toLocaleDateString("pt-BR") : "—"}
+                  <TableCell className="whitespace-nowrap text-sm">
+                    {nextChargeLabel(r.status, r.next_payment)}
                   </TableCell>
                   <TableCell>{centsToBRL(r.total_paid_net_cents)}</TableCell>
                   <TableCell className="text-sm">

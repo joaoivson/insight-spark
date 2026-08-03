@@ -6,6 +6,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  capitalizeName,
+  translateEventType,
+  translatePaymentMethod,
+} from "@/features/admin/lib/format";
+import {
   addAdminNote,
   centsToBRL,
   fetchAdminClient,
@@ -113,7 +118,7 @@ export default function AdminClientDetailPage() {
           </Link>
         </Button>
         <div>
-          <h2 className="text-xl font-semibold">{data.name || data.email}</h2>
+          <h2 className="text-xl font-semibold">{capitalizeName(data.name) || data.email}</h2>
           <p className="text-sm text-muted-foreground">{data.email}</p>
         </div>
         {data.status && <StatusBadge status={data.status} />}
@@ -153,7 +158,7 @@ export default function AdminClientDetailPage() {
                 : "—"}
             </p>
             <p>Total pago (líquido): {centsToBRL(data.total_paid_net_cents || 0)}</p>
-            <p>Pagamento: {sub.payment_method || "—"}</p>
+            <p>Pagamento: {translatePaymentMethod(sub.payment_method)}</p>
           </CardContent>
         </Card>
 
@@ -247,7 +252,7 @@ export default function AdminClientDetailPage() {
             {(data.timeline || []).map((e: any) => (
               <li key={e.id} className="flex flex-wrap items-baseline justify-between gap-2 border-b border-border/60 py-2">
                 <div>
-                  <span className="font-medium">{e.event_type}</span>
+                  <span className="font-medium">{translateEventType(e.event_type)}</span>
                   {e.is_plan_change && (
                     <span className="ml-2 text-xs text-amber-600">troca de plano</span>
                   )}

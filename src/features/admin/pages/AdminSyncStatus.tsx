@@ -42,6 +42,14 @@ import {
   SyncUsageSummary,
 } from "@/services/admin-panel.service";
 import { AdminChartTooltip, CHART_COLORS } from "@/features/admin/components/AdminChartTooltip";
+import { PlatformUsageTab } from "@/features/admin/components/PlatformUsageTab";
+import { SyncErrorDialog } from "@/features/admin/components/SyncErrorDialog";
+import { SyncErrorReasons } from "@/features/admin/components/SyncErrorReasons";
+import {
+  CelulaUsuaria,
+  Paginacao,
+  paginar,
+} from "@/features/admin/components/AdminTableFooter";
 
 const DAYS = 30;
 
@@ -224,6 +232,24 @@ function SyncsTab() {
   const [errorsOpen, setErrorsOpen] = useState(false);
   const [runsOpen, setRunsOpen] = useState(false);
 
+  // Erros vêm de sync_runs (e não do log antigo): traz usuária, motivo
+  // classificado e a mensagem inteira pro modal.
+  const [failedRuns, setFailedRuns] = useState<SyncRun[]>([]);
+  const [motivoFiltro, setMotivoFiltro] = useState<string | null>(null);
+  const [runSelecionada, setRunSelecionada] = useState<SyncRun | null>(null);
+  const [paginaErros, setPaginaErros] = useState(1);
+  const [paginaRuns, setPaginaRuns] = useState(1);
+
+  useEffect(() => {
+    fetchSyncRuns({ status: "failed", limit: 300 })
+      .then(setFailedRuns)
+      .catch(() => setFailedRuns([]));
+  }, []);
+
+  const errosFiltrados = motivoFiltro
+    ? failedRuns.filter((r) => r.erro_motivo === motivoFiltro)
+    : failedRuns;
+
   useEffect(() => {
     setHealthLoading(true);
     Promise.all([
@@ -310,44 +336,69 @@ function SyncsTab() {
             </CardContent>
           </Card>
 
+          <SyncErrorReasons onSelect={(m) => { setMotivoFiltro(m); setPaginaErros(1); setErrorsOpen(true); }} selecionado={motivoFiltro} />
+
           <Card>
             <CollapsibleCardHeader
-              title="Erros de sync (últimos)"
+              title={motivoFiltro ? `Erros de sync · ${motivoFiltro}` : "Erros de sync (últimos)"}
               open={errorsOpen}
               onToggle={() => setErrorsOpen((v) => !v)}
-              count={(usageData?.sync_errors || []).length}
+              count={errosFiltrados.length}
             />
             {errorsOpen && (
-              <CardContent className="overflow-x-auto">
+              <CardContent>
                 <Table>
                   <TableHeader>
                     <TableRow>
                       <TableHead>Quando</TableHead>
-                      <TableHead>User</TableHead>
+                      <TableHead>Usuária</TableHead>
                       <TableHead>Fonte</TableHead>
+                      <TableHead>Motivo</TableHead>
                       <TableHead>Erro</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {(usageData?.sync_errors || []).map((e: any) => (
-                      <TableRow key={e.id}>
+                    {paginar(errosFiltrados, paginaErros).map((e) => (
+                      <TableRow
+                        key={e.id}
+                        className="cursor-pointer"
+                        onClick={() => setRunSelecionada(e)}
+                      >
                         <TableCell className="whitespace-nowrap text-xs">
-                          {e.created_at ? new Date(e.created_at).toLocaleString("pt-BR") : "—"}
+                          {e.started_at ? new Date(e.started_at).toLocaleString("pt-BR") : "—"}
                         </TableCell>
-                        <TableCell>{e.user_id ?? "—"}</TableCell>
-                        <TableCell>{e.source}</TableCell>
-                        <TableCell className="max-w-md truncate text-xs">{e.error_message}</TableCell>
+                        <TableCell className="whitespace-nowrap text-xs">
+                          <CelulaUsuaria usuario={e.usuario} userId={e.user_id} />
+                        </TableCell>
+                        <TableCell className="capitalize">{e.source}</TableCell>
+                        <TableCell className="whitespace-nowrap text-xs">
+                          {e.erro_motivo ? (
+                            <Badge variant="outline" className="font-normal">
+                              {e.erro_motivo}
+                            </Badge>
+                          ) : (
+                            "—"
+                          )}
+                        </TableCell>
+                        <TableCell className="max-w-md truncate text-xs">
+                          {e.error_message}
+                        </TableCell>
                       </TableRow>
                     ))}
-                    {(usageData?.sync_errors || []).length === 0 && (
+                    {errosFiltrados.length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={4} className="text-center text-muted-foreground">
+                        <TableCell colSpan={5} className="text-center text-muted-foreground">
                           Nenhum erro recente
                         </TableCell>
                       </TableRow>
                     )}
                   </TableBody>
                 </Table>
+                <Paginacao
+                  pagina={paginaErros}
+                  total={errosFiltrados.length}
+                  onChange={setPaginaErros}
+                />
               </CardContent>
             )}
           </Card>
@@ -366,7 +417,7 @@ function SyncsTab() {
             runsOpen ? (
               <>
                 <Select value={sourceFilter} onValueChange={setSourceFilter}>
-                  <SelectTrigger className="w-36">
+                  <SelectTrigger className="w-48">
                     <SelectValue placeholder="Fonte" />
                   </SelectTrigger>
                   <SelectContent>
@@ -376,7 +427,7 @@ function SyncsTab() {
                   </SelectContent>
                 </Select>
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="w-40">
+                  <SelectTrigger className="w-52">
                     <SelectValue placeholder="Status" />
                   </SelectTrigger>
                   <SelectContent>
@@ -412,7 +463,7 @@ function SyncsTab() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {runs.map((r) => (
+                  {paginar(runs, paginaRuns).map((r) => (
                     <TableRow key={r.id}>
                       <TableCell className="whitespace-nowrap text-xs">
                         {r.started_at ? new Date(r.started_at).toLocaleString("pt-BR") : "—"}
@@ -426,7 +477,9 @@ function SyncsTab() {
                       <TableCell className="text-xs tabular-nums">
                         {r.records_upserted ?? "—"}
                       </TableCell>
-                      <TableCell className="text-xs">{r.user_id ?? "—"}</TableCell>
+                      <TableCell className="whitespace-nowrap text-xs">
+                        <CelulaUsuaria usuario={r.usuario} userId={r.user_id} />
+                      </TableCell>
                       <TableCell className="text-xs">
                         {r.is_suspected_partial && (
                           <Badge className="border-transparent bg-amber-500/15 text-amber-600">
@@ -451,116 +504,43 @@ function SyncsTab() {
                 </TableBody>
               </Table>
             )}
+            <Paginacao pagina={paginaRuns} total={runs.length} onChange={setPaginaRuns} />
           </CardContent>
         )}
       </Card>
+
+      <SyncErrorDialog
+        run={runSelecionada}
+        onOpenChange={(aberto) => !aberto && setRunSelecionada(null)}
+      />
     </div>
   );
 }
 
-function UsoTab() {
-  const [data, setData] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    fetchUsage()
-      .then((d) => {
-        setData(d);
-        setError(null);
-      })
-      .catch((e) => setError(e instanceof Error ? e.message : "Erro"))
-      .finally(() => setLoading(false));
-  }, []);
-
-  if (loading) {
-    return (
-      <div className="flex justify-center py-20">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
-
-  if (error || !data) {
-    return <p className="text-destructive">{error || "Sem dados"}</p>;
-  }
-
-  const loginsPerDay = fill30Days((data.logins_per_day || []) as { date: string; count: number }[]);
-  const loginsTotal = loginsPerDay.reduce((acc, r) => acc + (r.count || 0), 0);
-  const loginsAvg = loginsTotal / DAYS;
-  const lastLoginDay = [...loginsPerDay].reverse().find((r) => r.count > 0)?.date;
-
-  return (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Logins (30d)</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-wrap items-end gap-6">
-            <div>
-              <p className="text-3xl font-semibold">{loginsTotal}</p>
-              <p className="text-xs text-muted-foreground">
-                {loginsAvg.toFixed(1).replace(".", ",")}/dia · último acesso:{" "}
-                {lastLoginDay ? new Date(lastLoginDay).toLocaleDateString("pt-BR") : "—"}
-              </p>
-            </div>
-            <div style={{ height: 60 }} className="flex-1 min-w-[200px]">
-              <ResponsiveContainer width="100%" height={60}>
-                <LineChart data={loginsPerDay}>
-                  <YAxis hide domain={[0, "auto"]} />
-                  <Tooltip content={<AdminChartTooltip />} />
-                  <Line type="monotone" dataKey="count" stroke="#318CE9" strokeWidth={1.5} dot={false} fill="none" />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Telas mais acessadas (30d)</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ul className="space-y-2 text-sm">
-            {(data.top_pages || []).map((p: any) => (
-              <li key={p.path} className="flex justify-between gap-4 border-b border-border/40 py-1">
-                <code className="truncate text-xs">{p.path}</code>
-                <span className="tabular-nums text-muted-foreground">{p.count}</span>
-              </li>
-            ))}
-            {(data.top_pages || []).length === 0 && (
-              <li className="text-muted-foreground">Sem page views ainda</li>
-            )}
-          </ul>
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
+const UsoTab = PlatformUsageTab;
 
 export default function AdminSyncStatusPage() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const tab = searchParams.get("tab") === "uso" ? "uso" : "syncs";
+  // Uso é a aba padrão: é a leitura de negócio. Sync é diagnóstico, fica atrás.
+  const tab = searchParams.get("tab") === "syncs" ? "syncs" : "uso";
 
   return (
     <Tabs
       value={tab}
       onValueChange={(v) => {
-        if (v === "uso") setSearchParams({ tab: "uso" });
+        if (v === "syncs") setSearchParams({ tab: "syncs" });
         else setSearchParams({});
       }}
     >
       <TabsList>
-        <TabsTrigger value="syncs">Syncs</TabsTrigger>
         <TabsTrigger value="uso">Uso da plataforma</TabsTrigger>
+        <TabsTrigger value="syncs">Syncs</TabsTrigger>
       </TabsList>
-      <TabsContent value="syncs">
-        <SyncsTab />
-      </TabsContent>
       <TabsContent value="uso">
         <UsoTab />
+      </TabsContent>
+      <TabsContent value="syncs">
+        <SyncsTab />
       </TabsContent>
     </Tabs>
   );

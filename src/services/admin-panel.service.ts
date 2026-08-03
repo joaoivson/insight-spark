@@ -226,7 +226,58 @@ export type SyncRun = {
   is_stale_running: boolean;
   error_message: string | null;
   details: Record<string, unknown> | null;
+  erro_codigo: string | null;
+  erro_motivo: string | null;
+  usuario: SyncRunUser | null;
 };
+
+export type SyncRunUser = { user_id: number; nome: string; email: string | null };
+
+export type SyncErrorReason = {
+  motivo: string;
+  codigo: string | null;
+  total: number;
+  usuarios: number;
+  proporcao: number;
+};
+
+export async function fetchSyncErrorReasons(hours = 24, source?: string) {
+  const qs = new URLSearchParams({ hours: String(hours) });
+  if (source) qs.set("source", source);
+  return json<SyncErrorReason[]>(
+    await fetchWithAuth(`${base()}/sync-runs/error-reasons?${qs}`),
+  );
+}
+
+export type UsagePeriodo = "hoje" | "7d" | "30d" | "90d";
+
+export type PlatformUsage = {
+  periodo: UsagePeriodo;
+  cards: {
+    acessos: number;
+    usuarias_ativas: number;
+    base_ativa: number;
+    taxa_uso: number | null;
+    sem_acesso_10d: number;
+    dias_sem_acesso: number;
+  };
+  usuarias_por_dia: { date: string; usuarias: number }[];
+  atividade: {
+    user_id: number;
+    nome: string;
+    email: string | null;
+    acessos: number;
+    dias_ativos: number;
+    ultimo_acesso: string | null;
+  }[];
+  telas: { tela: string; acessos: number; proporcao: number }[];
+};
+
+export async function fetchPlatformUsage(periodo: UsagePeriodo = "7d") {
+  return json<PlatformUsage>(
+    await fetchWithAuth(`${base()}/platform-usage?periodo=${periodo}`),
+  );
+}
 
 export type SyncHealth = {
   source: string;
