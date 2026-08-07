@@ -37,6 +37,17 @@ function valorLegivel(v: unknown): string {
   return texto;
 }
 
+const SEM_CONTEUDO = new Set([
+  "nenhuma", "nenhum", "nenhuma.", "nenhum.", "n/a", "na", "-", "--",
+  "sem destaque", "sem alerta", "sem alertas", "nada a destacar",
+]);
+
+/** Texto que só ocupa espaço ("Nenhuma", "N/A") vale como campo vazio. */
+function comConteudo(v: unknown): string {
+  const texto = valorLegivel(v).trim();
+  return SEM_CONTEUDO.has(texto.toLowerCase()) ? "" : texto;
+}
+
 /** Junta motivo e complemento sem deixar travessão órfão quando um deles falta. */
 function juntar(...partes: unknown[]): string {
   return partes.map(valorLegivel).filter(Boolean).join(" — ");
@@ -98,7 +109,13 @@ export function RelatorioDiagnostico({ diagnostico }: { diagnostico: Diagnostico
   const observar = paraArray<RelatorioIA["observar"][number]>(r.observar);
   const detalhamento = paraArray<RelatorioIA["detalhamento"][number]>(r.detalhamento);
   const proximosPassos = paraArray<string>(r.proximos_passos);
-  const numeros = r.numeros && typeof r.numeros === "object" ? r.numeros : {};
+  const numerosBrutos = r.numeros && typeof r.numeros === "object" ? r.numeros : {};
+  // "Nenhuma", "N/A", "-": a IA preenche o campo em vez de deixá-lo vazio, e a
+  // linha sai como "⚠ Nenhuma" — um alerta que alerta sobre nada.
+  const numeros = {
+    destaque: comConteudo(numerosBrutos.destaque),
+    atencao: comConteudo(numerosBrutos.atencao),
+  };
 
   return (
     <div className="space-y-4">
