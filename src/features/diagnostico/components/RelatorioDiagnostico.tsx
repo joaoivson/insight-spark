@@ -40,6 +40,9 @@ function valorLegivel(v: unknown): string {
 const SEM_CONTEUDO = new Set([
   "nenhuma", "nenhum", "nenhuma.", "nenhum.", "n/a", "na", "-", "--",
   "sem destaque", "sem alerta", "sem alertas", "nada a destacar",
+  // A IA já devolveu o texto da própria instrução como se fosse conteúdo
+  // ("string vazia"). O prompt foi corrigido; isto é a rede embaixo.
+  "string vazia", "vazio", "vazia", "...",
 ]);
 
 /** Texto que só ocupa espaço ("Nenhuma", "N/A") vale como campo vazio. */
