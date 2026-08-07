@@ -46,6 +46,8 @@ const getInitialState = () => {
 
 export const useClicksStore = create<ClicksState>((set, get) => {
   const initial = getInitialState();
+  // Evita revalidações concorrentes em background (stale-while-revalidate).
+  let revalidating = false;
   return {
     clicks: initial.clicks,
     fullClicks: initial.fullClicks,
@@ -72,59 +74,81 @@ export const useClicksStore = create<ClicksState>((set, get) => {
     fetchClicks: async (opts = {}) => {
       const userId = getUserId();
       const cacheKey = getScopedKey(CACHE_KEY_BASE);
-      const { fullClicks, hydrated, loading, loadedUserId } = get();
+
+      // Busca da API (respeitando o range pedido) e atualiza estado + localStorage.
+      // Quando `background=true` NÃO mexe em `loading` (não pisca o skeleton durante a revalidação).
+      const fetchFromApi = async (background: boolean): Promise<ClickRow[]> => {
+        try {
+          const { startDate, endDate } = rangeToParams(opts.range);
+          const { rows: apiRows, total_clicks } = await fetchClickRows({
+            startDate,
+            endDate,
+            limit: opts.limit,
+            offset: opts.offset,
+          });
+
+          const now = Date.now();
+          set({
+            clicks: apiRows,
+            fullClicks: apiRows,
+            totalClicks: total_clicks,
+            hydrated: true,
+            lastUpdated: now,
+            loadedUserId: getUserId(),
+          });
+
+          localStorage.setItem(cacheKey, JSON.stringify({
+            clicks: apiRows,
+            totalClicks: total_clicks,
+            lastUpdated: now,
+          }));
+
+          return apiRows;
+        } catch (error: any) {
+          if (!background) set({ error: error?.message || "Erro ao carregar dados de cliques" });
+          return get().clicks;
+        }
+      };
+
+      // Dispara uma revalidação em background (no máx. 1 em voo).
+      const revalidateInBackground = () => {
+        if (revalidating || get().loading) return;
+        revalidating = true;
+        void fetchFromApi(true).finally(() => { revalidating = false; });
+      };
 
       // Garantia: Se o usuário logado mudou, recarrega do cache dele ou limpa a memória
-      if (userId !== loadedUserId) {
+      if (userId !== get().loadedUserId) {
         const cached = safeGetJSON<{ clicks: ClickRow[]; totalClicks?: number; lastUpdated?: number }>(cacheKey);
         if (cached && Array.isArray(cached.clicks)) {
           const now = cached.lastUpdated ?? Date.now();
           set({ clicks: cached.clicks, fullClicks: cached.clicks, totalClicks: cached.totalClicks ?? null, hydrated: true, lastUpdated: now, loadedUserId: userId });
-          if (!opts.force) return cached.clicks;
+          if (!opts.force) {
+            revalidateInBackground();
+            return cached.clicks;
+          }
         } else {
           set({ clicks: [], fullClicks: [], totalClicks: null, hydrated: false, lastUpdated: null, loadedUserId: userId });
         }
       }
 
-      // 1. Se já temos dados na memória e não foi forçado, apenas retorna
+      const { fullClicks, hydrated, loading } = get();
+
+      // 1. Cache quente: retorna imediato E revalida em background (stale-while-revalidate).
+      //    Mesma causa raiz corrigida no adSpendsStore: sem isso, cliques novos gravados no
+      //    servidor nunca chegavam a um device com cache local já populado — divergência de
+      //    valores entre celular e PC na mesma conta.
       if (hydrated && fullClicks.length > 0 && !opts.force) {
         set({ clicks: fullClicks });
+        revalidateInBackground();
         return fullClicks;
       }
 
-      // 2. Busca da API
+      // 2. Sem cache (ou force): busca bloqueante (com skeleton).
       if (loading) return get().clicks;
       set({ loading: true, error: null });
-      
       try {
-        const { startDate, endDate } = rangeToParams(opts.range);
-        const { rows: apiRows, total_clicks } = await fetchClickRows({
-          startDate,
-          endDate,
-          limit: opts.limit,
-          offset: opts.offset,
-        });
-
-        const now = Date.now();
-        set({ 
-          clicks: apiRows, 
-          fullClicks: apiRows, 
-          totalClicks: total_clicks,
-          hydrated: true, 
-          lastUpdated: now,
-          loadedUserId: userId
-        });
-
-        localStorage.setItem(cacheKey, JSON.stringify({ 
-          clicks: apiRows, 
-          totalClicks: total_clicks,
-          lastUpdated: now 
-        }));
-
-        return apiRows;
-      } catch (error: any) {
-        set({ error: error?.message || "Erro ao carregar dados de cliques" });
-        return get().clicks;
+        return await fetchFromApi(false);
       } finally {
         set({ loading: false });
       }
