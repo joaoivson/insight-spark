@@ -10,6 +10,7 @@ import {
   Link2,
   Target,
   Settings,
+  Sparkles,
   Gift,
   Lock,
   type LucideIcon,
@@ -47,6 +48,7 @@ type MenuItem = {
 const menuItems: MenuItem[] = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard", menuKey: "dashboard" },
   { icon: Target, label: "Campanhas", path: "/dashboard/campanhas", isNew: true, menuKey: "campanhas" },
+  { icon: Sparkles, label: "Diagnóstico IA", path: "/dashboard/diagnostico-ia", isNew: true, menuKey: "diagnostico_ia" },
   { icon: MousePointerClick, label: "Upload Cliques", path: "/dashboard/upload-cliques", menuKey: "upload_cliques" },
   { icon: Globe, label: "Página de Captura", path: "/dashboard/captura", menuKey: "captura" },
   { icon: Link2, label: "Meus Links", path: "/dashboard/links", menuKey: "meus_links" },

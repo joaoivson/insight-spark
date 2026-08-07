@@ -1,0 +1,215 @@
+import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+import { AlertCircle, Loader2, Sparkles } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { parseDateOnly, todayKeyBR, addDaysKey } from "@/shared/lib/date";
+import { ChatDiagnostico } from "../components/ChatDiagnostico";
+import { RelatorioDiagnostico } from "../components/RelatorioDiagnostico";
+import {
+  buscarDiagnostico,
+  fetchSaldoIA,
+  gerarDiagnostico,
+  listarDiagnosticos,
+  type Diagnostico,
+  type DiagnosticoResumo,
+  type SaldoIA,
+} from "@/services/ai-diagnostic.service";
+
+const ATALHOS = [
+  { label: "7 dias", dias: 7 },
+  { label: "14 dias", dias: 14 },
+  { label: "30 dias", dias: 30 },
+];
+
+/**
+ * Período do atalho, cortando no fim do dia anterior em Brasília.
+ *
+ * Mesmo critério do dashboard: o dia corrente ainda está incompleto, e incluí-lo
+ * faria a análise comparar um dia pela metade com dias inteiros.
+ */
+function periodoDeDias(dias: number) {
+  const fim = addDaysKey(todayKeyBR(), -1);
+  return { inicio: addDaysKey(fim, -(dias - 1)), fim };
+}
+
+function formatarData(iso?: string | null) {
+  return parseDateOnly(iso)?.toLocaleDateString("pt-BR") ?? iso ?? "—";
+}
+
+function mensagemDoErro(e: unknown): string {
+  if (e && typeof e === "object" && "detail" in e) {
+    const detail = (e as { detail?: unknown }).detail;
+    if (typeof detail === "string") return detail;
+    if (detail && typeof detail === "object" && "message" in detail) {
+      const m = (detail as { message?: unknown }).message;
+      if (typeof m === "string") return m;
+    }
+  }
+  return e instanceof Error ? e.message : "Não foi possível gerar a análise.";
+}
+
+export default function DiagnosticoIAPage() {
+  const [saldo, setSaldo] = useState<SaldoIA | null>(null);
+  const [historico, setHistorico] = useState<DiagnosticoResumo[]>([]);
+  const [atual, setAtual] = useState<Diagnostico | null>(null);
+  const [gerando, setGerando] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+  const [dias, setDias] = useState(7);
+
+  const recarregarSaldo = () => {
+    void fetchSaldoIA().then(setSaldo).catch(() => undefined);
+  };
+
+  useEffect(() => {
+    recarregarSaldo();
+    void listarDiagnosticos().then(setHistorico).catch(() => undefined);
+  }, []);
+
+  const gerar = async () => {
+    setGerando(true);
+    setErro(null);
+    try {
+      const { inicio, fim } = periodoDeDias(dias);
+      const sessao = await gerarDiagnostico(inicio, fim);
+      setAtual(sessao);
+      recarregarSaldo();
+      setHistorico(await listarDiagnosticos());
+      // A sessão pode voltar com status "erro" mesmo em resposta 201: a IA
+      // falhou, o backend gravou o estado e não cobrou crédito.
+      if (sessao.status === "erro") {
+        setErro(sessao.erro_mensagem || "A análise não pôde ser concluída.");
+      }
+    } catch (e) {
+      setErro(mensagemDoErro(e));
+    } finally {
+      setGerando(false);
+    }
+  };
+
+  const abrir = async (id: number) => {
+    setErro(null);
+    try {
+      const sessao = await buscarDiagnostico(id);
+      setAtual(sessao);
+      if (sessao.status === "erro") {
+        setErro(sessao.erro_mensagem || "Esta análise falhou ao ser gerada.");
+      }
+    } catch (e) {
+      setErro(mensagemDoErro(e));
+    }
+  };
+
+  const custoGeracao = saldo?.custo_geracao ?? 10;
+  const semCredito = !!saldo && saldo.saldo < custoGeracao;
+  const iaIndisponivel = !!saldo && !saldo.disponivel;
+  const pronto = atual?.status === "pronto" && !!atual.relatorio;
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold">Diagnóstico IA</h1>
+          <p className="text-sm text-muted-foreground">
+            Uma análise da sua operação: o que escalar, o que pausar e por quê.
+          </p>
+        </div>
+        {saldo && (
+          <Badge variant="outline" className="tabular-nums">
+            {saldo.saldo} de {saldo.cota} créditos
+          </Badge>
+        )}
+      </div>
+
+      <Card className="nao-imprimir">
+        <CardContent className="flex flex-wrap items-center gap-3 pt-6">
+          {ATALHOS.map((a) => (
+            <Button
+              key={a.dias}
+              size="sm"
+              variant={dias === a.dias ? "default" : "outline"}
+              onClick={() => setDias(a.dias)}
+              disabled={gerando}
+            >
+              {a.label}
+            </Button>
+          ))}
+          <Button
+            onClick={() => void gerar()}
+            disabled={gerando || semCredito || iaIndisponivel}
+          >
+            {gerando ? (
+              <>
+                <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+                Analisando…
+              </>
+            ) : (
+              <>
+                <Sparkles className="mr-1.5 h-4 w-4" />
+                Gerar análise ({custoGeracao} créditos)
+              </>
+            )}
+          </Button>
+
+          {iaIndisponivel ? (
+            <p className="text-sm text-muted-foreground">
+              A análise por IA está indisponível no momento.
+            </p>
+          ) : semCredito ? (
+            <p className="text-sm text-muted-foreground">
+              Seus créditos acabaram neste mês.{" "}
+              <Link className="underline" to="/dashboard/planos">
+                Ver planos
+              </Link>
+            </p>
+          ) : null}
+        </CardContent>
+      </Card>
+
+      {erro && (
+        <div className="nao-imprimir flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+          <span>{erro}</span>
+        </div>
+      )}
+
+      {pronto && atual && (
+        <>
+          <RelatorioDiagnostico diagnostico={atual} />
+          {/* key força remontagem: o chat carrega o histórico só no mount, e sem
+              isso abrir outra análise mostraria a conversa da anterior. */}
+          <ChatDiagnostico
+            key={atual.id}
+            diagnostico={atual}
+            onCreditoGasto={recarregarSaldo}
+          />
+        </>
+      )}
+
+      {historico.length > 0 && (
+        <Card className="nao-imprimir">
+          <CardContent className="space-y-1 pt-6">
+            <p className="mb-2 text-sm font-medium">Análises anteriores</p>
+            {historico.map((h) => (
+              <button
+                key={h.id}
+                onClick={() => void abrir(h.id)}
+                className={`flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-sm hover:bg-accent ${
+                  atual?.id === h.id ? "bg-accent" : ""
+                }`}
+              >
+                <span>
+                  {formatarData(h.periodo_inicio)} a {formatarData(h.periodo_fim)}
+                </span>
+                <Badge variant={h.status === "pronto" ? "outline" : "secondary"}>
+                  {h.status === "pronto" ? "pronta" : h.status}
+                </Badge>
+              </button>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}

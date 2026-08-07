@@ -36,6 +36,7 @@ import NotFound from "@/shared/pages/NotFound";
 import IntegrationsPage from "@/features/dashboard/pages/Integrations";
 import ImpostosMeta from "@/features/dashboard/pages/ImpostosMeta";
 import Campanhas from "@/features/dashboard/pages/Campanhas";
+import DiagnosticoIA from "@/features/diagnostico/pages/DiagnosticoIA";
 import Configuracoes from "@/features/dashboard/pages/Configuracoes";
 import IndiquePage from "@/features/dashboard/pages/IndiquePage";
 import AfiliadosPage from "@/features/dashboard/pages/Afiliados";
@@ -184,6 +185,7 @@ export const AppRoutes = () => {
         <Route path="/dashboard/settings" element={<ProtectedRoute element={<Settings />} />} />
         {/* "Custos de Anúncios" (/dashboard/investimentos) removido: gasto vem 100% da API Meta. */}
         <Route path="/dashboard/campanhas" element={<ProtectedRoute element={<Campanhas />} />} />
+        <Route path="/dashboard/diagnostico-ia" element={<ProtectedRoute element={<DiagnosticoIA />} />} />
         <Route path="/dashboard/configuracoes" element={<ProtectedRoute element={<Configuracoes />} />} />
         <Route path="/dashboard/planos" element={<ProtectedRoute element={<PlanosPage />} />} />
         <Route path="/dashboard/indique" element={<ProtectedRoute element={<IndiquePage />} />} />
