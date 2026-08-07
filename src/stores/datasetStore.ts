@@ -45,6 +45,8 @@ const getInitialState = () => {
 
 export const useDatasetStore = create<DatasetState>((set, get) => {
   const initial = getInitialState();
+  // Evita revalidações concorrentes em background (stale-while-revalidate).
+  let revalidating = false;
   return {
     rows: initial.rows,
     fullRows: initial.fullRows,
@@ -70,52 +72,75 @@ export const useDatasetStore = create<DatasetState>((set, get) => {
     fetchRows: async (opts = {}) => {
       const userId = getUserId();
       const cacheKey = getScopedKey(CACHE_KEY_BASE);
-      const { fullRows, hydrated, loading, loadedUserId } = get();
+
+      // Busca tudo da API e atualiza estado + localStorage. Quando `background=true`
+      // NÃO mexe em `loading` (não pisca o skeleton do dashboard durante a revalidação).
+      const fetchFromApi = async (background: boolean): Promise<DatasetRow[]> => {
+        try {
+          const apiRows = await fetchDatasetRows({});
+
+          const now = Date.now();
+          // GARANTIA: Seta no estado e NO localStorage IMEDIATAMENTE após o retorno
+          set({
+            rows: apiRows,
+            fullRows: apiRows,
+            hydrated: true,
+            lastUpdated: now,
+            loadedUserId: getUserId(),
+          });
+
+          localStorage.setItem(cacheKey, JSON.stringify({
+            rows: apiRows,
+            lastUpdated: now,
+          }));
+
+          return apiRows;
+        } catch (error: any) {
+          if (!background) set({ error: error?.message || "Erro ao carregar dados" });
+          return get().rows;
+        }
+      };
+
+      // Dispara uma revalidação em background (no máx. 1 em voo).
+      const revalidateInBackground = () => {
+        if (revalidating || get().loading) return;
+        revalidating = true;
+        void fetchFromApi(true).finally(() => { revalidating = false; });
+      };
 
       // Garantia: Se o usuário logado mudou, recarrega do cache dele ou limpa a memória
-      if (userId !== loadedUserId) {
+      if (userId !== get().loadedUserId) {
         const cached = safeGetJSON<{ rows: DatasetRow[]; lastUpdated?: number }>(cacheKey);
         if (cached && Array.isArray(cached.rows)) {
           const now = cached.lastUpdated ?? Date.now();
           set({ rows: cached.rows, fullRows: cached.rows, hydrated: true, lastUpdated: now, loadedUserId: userId });
-          if (!opts.force) return cached.rows;
+          if (!opts.force) {
+            revalidateInBackground();
+            return cached.rows;
+          }
         } else {
           set({ rows: [], fullRows: [], hydrated: false, lastUpdated: null, loadedUserId: userId });
         }
       }
 
-      // 1. Se já temos dados na memória e não foi forçado, apenas retorna
+      const { fullRows, hydrated, loading } = get();
+
+      // 1. Cache quente: retorna imediato E revalida em background (stale-while-revalidate).
+      //    Sem isso, dados novos gravados no servidor (sync Shopee/Meta, CSV processado em
+      //    outro device, etc.) nunca chegavam a um device com cache local já populado — o
+      //    cache localStorage ficava preso indefinidamente, causando divergência de valores
+      //    entre celular e PC na mesma conta.
       if (hydrated && fullRows.length > 0 && !opts.force) {
         set({ rows: fullRows });
+        revalidateInBackground();
         return fullRows;
       }
 
-      // 2. Busca da API
+      // 2. Sem cache (ou force): busca bloqueante (com skeleton).
       if (loading) return get().rows;
       set({ loading: true, error: null });
-      
       try {
-        const apiRows = await fetchDatasetRows({});
-
-        const now = Date.now();
-        // GARANTIA: Seta no estado e NO localStorage IMEDIATAMENTE após o retorno
-        set({ 
-          rows: apiRows, 
-          fullRows: apiRows, 
-          hydrated: true, 
-          lastUpdated: now,
-          loadedUserId: userId
-        });
-        
-        localStorage.setItem(cacheKey, JSON.stringify({ 
-          rows: apiRows, 
-          lastUpdated: now 
-        }));
-
-        return apiRows;
-      } catch (error: any) {
-        set({ error: error?.message || "Erro ao carregar dados" });
-        return get().rows;
+        return await fetchFromApi(false);
       } finally {
         set({ loading: false });
       }
