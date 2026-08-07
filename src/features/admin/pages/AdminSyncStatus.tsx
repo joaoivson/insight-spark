@@ -45,6 +45,7 @@ import { AdminChartTooltip, CHART_COLORS } from "@/features/admin/components/Adm
 import { PlatformUsageTab } from "@/features/admin/components/PlatformUsageTab";
 import { SyncErrorDialog } from "@/features/admin/components/SyncErrorDialog";
 import { SyncErrorReasons } from "@/features/admin/components/SyncErrorReasons";
+import { WhatsappInstanciaTab } from "@/features/admin/components/WhatsappInstanciaTab";
 import {
   CelulaUsuaria,
   Paginacao,
@@ -522,25 +523,30 @@ const UsoTab = PlatformUsageTab;
 export default function AdminSyncStatusPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   // Uso é a aba padrão: é a leitura de negócio. Sync é diagnóstico, fica atrás.
-  const tab = searchParams.get("tab") === "syncs" ? "syncs" : "uso";
+  const pedida = searchParams.get("tab");
+  const tab = pedida === "syncs" || pedida === "whatsapp" ? pedida : "uso";
 
   return (
     <Tabs
       value={tab}
       onValueChange={(v) => {
-        if (v === "syncs") setSearchParams({ tab: "syncs" });
-        else setSearchParams({});
+        if (v === "uso") setSearchParams({});
+        else setSearchParams({ tab: v });
       }}
     >
       <TabsList>
         <TabsTrigger value="uso">Uso da plataforma</TabsTrigger>
         <TabsTrigger value="syncs">Syncs</TabsTrigger>
+        <TabsTrigger value="whatsapp">WhatsApp</TabsTrigger>
       </TabsList>
       <TabsContent value="uso">
         <UsoTab />
       </TabsContent>
       <TabsContent value="syncs">
         <SyncsTab />
+      </TabsContent>
+      <TabsContent value="whatsapp">
+        <WhatsappInstanciaTab />
       </TabsContent>
     </Tabs>
   );
