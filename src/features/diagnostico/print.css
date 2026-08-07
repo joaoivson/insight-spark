@@ -1,0 +1,20 @@
+/* src/features/diagnostico/print.css
+   PDF sai por window.print(): o relatório já está renderizado, então o
+   arquivo é idêntico ao que a aluna vê. Evita ~100 MB de WeasyPrint no
+   container do backend. */
+@media print {
+  body * { visibility: hidden; }
+  #relatorio-diagnostico,
+  #relatorio-diagnostico * { visibility: visible; }
+  #relatorio-diagnostico {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    padding: 24px;
+    color: #000;
+    background: #fff;
+  }
+  .nao-imprimir { display: none !important; }
+  #relatorio-diagnostico .bloco { break-inside: avoid; }
+}
