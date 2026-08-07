@@ -4,6 +4,7 @@ import { AlertCircle, Loader2, Sparkles } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { parseDateOnly, todayKeyBR, addDaysKey } from "@/shared/lib/date";
 import { mensagemDoErro } from "../lib/erro";
 import { ChatDiagnostico } from "../components/ChatDiagnostico";
@@ -55,6 +56,14 @@ export default function DiagnosticoIAPage() {
   const pedidoAtual = useRef(0);
   const montado = useRef(true);
   useEffect(() => () => { montado.current = false; }, []);
+
+  // print.css zera a altura de tudo fora do relatório. Sem essa marca no body
+  // a regra valeria para o bundle inteiro e imprimir qualquer outra tela sairia
+  // em branco — o CSS é global, não fica preso a esta página.
+  useEffect(() => {
+    document.body.classList.add("imprimir-diagnostico");
+    return () => document.body.classList.remove("imprimir-diagnostico");
+  }, []);
 
   const recarregarSaldo = () => {
     void fetchSaldoIA()
@@ -124,6 +133,7 @@ export default function DiagnosticoIAPage() {
   const pronto = atual?.status === "pronto" && !!atual.relatorio;
 
   return (
+    <DashboardLayout>
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
@@ -250,5 +260,6 @@ export default function DiagnosticoIAPage() {
         </Card>
       )}
     </div>
+    </DashboardLayout>
   );
 }

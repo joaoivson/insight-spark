@@ -1,6 +1,8 @@
-import { fetchWithAuth } from "@/core/config/api.config";
+import { fetchWithAuth, getApiUrl } from "@/core/config/api.config";
 
-const base = () => "/api/v1/ai-diagnostics";
+// getApiUrl resolve o host da API por ambiente. URL relativa só funcionaria
+// no dev com proxy: em produção o front está em outro domínio que a API.
+const base = () => getApiUrl("/api/v1/ai-diagnostics");
 
 async function json<T>(r: Response): Promise<T> {
   if (!r.ok) {

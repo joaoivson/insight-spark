@@ -19,6 +19,29 @@ function paraArray<T>(valor: unknown): T[] {
   return Array.isArray(valor) ? (valor as T[]) : [];
 }
 
+
+/**
+ * Campos como "perda" e "custo" vêm da IA: o formato pedido é texto, mas o
+ * modelo às vezes devolve número cru, que renderizava como "0.0" na tela.
+ * Número vira moeda; string passa direto; vazio some junto com o travessão.
+ */
+function valorLegivel(v: unknown): string {
+  if (v === null || v === undefined || v === "") return "";
+  const emReais = (n: number) =>
+    n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  if (typeof v === "number") return Number.isFinite(v) ? emReais(v) : "";
+  const texto = String(v).trim();
+  // "0.0" também chega como string. Só converte quando o campo INTEIRO é um
+  // número; texto que apenas contém dígitos ("R$ 120,00 em anúncios") passa direto.
+  if (/^-?\d+(\.\d+)?$/.test(texto)) return emReais(Number(texto));
+  return texto;
+}
+
+/** Junta motivo e complemento sem deixar travessão órfão quando um deles falta. */
+function juntar(...partes: unknown[]): string {
+  return partes.map(valorLegivel).filter(Boolean).join(" — ");
+}
+
 function Bloco({
   titulo,
   cor,
@@ -108,12 +131,12 @@ export function RelatorioDiagnostico({ diagnostico }: { diagnostico: Diagnostico
         <Bloco
           titulo="Escalar"
           cor="bg-emerald-500"
-          itens={escalar.map((i) => ({ nome: i?.nome ?? "", texto: `${i?.motivo ?? ""} — ${i?.acao ?? ""}` }))}
+          itens={escalar.map((i) => ({ nome: i?.nome ?? "", texto: juntar(i?.motivo, i?.acao) }))}
         />
         <Bloco
           titulo="Pausar"
           cor="bg-destructive"
-          itens={pausar.map((i) => ({ nome: i?.nome ?? "", texto: `${i?.motivo ?? ""} — ${i?.perda ?? ""}` }))}
+          itens={pausar.map((i) => ({ nome: i?.nome ?? "", texto: juntar(i?.motivo, i?.perda) }))}
         />
         <Bloco
           titulo="Observar"
@@ -125,7 +148,7 @@ export function RelatorioDiagnostico({ diagnostico }: { diagnostico: Diagnostico
           cor="bg-sky-500"
           itens={detalhamento.map((i) => ({
             nome: i?.nome ?? "",
-            texto: `${i?.diagnostico ?? ""} — ${i?.custo ?? ""}`,
+            texto: juntar(i?.diagnostico, i?.custo),
           }))}
         />
 
