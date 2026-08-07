@@ -3,9 +3,27 @@
    arquivo é idêntico ao que a aluna vê. Evita ~100 MB de WeasyPrint no
    container do backend. */
 @media print {
-  body * { visibility: hidden; }
+  /* visibility:hidden esconde mas NÃO tira do fluxo — o elemento continua
+     ocupando altura no layout. O layout do dashboard costuma ter min-h-screen
+     (ex.: a div #root da SPA), então essa altura "fantasma" sobra: como
+     #relatorio-diagnostico virou position:absolute (fora do fluxo), é o resto
+     da página escondida que passa a ditar quantas páginas o navegador
+     imprime, gerando página em branco antes/depois do conteúdo real. Zeramos
+     height E min-height (min-height vence sobre height se não for zerado
+     também) de tudo, para a altura do documento impresso ser ditada só pelo
+     relatório — sem tocar overflow, para não cortar o relatório que está
+     aninhado dentro dessas mesmas divs escondidas. */
+  body * {
+    visibility: hidden;
+    height: 0 !important;
+    min-height: 0 !important;
+  }
   #relatorio-diagnostico,
-  #relatorio-diagnostico * { visibility: visible; }
+  #relatorio-diagnostico * {
+    visibility: visible;
+    height: auto !important;
+    min-height: 0 !important;
+  }
   #relatorio-diagnostico {
     position: absolute;
     left: 0;

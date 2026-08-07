@@ -3,11 +3,21 @@ import { Printer } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import type { Diagnostico } from "@/services/ai-diagnostic.service";
+import type { Diagnostico, RelatorioIA } from "@/services/ai-diagnostic.service";
+import { parseDateOnly } from "@/shared/lib/date";
 // import de efeito colateral: injeta as regras @media print no bundle sem
 // precisar de um <link> separado — o componente e o CSS de impressão
 // viajam juntos.
 import "../print.css";
+
+// O relatório vem de um LLM: o backend só faz json.loads cru, sem validar
+// shape (o prompt apenas PEDE o formato). Campos que o tipo declara como
+// array obrigatório podem chegar ausentes, null, ou em outro tipo quando o
+// modelo "esquece" uma seção vazia — sem essa blindagem o componente inteiro
+// quebra com TypeError ao dar .map() em undefined.
+function paraArray<T>(valor: unknown): T[] {
+  return Array.isArray(valor) ? (valor as T[]) : [];
+}
 
 function Bloco({
   titulo,
@@ -30,8 +40,11 @@ function Bloco({
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
-        {itens.map((i) => (
-          <div key={i.nome} className="border-b border-border/50 pb-2 last:border-0">
+        {itens.map((i, idx) => (
+          // chave combina índice + nome: nome sozinho pode vir vazio ou
+          // duplicado da IA, o que faria o React colidir chaves e sumir
+          // com um item silenciosamente.
+          <div key={`${idx}-${i.nome}`} className="border-b border-border/50 pb-2 last:border-0">
             <p className="font-medium">{i.nome}</p>
             <p className="text-sm text-muted-foreground">{i.texto}</p>
           </div>
@@ -48,9 +61,21 @@ export function RelatorioDiagnostico({ diagnostico }: { diagnostico: Diagnostico
   // componente, não ele.
   if (!r) return null;
 
-  const periodo = `${new Date(diagnostico.periodo_inicio).toLocaleDateString("pt-BR")} a ${new Date(
-    diagnostico.periodo_fim,
-  ).toLocaleDateString("pt-BR")}`;
+  // periodo_inicio/fim chegam como "YYYY-MM-DD" puro — `new Date(string)` do JS
+  // interpreta isso como meia-noite UTC, e em Brasília (UTC-3) isso renderiza
+  // como o dia ANTERIOR. parseDateOnly já resolve isso no projeto todo.
+  const periodo = `${parseDateOnly(diagnostico.periodo_inicio)?.toLocaleDateString("pt-BR") ?? diagnostico.periodo_inicio} a ${
+    parseDateOnly(diagnostico.periodo_fim)?.toLocaleDateString("pt-BR") ?? diagnostico.periodo_fim
+  }`;
+
+  // demais campos do relatório: mesma blindagem contra shape inesperado da IA.
+  const resumoExecutivo = typeof r.resumo_executivo === "string" ? r.resumo_executivo : "";
+  const escalar = paraArray<RelatorioIA["escalar"][number]>(r.escalar);
+  const pausar = paraArray<RelatorioIA["pausar"][number]>(r.pausar);
+  const observar = paraArray<RelatorioIA["observar"][number]>(r.observar);
+  const detalhamento = paraArray<RelatorioIA["detalhamento"][number]>(r.detalhamento);
+  const proximosPassos = paraArray<string>(r.proximos_passos);
+  const numeros = r.numeros && typeof r.numeros === "object" ? r.numeros : {};
 
   return (
     <div className="space-y-4">
@@ -67,62 +92,66 @@ export function RelatorioDiagnostico({ diagnostico }: { diagnostico: Diagnostico
 
       {/* id usado pelo print.css para isolar só este bloco na impressão */}
       <div id="relatorio-diagnostico" className="space-y-4">
-        <Card className="bloco">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">Resumo</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="leading-relaxed">{r.resumo_executivo}</p>
-          </CardContent>
-        </Card>
+        {/* sem resumo utilizável (ausente/null/tipo errado), não há bloco —
+            mesmo racional dos demais blocos: seção sem conteúdo não aparece. */}
+        {resumoExecutivo && (
+          <Card className="bloco">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Resumo</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="leading-relaxed">{resumoExecutivo}</p>
+            </CardContent>
+          </Card>
+        )}
 
         <Bloco
           titulo="Escalar"
           cor="bg-emerald-500"
-          itens={r.escalar.map((i) => ({ nome: i.nome, texto: `${i.motivo} — ${i.acao}` }))}
+          itens={escalar.map((i) => ({ nome: i?.nome ?? "", texto: `${i?.motivo ?? ""} — ${i?.acao ?? ""}` }))}
         />
         <Bloco
           titulo="Pausar"
           cor="bg-destructive"
-          itens={r.pausar.map((i) => ({ nome: i.nome, texto: `${i.motivo} — ${i.perda}` }))}
+          itens={pausar.map((i) => ({ nome: i?.nome ?? "", texto: `${i?.motivo ?? ""} — ${i?.perda ?? ""}` }))}
         />
         <Bloco
           titulo="Observar"
           cor="bg-amber-500"
-          itens={r.observar.map((i) => ({ nome: i.nome, texto: i.motivo }))}
+          itens={observar.map((i) => ({ nome: i?.nome ?? "", texto: i?.motivo ?? "" }))}
         />
         <Bloco
           titulo="Detalhamento"
           cor="bg-sky-500"
-          itens={r.detalhamento.map((i) => ({
-            nome: i.nome,
-            texto: `${i.diagnostico} — ${i.custo}`,
+          itens={detalhamento.map((i) => ({
+            nome: i?.nome ?? "",
+            texto: `${i?.diagnostico ?? ""} — ${i?.custo ?? ""}`,
           }))}
         />
 
         {/* mesmo racional dos blocos acima: sem destaque nem atenção, não
             há o que mostrar nesta seção. */}
-        {(r.numeros?.destaque || r.numeros?.atencao) && (
+        {(numeros.destaque || numeros.atencao) && (
           <Card className="bloco">
             <CardHeader className="pb-3">
               <CardTitle className="text-base">Números do período</CardTitle>
             </CardHeader>
             <CardContent className="space-y-1 text-sm">
-              {r.numeros.destaque && <p>✓ {r.numeros.destaque}</p>}
-              {r.numeros.atencao && <p>⚠ {r.numeros.atencao}</p>}
+              {numeros.destaque && <p>✓ {numeros.destaque}</p>}
+              {numeros.atencao && <p>⚠ {numeros.atencao}</p>}
             </CardContent>
           </Card>
         )}
 
-        {r.proximos_passos.length > 0 && (
+        {proximosPassos.length > 0 && (
           <Card className="bloco">
             <CardHeader className="pb-3">
               <CardTitle className="text-base">Próximos passos</CardTitle>
             </CardHeader>
             <CardContent>
               <ol className="list-decimal space-y-1 pl-5 text-sm">
-                {r.proximos_passos.map((p, i) => (
-                  <li key={i}>{p}</li>
+                {proximosPassos.map((p, i) => (
+                  <li key={`${i}-${p}`}>{p}</li>
                 ))}
               </ol>
             </CardContent>
