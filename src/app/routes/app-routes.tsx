@@ -185,7 +185,10 @@ export const AppRoutes = () => {
         <Route path="/dashboard/settings" element={<ProtectedRoute element={<Settings />} />} />
         {/* "Custos de Anúncios" (/dashboard/investimentos) removido: gasto vem 100% da API Meta. */}
         <Route path="/dashboard/campanhas" element={<ProtectedRoute element={<Campanhas />} />} />
-        <Route path="/dashboard/diagnostico-ia" element={<ProtectedRoute element={<DiagnosticoIA />} />} />
+        <Route
+          path="/dashboard/diagnostico-ia"
+          element={<ProtectedRoute element={<RequirePlan menuKey="diagnostico_ia" element={<DiagnosticoIA />} />} />}
+        />
         <Route path="/dashboard/configuracoes" element={<ProtectedRoute element={<Configuracoes />} />} />
         <Route path="/dashboard/planos" element={<ProtectedRoute element={<PlanosPage />} />} />
         <Route path="/dashboard/indique" element={<ProtectedRoute element={<IndiquePage />} />} />

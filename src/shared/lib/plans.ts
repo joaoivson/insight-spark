@@ -32,6 +32,7 @@ export const FEATURES: Record<PlanId, PlanConfig> = {
       "upload_cliques",
       "captura",
       "meus_links",
+      "diagnostico_ia",
       "indique_ganhe",
       "configuracoes",
       "planos",
@@ -46,6 +47,7 @@ export const FEATURES: Record<PlanId, PlanConfig> = {
       "upload_cliques",
       "captura",
       "meus_links",
+      "diagnostico_ia",
       "indique_ganhe",
       "configuracoes",
       "planos",
@@ -55,7 +57,7 @@ export const FEATURES: Record<PlanId, PlanConfig> = {
   },
 };
 
-export const PRO_ONLY_MENUS = new Set(["captura", "meus_links"]);
+export const PRO_ONLY_MENUS = new Set(["captura", "meus_links", "diagnostico_ia"]);
 
 export const CHECKOUT_LINKS: Record<
   string,
