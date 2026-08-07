@@ -1,4 +1,5 @@
 // src/features/diagnostico/components/ChatDiagnostico.tsx
+import { mensagemDoErro } from "../lib/erro";
 import { useState } from "react";
 import { Loader2, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -29,18 +30,6 @@ type ErroApi = Error & { status?: number; detail?: unknown };
 // a tela precisa dos números (saldo/necessário) para orientar a aluna, não só de
 // um texto solto. Os demais erros já chegam com a mensagem certa em `erro.message`
 // (o helper `json()` usa `detail` como mensagem quando `detail` é string).
-function mensagemDoErro(e: unknown): string {
-  if (!(e instanceof Error)) return "Não foi possível responder agora.";
-  const erro = e as ErroApi;
-  if (erro.status === 402 && erro.detail && typeof erro.detail === "object") {
-    const detalhe = erro.detail as { message?: unknown; saldo?: unknown; necessario?: unknown };
-    if (typeof detalhe.message === "string") return detalhe.message;
-    if (typeof detalhe.saldo === "number" && typeof detalhe.necessario === "number") {
-      return `Créditos insuficientes: saldo ${detalhe.saldo}, necessário ${detalhe.necessario}.`;
-    }
-  }
-  return erro.message;
-}
 
 export function ChatDiagnostico({
   diagnostico,

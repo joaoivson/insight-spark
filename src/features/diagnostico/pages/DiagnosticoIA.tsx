@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { AlertCircle, Loader2, Sparkles } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { parseDateOnly, todayKeyBR, addDaysKey } from "@/shared/lib/date";
+import { mensagemDoErro } from "../lib/erro";
 import { ChatDiagnostico } from "../components/ChatDiagnostico";
 import { RelatorioDiagnostico } from "../components/RelatorioDiagnostico";
 import {
@@ -38,18 +39,6 @@ function formatarData(iso?: string | null) {
   return parseDateOnly(iso)?.toLocaleDateString("pt-BR") ?? iso ?? "—";
 }
 
-function mensagemDoErro(e: unknown): string {
-  if (e && typeof e === "object" && "detail" in e) {
-    const detail = (e as { detail?: unknown }).detail;
-    if (typeof detail === "string") return detail;
-    if (detail && typeof detail === "object" && "message" in detail) {
-      const m = (detail as { message?: unknown }).message;
-      if (typeof m === "string") return m;
-    }
-  }
-  return e instanceof Error ? e.message : "Não foi possível gerar a análise.";
-}
-
 export default function DiagnosticoIAPage() {
   const [saldo, setSaldo] = useState<SaldoIA | null>(null);
   const [historico, setHistorico] = useState<DiagnosticoResumo[]>([]);
@@ -58,46 +47,74 @@ export default function DiagnosticoIAPage() {
   const [erro, setErro] = useState<string | null>(null);
   const [dias, setDias] = useState(7);
 
+  const [saldoIndisponivel, setSaldoIndisponivel] = useState(false);
+
+  // Gerar leva 5-15s. Nesse meio-tempo a aluna pode clicar no histórico, e a
+  // resposta antiga chegaria depois, apagando da tela uma análise recém-paga.
+  // Cada pedido leva um número; só o mais recente tem permissão de escrever.
+  const pedidoAtual = useRef(0);
+  const montado = useRef(true);
+  useEffect(() => () => { montado.current = false; }, []);
+
   const recarregarSaldo = () => {
-    void fetchSaldoIA().then(setSaldo).catch(() => undefined);
+    void fetchSaldoIA()
+      .then((s) => {
+        if (!montado.current) return;
+        setSaldo(s);
+        setSaldoIndisponivel(false);
+      })
+      .catch(() => montado.current && setSaldoIndisponivel(true));
+  };
+
+  const recarregarHistorico = () => {
+    void listarDiagnosticos()
+      .then((h) => montado.current && setHistorico(h))
+      .catch(() => undefined);
   };
 
   useEffect(() => {
     recarregarSaldo();
-    void listarDiagnosticos().then(setHistorico).catch(() => undefined);
+    recarregarHistorico();
   }, []);
 
+  /** Aplica a sessão só se este ainda for o pedido mais recente. */
+  const aplicarSessao = (meuPedido: number, sessao: Diagnostico, msgErroPadrao: string) => {
+    if (!montado.current || meuPedido !== pedidoAtual.current) return;
+    setAtual(sessao);
+    if (sessao.status === "erro") {
+      setErro(sessao.erro_mensagem || msgErroPadrao);
+    }
+  };
+
   const gerar = async () => {
+    const meuPedido = ++pedidoAtual.current;
     setGerando(true);
     setErro(null);
     try {
       const { inicio, fim } = periodoDeDias(dias);
       const sessao = await gerarDiagnostico(inicio, fim);
-      setAtual(sessao);
-      recarregarSaldo();
-      setHistorico(await listarDiagnosticos());
       // A sessão pode voltar com status "erro" mesmo em resposta 201: a IA
       // falhou, o backend gravou o estado e não cobrou crédito.
-      if (sessao.status === "erro") {
-        setErro(sessao.erro_mensagem || "A análise não pôde ser concluída.");
-      }
+      aplicarSessao(meuPedido, sessao, "A análise não pôde ser concluída.");
     } catch (e) {
-      setErro(mensagemDoErro(e));
+      if (montado.current && meuPedido === pedidoAtual.current) setErro(mensagemDoErro(e));
     } finally {
-      setGerando(false);
+      if (montado.current) setGerando(false);
+      // Fora do try: falha ao atualizar saldo ou histórico não pode virar
+      // "erro na análise" — a análise já foi gerada e cobrada.
+      recarregarSaldo();
+      recarregarHistorico();
     }
   };
 
   const abrir = async (id: number) => {
+    const meuPedido = ++pedidoAtual.current;
     setErro(null);
     try {
       const sessao = await buscarDiagnostico(id);
-      setAtual(sessao);
-      if (sessao.status === "erro") {
-        setErro(sessao.erro_mensagem || "Esta análise falhou ao ser gerada.");
-      }
+      aplicarSessao(meuPedido, sessao, "Esta análise falhou ao ser gerada.");
     } catch (e) {
-      setErro(mensagemDoErro(e));
+      if (montado.current && meuPedido === pedidoAtual.current) setErro(mensagemDoErro(e));
     }
   };
 
@@ -137,7 +154,7 @@ export default function DiagnosticoIAPage() {
           ))}
           <Button
             onClick={() => void gerar()}
-            disabled={gerando || semCredito || iaIndisponivel}
+            disabled={gerando || semCredito || iaIndisponivel || saldoIndisponivel}
           >
             {gerando ? (
               <>
@@ -152,7 +169,11 @@ export default function DiagnosticoIAPage() {
             )}
           </Button>
 
-          {iaIndisponivel ? (
+          {saldoIndisponivel ? (
+            <p className="text-sm text-muted-foreground">
+              Não consegui carregar seu saldo de créditos. Recarregue a página.
+            </p>
+          ) : iaIndisponivel ? (
             <p className="text-sm text-muted-foreground">
               A análise por IA está indisponível no momento.
             </p>
@@ -187,6 +208,23 @@ export default function DiagnosticoIAPage() {
         </>
       )}
 
+      {/* Sem isto, análise em andamento ou sem relatório deixa a área em branco
+          e a aluna não sabe se travou. */}
+      {atual && !pronto && atual.status !== "erro" && (
+        <Card className="nao-imprimir">
+          <CardContent className="flex items-center gap-2 py-8 text-sm text-muted-foreground">
+            {atual.status === "gerando" ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Esta análise ainda está sendo gerada.
+              </>
+            ) : (
+              "Esta análise não tem relatório disponível."
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       {historico.length > 0 && (
         <Card className="nao-imprimir">
           <CardContent className="space-y-1 pt-6">
@@ -195,7 +233,8 @@ export default function DiagnosticoIAPage() {
               <button
                 key={h.id}
                 onClick={() => void abrir(h.id)}
-                className={`flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-sm hover:bg-accent ${
+                disabled={gerando}
+                className={`flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-sm hover:bg-accent disabled:opacity-50 ${
                   atual?.id === h.id ? "bg-accent" : ""
                 }`}
               >
