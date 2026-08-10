@@ -53,6 +53,7 @@ import {
 } from "@/services/capture_site.service";
 import { getSiteEventStats } from "@/services/page_events.service";
 import { usePlanStore } from "@/stores/planStore";
+import { isUnlimited } from "@/shared/lib/plans";
 
 // Um regex mínimo para retirar carateres especiais caso o usuário digite
 const slugify = (str: string) => {
@@ -188,9 +189,10 @@ export const CapturaSite = () => {
   };
 
   const MAX_CAPTURE_SITES = usePlanStore((s) => s.context?.limites_paginas_captura ?? 15);
+  const capturaIlimitada = isUnlimited(MAX_CAPTURE_SITES);
 
   const handleNew = () => {
-    if (sites.length >= MAX_CAPTURE_SITES) {
+    if (!capturaIlimitada && sites.length >= MAX_CAPTURE_SITES) {
       toast({ title: "Limite de páginas atingido", description: `Seu plano permite até ${MAX_CAPTURE_SITES} páginas de captura.`, variant: "destructive" });
       return;
     }
@@ -365,12 +367,12 @@ export const CapturaSite = () => {
           <h2 className="text-2xl font-bold tracking-tight">Suas Páginas</h2>
           <p className="text-muted-foreground">
             Gerencie suas páginas e converta mais leads.
-            <span className={`ml-2 text-xs font-medium ${sites.length >= MAX_CAPTURE_SITES ? "text-destructive" : "text-muted-foreground"}`}>
-              ({sites.length}/{MAX_CAPTURE_SITES})
+            <span className={`ml-2 text-xs font-medium ${!capturaIlimitada && sites.length >= MAX_CAPTURE_SITES ? "text-destructive" : "text-muted-foreground"}`}>
+              {capturaIlimitada ? "(ilimitado)" : `(${sites.length}/${MAX_CAPTURE_SITES})`}
             </span>
           </p>
         </div>
-        <Button onClick={handleNew} disabled={sites.length >= MAX_CAPTURE_SITES} className="w-full sm:w-auto gap-2">
+        <Button onClick={handleNew} disabled={!capturaIlimitada && sites.length >= MAX_CAPTURE_SITES} className="w-full sm:w-auto gap-2">
           <Plus className="w-4 h-4" /> Criar Novo Site
         </Button>
       </div>
