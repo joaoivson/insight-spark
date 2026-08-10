@@ -12,6 +12,7 @@ export interface CustomLink {
     is_active: boolean;
     created_at: string;
     updated_at: string | null;
+    last_click_at: string | null;
 }
 
 export interface CustomLinkCreate {

@@ -10,7 +10,7 @@ import {
 } from "recharts";
 import { ResponsiveModal } from "@/components/shared/ResponsiveModal";
 import { Skeleton } from "@/components/ui/skeleton";
-import { cn } from "@/shared/lib/utils";
+import { cn, formatDateOnly as formatDate, formatDateTime as formatLastClick } from "@/shared/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { getLinkInsight, type LinkInsight } from "@/services/custom_link.service";
 
@@ -21,32 +21,6 @@ type Granularity = "day" | "month";
 interface LinkInsightModalProps {
   link: { id: number; title?: string; slug: string } | null;
   onClose: () => void;
-}
-
-/** Formata uma data ISO para pt-BR (dd/mm/aaaa hh:mm) ou "—" se ausente/inválida. */
-function formatLastClick(value: string | null): string {
-  if (!value) return "—";
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return "—";
-  return new Intl.DateTimeFormat("pt-BR", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(d);
-}
-
-/** Formata uma data ISO para pt-BR (dd/mm/aaaa) ou null se ausente/inválida. */
-function formatDate(value: string | null): string | null {
-  if (!value) return null;
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return null;
-  return new Intl.DateTimeFormat("pt-BR", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  }).format(d);
 }
 
 /** Formata número inteiro/decimal curto em pt-BR. */

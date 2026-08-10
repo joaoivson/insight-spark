@@ -8,6 +8,32 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+/** Formata uma data ISO para pt-BR (dd/mm/aaaa hh:mm) ou "—" se ausente/inválida. */
+export function formatDateTime(value: string | null): string {
+  if (!value) return "—";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return "—";
+  return new Intl.DateTimeFormat("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(d);
+}
+
+/** Formata uma data ISO para pt-BR (dd/mm/aaaa) ou null se ausente/inválida. */
+export function formatDateOnly(value: string | null): string | null {
+  if (!value) return null;
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return null;
+  return new Intl.DateTimeFormat("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).format(d);
+}
+
 /**
  * Normaliza o Sub ID removendo espaços extras e hifens no final (noise)
  */

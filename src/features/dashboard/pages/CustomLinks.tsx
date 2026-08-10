@@ -19,6 +19,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/shared/lib/utils";
+import { isUnlimited } from "@/shared/lib/plans";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
@@ -96,9 +97,10 @@ const CustomLinks = () => {
     };
 
     const MAX_CUSTOM_LINKS = usePlanStore((s) => s.context?.limites_links ?? 30);
+    const linksIlimitado = isUnlimited(MAX_CUSTOM_LINKS);
 
     const handleNew = () => {
-        if (links.length >= MAX_CUSTOM_LINKS) {
+        if (!linksIlimitado && links.length >= MAX_CUSTOM_LINKS) {
             toast({ title: "Limite de links atingido", description: `Seu plano permite até ${MAX_CUSTOM_LINKS} links personalizados.`, variant: "destructive" });
             return;
         }
@@ -109,7 +111,7 @@ const CustomLinks = () => {
     // Ponte da aba "Converter": leva o link curto gerado para o fluxo "Novo Link".
     const handleConvert = (shortLink: string) => {
         setActiveTab("links");
-        if (links.length >= MAX_CUSTOM_LINKS) {
+        if (!linksIlimitado && links.length >= MAX_CUSTOM_LINKS) {
             toast({ title: "Limite de links atingido", description: `Seu plano permite até ${MAX_CUSTOM_LINKS} links personalizados.`, variant: "destructive" });
             return;
         }
@@ -224,6 +226,13 @@ const CustomLinks = () => {
         });
     };
 
+    const LAST_CLICK_STALE_MS = 48 * 60 * 60 * 1000;
+    const isStale = (lastClickAt: string | null) => {
+        if (!lastClickAt) return false;
+        const t = new Date(lastClickAt).getTime();
+        return !Number.isNaN(t) && Date.now() - t > LAST_CLICK_STALE_MS;
+    };
+
     const renderList = () => (
         <div className="space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -231,12 +240,12 @@ const CustomLinks = () => {
                     <h1 className="text-xl md:text-2xl font-bold">Meus Links</h1>
                     <p className="text-muted-foreground text-sm mt-1">
                         Crie links personalizados que redirecionam para seus links de afiliado
-                        <span className={`ml-2 text-xs font-medium ${links.length >= MAX_CUSTOM_LINKS ? "text-destructive" : "text-muted-foreground"}`}>
-                            ({links.length}/{MAX_CUSTOM_LINKS})
+                        <span className={`ml-2 text-xs font-medium ${!linksIlimitado && links.length >= MAX_CUSTOM_LINKS ? "text-destructive" : "text-muted-foreground"}`}>
+                            {linksIlimitado ? "(ilimitado)" : `(${links.length}/${MAX_CUSTOM_LINKS})`}
                         </span>
                     </p>
                 </div>
-                <Button onClick={handleNew} disabled={links.length >= MAX_CUSTOM_LINKS} className="w-full sm:w-auto flex-shrink-0">
+                <Button onClick={handleNew} disabled={!linksIlimitado && links.length >= MAX_CUSTOM_LINKS} className="w-full sm:w-auto flex-shrink-0">
                     <Plus className="w-4 h-4 mr-2" />
                     Novo Link
                 </Button>
@@ -319,8 +328,22 @@ const CustomLinks = () => {
                                     <MousePointerClick className="w-3.5 h-3.5" />
                                     {link.click_count} cliques
                                 </span>
-                                <span>{formatDate(link.created_at)}</span>
+                                <span>criado {formatDate(link.created_at)}</span>
                                 {link.tag && <Badge variant="secondary" className="text-[10px]">{link.tag}</Badge>}
+                            </div>
+
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground border-t border-border pt-2">
+                                <span>
+                                    Último clique:{" "}
+                                    <span className={cn(isStale(link.last_click_at) && "text-yellow-500")}>
+                                        {link.last_click_at ? formatDate(link.last_click_at) : "nunca"}
+                                    </span>
+                                </span>
+                                {isStale(link.last_click_at) && (
+                                    <span className="text-[10px] font-bold text-yellow-500 bg-yellow-500/10 border border-yellow-500/30 rounded-md px-1.5 py-0.5">
+                                        parado
+                                    </span>
+                                )}
                             </div>
 
                             {!link.is_active && (
