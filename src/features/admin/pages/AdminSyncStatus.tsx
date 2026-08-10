@@ -522,9 +522,11 @@ const UsoTab = PlatformUsageTab;
 
 export default function AdminSyncStatusPage() {
   const [searchParams, setSearchParams] = useSearchParams();
-  // Uso é a aba padrão: é a leitura de negócio. Sync é diagnóstico, fica atrás.
+  // Uso é a aba padrão: é a leitura de negócio. Sistema (syncs + WhatsApp,
+  // diagnóstico) fica atrás. "syncs"/"whatsapp" continuam reconhecidos como
+  // alias de "sistema" — link antigo salvo/compartilhado não quebra.
   const pedida = searchParams.get("tab");
-  const tab = pedida === "syncs" || pedida === "whatsapp" ? pedida : "uso";
+  const tab = pedida === "syncs" || pedida === "whatsapp" || pedida === "sistema" ? "sistema" : "uso";
 
   return (
     <Tabs
@@ -536,17 +538,20 @@ export default function AdminSyncStatusPage() {
     >
       <TabsList>
         <TabsTrigger value="uso">Uso da plataforma</TabsTrigger>
-        <TabsTrigger value="syncs">Syncs</TabsTrigger>
-        <TabsTrigger value="whatsapp">WhatsApp</TabsTrigger>
+        <TabsTrigger value="sistema">Sistema</TabsTrigger>
       </TabsList>
       <TabsContent value="uso">
         <UsoTab />
       </TabsContent>
-      <TabsContent value="syncs">
-        <SyncsTab />
-      </TabsContent>
-      <TabsContent value="whatsapp">
-        <WhatsappInstanciaTab />
+      <TabsContent value="sistema" className="space-y-8">
+        <div>
+          <h3 className="mb-3 text-sm font-medium text-muted-foreground">Sincronizações</h3>
+          <SyncsTab />
+        </div>
+        <div className="border-t border-border pt-8">
+          <h3 className="mb-3 text-sm font-medium text-muted-foreground">WhatsApp</h3>
+          <WhatsappInstanciaTab />
+        </div>
       </TabsContent>
     </Tabs>
   );

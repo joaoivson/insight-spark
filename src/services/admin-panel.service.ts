@@ -257,11 +257,12 @@ export type PlatformUsage = {
     acessos: number;
     usuarias_ativas: number;
     base_ativa: number;
+    contas_no_total: number;
     taxa_uso: number | null;
     sem_acesso_10d: number;
     dias_sem_acesso: number;
   };
-  usuarias_por_dia: { date: string; usuarias: number }[];
+  usuarias_por_dia: { date: string; usuarias: number; acessos: number }[];
   atividade: {
     user_id: number;
     nome: string;
