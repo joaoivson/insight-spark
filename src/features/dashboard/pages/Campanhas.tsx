@@ -264,8 +264,6 @@ const Campanhas = () => {
   const unlinkedCount = campaigns.filter((c) => !c.linked).length;
   const unlinkedSpend = campaigns.filter((c) => !c.linked).reduce((acc, c) => acc + c.metrics.spend, 0);
   const lossCount = campaigns.filter((c) => c.linked && c.metrics.roas < 1 && c.metrics.spend > 0).length;
-  // Campanhas ativas (status Ativa) — casa com o Orç./dia, que soma só o orçamento das ativas.
-  const activeCount = campaigns.filter((c) => c.is_active).length;
 
   // A3: se o banner que ativa o filtro deixa de existir (condição zerou — ex.: vinculou
   // todas as sem-vínculo), volta sozinho pra "Todas" em vez de prender numa tela vazia.
@@ -417,7 +415,16 @@ const Campanhas = () => {
           <KpiCard label="Lucro" value={formatCurrency(kpis.total_profit)} icon={TrendingUp} valueClass={profitClass(kpis.total_profit)} loading={initialLoading} />
           <KpiCard label="ROAS Real" value={fmtRoas(kpis.avg_roas)} icon={Target} valueClass={kpis.avg_roas > 0 ? roasClass(kpis.avg_roas) : undefined} loading={initialLoading} />
           {fbControlsEnabled && (
-            <KpiCard label="Orç./dia" value={formatCurrency(kpis.total_daily_budget)} sub={`${activeCount} ${activeCount === 1 ? "campanha ativa" : "campanhas ativas"}`} icon={CalendarRange} valueClass="text-primary" accent loading={initialLoading} />
+            <KpiCard
+              label="Orçamento/dia"
+              tag
+              value={formatCurrency(kpis.total_daily_budget)}
+              sub={`${kpis.active_campaigns_count} ${kpis.active_campaigns_count === 1 ? "campanha ativa" : "campanhas ativas"}`}
+              icon={CalendarRange}
+              valueClass="text-primary"
+              accent
+              loading={initialLoading}
+            />
           )}
         </div>
 
@@ -493,6 +500,7 @@ const KpiCard = ({
   valueClass,
   accent,
   loading,
+  tag,
 }: {
   label: string;
   value: string;
@@ -501,10 +509,20 @@ const KpiCard = ({
   valueClass?: string;
   accent?: boolean;
   loading?: boolean;
+  /** Retrato do agora — ignora todos os filtros da tela (busca/status/período). */
+  tag?: boolean;
 }) => (
   <Card className={cn(accent && "border-primary/30")}>
     <CardHeader className="flex flex-row items-center justify-between space-y-0 p-4 pb-1.5">
-      <CardTitle className="text-xs font-medium text-muted-foreground">{label}</CardTitle>
+      <CardTitle className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+        {label}
+        {tag && (
+          <span className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] font-bold text-muted-foreground">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+            atual
+          </span>
+        )}
+      </CardTitle>
       <Icon className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
     </CardHeader>
     <CardContent className="p-4 pt-0">
@@ -771,7 +789,7 @@ const CampaignCard = ({
               valueClass={campaign.linked && m.spend > 0 ? roasClass(m.roas) : undefined}
             />
             <div className="col-span-2 sm:col-span-1">
-              <Metric label="CPC" value={m.cpc == null ? "—" : formatCurrency(m.cpc)} />
+              <Metric label="CPC FB" value={m.cpc == null ? "—" : formatCurrency(m.cpc)} />
             </div>
           </div>
         </div>
@@ -810,22 +828,39 @@ const CampaignCard = ({
             {loadingDaily ? (
               <Skeleton className="h-20 w-full" />
             ) : daily && daily.length > 0 ? (
-              <div className="overflow-x-auto">
-                {/* B3: mesmo template de colunas do resumo de cima → colunas alinhadas verticalmente. */}
-                <div className="min-w-[480px] text-xs tabular-nums">
-                  <div className="grid grid-cols-[minmax(56px,0.8fr)_repeat(6,1fr)] gap-x-3 pb-2 text-right text-muted-foreground">
+              <div className="overflow-x-auto lg:overflow-visible">
+                {/* Data + 5 métricas (Pedidos·Gasto·Comissão·Lucro·ROAS) + bloco "Anúncios ×
+                    Shopee" (Cliques FB·Cliques Shopee·CPC FB·CPC Shopee), com fundo azulado.
+                    O CPC (renomeado CPC FB) mora dentro do grupo — não existe mais solto.
+                    Desktop (lg+): sem scroll, grid ocupa a largura cheia. Mobile: mantém o
+                    scroll horizontal existente. */}
+                <div className="min-w-[760px] text-xs tabular-nums lg:min-w-0">
+                  <div className="grid grid-cols-[minmax(56px,0.8fr)_repeat(5,1fr)_repeat(4,1fr)] gap-x-3 pb-1 text-right text-muted-foreground">
+                    <span />
+                    <span />
+                    <span />
+                    <span />
+                    <span />
+                    <span className="col-span-4 border-l border-[rgba(124,184,242,.18)] pl-2 text-center text-[10.5px] uppercase tracking-wide text-[#7CB8F2]">
+                      Anúncios × Shopee
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-[minmax(56px,0.8fr)_repeat(5,1fr)_repeat(4,1fr)] gap-x-3 pb-2 text-right text-muted-foreground">
                     <span className="text-left font-normal">Data</span>
                     <span className="font-normal">Pedidos</span>
                     <span className="font-normal">Gasto</span>
                     <span className="font-normal">Comissão</span>
                     <span className="font-normal">Lucro</span>
                     <span className="font-normal">ROAS</span>
-                    <span className="font-normal">CPC</span>
+                    <span className="border-l border-[rgba(124,184,242,.18)] bg-[rgba(49,140,233,.045)] pl-2 font-normal">Cliques FB</span>
+                    <span className="bg-[rgba(49,140,233,.045)] font-normal">Cliques Shopee</span>
+                    <span className="bg-[rgba(49,140,233,.045)] font-normal">CPC FB</span>
+                    <span className="bg-[rgba(49,140,233,.045)] font-normal">CPC Shopee</span>
                   </div>
                   {daily.map((d) => (
                     <div
                       key={d.date}
-                      className="grid grid-cols-[minmax(56px,0.8fr)_repeat(6,1fr)] gap-x-3 border-t border-border py-2 text-right"
+                      className="grid grid-cols-[minmax(56px,0.8fr)_repeat(5,1fr)_repeat(4,1fr)] gap-x-3 border-t border-border py-2 text-right"
                     >
                       <span className="text-left text-muted-foreground">
                         {d.date.slice(8, 10)}/{d.date.slice(5, 7)}
@@ -838,7 +873,16 @@ const CampaignCard = ({
                         {d.profit.toFixed(2)}
                       </span>
                       <span className={d.spend > 0 ? roasClass(d.roas) : undefined}>{d.spend > 0 ? fmtRoas(d.roas) : "—"}</span>
-                      <span>{d.cpc == null ? "—" : d.cpc.toFixed(2)}</span>
+                      <span className="border-l border-[rgba(124,184,242,.18)] bg-[rgba(49,140,233,.045)] pl-2">
+                        {d.clicks > 0 ? d.clicks.toLocaleString("pt-BR") : "—"}
+                      </span>
+                      <span className="bg-[rgba(49,140,233,.045)]">
+                        {d.clicks_shopee == null ? <span className="text-muted-foreground">—</span> : d.clicks_shopee.toLocaleString("pt-BR")}
+                      </span>
+                      <span className="bg-[rgba(49,140,233,.045)]">{d.cpc == null ? "—" : d.cpc.toFixed(2)}</span>
+                      <span className="bg-[rgba(49,140,233,.045)]">
+                        {d.cpc_shopee == null ? <span className="text-muted-foreground">—</span> : d.cpc_shopee.toFixed(2)}
+                      </span>
                     </div>
                   ))}
                 </div>

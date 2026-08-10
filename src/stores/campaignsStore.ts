@@ -11,6 +11,7 @@ const EMPTY_KPIS: CampaignKPIs = {
   total_profit: 0,
   avg_roas: 0,
   total_daily_budget: 0,
+  active_campaigns_count: 0,
 };
 
 type CampaignsState = {
