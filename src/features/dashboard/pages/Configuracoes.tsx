@@ -12,20 +12,23 @@ import { FacebookIntegrationSettings } from "@/features/dashboard/components/Fac
 import { WhatsappResumoSettings } from "@/features/dashboard/components/WhatsappResumoSettings";
 import { useTaxSettingsStore } from "@/stores/taxSettingsStore";
 import { usePlanStore } from "@/stores/planStore";
+import { isProductionHost } from "@/core/config/api.config";
 
 // Define a aba inicial: retorno do OAuth (?code/?error) ou deep-link (?tab=) abrem Facebook.
+// WhatsApp ainda não é pra produção — nem via deep-link (?tab=whatsapp) direto.
 const resolveInitialTab = (): string => {
   if (typeof window === "undefined") return "shopee";
   const params = new URLSearchParams(window.location.search);
   if (params.get("code") || params.get("error")) return "facebook";
   const t = params.get("tab");
-  if (t === "facebook" || t === "shopee" || t === "impostos" || t === "assinatura"
-      || t === "whatsapp") return t;
+  if (t === "facebook" || t === "shopee" || t === "impostos" || t === "assinatura") return t;
+  if (t === "whatsapp" && !isProductionHost()) return t;
   return "shopee";
 };
 
 const Configuracoes = () => {
   const [tab, setTab] = useState<string>(resolveInitialTab);
+  const showWhatsapp = !isProductionHost();
 
   return (
     <DashboardLayout title="Configurações">
@@ -38,9 +41,11 @@ const Configuracoes = () => {
             <TabsTrigger value="facebook" className="gap-2 whitespace-nowrap">
               <Facebook className="w-4 h-4" /> <span className="hidden sm:inline">Integração</span> Facebook
             </TabsTrigger>
-            <TabsTrigger value="whatsapp" className="gap-2 whitespace-nowrap">
-              <MessageCircle className="w-4 h-4" /> WhatsApp
-            </TabsTrigger>
+            {showWhatsapp && (
+              <TabsTrigger value="whatsapp" className="gap-2 whitespace-nowrap">
+                <MessageCircle className="w-4 h-4" /> WhatsApp
+              </TabsTrigger>
+            )}
             <TabsTrigger value="impostos" className="gap-2 whitespace-nowrap">
               <Receipt className="w-4 h-4" /> Impostos
             </TabsTrigger>

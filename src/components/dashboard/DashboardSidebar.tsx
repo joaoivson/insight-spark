@@ -33,6 +33,7 @@ import { useIsMobile } from "@/shared/hooks/use-mobile";
 import { usePlanStore } from "@/stores/planStore";
 import { PATH_TO_MENU } from "@/shared/lib/plans";
 import { UpgradeProModal } from "@/features/subscription/components/UpgradeProModal";
+import { isProductionHost } from "@/core/config/api.config";
 
 type MenuItem = {
   icon: LucideIcon;
@@ -80,7 +81,11 @@ const DashboardSidebar = ({ mobileMenuOpen = false, onMobileMenuClose }: Dashboa
   const [upgradeOpen, setUpgradeOpen] = useState(false);
   const isMobile = useIsMobile();
   const { fetch: fetchPlan, allowsMenu } = usePlanStore();
-  const visibleMenu = menuItems;
+  // Diagnóstico IA ainda não é pra produção — segue liberado em homologação
+  // pra continuar em teste. Item some do menu, não fica só travado com cadeado.
+  const visibleMenu = isProductionHost()
+    ? menuItems.filter((item) => item.menuKey !== "diagnostico_ia")
+    : menuItems;
 
   useEffect(() => {
     if (!isDemoRoute) void fetchPlan();
