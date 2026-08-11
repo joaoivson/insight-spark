@@ -18,6 +18,17 @@ const API_BY_HOST: Record<string, string> = {
 };
 
 /**
+ * true só no domínio de produção — comparação EXATA (não `.includes`), porque
+ * 'hml.marketdash.com.br' contém 'marketdash.com.br' como substring e um
+ * check por substring classificaria homologação como produção por engano.
+ */
+export const isProductionHost = (): boolean => {
+  if (typeof window === 'undefined') return false;
+  const host = window.location.hostname;
+  return host === 'marketdash.com.br' || host === 'www.marketdash.com.br';
+};
+
+/**
  * Função para obter a URL base da API
  *
  * Prioridade:

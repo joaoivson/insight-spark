@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ShoppingBag, Facebook, Receipt, Save, Loader2, CreditCard } from "lucide-react";
+import { ShoppingBag, Facebook, Receipt, Save, Loader2, CreditCard, MessageCircle } from "lucide-react";
 import { Link } from "react-router-dom";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -9,21 +9,26 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { ShopeeIntegrationSettings } from "@/features/dashboard/components/ShopeeIntegrationSettings";
 import { FacebookIntegrationSettings } from "@/features/dashboard/components/FacebookIntegrationSettings";
+import { WhatsappResumoSettings } from "@/features/dashboard/components/WhatsappResumoSettings";
 import { useTaxSettingsStore } from "@/stores/taxSettingsStore";
 import { usePlanStore } from "@/stores/planStore";
+import { isProductionHost } from "@/core/config/api.config";
 
 // Define a aba inicial: retorno do OAuth (?code/?error) ou deep-link (?tab=) abrem Facebook.
+// WhatsApp ainda não é pra produção — nem via deep-link (?tab=whatsapp) direto.
 const resolveInitialTab = (): string => {
   if (typeof window === "undefined") return "shopee";
   const params = new URLSearchParams(window.location.search);
   if (params.get("code") || params.get("error")) return "facebook";
   const t = params.get("tab");
   if (t === "facebook" || t === "shopee" || t === "impostos" || t === "assinatura") return t;
+  if (t === "whatsapp" && !isProductionHost()) return t;
   return "shopee";
 };
 
 const Configuracoes = () => {
   const [tab, setTab] = useState<string>(resolveInitialTab);
+  const showWhatsapp = !isProductionHost();
 
   return (
     <DashboardLayout title="Configurações">
@@ -36,6 +41,11 @@ const Configuracoes = () => {
             <TabsTrigger value="facebook" className="gap-2 whitespace-nowrap">
               <Facebook className="w-4 h-4" /> <span className="hidden sm:inline">Integração</span> Facebook
             </TabsTrigger>
+            {showWhatsapp && (
+              <TabsTrigger value="whatsapp" className="gap-2 whitespace-nowrap">
+                <MessageCircle className="w-4 h-4" /> WhatsApp
+              </TabsTrigger>
+            )}
             <TabsTrigger value="impostos" className="gap-2 whitespace-nowrap">
               <Receipt className="w-4 h-4" /> Impostos
             </TabsTrigger>
@@ -77,6 +87,24 @@ const Configuracoes = () => {
               </div>
             </div>
             <FacebookIntegrationSettings />
+          </div>
+        </TabsContent>
+
+        <TabsContent value="whatsapp">
+          <div className="bg-card border border-border rounded-2xl p-5 md:p-6">
+            <div className="flex items-start gap-3 md:gap-4 mb-5">
+              <div className="w-11 h-11 md:w-12 md:h-12 rounded-xl bg-emerald-500/10 flex items-center justify-center flex-shrink-0">
+                <MessageCircle className="w-6 h-6 text-emerald-500" />
+              </div>
+              <div className="min-w-0">
+                <h3 className="text-lg font-bold text-foreground">Resumo diário</h3>
+                <p className="text-sm text-muted-foreground">
+                  Todo dia às 9h você recebe no WhatsApp os números do dia anterior e um
+                  aviso quando alguma campanha ficar abaixo do ponto de equilíbrio.
+                </p>
+              </div>
+            </div>
+            <WhatsappResumoSettings />
           </div>
         </TabsContent>
 

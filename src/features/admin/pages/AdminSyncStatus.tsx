@@ -45,6 +45,7 @@ import { AdminChartTooltip, CHART_COLORS } from "@/features/admin/components/Adm
 import { PlatformUsageTab } from "@/features/admin/components/PlatformUsageTab";
 import { SyncErrorDialog } from "@/features/admin/components/SyncErrorDialog";
 import { SyncErrorReasons } from "@/features/admin/components/SyncErrorReasons";
+import { WhatsappInstanciaTab } from "@/features/admin/components/WhatsappInstanciaTab";
 import {
   CelulaUsuaria,
   Paginacao,
@@ -521,26 +522,36 @@ const UsoTab = PlatformUsageTab;
 
 export default function AdminSyncStatusPage() {
   const [searchParams, setSearchParams] = useSearchParams();
-  // Uso é a aba padrão: é a leitura de negócio. Sync é diagnóstico, fica atrás.
-  const tab = searchParams.get("tab") === "syncs" ? "syncs" : "uso";
+  // Uso é a aba padrão: é a leitura de negócio. Sistema (syncs + WhatsApp,
+  // diagnóstico) fica atrás. "syncs"/"whatsapp" continuam reconhecidos como
+  // alias de "sistema" — link antigo salvo/compartilhado não quebra.
+  const pedida = searchParams.get("tab");
+  const tab = pedida === "syncs" || pedida === "whatsapp" || pedida === "sistema" ? "sistema" : "uso";
 
   return (
     <Tabs
       value={tab}
       onValueChange={(v) => {
-        if (v === "syncs") setSearchParams({ tab: "syncs" });
-        else setSearchParams({});
+        if (v === "uso") setSearchParams({});
+        else setSearchParams({ tab: v });
       }}
     >
       <TabsList>
         <TabsTrigger value="uso">Uso da plataforma</TabsTrigger>
-        <TabsTrigger value="syncs">Syncs</TabsTrigger>
+        <TabsTrigger value="sistema">Sistema</TabsTrigger>
       </TabsList>
       <TabsContent value="uso">
         <UsoTab />
       </TabsContent>
-      <TabsContent value="syncs">
-        <SyncsTab />
+      <TabsContent value="sistema" className="space-y-8">
+        <div>
+          <h3 className="mb-3 text-sm font-medium text-muted-foreground">Sincronizações</h3>
+          <SyncsTab />
+        </div>
+        <div className="border-t border-border pt-8">
+          <h3 className="mb-3 text-sm font-medium text-muted-foreground">WhatsApp</h3>
+          <WhatsappInstanciaTab />
+        </div>
       </TabsContent>
     </Tabs>
   );

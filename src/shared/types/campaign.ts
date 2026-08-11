@@ -41,6 +41,7 @@ export interface CampaignKPIs {
   total_profit: number;
   avg_roas: number;
   total_daily_budget: number;
+  active_campaigns_count: number;
 }
 
 export interface CampaignListResponse {
@@ -63,6 +64,8 @@ export interface CampaignDailyPoint {
   orders: number;
   profit: number;
   roas: number;
+  clicks_shopee: number | null;
+  cpc_shopee: number | null;
 }
 
 export interface CampaignDetailResponse {

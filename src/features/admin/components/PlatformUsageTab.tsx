@@ -3,8 +3,9 @@ import { Link } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import {
   Bar,
-  BarChart,
   CartesianGrid,
+  ComposedChart,
+  Line,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -20,6 +21,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { AdminChartTooltip, CHART_COLORS } from "@/features/admin/components/AdminChartTooltip";
 import {
   fetchPlatformUsage,
   type PlatformUsage,
@@ -130,17 +132,22 @@ export function PlatformUsageTab() {
               valor={data.cards.acessos}
               subtitulo="autenticações no período"
             />
-            <CardNumero
-              titulo="Usuárias ativas"
-              valor={data.cards.usuarias_ativas}
-              subtitulo={
-                data.cards.taxa_uso == null
-                  ? "sem base ativa"
-                  : `${data.cards.usuarias_ativas} de ${data.cards.base_ativa} · ${(
-                      data.cards.taxa_uso * 100
-                    ).toFixed(0)}%`
-              }
-            />
+            <div>
+              <CardNumero
+                titulo="Usuárias ativas"
+                valor={data.cards.usuarias_ativas}
+                subtitulo={
+                  data.cards.taxa_uso == null
+                    ? "sem base ativa"
+                    : `${data.cards.usuarias_ativas} de ${data.cards.base_ativa} ativas · ${(
+                        data.cards.taxa_uso * 100
+                      ).toFixed(0)}%`
+                }
+              />
+              <p className="mt-1.5 px-1 text-[11px] text-muted-foreground">
+                {data.cards.contas_no_total} contas no total
+              </p>
+            </div>
             <Link to={`/admin/clientes?sem_acesso=${data.cards.dias_sem_acesso}`}>
               <CardNumero
                 titulo={`Sem acesso há ${data.cards.dias_sem_acesso}d+`}
@@ -152,7 +159,7 @@ export function PlatformUsageTab() {
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Usuárias distintas por dia</CardTitle>
+              <CardTitle className="text-base">Acessos e usuárias por dia</CardTitle>
             </CardHeader>
             <CardContent>
               {data.usuarias_por_dia.length === 0 ? (
@@ -161,7 +168,7 @@ export function PlatformUsageTab() {
                 </p>
               ) : (
                 <ResponsiveContainer width="100%" height={220}>
-                  <BarChart data={data.usuarias_por_dia}>
+                  <ComposedChart data={data.usuarias_por_dia}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.3} />
                     <XAxis
                       dataKey="date"
@@ -170,13 +177,45 @@ export function PlatformUsageTab() {
                       axisLine={false}
                       fontSize={12}
                     />
-                    <YAxis allowDecimals={false} tickLine={false} axisLine={false} fontSize={12} />
-                    <Tooltip
-                      labelFormatter={(v) => new Date(String(v)).toLocaleDateString("pt-BR")}
-                      formatter={(v) => [v, "usuárias"]}
+                    <YAxis
+                      yAxisId="acessos"
+                      allowDecimals={false}
+                      tickLine={false}
+                      axisLine={false}
+                      fontSize={12}
                     />
-                    <Bar dataKey="usuarias" fill="#318CE9" radius={[4, 4, 0, 0]} />
-                  </BarChart>
+                    <YAxis
+                      yAxisId="usuarias"
+                      orientation="right"
+                      allowDecimals={false}
+                      tickLine={false}
+                      axisLine={false}
+                      fontSize={12}
+                    />
+                    <Tooltip
+                      content={
+                        <AdminChartTooltip
+                          labelFormatter={(v) => new Date(String(v)).toLocaleDateString("pt-BR")}
+                        />
+                      }
+                    />
+                    <Bar
+                      yAxisId="acessos"
+                      dataKey="acessos"
+                      name="Acessos"
+                      fill={CHART_COLORS.blue}
+                      radius={[4, 4, 0, 0]}
+                    />
+                    <Line
+                      yAxisId="usuarias"
+                      type="monotone"
+                      dataKey="usuarias"
+                      name="Usuárias"
+                      stroke={CHART_COLORS.green}
+                      strokeWidth={2}
+                      dot={{ r: 3 }}
+                    />
+                  </ComposedChart>
                 </ResponsiveContainer>
               )}
             </CardContent>

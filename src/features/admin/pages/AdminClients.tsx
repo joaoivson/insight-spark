@@ -178,26 +178,27 @@ export default function AdminClientsPage() {
       ) : error ? (
         <p className="text-destructive">{error}</p>
       ) : (
-        <div className="w-full rounded-md border">
-          <Table className="w-full table-auto">
-            <TableHeader>
-              <TableRow>
-                <TableHead className="whitespace-nowrap">Nome</TableHead>
-                <TableHead>E-mail</TableHead>
-                <TableHead>Plano</TableHead>
-                <TableHead>Periodicidade</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Próx. cobrança</TableHead>
-                <TableHead>Total pago</TableHead>
-                <TableHead>Último acesso</TableHead>
-                <TableHead>Integrações</TableHead>
-                <TableHead />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
+        <div className="overflow-x-auto lg:overflow-visible">
+          <div className="min-w-[960px] lg:min-w-0">
+            <Table className="w-full table-fixed">
+              <TableHeader className="sticky top-0 z-10 bg-background">
+                <TableRow>
+                  <TableHead className="w-[16%] whitespace-nowrap">Nome</TableHead>
+                  <TableHead className="w-[18%]">E-mail</TableHead>
+                  <TableHead className="w-[8%]">Plano</TableHead>
+                  <TableHead className="w-[10%]">Periodicidade</TableHead>
+                  <TableHead className="w-[12%]">Status</TableHead>
+                  <TableHead className="w-[10%]">Próx. cobrança</TableHead>
+                  <TableHead className="w-[8%]">Total pago</TableHead>
+                  <TableHead className="w-[8%]">Último acesso</TableHead>
+                  <TableHead className="w-[7%]">Integrações</TableHead>
+                  <TableHead className="w-[3%]" />
+                </TableRow>
+              </TableHeader>
+              <TableBody>
               {rows.map((r, i) => (
                 <TableRow key={`${r.user_id ?? r.email}-${i}`}>
-                  <TableCell className="whitespace-nowrap">
+                  <TableCell className="overflow-hidden text-ellipsis whitespace-nowrap">
                     {r.user_id ? (
                       <Link className="font-medium hover:underline" to={`/admin/clientes/${r.user_id}`}>
                         {capitalizeName(r.name) || "—"}
@@ -206,14 +207,17 @@ export default function AdminClientsPage() {
                       capitalizeName(r.name) || "—"
                     )}
                   </TableCell>
-                  <TableCell className="text-sm">{r.email}</TableCell>
+                  <TableCell className="overflow-hidden text-ellipsis whitespace-nowrap text-sm">{r.email}</TableCell>
                   <TableCell>{formatPlanLabel(r.plan)}</TableCell>
                   <TableCell>{translateFrequency(r.frequency)}</TableCell>
                   <TableCell>
                     <StatusBadge status={r.status} />
                   </TableCell>
                   <TableCell className="whitespace-nowrap text-sm">
-                    {nextChargeLabel(r.status, r.next_payment)}
+                    {nextChargeLabel(
+                      r.status,
+                      r.status === "cancelado_com_acesso" ? r.access_until : r.next_payment,
+                    )}
                   </TableCell>
                   <TableCell>{centsToBRL(r.total_paid_net_cents)}</TableCell>
                   <TableCell className="text-sm">
@@ -240,6 +244,7 @@ export default function AdminClientsPage() {
               )}
             </TableBody>
           </Table>
+        </div>
         </div>
       )}
     </div>

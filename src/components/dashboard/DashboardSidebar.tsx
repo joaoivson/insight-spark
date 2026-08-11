@@ -10,6 +10,7 @@ import {
   Link2,
   Target,
   Settings,
+  Sparkles,
   Gift,
   Lock,
   type LucideIcon,
@@ -32,6 +33,7 @@ import { useIsMobile } from "@/shared/hooks/use-mobile";
 import { usePlanStore } from "@/stores/planStore";
 import { PATH_TO_MENU } from "@/shared/lib/plans";
 import { UpgradeProModal } from "@/features/subscription/components/UpgradeProModal";
+import { isProductionHost } from "@/core/config/api.config";
 
 type MenuItem = {
   icon: LucideIcon;
@@ -47,6 +49,7 @@ type MenuItem = {
 const menuItems: MenuItem[] = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard", menuKey: "dashboard" },
   { icon: Target, label: "Campanhas", path: "/dashboard/campanhas", isNew: true, menuKey: "campanhas" },
+  { icon: Sparkles, label: "Diagnóstico IA", path: "/dashboard/diagnostico-ia", isNew: true, menuKey: "diagnostico_ia" },
   { icon: MousePointerClick, label: "Upload Cliques", path: "/dashboard/upload-cliques", menuKey: "upload_cliques" },
   { icon: Globe, label: "Página de Captura", path: "/dashboard/captura", menuKey: "captura" },
   { icon: Link2, label: "Meus Links", path: "/dashboard/links", menuKey: "meus_links" },
@@ -78,7 +81,11 @@ const DashboardSidebar = ({ mobileMenuOpen = false, onMobileMenuClose }: Dashboa
   const [upgradeOpen, setUpgradeOpen] = useState(false);
   const isMobile = useIsMobile();
   const { fetch: fetchPlan, allowsMenu } = usePlanStore();
-  const visibleMenu = menuItems;
+  // Diagnóstico IA ainda não é pra produção — segue liberado em homologação
+  // pra continuar em teste. Item some do menu, não fica só travado com cadeado.
+  const visibleMenu = isProductionHost()
+    ? menuItems.filter((item) => item.menuKey !== "diagnostico_ia")
+    : menuItems;
 
   useEffect(() => {
     if (!isDemoRoute) void fetchPlan();

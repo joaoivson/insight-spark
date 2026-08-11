@@ -6,7 +6,7 @@ import { cn } from "@/shared/lib/utils";
 const TABS = [
   { to: "/admin", label: "Dashboard", exact: true },
   { to: "/admin/clientes", label: "Clientes" },
-  { to: "/admin/sincronizacoes", label: "Sincronizações" },
+  { to: "/admin/sincronizacoes", label: "Uso e Sistema" },
   { to: "/admin/despesas", label: "Despesas" },
   { to: "/admin/dre", label: "DRE" },
 ] as const;
@@ -15,6 +15,9 @@ export function AdminLayout() {
   const { pathname } = useLocation();
   const onPeriodScreen =
     pathname === "/admin" || pathname === "/admin/despesas" || pathname === "/admin/dre";
+  // Clientes precisa da largura cheia pra caber as colunas sem scroll horizontal
+  // em telas grandes — as outras telas do admin ficam melhor com o max-width.
+  const isClientsScreen = pathname.startsWith("/admin/clientes");
 
   return (
     <div className="flex min-h-screen bg-background text-foreground">
@@ -112,7 +115,7 @@ export function AdminLayout() {
           </nav>
         </header>
 
-        <main className="mx-auto max-w-6xl px-4 py-6">
+        <main className={cn("mx-auto px-4 py-6", !isClientsScreen && "max-w-6xl")}>
           {onPeriodScreen && (
             <div className="mb-4">
               <MonthYearPicker />

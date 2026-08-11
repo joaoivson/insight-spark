@@ -32,6 +32,7 @@ export const FEATURES: Record<PlanId, PlanConfig> = {
       "upload_cliques",
       "captura",
       "meus_links",
+      "diagnostico_ia",
       "indique_ganhe",
       "configuracoes",
       "planos",
@@ -46,16 +47,23 @@ export const FEATURES: Record<PlanId, PlanConfig> = {
       "upload_cliques",
       "captura",
       "meus_links",
+      "diagnostico_ia",
       "indique_ganhe",
       "configuracoes",
       "planos",
     ]),
-    limites: { paginas_captura: 50, links: 100 },
+    limites: { paginas_captura: -1, links: -1 },
     label: "Max",
   },
 };
 
-export const PRO_ONLY_MENUS = new Set(["captura", "meus_links"]);
+/** Sentinela de "ilimitado" — espelha UNLIMITED/is_unlimited de app/core/plans.py. */
+export const UNLIMITED = -1;
+export function isUnlimited(value: number): boolean {
+  return value === UNLIMITED;
+}
+
+export const PRO_ONLY_MENUS = new Set(["captura", "meus_links", "diagnostico_ia"]);
 
 export const CHECKOUT_LINKS: Record<
   string,
@@ -67,6 +75,9 @@ export const CHECKOUT_LINKS: Record<
   "pro:mensal": { price: "67", url: "https://pay.kiwify.com.br/u12boOS" },
   "pro:trimestral": { price: "147", url: "https://pay.kiwify.com.br/9B9lXa6" },
   "pro:anual": { price: "447", url: "https://pay.kiwify.com.br/4lhuudg" },
+  "max:mensal": { price: "97", url: "https://pay.kiwify.com.br/rTfikTj" },
+  "max:trimestral": { price: "207", url: "https://pay.kiwify.com.br/HPql4oU" },
+  "max:anual": { price: "627", url: "https://pay.kiwify.com.br/5l1Sdau" },
 };
 
 export function normalizePlan(plan?: string | null): PlanId {
