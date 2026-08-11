@@ -178,23 +178,24 @@ export default function AdminClientsPage() {
       ) : error ? (
         <p className="text-destructive">{error}</p>
       ) : (
-        <div className="w-full">
-          <Table className="w-full table-fixed">
-            <TableHeader className="sticky top-0 z-10 bg-background">
-              <TableRow>
-                <TableHead className="w-[18%] whitespace-nowrap">Nome</TableHead>
-                <TableHead className="w-[20%]">E-mail</TableHead>
-                <TableHead className="w-[9%]">Plano</TableHead>
-                <TableHead className="w-[11%]">Periodicidade</TableHead>
-                <TableHead className="w-[13%]">Status</TableHead>
-                <TableHead className="w-[11%]">Próx. cobrança</TableHead>
-                <TableHead className="w-[8%]">Total pago</TableHead>
-                <TableHead className="w-[9%]">Último acesso</TableHead>
-                <TableHead className="w-[8%]">Integrações</TableHead>
-                <TableHead className="w-[3%]" />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
+        <div className="overflow-x-auto lg:overflow-visible">
+          <div className="min-w-[960px] lg:min-w-0">
+            <Table className="w-full table-fixed">
+              <TableHeader className="sticky top-0 z-10 bg-background">
+                <TableRow>
+                  <TableHead className="w-[16%] whitespace-nowrap">Nome</TableHead>
+                  <TableHead className="w-[18%]">E-mail</TableHead>
+                  <TableHead className="w-[8%]">Plano</TableHead>
+                  <TableHead className="w-[10%]">Periodicidade</TableHead>
+                  <TableHead className="w-[12%]">Status</TableHead>
+                  <TableHead className="w-[10%]">Próx. cobrança</TableHead>
+                  <TableHead className="w-[8%]">Total pago</TableHead>
+                  <TableHead className="w-[8%]">Último acesso</TableHead>
+                  <TableHead className="w-[7%]">Integrações</TableHead>
+                  <TableHead className="w-[3%]" />
+                </TableRow>
+              </TableHeader>
+              <TableBody>
               {rows.map((r, i) => (
                 <TableRow key={`${r.user_id ?? r.email}-${i}`}>
                   <TableCell className="overflow-hidden text-ellipsis whitespace-nowrap">
@@ -243,6 +244,7 @@ export default function AdminClientsPage() {
               )}
             </TableBody>
           </Table>
+        </div>
         </div>
       )}
     </div>
