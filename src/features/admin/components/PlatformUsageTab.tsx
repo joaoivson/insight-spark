@@ -3,7 +3,6 @@ import { Link } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import {
   Bar,
-  CartesianGrid,
   ComposedChart,
   Line,
   ResponsiveContainer,
@@ -22,6 +21,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { AdminChartTooltip, CHART_COLORS } from "@/features/admin/components/AdminChartTooltip";
+import { AXIS_PROPS, BAR_CURSOR } from "@/features/admin/components/chart-defaults";
 import {
   fetchPlatformUsage,
   type PlatformUsage,
@@ -169,30 +169,17 @@ export function PlatformUsageTab() {
               ) : (
                 <ResponsiveContainer width="100%" height={220}>
                   <ComposedChart data={data.usuarias_por_dia}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.3} />
-                    <XAxis
-                      dataKey="date"
-                      tickFormatter={dataCurta}
-                      tickLine={false}
-                      axisLine={false}
-                      fontSize={12}
-                    />
-                    <YAxis
-                      yAxisId="acessos"
-                      allowDecimals={false}
-                      tickLine={false}
-                      axisLine={false}
-                      fontSize={12}
-                    />
+                    <XAxis dataKey="date" tickFormatter={dataCurta} {...AXIS_PROPS} fontSize={12} />
+                    <YAxis yAxisId="acessos" allowDecimals={false} {...AXIS_PROPS} fontSize={12} />
                     <YAxis
                       yAxisId="usuarias"
                       orientation="right"
                       allowDecimals={false}
-                      tickLine={false}
-                      axisLine={false}
+                      {...AXIS_PROPS}
                       fontSize={12}
                     />
                     <Tooltip
+                      cursor={BAR_CURSOR}
                       content={
                         <AdminChartTooltip
                           labelFormatter={(v) => new Date(String(v)).toLocaleDateString("pt-BR")}

@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import {
   Bar,
   BarChart,
-  CartesianGrid,
   Line,
   LineChart,
   ResponsiveContainer,
@@ -22,6 +21,12 @@ import {
 } from "@/services/admin-panel.service";
 import { useAdminPanelStore } from "@/stores/adminPanelStore";
 import { AdminChartTooltip, CHART_COLORS } from "@/features/admin/components/AdminChartTooltip";
+import {
+  AXIS_PROPS,
+  BAR_CURSOR,
+  LINE_CURSOR,
+  ValueLabelList,
+} from "@/features/admin/components/chart-defaults";
 
 /** Remove pontos-zero do INÍCIO da série (histórico ainda não começou) — mantém
  * zeros no meio/fim, que são dado real (ex.: mês sem faturamento de verdade). */
@@ -163,11 +168,15 @@ export default function AdminDashboardPage() {
           <CardContent className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={mrrSeries}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                <XAxis dataKey="month" tick={{ fontSize: 11 }} />
-                <YAxis tick={{ fontSize: 11 }} />
-                <Tooltip content={<AdminChartTooltip valueFormatter={(v) => centsToBRL(Math.round(v * 100))} />} />
-                <Line type="monotone" dataKey="líquido" stroke={CHART_COLORS.blue} strokeWidth={2} dot={false} />
+                <XAxis dataKey="month" {...AXIS_PROPS} />
+                <YAxis {...AXIS_PROPS} />
+                <Tooltip
+                  cursor={LINE_CURSOR}
+                  content={<AdminChartTooltip valueFormatter={(v) => centsToBRL(Math.round(v * 100))} />}
+                />
+                <Line type="monotone" dataKey="líquido" stroke={CHART_COLORS.blue} strokeWidth={2} dot={{ r: 3 }}>
+                  <ValueLabelList dataKey="líquido" />
+                </Line>
               </LineChart>
             </ResponsiveContainer>
           </CardContent>
@@ -184,11 +193,15 @@ export default function AdminDashboardPage() {
           <CardContent className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={revSeries}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                <XAxis dataKey="month" tick={{ fontSize: 11 }} />
-                <YAxis tick={{ fontSize: 11 }} />
-                <Tooltip content={<AdminChartTooltip valueFormatter={(v) => centsToBRL(Math.round(v * 100))} />} />
-                <Bar dataKey="líquido" fill={CHART_COLORS.blue} radius={[4, 4, 0, 0]} />
+                <XAxis dataKey="month" {...AXIS_PROPS} />
+                <YAxis {...AXIS_PROPS} />
+                <Tooltip
+                  cursor={BAR_CURSOR}
+                  content={<AdminChartTooltip valueFormatter={(v) => centsToBRL(Math.round(v * 100))} />}
+                />
+                <Bar dataKey="líquido" fill={CHART_COLORS.blue} radius={[4, 4, 0, 0]}>
+                  <ValueLabelList dataKey="líquido" />
+                </Bar>
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
