@@ -36,6 +36,7 @@ export type AdminDashboard = {
   series: {
     mrr: { month: string; net: number; gross: number }[];
     revenue: { month: string; net: number; gross: number }[];
+    new_vs_canceled: { month: string; novas: number; canceladas: number }[];
   };
   plan_frequency: {
     plan: string;

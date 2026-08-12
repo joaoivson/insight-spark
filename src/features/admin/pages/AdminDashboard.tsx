@@ -94,10 +94,6 @@ export default function AdminDashboardPage() {
     return <p className="text-destructive">{error || "Sem dados"}</p>;
   }
 
-  const planBits = Object.entries(data.active_by_plan || {})
-    .map(([k, v]) => `${formatPlanLabel(k)} ${v}`)
-    .join(" · ");
-
   const mrrRaw = trimLeadingEmpty(data.series?.mrr || []);
   const mrrSeries = mrrRaw.map((r) => ({ month: r.month, líquido: (r.net || 0) / 100 }));
   const mrrTrimmed = mrrSeries.length < (data.series?.mrr || []).length;
@@ -135,12 +131,7 @@ export default function AdminDashboardPage() {
             .filter(Boolean)
             .join(" · ")}
         />
-        <MetricCard
-          title="Assinantes ativos"
-          badge="hoje"
-          value={String(data.active_count)}
-          sub={planBits || undefined}
-        />
+        <MetricCard title="Assinantes ativos" badge="hoje" value={String(data.active_count)} />
         <MetricCard title="Novas assinaturas" value={String(data.new_subscriptions)} />
         <MetricCard
           title="Churn"
@@ -210,6 +201,26 @@ export default function AdminDashboardPage() {
               A série preenche conforme o histórico acumula.
             </p>
           )}
+        </Card>
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle className="text-base">Novas × canceladas por mês</CardTitle>
+          </CardHeader>
+          <CardContent className="h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={data.series?.new_vs_canceled || []}>
+                <XAxis dataKey="month" {...AXIS_PROPS} />
+                <YAxis allowDecimals={false} {...AXIS_PROPS} />
+                <Tooltip cursor={BAR_CURSOR} content={<AdminChartTooltip />} />
+                <Bar dataKey="novas" name="Novas" fill={CHART_COLORS.green} radius={[4, 4, 0, 0]}>
+                  <ValueLabelList dataKey="novas" />
+                </Bar>
+                <Bar dataKey="canceladas" name="Canceladas" fill={CHART_COLORS.red} radius={[4, 4, 0, 0]}>
+                  <ValueLabelList dataKey="canceladas" />
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
         </Card>
         <Card className="lg:col-span-2">
           <CardHeader>
