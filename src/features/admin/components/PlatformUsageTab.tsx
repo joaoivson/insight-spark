@@ -132,22 +132,17 @@ export function PlatformUsageTab() {
               valor={data.cards.acessos}
               subtitulo="autenticações no período"
             />
-            <div>
-              <CardNumero
-                titulo="Usuárias ativas"
-                valor={data.cards.usuarias_ativas}
-                subtitulo={
-                  data.cards.taxa_uso == null
-                    ? "sem base ativa"
-                    : `${data.cards.usuarias_ativas} de ${data.cards.base_ativa} ativas · ${(
-                        data.cards.taxa_uso * 100
-                      ).toFixed(0)}%`
-                }
-              />
-              <p className="mt-1.5 px-1 text-[11px] text-muted-foreground">
-                {data.cards.contas_no_total} contas no total
-              </p>
-            </div>
+            <CardNumero
+              titulo="Usuárias ativas"
+              valor={data.cards.usuarias_ativas}
+              subtitulo={
+                data.cards.taxa_uso == null
+                  ? "sem base ativa"
+                  : `${data.cards.usuarias_ativas} de ${data.cards.base_ativa} ativas · ${(
+                      data.cards.taxa_uso * 100
+                    ).toFixed(0)}%`
+              }
+            />
             <Link to={`/admin/clientes?sem_acesso=${data.cards.dias_sem_acesso}`}>
               <CardNumero
                 titulo={`Sem acesso há ${data.cards.dias_sem_acesso}d+`}
@@ -219,6 +214,8 @@ export function PlatformUsageTab() {
                     <TableHead>Nome</TableHead>
                     <TableHead className="text-right">Acessos</TableHead>
                     <TableHead className="text-right">Dias ativos</TableHead>
+                    <TableHead className="text-right">Links</TableHead>
+                    <TableHead className="text-right">Páginas</TableHead>
                     <TableHead className="whitespace-nowrap">Último acesso</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -232,6 +229,12 @@ export function PlatformUsageTab() {
                       </TableCell>
                       <TableCell className="text-right tabular-nums">{u.acessos}</TableCell>
                       <TableCell className="text-right tabular-nums">{u.dias_ativos}</TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        {u.links_em_uso}/{u.links_criados}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        {u.paginas_em_uso}/{u.paginas_criadas}
+                      </TableCell>
                       <TableCell className="whitespace-nowrap text-sm">
                         {u.ultimo_acesso
                           ? new Date(u.ultimo_acesso).toLocaleDateString("pt-BR")
@@ -241,7 +244,7 @@ export function PlatformUsageTab() {
                   ))}
                   {linhasPagina.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={4} className="text-center text-muted-foreground">
+                      <TableCell colSpan={6} className="text-center text-muted-foreground">
                         Nenhum acesso no período
                       </TableCell>
                     </TableRow>
