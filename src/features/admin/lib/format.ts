@@ -64,13 +64,25 @@ export function translateEventType(evento?: string | null): string {
   return EVENTOS[evento.trim().toLowerCase()] || evento;
 }
 
-/** Rótulo da coluna de cobrança — cancelado não tem próxima cobrança. */
+/**
+ * Rótulo da coluna "Próx. cobrança".
+ *
+ * Cancelado c/ acesso usa ano de 2 dígitos ("até 10/09/26"): o texto completo
+ * "Acesso até 10/09/2026" estourava a célula e invadia a coluna Total pago.
+ */
 export function nextChargeLabel(
   status: string | undefined,
   data: string | null | undefined,
 ): string {
   if (!data) return "—";
-  const formatada = new Date(data).toLocaleDateString("pt-BR");
-  if (status === "cancelado_com_acesso") return `Acesso até ${formatada}`;
-  return formatada;
+  const d = new Date(data);
+  if (status === "cancelado_com_acesso") {
+    const curta = d.toLocaleDateString("pt-BR", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "2-digit",
+    });
+    return `até ${curta}`;
+  }
+  return d.toLocaleDateString("pt-BR");
 }
