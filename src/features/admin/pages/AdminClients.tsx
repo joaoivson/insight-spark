@@ -271,7 +271,7 @@ export default function AdminClientsPage() {
                   <TableHead className="w-[10%]">Periodicidade</TableHead>
                   <TableHead className="w-[12%]">Status</TableHead>
                   <SortableHead
-                    className="w-[12%] whitespace-nowrap"
+                    className="w-[12%]"
                     label="Próx. cobrança"
                     sortKey="next_payment"
                     active={sortKey}
@@ -279,7 +279,7 @@ export default function AdminClientsPage() {
                     onSort={toggleSort}
                   />
                   <SortableHead
-                    className="w-[9%] whitespace-nowrap"
+                    className="w-[9%]"
                     label="Total pago"
                     sortKey="total_paid_net_cents"
                     active={sortKey}
@@ -287,7 +287,7 @@ export default function AdminClientsPage() {
                     onSort={toggleSort}
                   />
                   <SortableHead
-                    className="w-[8%] whitespace-nowrap"
+                    className="w-[8%]"
                     label="Último acesso"
                     sortKey="last_login_at"
                     active={sortKey}

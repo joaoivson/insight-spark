@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import {
   Bar,
   BarChart,
+  LabelList,
   Line,
   LineChart,
   ResponsiveContainer,
@@ -25,7 +26,7 @@ import {
   AXIS_PROPS,
   BAR_CURSOR,
   LINE_CURSOR,
-  ValueLabelList,
+  VALUE_LABEL_PROPS,
 } from "@/features/admin/components/chart-defaults";
 
 /** Remove pontos-zero do INÍCIO da série (histórico ainda não começou) — mantém
@@ -166,7 +167,7 @@ export default function AdminDashboardPage() {
                   content={<AdminChartTooltip valueFormatter={(v) => centsToBRL(Math.round(v * 100))} />}
                 />
                 <Line type="monotone" dataKey="líquido" stroke={CHART_COLORS.blue} strokeWidth={2} dot={{ r: 3 }}>
-                  <ValueLabelList dataKey="líquido" />
+                  <LabelList dataKey="líquido" {...VALUE_LABEL_PROPS} />
                 </Line>
               </LineChart>
             </ResponsiveContainer>
@@ -191,7 +192,7 @@ export default function AdminDashboardPage() {
                   content={<AdminChartTooltip valueFormatter={(v) => centsToBRL(Math.round(v * 100))} />}
                 />
                 <Bar dataKey="líquido" fill={CHART_COLORS.blue} radius={[4, 4, 0, 0]}>
-                  <ValueLabelList dataKey="líquido" />
+                  <LabelList dataKey="líquido" {...VALUE_LABEL_PROPS} />
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
@@ -213,10 +214,10 @@ export default function AdminDashboardPage() {
                 <YAxis allowDecimals={false} {...AXIS_PROPS} />
                 <Tooltip cursor={BAR_CURSOR} content={<AdminChartTooltip />} />
                 <Bar dataKey="novas" name="Novas" fill={CHART_COLORS.green} radius={[4, 4, 0, 0]}>
-                  <ValueLabelList dataKey="novas" />
+                  <LabelList dataKey="novas" {...VALUE_LABEL_PROPS} />
                 </Bar>
                 <Bar dataKey="canceladas" name="Canceladas" fill={CHART_COLORS.red} radius={[4, 4, 0, 0]}>
-                  <ValueLabelList dataKey="canceladas" />
+                  <LabelList dataKey="canceladas" {...VALUE_LABEL_PROPS} />
                 </Bar>
               </BarChart>
             </ResponsiveContainer>

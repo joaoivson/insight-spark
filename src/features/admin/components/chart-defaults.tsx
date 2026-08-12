@@ -1,5 +1,3 @@
-import { LabelList } from "recharts";
-
 /**
  * Padrão visual único dos gráficos do painel admin (rodada 6, item 7).
  *
@@ -34,21 +32,15 @@ export function formatMilhar(valor: number): string {
   return Math.round(valor).toLocaleString("pt-BR");
 }
 
-export function ValueLabelList({
-  dataKey,
-  formatter = formatMilhar,
-  position = "top",
-}: {
-  dataKey: string;
-  formatter?: (valor: number) => string;
-  position?: "top" | "right";
-}) {
-  return (
-    <LabelList
-      dataKey={dataKey}
-      position={position}
-      style={LABEL_STYLE}
-      formatter={(v: number) => formatter(Number(v))}
-    />
-  );
-}
+/**
+ * Props para um <LabelList> real do recharts (dataKey continua sendo passado
+ * no call site). Precisa ser um <LabelList> de verdade dentro de <Bar>/<Line>
+ * — recharts descobre labels via `findAllByType` comparando o nome do
+ * componente com "LabelList", então um wrapper (ex.: `<ValueLabelList/>`)
+ * nunca é encontrado e o label não renderiza.
+ */
+export const VALUE_LABEL_PROPS = {
+  position: "top" as const,
+  style: LABEL_STYLE,
+  formatter: (v: number) => formatMilhar(Number(v)),
+};
