@@ -78,7 +78,12 @@ type SortKey = "name" | "next_payment" | "total_paid_net_cents" | "last_login_at
 const SORT_VALUE: Record<SortKey, (c: AdminClient) => string | number> = {
   name: (c) => (c.name || "").toLowerCase(),
   // Sem próxima cobrança vai pro fim em ordem ascendente (não é urgência).
-  next_payment: (c) => c.next_payment || c.access_until || "9999-12-31",
+  // Mesmo campo por status que a célula exibe (nextChargeLabel): cancelado_com_acesso
+  // usa access_until, os demais usam next_payment — nunca mistura os dois.
+  next_payment: (c) =>
+    c.status === "cancelado_com_acesso"
+      ? c.access_until || "9999-12-31"
+      : c.next_payment || "9999-12-31",
   total_paid_net_cents: (c) => c.total_paid_net_cents || 0,
   last_login_at: (c) => c.last_login_at || "",
 };
