@@ -36,6 +36,7 @@ export type AdminDashboard = {
   series: {
     mrr: { month: string; net: number; gross: number }[];
     revenue: { month: string; net: number; gross: number }[];
+    new_vs_canceled: { month: string; novas: number; canceladas: number }[];
   };
   plan_frequency: {
     plan: string;
@@ -257,7 +258,6 @@ export type PlatformUsage = {
     acessos: number;
     usuarias_ativas: number;
     base_ativa: number;
-    contas_no_total: number;
     taxa_uso: number | null;
     sem_acesso_10d: number;
     dias_sem_acesso: number;
@@ -269,6 +269,10 @@ export type PlatformUsage = {
     email: string | null;
     acessos: number;
     dias_ativos: number;
+    links_em_uso: number;
+    links_criados: number;
+    paginas_em_uso: number;
+    paginas_criadas: number;
     ultimo_acesso: string | null;
   }[];
   telas: { tela: string; acessos: number; proporcao: number }[];

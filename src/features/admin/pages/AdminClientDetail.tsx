@@ -201,6 +201,11 @@ export default function AdminClientDetailPage() {
             </p>
             <p>Campanhas Meta: {data.usage?.campaigns_count ?? 0}</p>
             <p>
+              Links: {data.usage?.links_em_uso ?? 0} em uso / {data.usage?.links_criados ?? 0} criados
+              {" · "}
+              Páginas: {data.usage?.paginas_em_uso ?? 0}/{data.usage?.paginas_criadas ?? 0}
+            </p>
+            <p>
               Comissão 30d:{" "}
               {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(
                 data.usage?.commission_30d || 0,

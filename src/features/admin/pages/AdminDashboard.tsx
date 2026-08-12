@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import {
   Bar,
   BarChart,
-  CartesianGrid,
+  LabelList,
   Line,
   LineChart,
   ResponsiveContainer,
@@ -22,6 +22,12 @@ import {
 } from "@/services/admin-panel.service";
 import { useAdminPanelStore } from "@/stores/adminPanelStore";
 import { AdminChartTooltip, CHART_COLORS } from "@/features/admin/components/AdminChartTooltip";
+import {
+  AXIS_PROPS,
+  BAR_CURSOR,
+  LINE_CURSOR,
+  VALUE_LABEL_PROPS,
+} from "@/features/admin/components/chart-defaults";
 
 /** Remove pontos-zero do INÍCIO da série (histórico ainda não começou) — mantém
  * zeros no meio/fim, que são dado real (ex.: mês sem faturamento de verdade). */
@@ -89,10 +95,6 @@ export default function AdminDashboardPage() {
     return <p className="text-destructive">{error || "Sem dados"}</p>;
   }
 
-  const planBits = Object.entries(data.active_by_plan || {})
-    .map(([k, v]) => `${formatPlanLabel(k)} ${v}`)
-    .join(" · ");
-
   const mrrRaw = trimLeadingEmpty(data.series?.mrr || []);
   const mrrSeries = mrrRaw.map((r) => ({ month: r.month, líquido: (r.net || 0) / 100 }));
   const mrrTrimmed = mrrSeries.length < (data.series?.mrr || []).length;
@@ -130,12 +132,7 @@ export default function AdminDashboardPage() {
             .filter(Boolean)
             .join(" · ")}
         />
-        <MetricCard
-          title="Assinantes ativos"
-          badge="hoje"
-          value={String(data.active_count)}
-          sub={planBits || undefined}
-        />
+        <MetricCard title="Assinantes ativos" badge="hoje" value={String(data.active_count)} />
         <MetricCard title="Novas assinaturas" value={String(data.new_subscriptions)} />
         <MetricCard
           title="Churn"
@@ -163,11 +160,15 @@ export default function AdminDashboardPage() {
           <CardContent className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={mrrSeries}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                <XAxis dataKey="month" tick={{ fontSize: 11 }} />
-                <YAxis tick={{ fontSize: 11 }} />
-                <Tooltip content={<AdminChartTooltip valueFormatter={(v) => centsToBRL(Math.round(v * 100))} />} />
-                <Line type="monotone" dataKey="líquido" stroke={CHART_COLORS.blue} strokeWidth={2} dot={false} />
+                <XAxis dataKey="month" {...AXIS_PROPS} />
+                <YAxis {...AXIS_PROPS} />
+                <Tooltip
+                  cursor={LINE_CURSOR}
+                  content={<AdminChartTooltip valueFormatter={(v) => centsToBRL(Math.round(v * 100))} />}
+                />
+                <Line type="monotone" dataKey="líquido" stroke={CHART_COLORS.blue} strokeWidth={2} dot={{ r: 3 }}>
+                  <LabelList dataKey="líquido" {...VALUE_LABEL_PROPS} />
+                </Line>
               </LineChart>
             </ResponsiveContainer>
           </CardContent>
@@ -184,11 +185,15 @@ export default function AdminDashboardPage() {
           <CardContent className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={revSeries}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                <XAxis dataKey="month" tick={{ fontSize: 11 }} />
-                <YAxis tick={{ fontSize: 11 }} />
-                <Tooltip content={<AdminChartTooltip valueFormatter={(v) => centsToBRL(Math.round(v * 100))} />} />
-                <Bar dataKey="líquido" fill={CHART_COLORS.blue} radius={[4, 4, 0, 0]} />
+                <XAxis dataKey="month" {...AXIS_PROPS} />
+                <YAxis {...AXIS_PROPS} />
+                <Tooltip
+                  cursor={BAR_CURSOR}
+                  content={<AdminChartTooltip valueFormatter={(v) => centsToBRL(Math.round(v * 100))} />}
+                />
+                <Bar dataKey="líquido" fill={CHART_COLORS.blue} radius={[4, 4, 0, 0]}>
+                  <LabelList dataKey="líquido" {...VALUE_LABEL_PROPS} />
+                </Bar>
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
@@ -197,6 +202,26 @@ export default function AdminDashboardPage() {
               A série preenche conforme o histórico acumula.
             </p>
           )}
+        </Card>
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle className="text-base">Novas × canceladas por mês</CardTitle>
+          </CardHeader>
+          <CardContent className="h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={data.series?.new_vs_canceled || []}>
+                <XAxis dataKey="month" {...AXIS_PROPS} />
+                <YAxis allowDecimals={false} {...AXIS_PROPS} />
+                <Tooltip cursor={BAR_CURSOR} content={<AdminChartTooltip />} />
+                <Bar dataKey="novas" name="Novas" fill={CHART_COLORS.green} radius={[4, 4, 0, 0]}>
+                  <LabelList dataKey="novas" {...VALUE_LABEL_PROPS} />
+                </Bar>
+                <Bar dataKey="canceladas" name="Canceladas" fill={CHART_COLORS.red} radius={[4, 4, 0, 0]}>
+                  <LabelList dataKey="canceladas" {...VALUE_LABEL_PROPS} />
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
         </Card>
         <Card className="lg:col-span-2">
           <CardHeader>

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { Download, Loader2, Search } from "lucide-react";
+import { ArrowUpDown, Download, Loader2, Search } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -70,10 +70,64 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
+/** Padrão da lista: quem importa hoje. "Inativo" só quando o filtro for trocado. */
+const STATUS_PADRAO = "ativo,atrasado,cancelado_com_acesso";
+
+type SortKey = "name" | "next_payment" | "total_paid_net_cents" | "last_login_at";
+
+const SORT_VALUE: Record<SortKey, (c: AdminClient) => string | number> = {
+  name: (c) => (c.name || "").toLowerCase(),
+  // Sem próxima cobrança vai pro fim em ordem ascendente (não é urgência).
+  // Mesmo campo por status que a célula exibe (nextChargeLabel): cancelado_com_acesso
+  // usa access_until, os demais usam next_payment — nunca mistura os dois.
+  next_payment: (c) =>
+    c.status === "cancelado_com_acesso"
+      ? c.access_until || "9999-12-31"
+      : c.next_payment || "9999-12-31",
+  total_paid_net_cents: (c) => c.total_paid_net_cents || 0,
+  last_login_at: (c) => c.last_login_at || "",
+};
+
+function SortableHead({
+  label,
+  sortKey,
+  active,
+  asc,
+  onSort,
+  className,
+}: {
+  label: string;
+  sortKey: SortKey;
+  active: SortKey;
+  asc: boolean;
+  onSort: (key: SortKey) => void;
+  className?: string;
+}) {
+  const ativo = active === sortKey;
+  return (
+    <TableHead className={className}>
+      <button
+        type="button"
+        onClick={() => onSort(sortKey)}
+        className="inline-flex items-center gap-1 transition-colors hover:text-foreground"
+      >
+        {label}
+        <ArrowUpDown
+          className={`h-3 w-3 ${ativo ? "text-primary" : "text-muted-foreground/50"}`}
+          aria-label={ativo ? (asc ? "crescente" : "decrescente") : undefined}
+        />
+      </button>
+    </TableHead>
+  );
+}
+
 export default function AdminClientsPage() {
   const [params, setParams] = useSearchParams();
   const [q, setQ] = useState(params.get("q") || "");
-  const [status, setStatus] = useState(params.get("status") || "");
+  const [status, setStatus] = useState(params.get("status") || STATUS_PADRAO);
+  // Ordem inicial de urgência: quem vence primeiro no topo.
+  const [sortKey, setSortKey] = useState<SortKey>("next_payment");
+  const [sortAsc, setSortAsc] = useState(true);
   const [plan, setPlan] = useState(params.get("plan") || "");
   const [rows, setRows] = useState<AdminClient[]>([]);
   const [loading, setLoading] = useState(true);
@@ -102,6 +156,26 @@ export default function AdminClientsPage() {
       .catch((e) => setError(e instanceof Error ? e.message : "Erro"))
       .finally(() => setLoading(false));
   }, [filters]);
+
+  const sortedRows = useMemo(() => {
+    const get = SORT_VALUE[sortKey];
+    return [...rows].sort((a, b) => {
+      const va = get(a);
+      const vb = get(b);
+      if (va === vb) return 0;
+      const cmp = va < vb ? -1 : 1;
+      return sortAsc ? cmp : -cmp;
+    });
+  }, [rows, sortKey, sortAsc]);
+
+  const toggleSort = (key: SortKey) => {
+    if (key === sortKey) {
+      setSortAsc((v) => !v);
+      return;
+    }
+    setSortKey(key);
+    setSortAsc(true);
+  };
 
   const exportCsv = async () => {
     const res = await fetchWithAuth(getApiUrl("/api/v1/admin/clients/export.csv"));
@@ -142,6 +216,7 @@ export default function AdminClientsPage() {
             <SelectValue placeholder="Status" />
           </SelectTrigger>
           <SelectContent>
+            <SelectItem value={STATUS_PADRAO}>Ativos (padrão)</SelectItem>
             <SelectItem value="all">Todos status</SelectItem>
             <SelectItem value="ativo">Ativo</SelectItem>
             <SelectItem value="atrasado">Atrasado</SelectItem>
@@ -183,20 +258,48 @@ export default function AdminClientsPage() {
             <Table className="w-full table-fixed">
               <TableHeader className="sticky top-0 z-10 bg-background">
                 <TableRow>
-                  <TableHead className="w-[16%] whitespace-nowrap">Nome</TableHead>
-                  <TableHead className="w-[18%]">E-mail</TableHead>
+                  <SortableHead
+                    className="w-[15%] whitespace-nowrap"
+                    label="Nome"
+                    sortKey="name"
+                    active={sortKey}
+                    asc={sortAsc}
+                    onSort={toggleSort}
+                  />
+                  <TableHead className="w-[16%]">E-mail</TableHead>
                   <TableHead className="w-[8%]">Plano</TableHead>
                   <TableHead className="w-[10%]">Periodicidade</TableHead>
                   <TableHead className="w-[12%]">Status</TableHead>
-                  <TableHead className="w-[10%]">Próx. cobrança</TableHead>
-                  <TableHead className="w-[8%]">Total pago</TableHead>
-                  <TableHead className="w-[8%]">Último acesso</TableHead>
+                  <SortableHead
+                    className="w-[12%]"
+                    label="Próx. cobrança"
+                    sortKey="next_payment"
+                    active={sortKey}
+                    asc={sortAsc}
+                    onSort={toggleSort}
+                  />
+                  <SortableHead
+                    className="w-[9%]"
+                    label="Total pago"
+                    sortKey="total_paid_net_cents"
+                    active={sortKey}
+                    asc={sortAsc}
+                    onSort={toggleSort}
+                  />
+                  <SortableHead
+                    className="w-[8%]"
+                    label="Último acesso"
+                    sortKey="last_login_at"
+                    active={sortKey}
+                    asc={sortAsc}
+                    onSort={toggleSort}
+                  />
                   <TableHead className="w-[7%]">Integrações</TableHead>
                   <TableHead className="w-[3%]" />
                 </TableRow>
               </TableHeader>
               <TableBody>
-              {rows.map((r, i) => (
+              {sortedRows.map((r, i) => (
                 <TableRow key={`${r.user_id ?? r.email}-${i}`}>
                   <TableCell className="overflow-hidden text-ellipsis whitespace-nowrap">
                     {r.user_id ? (
@@ -213,7 +316,7 @@ export default function AdminClientsPage() {
                   <TableCell>
                     <StatusBadge status={r.status} />
                   </TableCell>
-                  <TableCell className="whitespace-nowrap text-sm">
+                  <TableCell className="overflow-hidden text-ellipsis whitespace-nowrap text-sm">
                     {nextChargeLabel(
                       r.status,
                       r.status === "cancelado_com_acesso" ? r.access_until : r.next_payment,
@@ -235,7 +338,7 @@ export default function AdminClientsPage() {
                   </TableCell>
                 </TableRow>
               ))}
-              {rows.length === 0 && (
+              {sortedRows.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={10} className="text-center text-muted-foreground">
                     Nenhum cliente encontrado
