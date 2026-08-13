@@ -20,6 +20,7 @@ import {
   translateRejectionReason,
 } from "@/services/admin-panel.service";
 import { useToast } from "@/hooks/use-toast";
+import { planLimit } from "@/shared/lib/plans";
 
 function StatusBadge({ status }: { status: string }) {
   if (status === "atrasado") {
@@ -201,9 +202,15 @@ export default function AdminClientDetailPage() {
             </p>
             <p>Campanhas Meta: {data.usage?.campaigns_count ?? 0}</p>
             <p>
-              Links: {data.usage?.links_em_uso ?? 0} em uso / {data.usage?.links_criados ?? 0} criados
+              Links:{" "}
+              {planLimit(sub.plan || data.plan, "links") === 0
+                ? "— (fora do plano)"
+                : `${data.usage?.links_em_uso ?? 0} em uso / ${data.usage?.links_criados ?? 0} criados`}
               {" · "}
-              Páginas: {data.usage?.paginas_em_uso ?? 0}/{data.usage?.paginas_criadas ?? 0}
+              Páginas:{" "}
+              {planLimit(sub.plan || data.plan, "paginas_captura") === 0
+                ? "—"
+                : `${data.usage?.paginas_em_uso ?? 0}/${data.usage?.paginas_criadas ?? 0}`}
             </p>
             <p>
               Comissão 30d:{" "}

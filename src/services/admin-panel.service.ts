@@ -267,6 +267,7 @@ export type PlatformUsage = {
     user_id: number;
     nome: string;
     email: string | null;
+    plan: string | null;
     acessos: number;
     dias_ativos: number;
     links_em_uso: number;
