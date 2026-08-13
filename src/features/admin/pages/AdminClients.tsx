@@ -30,6 +30,7 @@ import {
   type AdminClient,
 } from "@/services/admin-panel.service";
 import { fetchWithAuth, getApiUrl } from "@/core/config/api.config";
+import { paginar, Paginacao } from "@/features/admin/components/AdminTableFooter";
 
 function SemaphoreDot({ color }: { color: string }) {
   const cls =
@@ -132,6 +133,7 @@ export default function AdminClientsPage() {
   const [rows, setRows] = useState<AdminClient[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [pagina, setPagina] = useState(1);
 
   const filters = useMemo(
     () => ({
@@ -148,6 +150,7 @@ export default function AdminClientsPage() {
 
   useEffect(() => {
     setLoading(true);
+    setPagina(1);
     fetchAdminClients(filters)
       .then((data) => {
         setRows(data);
@@ -169,6 +172,7 @@ export default function AdminClientsPage() {
   }, [rows, sortKey, sortAsc]);
 
   const toggleSort = (key: SortKey) => {
+    setPagina(1);
     if (key === sortKey) {
       setSortAsc((v) => !v);
       return;
@@ -177,8 +181,18 @@ export default function AdminClientsPage() {
     setSortAsc(true);
   };
 
+  const linhasPagina = useMemo(
+    () => paginar(sortedRows, pagina),
+    [sortedRows, pagina],
+  );
+
   const exportCsv = async () => {
-    const res = await fetchWithAuth(getApiUrl("/api/v1/admin/clients/export.csv"));
+    const qs = new URLSearchParams();
+    Object.entries(filters).forEach(([k, v]) => {
+      if (v === undefined || v === "" || v === false) return;
+      qs.set(k, String(v));
+    });
+    const res = await fetchWithAuth(getApiUrl(`/api/v1/admin/clients/export.csv?${qs}`));
     const blob = await res.blob();
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -299,7 +313,7 @@ export default function AdminClientsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-              {sortedRows.map((r, i) => (
+              {linhasPagina.map((r, i) => (
                 <TableRow key={`${r.user_id ?? r.email}-${i}`}>
                   <TableCell className="overflow-hidden text-ellipsis whitespace-nowrap">
                     {r.user_id ? (
@@ -338,7 +352,7 @@ export default function AdminClientsPage() {
                   </TableCell>
                 </TableRow>
               ))}
-              {sortedRows.length === 0 && (
+              {linhasPagina.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={10} className="text-center text-muted-foreground">
                     Nenhum cliente encontrado
@@ -347,6 +361,12 @@ export default function AdminClientsPage() {
               )}
             </TableBody>
           </Table>
+            <Paginacao
+              pagina={pagina}
+              total={sortedRows.length}
+              onChange={setPagina}
+              formato="intervalo"
+            />
         </div>
         </div>
       )}

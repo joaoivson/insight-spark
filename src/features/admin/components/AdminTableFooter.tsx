@@ -17,18 +17,24 @@ export function Paginacao({
   total,
   onChange,
   porPagina = LINHAS_POR_PAGINA,
+  formato = "registros",
 }: {
   pagina: number;
   total: number;
   onChange: (p: number) => void;
   porPagina?: number;
+  formato?: "registros" | "intervalo";
 }) {
   const paginas = totalDePaginas(total, porPagina);
   if (paginas <= 1) return null;
+  const inicio = (pagina - 1) * porPagina + 1;
+  const fim = Math.min(pagina * porPagina, total);
   return (
     <div className="mt-4 flex items-center justify-between text-sm">
       <span className="text-muted-foreground">
-        {total} {total === 1 ? "registro" : "registros"} · página {pagina} de {paginas}
+        {formato === "intervalo"
+          ? `Mostrando ${inicio}–${fim} de ${total}`
+          : `${total} ${total === 1 ? "registro" : "registros"} · página ${pagina} de ${paginas}`}
       </span>
       <div className="flex gap-2">
         <Button size="sm" variant="outline" disabled={pagina <= 1} onClick={() => onChange(pagina - 1)}>
