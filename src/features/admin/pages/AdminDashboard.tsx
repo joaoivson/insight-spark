@@ -204,7 +204,7 @@ export default function AdminDashboardPage() {
             </p>
           )}
         </Card>
-        <Card className="lg:col-span-2">
+        <Card>
           <CardHeader>
             <CardTitle className="text-base">Novas × canceladas por mês</CardTitle>
           </CardHeader>
@@ -224,7 +224,7 @@ export default function AdminDashboardPage() {
             </ResponsiveContainer>
           </CardContent>
         </Card>
-        <Card className="lg:col-span-2">
+        <Card>
           <CardHeader>
             <CardTitle className="text-base">Plano × periodicidade</CardTitle>
           </CardHeader>
