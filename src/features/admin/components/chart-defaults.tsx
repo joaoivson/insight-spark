@@ -44,3 +44,7 @@ export const VALUE_LABEL_PROPS = {
   style: LABEL_STYLE,
   formatter: (v: number) => formatMilhar(Number(v)),
 };
+
+/** Respiro à direita — sem margin, o label do último ponto/barra encosta
+ * na borda do viewBox do SVG e é cortado (Rodada 7, item 6). */
+export const CHART_MARGIN = { top: 20, right: 28, left: 0, bottom: 0 } as const;
