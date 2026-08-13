@@ -60,6 +60,8 @@ export const FacebookIntegrationSettings = () => {
   const [disconnectOpen, setDisconnectOpen] = useState(false);
   const [clearOpen, setClearOpen] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [deselectAllOpen, setDeselectAllOpen] = useState(false);
+  const [pendingDeselectId, setPendingDeselectId] = useState<string | null>(null);
 
   useEffect(() => {
     void fetchPlan();
@@ -209,7 +211,7 @@ export const FacebookIntegrationSettings = () => {
     }
   };
 
-  const toggleAccount = async (accountId: string, checked: boolean) => {
+  const applyToggle = async (accountId: string, checked: boolean) => {
     const prev = selectedAccounts;
     const next = checked ? [...prev, accountId] : prev.filter((id) => id !== accountId);
     setSelectedAccounts(next);
@@ -224,6 +226,26 @@ export const FacebookIntegrationSettings = () => {
     } finally {
       setBusy(false);
     }
+  };
+
+  const toggleAccount = async (accountId: string, checked: boolean) => {
+    // Desmarcar a ÚLTIMA conta selecionada zera a integração inteira (mesmo efeito de
+    // "Desconectar"), então pede confirmação em vez de aplicar direto.
+    const wouldDeselectAll = !checked && selectedAccounts.length === 1 && selectedAccounts[0] === accountId;
+    if (wouldDeselectAll) {
+      setPendingDeselectId(accountId);
+      setDeselectAllOpen(true);
+      return;
+    }
+    await applyToggle(accountId, checked);
+  };
+
+  const confirmDeselectAll = async () => {
+    if (!pendingDeselectId) return;
+    const id = pendingDeselectId;
+    setDeselectAllOpen(false);
+    setPendingDeselectId(null);
+    await applyToggle(id, false);
   };
 
   const handleDisconnect = async () => {
@@ -352,6 +374,11 @@ export const FacebookIntegrationSettings = () => {
       <div className="space-y-2">
         <Label>Contas de anúncio</Label>
         <p className="text-xs text-muted-foreground">Marque uma ou mais contas para sincronizar as campanhas.</p>
+        <p className="text-xs text-muted-foreground">
+          Não encontra uma conta que você sabe que tem acesso? No login do Facebook, a Meta pede pra você escolher
+          manualmente quais contas/portfólios compartilhar com o MarketDash — clique em &quot;Desconectar&quot; e
+          conecte de novo marcando essa conta na tela de permissões do Facebook.
+        </p>
 
         {accounts.length === 0 ? (
           <p className="text-xs text-muted-foreground">
@@ -435,6 +462,30 @@ export const FacebookIntegrationSettings = () => {
             <AlertDialogCancel disabled={busy}>Cancelar</AlertDialogCancel>
             <AlertDialogAction onClick={handleDisconnect} disabled={busy}>
               Desconectar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={deselectAllOpen}
+        onOpenChange={(open) => {
+          setDeselectAllOpen(open);
+          if (!open) setPendingDeselectId(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Desmarcar a última conta?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Isso desconecta a sincronização por completo (mesmo efeito de &quot;Desconectar&quot;) — as campanhas
+              deixam de ser atualizadas até você marcar uma conta de novo.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={busy}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={() => void confirmDeselectAll()} disabled={busy}>
+              Desmarcar
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
