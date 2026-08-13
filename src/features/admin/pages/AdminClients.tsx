@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { ArrowUpDown, Download, Loader2, Search } from "lucide-react";
+import { ArrowUpDown, Download, Loader2, Search, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -73,6 +73,13 @@ function StatusBadge({ status }: { status: string }) {
 
 /** Padrão da lista: quem importa hoje. "Inativo" só quando o filtro for trocado. */
 const STATUS_PADRAO = "ativo,atrasado,cancelado_com_acesso";
+
+const ALERT_FILTER_LABELS: Record<string, string> = {
+  expiring_7d: "Vencendo em 7 dias",
+  payment_failed: "Pagamento falhou",
+  never_connected: "Nunca conectou",
+  no_login_10d: "Sem acesso há 10d+",
+};
 
 type SortKey = "name" | "next_payment" | "total_paid_net_cents" | "last_login_at";
 
@@ -202,17 +209,6 @@ export default function AdminClientsPage() {
     URL.revokeObjectURL(url);
   };
 
-  const clearAlertFilters = () => {
-    const next = new URLSearchParams(params);
-    ["expiring_7d", "payment_failed", "never_connected", "no_login_10d"].forEach((k) =>
-      next.delete(k),
-    );
-    setParams(next);
-  };
-
-  const hasAlertFilter =
-    filters.expiring_7d || filters.payment_failed || filters.never_connected || filters.no_login_10d;
-
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-end gap-3">
@@ -249,11 +245,25 @@ export default function AdminClientsPage() {
             <SelectItem value="max">Max</SelectItem>
           </SelectContent>
         </Select>
-        {hasAlertFilter && (
-          <Button variant="outline" size="sm" onClick={clearAlertFilters}>
-            Limpar alerta
-          </Button>
-        )}
+        {(["expiring_7d", "payment_failed", "never_connected", "no_login_10d"] as const)
+          .filter((k) => filters[k])
+          .map((k) => (
+            <Badge key={k} variant="secondary" className="gap-1.5 py-1.5 pl-2.5 pr-1.5">
+              {ALERT_FILTER_LABELS[k]}
+              <button
+                type="button"
+                aria-label={`Remover filtro ${ALERT_FILTER_LABELS[k]}`}
+                className="ml-0.5 rounded-full p-0.5 hover:bg-muted"
+                onClick={() => {
+                  const next = new URLSearchParams(params);
+                  next.delete(k);
+                  setParams(next);
+                }}
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </Badge>
+          ))}
         <Button variant="outline" size="sm" onClick={() => void exportCsv()}>
           <Download className="mr-1.5 h-4 w-4" />
           CSV

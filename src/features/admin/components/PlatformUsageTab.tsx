@@ -144,7 +144,7 @@ export function PlatformUsageTab() {
                     ).toFixed(0)}%`
               }
             />
-            <Link to={`/admin/clientes?sem_acesso=${data.cards.dias_sem_acesso}`}>
+            <Link to="/admin/clientes?no_login_10d=1">
               <CardNumero
                 titulo={`Sem acesso há ${data.cards.dias_sem_acesso}d+`}
                 valor={data.cards.sem_acesso_10d}
