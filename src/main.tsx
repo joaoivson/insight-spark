@@ -58,8 +58,27 @@ const applyThemePreference = () => {
   }
 };
 
+// Uma aba aberta antes de um deploy aponta pros hashes de chunk antigos —
+// qualquer import() dinâmico feito depois (ex.: jobs.service em
+// UploadCSV.tsx) dá 404 e vira "Failed to fetch dynamically imported
+// module". O Vite dispara `vite:preloadError` nesse caso; sem handler, o
+// erro só aparecia cru pro usuário (ver UploadCSV.tsx). Recarrega uma vez
+// por sessão — a nova carga já busca os hashes certos. Guard em
+// sessionStorage evita loop infinito se o problema for um deploy
+// genuinamente quebrado, não só cache de aba velha.
+const setupChunkLoadRecovery = () => {
+  window.addEventListener("vite:preloadError", (event) => {
+    event.preventDefault();
+    const key = "marketdash-chunk-reload-attempted";
+    if (window.sessionStorage.getItem(key)) return;
+    window.sessionStorage.setItem(key, "1");
+    window.location.reload();
+  });
+};
+
 applyBranding();
 applyThemePreference();
+setupChunkLoadRecovery();
 
 // Setup subscription event listener
 setupSubscriptionListener();
