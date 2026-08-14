@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { ArrowUpDown, Download, Loader2, Search } from "lucide-react";
+import { ArrowUpDown, Download, Loader2, Search, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,6 +30,7 @@ import {
   type AdminClient,
 } from "@/services/admin-panel.service";
 import { fetchWithAuth, getApiUrl } from "@/core/config/api.config";
+import { paginar, Paginacao } from "@/features/admin/components/AdminTableFooter";
 
 function SemaphoreDot({ color }: { color: string }) {
   const cls =
@@ -72,6 +73,13 @@ function StatusBadge({ status }: { status: string }) {
 
 /** Padrão da lista: quem importa hoje. "Inativo" só quando o filtro for trocado. */
 const STATUS_PADRAO = "ativo,atrasado,cancelado_com_acesso";
+
+const ALERT_FILTER_LABELS: Record<string, string> = {
+  expiring_7d: "Vencendo em 7 dias",
+  payment_failed: "Pagamento falhou",
+  never_connected: "Nunca conectou",
+  no_login_10d: "Sem acesso há 10d+",
+};
 
 type SortKey = "name" | "next_payment" | "total_paid_net_cents" | "last_login_at";
 
@@ -132,6 +140,7 @@ export default function AdminClientsPage() {
   const [rows, setRows] = useState<AdminClient[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [pagina, setPagina] = useState(1);
 
   const filters = useMemo(
     () => ({
@@ -148,6 +157,7 @@ export default function AdminClientsPage() {
 
   useEffect(() => {
     setLoading(true);
+    setPagina(1);
     fetchAdminClients(filters)
       .then((data) => {
         setRows(data);
@@ -169,6 +179,7 @@ export default function AdminClientsPage() {
   }, [rows, sortKey, sortAsc]);
 
   const toggleSort = (key: SortKey) => {
+    setPagina(1);
     if (key === sortKey) {
       setSortAsc((v) => !v);
       return;
@@ -177,8 +188,18 @@ export default function AdminClientsPage() {
     setSortAsc(true);
   };
 
+  const linhasPagina = useMemo(
+    () => paginar(sortedRows, pagina),
+    [sortedRows, pagina],
+  );
+
   const exportCsv = async () => {
-    const res = await fetchWithAuth(getApiUrl("/api/v1/admin/clients/export.csv"));
+    const qs = new URLSearchParams();
+    Object.entries(filters).forEach(([k, v]) => {
+      if (v === undefined || v === "" || v === false) return;
+      qs.set(k, String(v));
+    });
+    const res = await fetchWithAuth(getApiUrl(`/api/v1/admin/clients/export.csv?${qs}`));
     const blob = await res.blob();
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -187,17 +208,6 @@ export default function AdminClientsPage() {
     a.click();
     URL.revokeObjectURL(url);
   };
-
-  const clearAlertFilters = () => {
-    const next = new URLSearchParams(params);
-    ["expiring_7d", "payment_failed", "never_connected", "no_login_10d"].forEach((k) =>
-      next.delete(k),
-    );
-    setParams(next);
-  };
-
-  const hasAlertFilter =
-    filters.expiring_7d || filters.payment_failed || filters.never_connected || filters.no_login_10d;
 
   return (
     <div className="space-y-4">
@@ -235,11 +245,25 @@ export default function AdminClientsPage() {
             <SelectItem value="max">Max</SelectItem>
           </SelectContent>
         </Select>
-        {hasAlertFilter && (
-          <Button variant="outline" size="sm" onClick={clearAlertFilters}>
-            Limpar alerta
-          </Button>
-        )}
+        {(["expiring_7d", "payment_failed", "never_connected", "no_login_10d"] as const)
+          .filter((k) => filters[k])
+          .map((k) => (
+            <Badge key={k} variant="secondary" className="gap-1.5 py-1.5 pl-2.5 pr-1.5">
+              {ALERT_FILTER_LABELS[k]}
+              <button
+                type="button"
+                aria-label={`Remover filtro ${ALERT_FILTER_LABELS[k]}`}
+                className="ml-0.5 rounded-full p-0.5 hover:bg-muted"
+                onClick={() => {
+                  const next = new URLSearchParams(params);
+                  next.delete(k);
+                  setParams(next);
+                }}
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </Badge>
+          ))}
         <Button variant="outline" size="sm" onClick={() => void exportCsv()}>
           <Download className="mr-1.5 h-4 w-4" />
           CSV
@@ -299,7 +323,7 @@ export default function AdminClientsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-              {sortedRows.map((r, i) => (
+              {linhasPagina.map((r, i) => (
                 <TableRow key={`${r.user_id ?? r.email}-${i}`}>
                   <TableCell className="overflow-hidden text-ellipsis whitespace-nowrap">
                     {r.user_id ? (
@@ -338,7 +362,7 @@ export default function AdminClientsPage() {
                   </TableCell>
                 </TableRow>
               ))}
-              {sortedRows.length === 0 && (
+              {linhasPagina.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={10} className="text-center text-muted-foreground">
                     Nenhum cliente encontrado
@@ -347,6 +371,12 @@ export default function AdminClientsPage() {
               )}
             </TableBody>
           </Table>
+            <Paginacao
+              pagina={pagina}
+              total={sortedRows.length}
+              onChange={setPagina}
+              formato="intervalo"
+            />
         </div>
         </div>
       )}

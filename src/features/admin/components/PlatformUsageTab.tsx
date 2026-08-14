@@ -27,6 +27,7 @@ import {
   type PlatformUsage,
   type UsagePeriodo,
 } from "@/services/admin-panel.service";
+import { planLimit } from "@/shared/lib/plans";
 
 const PERIODOS: { valor: UsagePeriodo; label: string }[] = [
   { valor: "hoje", label: "Hoje" },
@@ -143,7 +144,7 @@ export function PlatformUsageTab() {
                     ).toFixed(0)}%`
               }
             />
-            <Link to={`/admin/clientes?sem_acesso=${data.cards.dias_sem_acesso}`}>
+            <Link to="/admin/clientes?no_login_10d=1">
               <CardNumero
                 titulo={`Sem acesso há ${data.cards.dias_sem_acesso}d+`}
                 valor={data.cards.sem_acesso_10d}
@@ -230,10 +231,12 @@ export function PlatformUsageTab() {
                       <TableCell className="text-right tabular-nums">{u.acessos}</TableCell>
                       <TableCell className="text-right tabular-nums">{u.dias_ativos}</TableCell>
                       <TableCell className="text-right tabular-nums">
-                        {u.links_em_uso}/{u.links_criados}
+                        {planLimit(u.plan, "links") === 0 ? "—" : `${u.links_em_uso}/${u.links_criados}`}
                       </TableCell>
                       <TableCell className="text-right tabular-nums">
-                        {u.paginas_em_uso}/{u.paginas_criadas}
+                        {planLimit(u.plan, "paginas_captura") === 0
+                          ? "—"
+                          : `${u.paginas_em_uso}/${u.paginas_criadas}`}
                       </TableCell>
                       <TableCell className="whitespace-nowrap text-sm">
                         {u.ultimo_acesso

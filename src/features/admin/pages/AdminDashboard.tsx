@@ -27,6 +27,7 @@ import {
   BAR_CURSOR,
   LINE_CURSOR,
   VALUE_LABEL_PROPS,
+  CHART_MARGIN,
 } from "@/features/admin/components/chart-defaults";
 
 /** Remove pontos-zero do INÍCIO da série (histórico ainda não começou) — mantém
@@ -159,7 +160,7 @@ export default function AdminDashboardPage() {
           </CardHeader>
           <CardContent className="h-64">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={mrrSeries}>
+              <LineChart data={mrrSeries} margin={CHART_MARGIN}>
                 <XAxis dataKey="month" {...AXIS_PROPS} />
                 <YAxis {...AXIS_PROPS} />
                 <Tooltip
@@ -184,7 +185,7 @@ export default function AdminDashboardPage() {
           </CardHeader>
           <CardContent className="h-64">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={revSeries}>
+              <BarChart data={revSeries} margin={CHART_MARGIN}>
                 <XAxis dataKey="month" {...AXIS_PROPS} />
                 <YAxis {...AXIS_PROPS} />
                 <Tooltip
@@ -203,7 +204,7 @@ export default function AdminDashboardPage() {
             </p>
           )}
         </Card>
-        <Card className="lg:col-span-2">
+        <Card>
           <CardHeader>
             <CardTitle className="text-base">Novas × canceladas por mês</CardTitle>
           </CardHeader>
@@ -223,7 +224,7 @@ export default function AdminDashboardPage() {
             </ResponsiveContainer>
           </CardContent>
         </Card>
-        <Card className="lg:col-span-2">
+        <Card>
           <CardHeader>
             <CardTitle className="text-base">Plano × periodicidade</CardTitle>
           </CardHeader>
