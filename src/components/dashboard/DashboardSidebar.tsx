@@ -13,8 +13,7 @@ import {
   Sparkles,
   Gift,
   Lock,
-  type LucideIcon,
-} from "lucide-react";
+  type LucideIcon, Instagram as InstagramIcon } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
@@ -53,6 +52,9 @@ const menuItems: MenuItem[] = [
   { icon: MousePointerClick, label: "Upload Cliques", path: "/dashboard/upload-cliques", menuKey: "upload_cliques" },
   { icon: Globe, label: "Página de Captura", path: "/dashboard/captura", menuKey: "captura" },
   { icon: Link2, label: "Meus Links", path: "/dashboard/links", menuKey: "meus_links" },
+  // Entre Meus Links e Indique & Ganhe, conforme o spec. menuKey "automacoes"
+  // só existe no plano MAX — nos demais o item aparece com cadeado.
+  { icon: InstagramIcon, label: "Automação Instagram", path: "/dashboard/automacoes", isNew: true, menuKey: "automacoes" },
   { icon: Gift, label: "Indique & Ganhe", path: "/dashboard/indique", iconClass: "text-[#F0A94A]", menuKey: "indique_ganhe" },
   { icon: Settings, label: "Configurações", path: "/dashboard/configuracoes", menuKey: "configuracoes" },
 ];
