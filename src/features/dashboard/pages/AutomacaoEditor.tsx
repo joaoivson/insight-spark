@@ -41,7 +41,7 @@ type EstadoForm = {
   trigger_tipo: AutomacaoTrigger;
   palavras: string[];
   resposta_publica_ativa: boolean;
-  variacoes: string;
+  variacoes: string[];
   dm_texto: string;
 };
 
@@ -55,7 +55,7 @@ const INICIAL: EstadoForm = {
   trigger_tipo: "palavras",
   palavras: [],
   resposta_publica_ativa: true,
-  variacoes: "Te mandei no direct!\nJá foi pro seu direct\nEnviado! Corre lá no direct",
+  variacoes: ["Te mandei no direct!", "Já foi pro seu direct", "Enviado! Corre lá no direct"],
   dm_texto: "",
 };
 
@@ -152,7 +152,7 @@ const AutomacaoEditor = () => {
           trigger_tipo: a.trigger_tipo,
           palavras: a.palavras,
           resposta_publica_ativa: a.resposta_publica_ativa,
-          variacoes: (a.resposta_publica_variacoes || []).join("\n"),
+          variacoes: (a.resposta_publica_variacoes || []).slice(0, MAX_VARIACOES),
           dm_texto: a.dm_texto,
         }),
       )
@@ -164,14 +164,20 @@ const AutomacaoEditor = () => {
   }, [id]);
 
   const variacoes = useMemo(
-    () =>
-      form.variacoes
-        .split("\n")
-        .map((t) => t.trim())
-        .filter(Boolean)
-        .slice(0, MAX_VARIACOES),
+    () => form.variacoes.map((t) => t.trim()).filter(Boolean).slice(0, MAX_VARIACOES),
     [form.variacoes],
   );
+
+  const alterarVariacao = (indice: number, valor: string) =>
+    setForm((f) => ({ ...f, variacoes: f.variacoes.map((v, i) => (i === indice ? valor : v)) }));
+
+  const removerVariacao = (indice: number) =>
+    setForm((f) => ({ ...f, variacoes: f.variacoes.filter((_, i) => i !== indice) }));
+
+  const adicionarVariacao = () =>
+    setForm((f) =>
+      f.variacoes.length >= MAX_VARIACOES ? f : { ...f, variacoes: [...f.variacoes, ""] },
+    );
 
   const adicionarChip = (bruto: string) => {
     const palavra = bruto.trim();
@@ -272,12 +278,6 @@ const AutomacaoEditor = () => {
                   ativo={form.escopo === "qualquer"}
                   onClick={() => setForm({ ...form, escopo: "qualquer" })}
                 />
-                <Opcao
-                  titulo="Próxima publicação"
-                  descricao="Vale só para o próximo post. Depois de amarrada, mostramos qual foi."
-                  ativo={form.escopo === "proximo"}
-                  onClick={() => setForm({ ...form, escopo: "proximo" })}
-                />
               </div>
 
               {form.escopo === "post_especifico" && (
@@ -295,12 +295,6 @@ const AutomacaoEditor = () => {
                 />
               )}
 
-              {form.escopo === "proximo" && form.media_id && (
-                <p className="text-xs text-muted-foreground">
-                  Já amarrada à publicação de{" "}
-                  {form.media_caption_preview || form.media_id}.
-                </p>
-              )}
             </CardNumerado>
 
             <CardNumerado
@@ -376,8 +370,7 @@ const AutomacaoEditor = () => {
                   </div>
                   <p className="flex items-start gap-1.5 text-xs text-muted-foreground">
                     <Info className="mt-0.5 h-3 w-3 flex-shrink-0" />
-                    Não diferencia maiúsculas, acentos nem emoji. “QUERO” pega “quero”,
-                    “Quéro!!” e “eu quero esse” — mas não pega “queria”.
+                    Ignora maiúsculas, acentos e emoji.
                   </p>
                 </div>
               )}
@@ -386,7 +379,7 @@ const AutomacaoEditor = () => {
             <CardNumerado
               numero={3}
               titulo="Responder no comentário"
-              apoio="Aparece publicamente embaixo do comentário. Ajuda o post a continuar performando."
+              apoio="Aparece publicamente embaixo do comentário."
             >
               <div className="flex items-center gap-3">
                 <Switch
@@ -401,15 +394,32 @@ const AutomacaoEditor = () => {
 
               {form.resposta_publica_ativa && (
                 <div className="space-y-2">
-                  <Textarea
-                    className="min-h-[120px]"
-                    placeholder={"Te mandei no direct!\nJá foi pro seu direct\nEnviado! Corre lá no direct"}
-                    value={form.variacoes}
-                    onChange={(e) => setForm({ ...form, variacoes: e.target.value })}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Uma variação por linha · {variacoes.length} de {MAX_VARIACOES} variações
-                  </p>
+                  {/* Um campo por variação: com linhas num textarea, enter duplo criava
+                      variação vazia e colar texto multilinha bagunçava tudo. */}
+                  {form.variacoes.map((texto, indice) => (
+                    <div key={indice} className="flex items-center gap-2">
+                      <Input
+                        value={texto}
+                        placeholder={`Variação ${indice + 1}`}
+                        onChange={(e) => alterarVariacao(indice, e.target.value)}
+                        aria-label={`Variação ${indice + 1}`}
+                      />
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => removerVariacao(indice)}
+                        aria-label={`Remover variação ${indice + 1}`}
+                        className="flex-shrink-0"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                  {form.variacoes.length < MAX_VARIACOES && (
+                    <Button variant="outline" size="sm" onClick={adicionarVariacao}>
+                      + Adicionar variação
+                    </Button>
+                  )}
                   {variacoes.length > 0 && variacoes.length < MIN_VARIACOES_RECOMENDADO && (
                     <p className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-500">
                       <AlertTriangle className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" />
@@ -424,7 +434,7 @@ const AutomacaoEditor = () => {
             <CardNumerado
               numero={4}
               titulo="Mensagem no direct"
-              apoio="É a única mensagem que a pessoa vai receber. Coloque tudo o que importa aqui."
+              apoio="É a única mensagem que a pessoa vai receber."
             >
               <Textarea
                 className="min-h-[120px]"
@@ -441,13 +451,6 @@ const AutomacaoEditor = () => {
                   {form.dm_texto.length} caracteres
                 </span>
               </div>
-              <p className="text-xs text-muted-foreground">
-                Se a pessoa não te segue, a mensagem cai na pasta Solicitações do Instagram dela.
-              </p>
-              <p className="text-xs text-muted-foreground">
-                Recomendamos deixar claro que a mensagem é automática — ex.: “mensagem automática,
-                mas leio todas”.
-              </p>
             </CardNumerado>
           </div>
 

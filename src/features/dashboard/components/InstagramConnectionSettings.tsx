@@ -59,15 +59,15 @@ const formatarData = (iso: string | null) => {
 // deles sem quebrar, exibindo só o texto.
 const PASSOS: { titulo: string; texto: string; imagem?: string; destaque?: boolean }[] = [
   {
-    titulo: "Conta Profissional",
+    titulo: "Conta Profissional e pública",
     texto:
-      "No Instagram: Configurações → Tipo de conta e ferramentas → Mudar para conta profissional (Comercial ou Criador de Conteúdo).",
+      "No Instagram: Configurações → Tipo de conta e ferramentas → Mudar para conta profissional (Comercial ou Criador de Conteúdo). O perfil precisa estar público — conta privada não recebe notificação de comentário.",
     imagem: "/instagram/passo-1-conta-profissional.png",
   },
   {
     titulo: "Permitir acesso a mensagens",
     texto:
-      "No Instagram: Configurações → Privacidade → Mensagens → Ferramentas conectadas → ligue “Permitir acesso a mensagens”.",
+      "No Instagram: Configurações e atividade → Tipo e ferramentas da conta → Ferramentas de mensagem → Controles de mensagem → Pedidos de contato → Ferramentas conectadas → ligue “Permitir acesso às mensagens”.",
     imagem: "/instagram/passo-2-acesso-mensagens.png",
     destaque: true,
   },

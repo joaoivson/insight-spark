@@ -137,7 +137,11 @@ const AutomacaoCard = ({
             onCheckedChange={onToggle}
             aria-label={ativa ? "Pausar automação" : "Ativar automação"}
           />
-          {!ativa && !recebendoComentarios ? (
+          {/* Vale também para automação JÁ ATIVA: sem webhook ela não dispara,
+              e dizer "Ativa" faz a aluna acreditar que está rodando. Achado na
+              Rodada 1 de ajustes — a trava existia, mas o selo só aparecia em
+              automação pausada. */}
+          {!recebendoComentarios ? (
             <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-amber-500">
               Aguardando conexão
             </span>

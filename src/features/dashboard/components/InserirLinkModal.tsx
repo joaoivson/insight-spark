@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { Link2, Loader2 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Link2, Loader2, Search } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -33,9 +33,11 @@ export const InserirLinkModal = ({
   const [links, setLinks] = useState<CustomLink[]>([]);
   const [carregando, setCarregando] = useState(false);
   const [manual, setManual] = useState("");
+  const [busca, setBusca] = useState("");
 
   useEffect(() => {
     if (!aberto) return;
+    setBusca("");
     setCarregando(true);
     getUserLinks()
       .then(setLinks)
@@ -44,6 +46,18 @@ export const InserirLinkModal = ({
       .catch(() => setLinks([]))
       .finally(() => setCarregando(false));
   }, [aberto]);
+
+  // Com dezenas de links em Meus Links, rolar a lista não escala — busca por
+  // nome e por slug, que é como a aluna lembra do link ("limpadorpatas").
+  const filtrados = useMemo(() => {
+    const termo = busca.trim().toLowerCase();
+    if (!termo) return links;
+    return links.filter(
+      (l) =>
+        (l.name || "").toLowerCase().includes(termo) ||
+        (l.slug || "").toLowerCase().includes(termo),
+    );
+  }, [links, busca]);
 
   const inserir = (url: string) => {
     const limpo = url.trim();
@@ -69,8 +83,24 @@ export const InserirLinkModal = ({
               <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Carregando seus links…
             </div>
           ) : links.length > 0 ? (
-            <div className="max-h-56 divide-y divide-border overflow-y-auto rounded-xl border border-border">
-              {links.map((link) => {
+            <div className="space-y-2">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={busca}
+                  onChange={(e) => setBusca(e.target.value)}
+                  placeholder="Buscar por nome ou slug"
+                  className="pl-9"
+                  aria-label="Buscar link por nome ou slug"
+                />
+              </div>
+              {filtrados.length === 0 ? (
+                <p className="py-4 text-center text-sm text-muted-foreground">
+                  Nenhum link com “{busca}”.
+                </p>
+              ) : (
+              <div className="max-h-56 divide-y divide-border overflow-y-auto rounded-xl border border-border">
+              {filtrados.map((link) => {
                 const url = `https://${baseDoLink()}${link.slug}`;
                 return (
                   <button
@@ -87,6 +117,8 @@ export const InserirLinkModal = ({
                   </button>
                 );
               })}
+              </div>
+              )}
             </div>
           ) : (
             <p className="text-sm text-muted-foreground">

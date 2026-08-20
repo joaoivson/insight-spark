@@ -35,15 +35,15 @@ const Configuracoes = () => {
     <DashboardLayout title="Configurações">
       <Tabs value={tab} onValueChange={setTab} className="max-w-3xl">
         <div className="-mx-4 px-4 md:mx-0 md:px-0 overflow-x-auto mb-6">
-          <TabsList className="w-max">
+          <TabsList className="w-max sm:w-full sm:justify-start">
             <TabsTrigger value="shopee" className="gap-2 whitespace-nowrap">
-              <ShoppingBag className="w-4 h-4" /> <span className="hidden sm:inline">Integração</span> Shopee
+              <ShoppingBag className="w-4 h-4" /> Shopee
             </TabsTrigger>
             <TabsTrigger value="facebook" className="gap-2 whitespace-nowrap">
-              <Facebook className="w-4 h-4" /> <span className="hidden sm:inline">Integração</span> Facebook
+              <Facebook className="w-4 h-4" /> Facebook
             </TabsTrigger>
             <TabsTrigger value="instagram" className="gap-2 whitespace-nowrap">
-              <Instagram className="w-4 h-4" /> <span className="hidden sm:inline">Integração</span> Instagram
+              <Instagram className="w-4 h-4" /> Instagram
             </TabsTrigger>
             {showWhatsapp && (
               <TabsTrigger value="whatsapp" className="gap-2 whitespace-nowrap">

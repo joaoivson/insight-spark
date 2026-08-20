@@ -45,7 +45,7 @@ export interface InstagramMediaPage {
   from_cache: boolean;
 }
 
-export type AutomacaoEscopo = "post_especifico" | "qualquer" | "proximo";
+export type AutomacaoEscopo = "post_especifico" | "qualquer";
 export type AutomacaoTrigger = "palavras" | "qualquer";
 export type AutomacaoStatus = "ativa" | "pausada" | "rascunho";
 
