@@ -18,6 +18,13 @@ export interface InstagramConnection {
    */
   webhook_subscrito: boolean;
   webhook_erro: string | null;
+  /** BUSINESS | MEDIA_CREATOR — só Criador consegue tornar o perfil privado. */
+  account_type: string | null;
+  /**
+   * `false` = conectou sem `instagram_business_manage_comments`. O direct sai,
+   * mas a resposta pública no comentário não — e nada avisa.
+   */
+  pode_responder_comentario: boolean;
 }
 
 export interface InstagramMediaItem {

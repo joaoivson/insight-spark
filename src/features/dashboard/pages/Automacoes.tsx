@@ -55,12 +55,15 @@ const AutomacaoCard = ({
   onDuplicar,
   onExcluir,
   ocupado,
+  recebendoComentarios,
 }: {
   automacao: InstagramAutomation;
   onToggle: (ativa: boolean) => void;
   onDuplicar: () => void;
   onExcluir: () => void;
   ocupado: boolean;
+  /** A conta está inscrita no webhook? Se não, ativar seria mentira. */
+  recebendoComentarios: boolean;
 }) => {
   const ativa = automacao.status === "ativa";
   const rascunho = automacao.status === "rascunho";
@@ -125,16 +128,24 @@ const AutomacaoCard = ({
         </div>
 
         <div className="flex items-center gap-2 sm:flex-shrink-0">
-          {/* Toggle direto, sem confirmação — é reversível. */}
+          {/* Toggle direto, sem confirmação — é reversível. Ligar fica travado
+              quando a conta não está recebendo comentários: automação "ativa" que
+              não dispara é pior que automação pausada. Desligar sempre pode. */}
           <Switch
             checked={ativa}
-            disabled={ocupado}
+            disabled={ocupado || (!ativa && !recebendoComentarios)}
             onCheckedChange={onToggle}
             aria-label={ativa ? "Pausar automação" : "Ativar automação"}
           />
-          <span className={cn("text-xs", ativa ? "text-emerald-500" : "text-muted-foreground")}>
-            {ativa ? "Ativa" : "Pausada"}
-          </span>
+          {!ativa && !recebendoComentarios ? (
+            <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-amber-500">
+              Aguardando conexão
+            </span>
+          ) : (
+            <span className={cn("text-xs", ativa ? "text-emerald-500" : "text-muted-foreground")}>
+              {ativa ? "Ativa" : "Pausada"}
+            </span>
+          )}
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -254,6 +265,9 @@ const Automacoes = () => {
   };
 
   const semConexao = !connection || connection.status !== "ativo";
+  // Conectado não basta: a conta precisa estar inscrita no webhook, senão o
+  // Instagram nunca nos avisa dos comentários e a automação fica muda.
+  const recebendoComentarios = !semConexao && !!connection?.webhook_subscrito;
 
   return (
     <DashboardLayout title="Automação Instagram">
@@ -267,6 +281,23 @@ const Automacoes = () => {
             <Plus className="mr-2 h-4 w-4" /> Nova Automação
           </Button>
         </div>
+
+        {!semConexao && !recebendoComentarios && (
+          <Card className="border-amber-500/30 bg-amber-500/5">
+            <CardContent className="flex flex-col items-start gap-3 p-5 sm:flex-row sm:items-center">
+              <p className="min-w-0 flex-1 text-sm text-muted-foreground">
+                <strong className="text-amber-400">
+                  Ainda não estamos recebendo os comentários deste perfil.
+                </strong>{" "}
+                Nenhuma automação vai disparar até isso ser resolvido — por isso o botão
+                de ativar está travado.
+              </p>
+              <Button asChild variant="outline">
+                <Link to="/dashboard/configuracoes?tab=instagram">Resolver</Link>
+              </Button>
+            </CardContent>
+          </Card>
+        )}
 
         {semConexao && (
           <Card>
@@ -315,6 +346,7 @@ const Automacoes = () => {
                 key={a.id}
                 automacao={a}
                 ocupado={ocupado}
+                recebendoComentarios={recebendoComentarios}
                 onToggle={(ativa) => void alternar(a, ativa)}
                 onDuplicar={() => void duplicar(a)}
                 onExcluir={() => setParaExcluir(a)}

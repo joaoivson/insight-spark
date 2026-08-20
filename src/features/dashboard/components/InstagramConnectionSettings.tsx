@@ -275,14 +275,23 @@ export const InstagramConnectionSettings = () => {
           Antes de conectar, confira estes três passos no app do Instagram:
         </p>
         <Checklist />
-        <Button onClick={conectar} disabled={busy} className="w-full md:w-auto">
-          {busy ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          ) : (
-            <Instagram className="mr-2 h-4 w-4" />
-          )}
-          Conectar Instagram
-        </Button>
+        <div className="space-y-2">
+          {/* Público de mentoria trava em tela de senha. Dizer de quem é a tela e
+              o que a gente NÃO vê resolve a hesitação antes de ela acontecer. */}
+          <p className="text-xs text-muted-foreground">
+            O login acontece no site do próprio Instagram. O MarketDash não vê e não
+            guarda sua senha — mesmo que você já esteja logada, ele vai pedir para você
+            entrar de novo, para garantir que a conta conectada é a certa.
+          </p>
+          <Button onClick={conectar} disabled={busy} className="w-full md:w-auto">
+            {busy ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Instagram className="mr-2 h-4 w-4" />
+            )}
+            Conectar Instagram
+          </Button>
+        </div>
       </div>
     );
   }
@@ -358,6 +367,35 @@ export const InstagramConnectionSettings = () => {
             <CheckCircle2 className="h-3.5 w-3.5" /> Conectado
           </Badge>
         </div>
+      )}
+
+      {!conexao.pode_responder_comentario && (
+        // Conectou sem a permissão de comentários: o direct sai, a resposta
+        // pública não. Sem este aviso, a aluna configura as variações, publica, e
+        // só percebe que nada aparece embaixo do comentário depois.
+        <div className="flex items-start gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4">
+          <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-500" />
+          <div className="min-w-0 space-y-1">
+            <p className="text-sm font-medium text-amber-400">
+              Falta a permissão de comentários.
+            </p>
+            <p className="text-xs text-muted-foreground">
+              O direct vai continuar sendo enviado, mas não conseguimos responder
+              publicamente embaixo do comentário. Reconecte e mantenha todas as opções
+              marcadas na tela do Instagram.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {conexao.account_type === "MEDIA_CREATOR" && conexao.webhook_subscrito && (
+        // Preventivo, não bloqueia: conta Business não consegue ficar privada, mas
+        // Criador consegue — e perfil privado deixa de receber comentário sem avisar.
+        <p className="rounded-lg border border-border bg-muted/40 p-3 text-xs text-muted-foreground">
+          Sua conta é do tipo <strong>Criador de Conteúdo</strong>. Se em algum momento
+          você deixar o perfil privado, o Instagram para de nos avisar dos comentários e
+          a automação silencia — sem mensagem de erro. Mantenha o perfil público.
+        </p>
       )}
 
       <div className="flex flex-col gap-2 sm:flex-row">
