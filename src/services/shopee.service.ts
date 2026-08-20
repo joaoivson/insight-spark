@@ -1,4 +1,5 @@
 import { fetchWithAuth, getApiUrl } from "@/core/config/api.config";
+import { erroDaResposta } from "@/services/http-error";
 
 export type ShopeeStatus = {
   id: number;
@@ -60,8 +61,7 @@ export const triggerManualSync = async (days: number): Promise<{ days: number; t
     body: JSON.stringify({ days }),
   });
   if (!res.ok && res.status !== 202) {
-    const text = await res.text();
-    throw new Error(text || "Erro ao iniciar sincronização Shopee");
+    throw await erroDaResposta(res, "Erro ao iniciar sincronização Shopee");
   }
   try {
     const data = await res.json();

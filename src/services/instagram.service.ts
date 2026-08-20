@@ -1,4 +1,5 @@
 import { fetchWithAuth, getApiUrl } from "@/core/config/api.config";
+import { erroDaResposta } from "@/services/http-error";
 import type {
   AutomacaoStatus,
   InstagramAutomation,
@@ -8,31 +9,6 @@ import type {
 } from "@/shared/types/instagram";
 
 const BASE = "/api/v1/instagram";
-
-/**
- * Lê o erro do backend com o detalhe legível.
- *
- * As rotas devolvem `detail` ora como string, ora como objeto
- * `{code, message}` (conta não profissional, plano insuficiente, conta já
- * conectada). Mostrar o JSON cru na tela seria ilegível.
- */
-const erroDaResposta = async (res: Response, fallback: string): Promise<Error> => {
-  const texto = await res.text();
-  if (!texto) return new Error(fallback);
-  try {
-    const corpo = JSON.parse(texto);
-    const detail = corpo?.detail;
-    if (typeof detail === "string") return new Error(detail);
-    if (detail?.message) {
-      const erro = new Error(detail.message) as Error & { code?: string };
-      erro.code = detail.code;
-      return erro;
-    }
-  } catch {
-    /* não era JSON — cai no texto cru */
-  }
-  return new Error(texto || fallback);
-};
 
 // ---------------------------------------------------------------- conexão --
 

@@ -1,4 +1,5 @@
 import { fetchWithAuth, getApiUrl } from "@/core/config/api.config";
+import { erroDaResposta } from "@/services/http-error";
 import type {
   FacebookAdAccount,
   FacebookIntegrationStatus,
@@ -79,7 +80,7 @@ export const disconnectFacebook = async (): Promise<void> => {
 export const triggerFacebookSync = async (): Promise<void> => {
   const url = getApiUrl("/api/v1/facebook/sync");
   const res = await fetchWithAuth(url, { method: "POST" });
-  if (!res.ok) throw new Error((await res.text()) || "Erro ao iniciar sincronização do Facebook");
+  if (!res.ok) throw await erroDaResposta(res, "Erro ao iniciar sincronização do Facebook");
 };
 
 export const validateFacebookToken = async (): Promise<{

@@ -157,7 +157,9 @@ const DashboardSidebar = ({ mobileMenuOpen = false, onMobileMenuClose }: Dashboa
                 <item.icon className={cn("w-5 h-5 flex-shrink-0", item.iconClass, isActive && !locked && "text-[#318CE9]")} aria-hidden="true" />
                 {(!collapsed || isMobile) && (
                   <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 min-w-0 flex-1">
-                    <span className={cn("font-medium", isActive && !locked && "text-white")}>{item.label}</span>
+                    {/* whitespace-nowrap: "Automação Instagram" quebrava em duas
+                        linhas e desalinhava o item do resto do menu. */}
+                    <span className={cn("font-medium whitespace-nowrap", isActive && !locked && "text-white")}>{item.label}</span>
                     {item.isNew && !locked && (
                       <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-primary/20 text-primary flex-shrink-0">
                         Novo
@@ -321,7 +323,9 @@ const DashboardSidebar = ({ mobileMenuOpen = false, onMobileMenuClose }: Dashboa
       className={cn(
         "bg-sidebar flex flex-col transition-all duration-300 border-sidebar-border",
         "hidden md:flex md:sticky md:top-0 md:h-screen md:border-r",
-        collapsed ? "md:w-20" : "md:w-64"
+        // w-72 e não w-64: "Automação Instagram" + cadeado pede 168px de texto
+        // e o item só tinha 144px — o rótulo invadia o ícone de cadeado.
+        collapsed ? "md:w-20" : "md:w-72"
       )}
       role="complementary"
       aria-label="Menu lateral"
