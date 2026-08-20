@@ -43,10 +43,12 @@ import { cn } from "@/shared/lib/utils";
 import type { InstagramAutomation } from "@/shared/types/instagram";
 import { useInstagramConnectionStore } from "@/stores/instagramConnectionStore";
 
+// O escopo `proximo` saiu na Rodada 1 de ajustes. O uso já cai no próprio valor
+// quando a chave não existe, então automação legada (não há nenhuma) mostraria
+// "proximo" cru em vez de rótulo vazio.
 const ROTULO_ESCOPO: Record<string, string> = {
   post_especifico: "Uma publicação",
   qualquer: "Qualquer publicação",
-  proximo: "Próxima publicação",
 };
 
 const AutomacaoCard = ({
