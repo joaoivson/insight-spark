@@ -31,7 +31,7 @@ import {
 import { useIsMobile } from "@/shared/hooks/use-mobile";
 import { usePlanStore } from "@/stores/planStore";
 import { PATH_TO_MENU } from "@/shared/lib/plans";
-import { UpgradeProModal } from "@/features/subscription/components/UpgradeProModal";
+import { UpgradePlanoModal } from "@/features/subscription/components/UpgradePlanoModal";
 import { isProductionHost } from "@/core/config/api.config";
 
 type MenuItem = {
@@ -81,6 +81,8 @@ const DashboardSidebar = ({ mobileMenuOpen = false, onMobileMenuClose }: Dashboa
   const isDemoRoute = location.pathname.startsWith("/demo");
   const [collapsed, setCollapsed] = useState(false);
   const [upgradeOpen, setUpgradeOpen] = useState(false);
+  // Qual menu a pessoa tentou abrir — o modal precisa disso pra oferecer Pro ou Max.
+  const [menuBloqueado, setMenuBloqueado] = useState<string | undefined>();
   const isMobile = useIsMobile();
   const { fetch: fetchPlan, allowsMenu } = usePlanStore();
   // Diagnóstico IA ainda não é pra produção — segue liberado em homologação
@@ -188,10 +190,11 @@ const DashboardSidebar = ({ mobileMenuOpen = false, onMobileMenuClose }: Dashboa
                     type="button"
                     className={classes}
                     onClick={() => {
+                      setMenuBloqueado(menuKey);
                       setUpgradeOpen(true);
                       handleNavClick();
                     }}
-                    aria-label={`${item.label} (plano Pro)`}
+                    aria-label={`${item.label} (requer upgrade de plano)`}
                   >
                     {itemContent}
                   </button>
@@ -294,7 +297,11 @@ const DashboardSidebar = ({ mobileMenuOpen = false, onMobileMenuClose }: Dashboa
           </button>
         )}
       </div>
-      <UpgradeProModal open={upgradeOpen} onOpenChange={setUpgradeOpen} />
+      <UpgradePlanoModal
+        open={upgradeOpen}
+        onOpenChange={setUpgradeOpen}
+        menuKey={menuBloqueado}
+      />
     </>
   );
 
