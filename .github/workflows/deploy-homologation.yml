@@ -57,12 +57,16 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # O passo antigo era um curl com `|| echo "Deployment triggered"`, que
+      # engolia qualquer falha (URL vazia, 404, timeout) e ainda imprimia
+      # sucesso. É o mesmo defeito que deixou o worker Celery com código de
+      # semanas atrás e o CI verde. O script confere o HTTP e falha alto.
       - name: Trigger Coolify deployment
+        env:
+          COOLIFY_TOKEN: ${{ secrets.COOLIFY_API_TOKEN }}
         run: |
-          curl -X POST "${{ secrets.COOLIFY_DEPLOY_URL_FRONTEND_HML }}" \
-            -H "Authorization: Bearer ${{ secrets.COOLIFY_API_TOKEN }}" \
-            -H "Content-Type: application/json" \
-            || echo "Deployment triggered"
+          chmod +x .github/scripts/trigger-deploy.sh
+          .github/scripts/trigger-deploy.sh frontend "${{ secrets.COOLIFY_DEPLOY_URL_FRONTEND_HML }}"
 
       - name: Deployment status
         run: |
