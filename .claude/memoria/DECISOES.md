@@ -27,6 +27,11 @@
 | — | **Telas diretas e enxutas**, sem texto auxiliar decorativo | Texto explicativo só onde há consequência real (ação destrutiva, limite de plano). O resto vira ruído que ninguém lê |
 | — | **Todo número alinhado à direita, com `tabular-nums`** | A usuária confere colunas contra o relatório da Shopee: casa decimal sob casa decimal faz a divergência saltar |
 | 2026-08-19 | **Recarrega a página automaticamente quando um chunk dinâmico falha** | Aba aberta desde antes do deploy pedia um chunk que não existe mais e quebrava em branco |
+| 2026-08-21 | **Seletor de emoji com lista curta escolhida a dedo, sem biblioteca** (`components/shared/EmojiPicker.tsx`) | Lib de emoji custa centenas de KB no bundle de uma tela que a aluna abre pelo celular; o conjunto usado numa mensagem de afiliado é pequeno e previsível |
+| 2026-08-21 | **O preview do Direct só mostra o botão com link E título** — a mesma condição do backend | Mostrar o botão só por ter link prometeria na tela algo que o envio não manda |
+| 2026-08-20 | **A grade de posts virou fileira de 4 + modal com busca**, e o modal carrega as páginas restantes ao abrir | A grade inteira (224 posts) empurrava os cards 2-4 para fora da tela. E filtrar só o que já foi paginado não acha o post procurado, que costuma estar no fim da lista |
+| 2026-08-20 | **Modal de upgrade decide o plano pelo `menuKey` bloqueado**, reusando `MAX_ONLY_MENUS` | Era fixo em "plano Pro" e oferecia o upgrade ERRADO para a Automação Instagram, que é exclusiva do Max |
+| 2026-08-20 | **Rótulo de menu não quebra linha** (`whitespace-nowrap`) e a sidebar foi para `w-72` | "Automação Instagram" pedia 168px num item de 144px: quebrava em duas linhas e, com nowrap sozinho, invadia o ícone de cadeado |
 
 ## Pendências
 
@@ -36,6 +41,7 @@
 | Média | **Badge de desconto do plano Pro** na página de vendas | Rodada da landing (11 seções em `features/landing/sales`) | Pendente |
 | Baixa | **`CLAUDE.md` diz proxy → 8081; o `vite.config.ts` aponta para 8000** | Quem segue o doc não conecta no backend | Pendente — corrigir o doc |
 | Baixa | **Dois `vite.config.ts.timestamp-*.mjs` versionados na raiz** | Artefato temporário do Vite | Pendente — apagar e ignorar |
+| ~~Alta~~ | ~~**Disparo de deploy engolia falha**~~ (`curl ... \|\| echo`, nos DOIS workflows) | Mesmo defeito que deixou o worker Celery com código velho por semanas | **Resolvido em 21/08** — usa o `trigger-deploy.sh` do backend, que confere o HTTP |
 
 ## Débitos técnicos
 

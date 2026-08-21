@@ -1,7 +1,7 @@
 # Contexto — MarketDash Frontend
 
 > **Estado atual do repositório.** Sobrescreva as seções ao mudarem — o
-> histórico vive em `DIARIO.md`. Última atualização: **2026-08-19**.
+> histórico vive em `DIARIO.md`. Última atualização: **2026-08-21**.
 >
 > Esta primeira versão foi montada por inspeção do código, do `CHANGELOG.md`
 > da raiz e do `git log` de `develop`. Onde ela divergir do código, **o
@@ -97,4 +97,9 @@ Não há suíte de teste automatizada. **A verificação é visual, via Playwrig
 
 - Badge de desconto do plano Pro na página de vendas.
 - Botão "Atualizar" do header é **dead code** desde a migração para SWR.
+- **Automação Instagram** (telas): Rodadas 1 e 2 no ar em homologação. Editor
+  com Card 1 em fileira de 4 + modal com busca, Card 3 com um campo por
+  variação, Card 4 em três campos (Mensagem / Link / Texto do botão) e seletor
+  de emoji nos Cards 3 e 4. Falta o **App Review** — sem ele, aluna comum nem
+  completa o OAuth.
 - Branch de trabalho: **`develop`**. Produção sai de `main`.
