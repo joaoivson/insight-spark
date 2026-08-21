@@ -65,6 +65,10 @@ export interface InstagramAutomation {
   resposta_publica_ativa: boolean;
   resposta_publica_variacoes: string[];
   dm_texto: string;
+  /** Link do botão do direct. NULL = automação antiga, que vai como texto puro. */
+  dm_link: string | null;
+  /** Título do botão (limite 20 no backend e na Meta). */
+  dm_botao_texto: string | null;
   status: AutomacaoStatus;
   created_at: string | null;
   updated_at: string | null;
@@ -86,5 +90,7 @@ export type InstagramAutomationPayload = Pick<
   | "resposta_publica_ativa"
   | "resposta_publica_variacoes"
   | "dm_texto"
+  | "dm_link"
+  | "dm_botao_texto"
   | "status"
 >;

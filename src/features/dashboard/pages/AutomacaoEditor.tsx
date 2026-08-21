@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
+import { EmojiPicker } from "@/components/shared/EmojiPicker";
 import { AutomacaoPreview } from "@/features/dashboard/components/AutomacaoPreview";
 import { InserirLinkModal } from "@/features/dashboard/components/InserirLinkModal";
 import { SelecionarPublicacao } from "@/features/dashboard/components/SelecionarPublicacao";
@@ -43,6 +44,8 @@ type EstadoForm = {
   resposta_publica_ativa: boolean;
   variacoes: string[];
   dm_texto: string;
+  dm_link: string;
+  dm_botao_texto: string;
 };
 
 const INICIAL: EstadoForm = {
@@ -57,6 +60,8 @@ const INICIAL: EstadoForm = {
   resposta_publica_ativa: true,
   variacoes: ["Te mandei no direct!", "Já foi pro seu direct", "Enviado! Corre lá no direct"],
   dm_texto: "",
+  dm_link: "",
+  dm_botao_texto: "Pegar o link",
 };
 
 /** Opção de rádio desenhada como cartão clicável (não há radio-group no design system). */
@@ -153,6 +158,8 @@ const AutomacaoEditor = () => {
           palavras: a.palavras,
           resposta_publica_ativa: a.resposta_publica_ativa,
           variacoes: (a.resposta_publica_variacoes || []).slice(0, MAX_VARIACOES),
+          dm_link: a.dm_link || "",
+          dm_botao_texto: a.dm_botao_texto || "",
           dm_texto: a.dm_texto,
         }),
       )
@@ -202,6 +209,8 @@ const AutomacaoEditor = () => {
     resposta_publica_ativa: form.resposta_publica_ativa,
     resposta_publica_variacoes: form.resposta_publica_ativa ? variacoes : [],
     dm_texto: form.dm_texto,
+    dm_link: form.dm_link.trim() || null,
+    dm_botao_texto: form.dm_botao_texto.trim() || null,
     status,
   });
 
@@ -415,11 +424,30 @@ const AutomacaoEditor = () => {
                       </Button>
                     </div>
                   ))}
-                  {form.variacoes.length < MAX_VARIACOES && (
-                    <Button variant="outline" size="sm" onClick={adicionarVariacao}>
-                      + Adicionar variação
-                    </Button>
-                  )}
+                  <div className="flex items-center gap-1">
+                    {form.variacoes.length < MAX_VARIACOES && (
+                      <Button variant="outline" size="sm" onClick={adicionarVariacao}>
+                        + Adicionar variação
+                      </Button>
+                    )}
+                    {/* Emoji entra na ÚLTIMA variação — é a que a aluna acabou
+                        de escrever quando procura o seletor. */}
+                    <EmojiPicker
+                      rotulo="Inserir emoji na variação"
+                      onEscolher={(emoji) =>
+                        setForm((f) => {
+                          if (f.variacoes.length === 0) return { ...f, variacoes: [emoji] };
+                          const ultima = f.variacoes.length - 1;
+                          return {
+                            ...f,
+                            variacoes: f.variacoes.map((v, i) =>
+                              i === ultima ? `${v}${emoji}` : v,
+                            ),
+                          };
+                        })
+                      }
+                    />
+                  </div>
                   {variacoes.length > 0 && variacoes.length < MIN_VARIACOES_RECOMENDADO && (
                     <p className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-500">
                       <AlertTriangle className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" />
@@ -436,20 +464,65 @@ const AutomacaoEditor = () => {
               titulo="Mensagem no direct"
               apoio="É a única mensagem que a pessoa vai receber."
             >
-              <Textarea
-                className="min-h-[120px]"
-                placeholder="Oi! Aqui está o link que você pediu: ..."
-                value={form.dm_texto}
-                onChange={(e) => setForm({ ...form, dm_texto: e.target.value })}
-                maxLength={950}
-              />
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <Button variant="outline" size="sm" onClick={() => setModalLink(true)}>
-                  <Link2 className="mr-2 h-3.5 w-3.5" /> Inserir link
-                </Button>
-                <span className="text-xs text-muted-foreground">
-                  {form.dm_texto.length} caracteres
-                </span>
+              {/* Rodada 2: mensagem, link e botão em campos separados. O link
+                  saiu de dentro do texto e vira um botão no direct — link cru no
+                  meio da mensagem parece spam. */}
+              <div className="space-y-1.5">
+                <Label htmlFor="dm-mensagem">Mensagem</Label>
+                <Textarea
+                  id="dm-mensagem"
+                  className="min-h-[110px]"
+                  placeholder="Oiie, aqui está o que você pediu"
+                  value={form.dm_texto}
+                  onChange={(e) => setForm({ ...form, dm_texto: e.target.value })}
+                  maxLength={950}
+                />
+                {/* Botão e contador na MESMA linha de base. */}
+                <div className="flex items-center justify-between gap-2">
+                  <EmojiPicker
+                    rotulo="Inserir emoji na mensagem"
+                    onEscolher={(emoji) =>
+                      setForm((f) => ({ ...f, dm_texto: `${f.dm_texto}${emoji}` }))
+                    }
+                  />
+                  <span className="text-xs text-muted-foreground">
+                    {form.dm_texto.length} caracteres
+                  </span>
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="dm-link">Link</Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="dm-link"
+                    placeholder="https://..."
+                    value={form.dm_link}
+                    onChange={(e) => setForm({ ...form, dm_link: e.target.value })}
+                  />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-shrink-0"
+                    onClick={() => setModalLink(true)}
+                  >
+                    <Link2 className="mr-2 h-3.5 w-3.5" /> Inserir link
+                  </Button>
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="dm-botao">Texto do botão</Label>
+                <Input
+                  id="dm-botao"
+                  placeholder="Pegar o link"
+                  value={form.dm_botao_texto}
+                  onChange={(e) => setForm({ ...form, dm_botao_texto: e.target.value })}
+                  maxLength={20}
+                />
+                <p className="text-xs text-muted-foreground">
+                  {form.dm_botao_texto.length}/20 caracteres
+                </p>
               </div>
             </CardNumerado>
           </div>
@@ -463,6 +536,8 @@ const AutomacaoEditor = () => {
               }
               respostaPublica={form.resposta_publica_ativa ? variacoes[0] : null}
               dmTexto={form.dm_texto}
+              dmLink={form.dm_link}
+              dmBotaoTexto={form.dm_botao_texto}
               usuario={connection?.ig_username}
             />
           </div>
@@ -495,12 +570,9 @@ const AutomacaoEditor = () => {
       <InserirLinkModal
         aberto={modalLink}
         onFechar={() => setModalLink(false)}
-        onInserir={(url) =>
-          setForm((f) => ({
-            ...f,
-            dm_texto: f.dm_texto ? `${f.dm_texto.trimEnd()} ${url}` : url,
-          }))
-        }
+        // O link agora tem campo próprio: escolher em Meus Links preenche o
+        // campo, não emenda no fim da mensagem.
+        onInserir={(url) => setForm((f) => ({ ...f, dm_link: url }))}
       />
     </DashboardLayout>
   );

@@ -30,12 +30,17 @@ export const AutomacaoPreview = ({
   palavraExemplo,
   respostaPublica,
   dmTexto,
+  dmLink,
+  dmBotaoTexto,
   usuario,
 }: {
   thumbnailUrl?: string | null;
   palavraExemplo: string;
   respostaPublica?: string | null;
   dmTexto: string;
+  /** Link do botão. Sem ele o direct sai como texto puro, igual antes. */
+  dmLink?: string | null;
+  dmBotaoTexto?: string | null;
   usuario?: string | null;
 }) => {
   const [aba, setAba] = useState("comentario");
@@ -111,6 +116,15 @@ export const AutomacaoPreview = ({
               ) : (
                 <span className="italic opacity-70">Escreva a mensagem do direct…</span>
               )}
+
+              {/* Template `button` da Meta: o link vira botão embaixo do texto,
+                  dentro da mesma bolha. Só aparece com link E título — é a mesma
+                  condição que o backend usa para montar o template. */}
+              {dmLink && dmBotaoTexto ? (
+                <span className="mt-2 block border-t border-white/25 pt-1.5 text-center text-[11px] font-semibold">
+                  {dmBotaoTexto}
+                </span>
+              ) : null}
             </div>
             <p className="pt-1 text-center text-[10px] text-zinc-600">
               Se a pessoa não te segue, isso cai na pasta Solicitações.
