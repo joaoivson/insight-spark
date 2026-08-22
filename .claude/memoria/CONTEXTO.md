@@ -29,10 +29,10 @@ Components → Zustand stores → services/*.service.ts → core/config/api.conf
 Componente **nunca** chama API direto.
 
 - `src/features/` — `auth`, `dashboard`, `admin`, `landing` (+ `sales`),
-  `subscription`, `diagnostico`
+  `subscription`
 - `src/stores/` — 9 stores (dataset, adSpends, clicks, campaigns, plan,
   adminPanel, facebookConnection, instagramConnection, taxSettings)
-- `src/services/` — 23 services
+- `src/services/` — 22 services
 - `src/hooks/queries/` — `useAdSpends`, `useClicks`, `useDatasetRows`
 - `src/components/ui/` — shadcn, **não modificar**; estender via wrapper
 - `src/components/shared/` — `DataCard`, `ResponsiveModal`,
@@ -64,8 +64,8 @@ paralelas); **403 de assinatura** → modal/checkout conforme a rota.
 
 `isProductionHost()` compara o host por **igualdade exata** — `.includes()`
 classificaria `hml.marketdash.com.br` como produção, porque contém
-`marketdash.com.br` como substring. É essa função que **esconde Diagnóstico
-IA e a aba WhatsApp em produção**.
+`marketdash.com.br` como substring. É essa função que **esconde a aba
+WhatsApp em produção**.
 
 ## Gating por plano
 

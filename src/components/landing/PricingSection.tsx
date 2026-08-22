@@ -20,7 +20,7 @@ const PricingSection = () => {
     "ROAS, ROI e CPA por campanha",
     "Importação de CSV ilimitada",
     "Gestão de gastos com anúncios",
-    "IA, tempo real e WhatsApp inclusos (em breve)",
+    "Tempo real e WhatsApp inclusos (em breve)",
   ];
 
   useEffect(() => {
@@ -378,7 +378,7 @@ const PricingSection = () => {
           className="mt-12 text-center"
         >
           <p className="text-muted-foreground text-sm">
-            Em breve: Módulos avançados de IA, integrações via API e muito mais.
+            Em breve: Integrações via API e muito mais.
           </p>
         </motion.div>
       </div>

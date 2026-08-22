@@ -1,7 +1,7 @@
 import { motion } from "framer-motion";
 import {
   DollarSign, Hash, SlidersHorizontal, Plug,
-  Activity, MessageCircle, Sparkles, Bot,
+  Activity, MessageCircle,
   type LucideIcon,
 } from "lucide-react";
 
@@ -50,20 +50,6 @@ const benefits: Benefit[] = [
     title: "Disparos no WhatsApp",
     description: "Envie suas promoções para listas de contatos e grupos direto do painel, com ritmo seguro para não derrubar seu número.",
     impact: "Venda mais",
-    soon: true,
-  },
-  {
-    icon: Sparkles,
-    title: "IA: o que escalar e o que pausar",
-    description: "A inteligência analisa cada campanha e Sub ID e te entrega a ação do dia: escalar a vencedora, matar a perdedora.",
-    impact: "Decisão guiada",
-    soon: true,
-  },
-  {
-    icon: Bot,
-    title: "Chat de IA do seu negócio",
-    description: "Pergunte 'qual minha melhor campanha?' e tenha resposta baseada nos seus números reais — sem planilha, sem achismo.",
-    impact: "Seu copiloto",
     soon: true,
   },
 ];

@@ -36,7 +36,7 @@ const CONTEUDO = {
       "Automação de Instagram: comentou a palavra-chave, recebe o direct",
       "Resposta pública automática no comentário",
       "Páginas de captura e links rastreáveis ilimitados",
-      "1.000 créditos de IA por mês",
+      "Todos os recursos do plano Pro inclusos",
     ],
   },
 } as const;

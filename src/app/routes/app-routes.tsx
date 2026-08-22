@@ -40,7 +40,6 @@ import Campanhas from "@/features/dashboard/pages/Campanhas";
 import Automacoes from "@/features/dashboard/pages/Automacoes";
 import AutomacaoEditor from "@/features/dashboard/pages/AutomacaoEditor";
 import AutomacoesCallback from "@/features/dashboard/pages/AutomacoesCallback";
-import DiagnosticoIA from "@/features/diagnostico/pages/DiagnosticoIA";
 import Configuracoes from "@/features/dashboard/pages/Configuracoes";
 import IndiquePage from "@/features/dashboard/pages/IndiquePage";
 import AfiliadosPage from "@/features/dashboard/pages/Afiliados";
@@ -211,10 +210,6 @@ export const AppRoutes = () => {
         <Route
           path="/dashboard/automacoes/:id"
           element={<ProtectedRoute element={<RequirePlan menuKey="automacoes" element={<AutomacaoEditor />} />} />}
-        />
-        <Route
-          path="/dashboard/diagnostico-ia"
-          element={<ProtectedRoute element={<RequirePlan menuKey="diagnostico_ia" element={<DiagnosticoIA />} />} />}
         />
         <Route path="/dashboard/configuracoes" element={<ProtectedRoute element={<Configuracoes />} />} />
         <Route path="/dashboard/planos" element={<ProtectedRoute element={<PlanosPage />} />} />

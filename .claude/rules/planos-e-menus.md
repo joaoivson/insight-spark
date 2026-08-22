@@ -22,11 +22,11 @@ funcionando.
 Plano ou limite novo entra **nos dois, no mesmo commit** — senão o gating
 diverge e a usuária vê o menu e toma 403.
 
-| Plano | Menus | Páginas / Links / Créditos IA |
+| Plano | Menus | Páginas / Links |
 |---|---|---|
-| `essencial` | dashboard, campanhas, upload de cliques, indique, configurações, planos | 0 / 0 / 0 |
-| `pro` | + captura, meus links, diagnóstico IA | 15 / 30 / 200 |
-| `max` | + **automações (Instagram)** | **-1 / -1** / 1000 |
+| `essencial` | dashboard, campanhas, upload de cliques, indique, configurações, planos | 0 / 0 |
+| `pro` | + captura, meus links | 15 / 30 |
+| `max` | + **automações (Instagram)** | **-1 / -1** |
 
 **`-1` significa ilimitado.** Renderizar o valor cru mostra "-1" na tela —
 trate a sentinela antes de exibir.
@@ -41,9 +41,8 @@ Kiwify.
 
 ## Oculto em produção
 
-`isProductionHost()` (`core/config/api.config.ts`) esconde **Diagnóstico IA**
-e a **aba WhatsApp** em produção — ficam disponíveis em homologação para
-validação.
+`isProductionHost()` (`core/config/api.config.ts`) esconde a **aba WhatsApp**
+em produção — fica disponível em homologação para validação.
 
 A comparação é por **igualdade exata** do hostname. **Nunca troque por
 `.includes()`**: `hml.marketdash.com.br` contém `marketdash.com.br` como

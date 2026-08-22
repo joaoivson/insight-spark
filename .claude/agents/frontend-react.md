@@ -18,9 +18,9 @@ Tailwind · React Router · Recharts · Supabase Auth. Tema **dark** por padrão
 ## Estrutura
 
 - `src/features/` — `auth`, `dashboard`, `admin`, `landing` (+ `sales`),
-  `subscription`, `diagnostico`
+  `subscription`
 - `src/stores/` — 9 stores Zustand
-- `src/services/` — 23 `*.service.ts`
+- `src/services/` — 22 `*.service.ts`
 - `src/hooks/queries/` — React Query (`useAdSpends`, `useClicks`,
   `useDatasetRows`)
 - `src/components/ui/` — shadcn, **não modificar**

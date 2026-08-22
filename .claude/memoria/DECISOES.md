@@ -13,7 +13,7 @@
 | — | **shadcn/ui em `components/ui/` não se modifica** — estende via wrapper | `npx shadcn add` sobrescreve o arquivo; customização feita dentro dele evapora sem aviso |
 | — | **Tema dark é o padrão** e as cores saem das variáveis do tema | Cor hardcoded quebra no dia do tema claro e não aparece em review |
 | — | **`isProductionHost()` compara host por igualdade exata**, nunca `.includes()` | `hml.marketdash.com.br` **contém** `marketdash.com.br` — `includes` classificaria homologação como produção e esconderia features do ambiente onde elas são testadas |
-| 2026-08-11 | **Diagnóstico IA e aba WhatsApp ficam ocultos em produção** por `isProductionHost()` | Features em maturação: ficam disponíveis em hml para validação sem expor à base pagante |
+| 2026-08-11 | **A aba WhatsApp fica oculta em produção** por `isProductionHost()` | Feature em maturação: fica disponível em hml para validação sem expor à base pagante |
 | — | **`fetchWithAuth` injeta `user_id` como query param além do header** | Compatibilidade com endpoints antigos. **Consequência que virou regra do backend:** endpoint novo não pode usar `user_id` como nome de query param |
 | — | **401 tenta renovar a sessão do Supabase UMA vez antes de deslogar** | Com requests paralelas, deslogar no primeiro 401 deixava a tela montar pela metade. Se a renovação falhar, desloga — sem dado falso |
 | 2026-08-07 | **Stores usam stale-while-revalidate** (padrão do `adSpendsStore` replicado em `datasetStore` e `clicksStore`) | Sem revalidação, o cache em localStorage servia dado velho: celular e PC do mesmo usuário mostravam números diferentes |

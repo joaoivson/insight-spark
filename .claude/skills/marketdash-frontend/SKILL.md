@@ -18,7 +18,6 @@ está no lucro. Consulta muito pelo **celular**.
 | `auth` | login, cadastro, definir/recuperar senha |
 | `subscription` | planos, checkout, estado da assinatura |
 | `landing` | landing pública + `sales` (11 seções, links Kiwify por plano/período) |
-| `diagnostico` | Diagnóstico IA (**oculto em produção**) |
 
 Rotas em `src/app/routes/app-routes.tsx`, com `RequireAdmin` e `RequirePlan`.
 
@@ -47,7 +46,7 @@ correta, mesmo se o `VITE_API_URL` do build estiver errado:
 `isProductionHost()` compara por **igualdade exata**. `.includes()`
 classificaria `hml.marketdash.com.br` como produção (contém a string) e
 esconderia, justamente em homologação, as features que só existem para serem
-testadas lá. É essa função que oculta **Diagnóstico IA** e a aba **WhatsApp**
+testadas lá. É essa função que oculta a aba **WhatsApp**
 em produção.
 
 Tudo que começa com `VITE_` vai para o bundle e é **público**. Segredo nunca

@@ -1,6 +1,6 @@
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { motion } from "framer-motion";
-import { BarChart3, Link2, Brain, Lock, ArrowRight } from "lucide-react";
+import { BarChart3, Link2, Lock, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
@@ -18,13 +18,6 @@ const modules = [
     description: "Conecte diretamente com suas plataformas de vendas e atualize dados automaticamente.",
     status: "coming_soon",
     features: ["Hotmart", "Eduzz", "Kiwify", "Monetizze"],
-  },
-  {
-    icon: Brain,
-    title: "Insights Inteligentes",
-    description: "IA que analisa seus dados e sugere ações para aumentar seus resultados.",
-    status: "coming_soon",
-    features: ["Recomendações personalizadas", "Detecção de anomalias", "Relatórios automáticos"],
   },
 ];
 

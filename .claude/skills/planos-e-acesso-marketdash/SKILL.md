@@ -31,11 +31,11 @@ continuam funcionando. A rota precisa estar envolvida em `RequirePlan`.
 Plano, menu ou limite novo entra **nos dois, no mesmo commit**. Se divergir, a
 usuária vê o menu e toma 403 — ou não vê um menu que pagou.
 
-| Plano | Menus | Páginas / Links / Créditos IA |
+| Plano | Menus | Páginas / Links |
 |---|---|---|
-| `essencial` | dashboard, campanhas, upload de cliques, indique, configurações, planos | 0 / 0 / 0 |
-| `pro` | + captura, meus links, diagnóstico IA | 15 / 30 / 200 |
-| `max` | + **automações (Instagram)** | **-1 / -1** / 1000 |
+| `essencial` | dashboard, campanhas, upload de cliques, indique, configurações, planos | 0 / 0 |
+| `pro` | + captura, meus links | 15 / 30 |
+| `max` | + **automações (Instagram)** | **-1 / -1** |
 
 `max` está **fora da página de vendas**: entra só por link direto da Kiwify.
 
@@ -56,8 +56,8 @@ que ele acha que entendeu.
 
 ## Oculto em produção
 
-`isProductionHost()` esconde **Diagnóstico IA** e a aba **WhatsApp** em
-produção; em homologação eles aparecem, para validação.
+`isProductionHost()` esconde a aba **WhatsApp** em produção; em homologação
+ela aparece, para validação.
 
 A comparação é por **igualdade exata** do hostname. **Nunca troque por
 `.includes()`**: `hml.marketdash.com.br` contém `marketdash.com.br` como

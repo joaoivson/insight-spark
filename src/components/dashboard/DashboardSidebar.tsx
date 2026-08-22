@@ -10,7 +10,6 @@ import {
   Link2,
   Target,
   Settings,
-  Sparkles,
   Gift,
   Lock,
   type LucideIcon, Instagram as InstagramIcon } from "lucide-react";
@@ -32,7 +31,6 @@ import { useIsMobile } from "@/shared/hooks/use-mobile";
 import { usePlanStore } from "@/stores/planStore";
 import { PATH_TO_MENU } from "@/shared/lib/plans";
 import { UpgradePlanoModal } from "@/features/subscription/components/UpgradePlanoModal";
-import { isProductionHost } from "@/core/config/api.config";
 
 type MenuItem = {
   icon: LucideIcon;
@@ -48,7 +46,6 @@ type MenuItem = {
 const menuItems: MenuItem[] = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard", menuKey: "dashboard" },
   { icon: Target, label: "Campanhas", path: "/dashboard/campanhas", isNew: true, menuKey: "campanhas" },
-  { icon: Sparkles, label: "Diagnóstico IA", path: "/dashboard/diagnostico-ia", isNew: true, menuKey: "diagnostico_ia" },
   { icon: MousePointerClick, label: "Upload Cliques", path: "/dashboard/upload-cliques", menuKey: "upload_cliques" },
   { icon: Globe, label: "Página de Captura", path: "/dashboard/captura", menuKey: "captura" },
   { icon: Link2, label: "Meus Links", path: "/dashboard/links", menuKey: "meus_links" },
@@ -85,11 +82,6 @@ const DashboardSidebar = ({ mobileMenuOpen = false, onMobileMenuClose }: Dashboa
   const [menuBloqueado, setMenuBloqueado] = useState<string | undefined>();
   const isMobile = useIsMobile();
   const { fetch: fetchPlan, allowsMenu } = usePlanStore();
-  // Diagnóstico IA ainda não é pra produção — segue liberado em homologação
-  // pra continuar em teste. Item some do menu, não fica só travado com cadeado.
-  const visibleMenu = isProductionHost()
-    ? menuItems.filter((item) => item.menuKey !== "diagnostico_ia")
-    : menuItems;
 
   useEffect(() => {
     if (!isDemoRoute) void fetchPlan();
@@ -141,7 +133,7 @@ const DashboardSidebar = ({ mobileMenuOpen = false, onMobileMenuClose }: Dashboa
 
       <nav className="flex-1 py-4 md:py-6 px-3 overflow-y-auto" aria-label="Navegação principal">
         <ul className="flex flex-col gap-1" role="list">
-          {visibleMenu.map((item) => {
+          {menuItems.map((item) => {
             const menuKey = item.menuKey || (item.path ? PATH_TO_MENU[item.path] : undefined);
             const locked = !isDemoRoute && !!menuKey && !allowsMenu(menuKey);
             const isActive = !!item.path && location.pathname === item.path && !isDemoRoute;
