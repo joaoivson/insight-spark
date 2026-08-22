@@ -62,6 +62,7 @@ import {
 } from "@/services/campaigns.service";
 import { getFacebookStatus, triggerFacebookSync } from "@/services/facebook.service";
 import { FacebookConnectionBanner } from "@/features/dashboard/components/FacebookConnectionBanner";
+import { PlatformBreakdownCard } from "@/features/dashboard/components/PlatformBreakdownCard";
 import { DemoDataBanner } from "@/features/dashboard/components/DemoDataBanner";
 import { useFacebookConnectionStore } from "@/stores/facebookConnectionStore";
 import { usePlanStore } from "@/stores/planStore";
@@ -455,6 +456,13 @@ const Campanhas = () => {
         )}
 
         {error && <p className="text-sm text-destructive">{error}</p>}
+
+        {/* Veiculação por plataforma (Instagram vs Facebook) — some sozinho quando
+            ainda não há breakdown sincronizado, então não polui a tela de quem
+            acabou de conectar. */}
+        {!showEmptyState && !initialLoading && (
+          <PlatformBreakdownCard startDate={range.startDate} endDate={range.endDate} />
+        )}
 
         {/* Lista */}
         {showEmptyState ? (

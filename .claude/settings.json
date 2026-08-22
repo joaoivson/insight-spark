@@ -1,0 +1,40 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npx prettier:*)",
+      "Bash(npx shadcn:*)",
+      "Bash(npx playwright:*)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "timeout": 10000,
+            "command": "python3 -c \"\nimport json, sys\nd = json.load(sys.stdin)\nf = (d.get('tool_input') or {}).get('file_path', '')\nif '/src/components/ui/' in f:\n    sys.stderr.write('BLOQUEADO: componentes shadcn em src/components/ui/ nao se editam - npx shadcn add sobrescreve o arquivo e a customizacao some sem aviso. Crie um wrapper em src/components/shared/.\\n')\n    sys.exit(2)\nsys.exit(0)\n\""
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "timeout": 15000,
+            "command": "python3 -c \"\nimport json, sys, subprocess\nd = json.load(sys.stdin)\nf = (d.get('tool_input') or {}).get('file_path', '')\nif f.endswith(('.ts', '.tsx', '.js', '.jsx')):\n    subprocess.run(['npx', 'prettier', '--write', f], capture_output=True)\nif '/src/stores/' in f:\n    print('LEMBRETE: store novo/alterado precisa de stale-while-revalidate (hidrata da cache + revalida em background) e chave escopada por usuario - ver o adSpendsStore.')\nif '/src/app/routes/' in f:\n    print('LEMBRETE: tela de plano precisa estar envolvida em RequirePlan - esconder o item de menu nao protege link direto.')\nif '/shared/lib/plans.ts' in f:\n    print('LEMBRETE: este catalogo espelha marketdash-backend/app/core/plans.py - mude os dois no mesmo commit, senao o gating diverge.')\nsys.exit(0)\n\""
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -32,7 +32,6 @@ export const FEATURES: Record<PlanId, PlanConfig> = {
       "upload_cliques",
       "captura",
       "meus_links",
-      "diagnostico_ia",
       "indique_ganhe",
       "configuracoes",
       "planos",
@@ -47,7 +46,8 @@ export const FEATURES: Record<PlanId, PlanConfig> = {
       "upload_cliques",
       "captura",
       "meus_links",
-      "diagnostico_ia",
+      // Automação Instagram (comentário → direct) é exclusiva do MAX.
+      "automacoes",
       "indique_ganhe",
       "configuracoes",
       "planos",
@@ -63,7 +63,10 @@ export function isUnlimited(value: number): boolean {
   return value === UNLIMITED;
 }
 
-export const PRO_ONLY_MENUS = new Set(["captura", "meus_links", "diagnostico_ia"]);
+export const PRO_ONLY_MENUS = new Set(["captura", "meus_links"]);
+
+/** Menus exclusivos do MAX (cadeado no Essencial E no Pro). */
+export const MAX_ONLY_MENUS = new Set(["automacoes"]);
 
 export const CHECKOUT_LINKS: Record<
   string,

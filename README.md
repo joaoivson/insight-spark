@@ -121,7 +121,6 @@ O frontend consome o backend FastAPI com PostgreSQL (Supabase):
 - [ ] Exportacao de relatorios (PDF/CSV)
 - [ ] Multiplos datasets
 - [ ] Sistema de pagamentos (Stripe)
-- [ ] Modulos avancados de IA
 - [ ] Integracoes via API (Hotmart, Eduzz, Kiwify, Monetizze)
 
 ## 📄 Licença

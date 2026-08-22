@@ -10,11 +10,9 @@ import {
   Link2,
   Target,
   Settings,
-  Sparkles,
   Gift,
   Lock,
-  type LucideIcon,
-} from "lucide-react";
+  type LucideIcon, Instagram as InstagramIcon } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
@@ -32,8 +30,7 @@ import {
 import { useIsMobile } from "@/shared/hooks/use-mobile";
 import { usePlanStore } from "@/stores/planStore";
 import { PATH_TO_MENU } from "@/shared/lib/plans";
-import { UpgradeProModal } from "@/features/subscription/components/UpgradeProModal";
-import { isProductionHost } from "@/core/config/api.config";
+import { UpgradePlanoModal } from "@/features/subscription/components/UpgradePlanoModal";
 
 type MenuItem = {
   icon: LucideIcon;
@@ -49,10 +46,12 @@ type MenuItem = {
 const menuItems: MenuItem[] = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard", menuKey: "dashboard" },
   { icon: Target, label: "Campanhas", path: "/dashboard/campanhas", isNew: true, menuKey: "campanhas" },
-  { icon: Sparkles, label: "Diagnóstico IA", path: "/dashboard/diagnostico-ia", isNew: true, menuKey: "diagnostico_ia" },
   { icon: MousePointerClick, label: "Upload Cliques", path: "/dashboard/upload-cliques", menuKey: "upload_cliques" },
   { icon: Globe, label: "Página de Captura", path: "/dashboard/captura", menuKey: "captura" },
   { icon: Link2, label: "Meus Links", path: "/dashboard/links", menuKey: "meus_links" },
+  // Entre Meus Links e Indique & Ganhe, conforme o spec. menuKey "automacoes"
+  // só existe no plano MAX — nos demais o item aparece com cadeado.
+  { icon: InstagramIcon, label: "Automação Instagram", path: "/dashboard/automacoes", isNew: true, menuKey: "automacoes" },
   { icon: Gift, label: "Indique & Ganhe", path: "/dashboard/indique", iconClass: "text-[#F0A94A]", menuKey: "indique_ganhe" },
   { icon: Settings, label: "Configurações", path: "/dashboard/configuracoes", menuKey: "configuracoes" },
 ];
@@ -79,13 +78,10 @@ const DashboardSidebar = ({ mobileMenuOpen = false, onMobileMenuClose }: Dashboa
   const isDemoRoute = location.pathname.startsWith("/demo");
   const [collapsed, setCollapsed] = useState(false);
   const [upgradeOpen, setUpgradeOpen] = useState(false);
+  // Qual menu a pessoa tentou abrir — o modal precisa disso pra oferecer Pro ou Max.
+  const [menuBloqueado, setMenuBloqueado] = useState<string | undefined>();
   const isMobile = useIsMobile();
   const { fetch: fetchPlan, allowsMenu } = usePlanStore();
-  // Diagnóstico IA ainda não é pra produção — segue liberado em homologação
-  // pra continuar em teste. Item some do menu, não fica só travado com cadeado.
-  const visibleMenu = isProductionHost()
-    ? menuItems.filter((item) => item.menuKey !== "diagnostico_ia")
-    : menuItems;
 
   useEffect(() => {
     if (!isDemoRoute) void fetchPlan();
@@ -137,7 +133,7 @@ const DashboardSidebar = ({ mobileMenuOpen = false, onMobileMenuClose }: Dashboa
 
       <nav className="flex-1 py-4 md:py-6 px-3 overflow-y-auto" aria-label="Navegação principal">
         <ul className="flex flex-col gap-1" role="list">
-          {visibleMenu.map((item) => {
+          {menuItems.map((item) => {
             const menuKey = item.menuKey || (item.path ? PATH_TO_MENU[item.path] : undefined);
             const locked = !isDemoRoute && !!menuKey && !allowsMenu(menuKey);
             const isActive = !!item.path && location.pathname === item.path && !isDemoRoute;
@@ -155,7 +151,9 @@ const DashboardSidebar = ({ mobileMenuOpen = false, onMobileMenuClose }: Dashboa
                 <item.icon className={cn("w-5 h-5 flex-shrink-0", item.iconClass, isActive && !locked && "text-[#318CE9]")} aria-hidden="true" />
                 {(!collapsed || isMobile) && (
                   <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 min-w-0 flex-1">
-                    <span className={cn("font-medium", isActive && !locked && "text-white")}>{item.label}</span>
+                    {/* whitespace-nowrap: "Automação Instagram" quebrava em duas
+                        linhas e desalinhava o item do resto do menu. */}
+                    <span className={cn("font-medium whitespace-nowrap", isActive && !locked && "text-white")}>{item.label}</span>
                     {item.isNew && !locked && (
                       <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-primary/20 text-primary flex-shrink-0">
                         Novo
@@ -184,10 +182,11 @@ const DashboardSidebar = ({ mobileMenuOpen = false, onMobileMenuClose }: Dashboa
                     type="button"
                     className={classes}
                     onClick={() => {
+                      setMenuBloqueado(menuKey);
                       setUpgradeOpen(true);
                       handleNavClick();
                     }}
-                    aria-label={`${item.label} (plano Pro)`}
+                    aria-label={`${item.label} (requer upgrade de plano)`}
                   >
                     {itemContent}
                   </button>
@@ -290,7 +289,11 @@ const DashboardSidebar = ({ mobileMenuOpen = false, onMobileMenuClose }: Dashboa
           </button>
         )}
       </div>
-      <UpgradeProModal open={upgradeOpen} onOpenChange={setUpgradeOpen} />
+      <UpgradePlanoModal
+        open={upgradeOpen}
+        onOpenChange={setUpgradeOpen}
+        menuKey={menuBloqueado}
+      />
     </>
   );
 
@@ -319,7 +322,9 @@ const DashboardSidebar = ({ mobileMenuOpen = false, onMobileMenuClose }: Dashboa
       className={cn(
         "bg-sidebar flex flex-col transition-all duration-300 border-sidebar-border",
         "hidden md:flex md:sticky md:top-0 md:h-screen md:border-r",
-        collapsed ? "md:w-20" : "md:w-64"
+        // w-72 e não w-64: "Automação Instagram" + cadeado pede 168px de texto
+        // e o item só tinha 144px — o rótulo invadia o ícone de cadeado.
+        collapsed ? "md:w-20" : "md:w-72"
       )}
       role="complementary"
       aria-label="Menu lateral"

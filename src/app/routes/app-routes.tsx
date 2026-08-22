@@ -26,6 +26,7 @@ import CaptureViewer from "@/features/landing/pages/CaptureViewer";
 import LinkRedirect from "@/features/landing/pages/LinkRedirect";
 import PrivacyPolicy from "@/features/landing/pages/PrivacyPolicy";
 import TermsOfService from "@/features/landing/pages/TermsOfService";
+import ExclusaoDeDados from "@/features/landing/pages/ExclusaoDeDados";
 import SubscriptionPage from "@/features/subscription/pages/SubscriptionPage";
 import SubscriptionSuccess from "@/features/subscription/pages/SubscriptionSuccess";
 import SubscriptionError from "@/features/subscription/pages/SubscriptionError";
@@ -36,7 +37,9 @@ import NotFound from "@/shared/pages/NotFound";
 import IntegrationsPage from "@/features/dashboard/pages/Integrations";
 import ImpostosMeta from "@/features/dashboard/pages/ImpostosMeta";
 import Campanhas from "@/features/dashboard/pages/Campanhas";
-import DiagnosticoIA from "@/features/diagnostico/pages/DiagnosticoIA";
+import Automacoes from "@/features/dashboard/pages/Automacoes";
+import AutomacaoEditor from "@/features/dashboard/pages/AutomacaoEditor";
+import AutomacoesCallback from "@/features/dashboard/pages/AutomacoesCallback";
 import Configuracoes from "@/features/dashboard/pages/Configuracoes";
 import IndiquePage from "@/features/dashboard/pages/IndiquePage";
 import AfiliadosPage from "@/features/dashboard/pages/Afiliados";
@@ -161,6 +164,9 @@ export const AppRoutes = () => {
         <Route path="/login" element={<Login />} />
         <Route path="/privacy" element={<PrivacyPolicy />} />
         <Route path="/terms" element={<TermsOfService />} />
+        {/* Destino da "Data deletion request URL" da Meta. Precisa ser público:
+            quem chega aqui acabou de remover o app e não está autenticado. */}
+        <Route path="/exclusao-de-dados" element={<ExclusaoDeDados />} />
 
         {/* Auth Routes */}
         <Route path="/auth/set-password" element={<SetPasswordPage />} />
@@ -185,9 +191,25 @@ export const AppRoutes = () => {
         <Route path="/dashboard/settings" element={<ProtectedRoute element={<Settings />} />} />
         {/* "Custos de Anúncios" (/dashboard/investimentos) removido: gasto vem 100% da API Meta. */}
         <Route path="/dashboard/campanhas" element={<ProtectedRoute element={<Campanhas />} />} />
+        {/* Callback do OAuth do Instagram — rota própria pra não colidir com o ?code do
+            Facebook, que é lido na tela de Configurações. Fica ANTES de /:id para o
+            "callback" não ser lido como id de automação, e FORA do RequirePlan: a
+            conexão precisa concluir mesmo se o plano mudar no meio do caminho. */}
         <Route
-          path="/dashboard/diagnostico-ia"
-          element={<ProtectedRoute element={<RequirePlan menuKey="diagnostico_ia" element={<DiagnosticoIA />} />} />}
+          path="/dashboard/automacoes/callback"
+          element={<ProtectedRoute element={<AutomacoesCallback />} />}
+        />
+        <Route
+          path="/dashboard/automacoes"
+          element={<ProtectedRoute element={<RequirePlan menuKey="automacoes" element={<Automacoes />} />} />}
+        />
+        <Route
+          path="/dashboard/automacoes/nova"
+          element={<ProtectedRoute element={<RequirePlan menuKey="automacoes" element={<AutomacaoEditor />} />} />}
+        />
+        <Route
+          path="/dashboard/automacoes/:id"
+          element={<ProtectedRoute element={<RequirePlan menuKey="automacoes" element={<AutomacaoEditor />} />} />}
         />
         <Route path="/dashboard/configuracoes" element={<ProtectedRoute element={<Configuracoes />} />} />
         <Route path="/dashboard/planos" element={<ProtectedRoute element={<PlanosPage />} />} />

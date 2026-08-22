@@ -57,12 +57,15 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # Mesmo motivo do workflow de homologação: o `|| echo` engolia falha de
+      # disparo e imprimia sucesso. Em produção isso é pior — ninguém percebe
+      # que o site ficou na versão anterior.
       - name: Trigger Coolify deployment
+        env:
+          COOLIFY_TOKEN: ${{ secrets.COOLIFY_API_TOKEN }}
         run: |
-          curl -X POST "${{ secrets.COOLIFY_DEPLOY_URL_FRONTEND_PROD }}" \
-            -H "Authorization: Bearer ${{ secrets.COOLIFY_API_TOKEN }}" \
-            -H "Content-Type: application/json" \
-            || echo "Deployment triggered"
+          chmod +x .github/scripts/trigger-deploy.sh
+          .github/scripts/trigger-deploy.sh frontend "${{ secrets.COOLIFY_DEPLOY_URL_FRONTEND_PROD }}"
 
       - name: Deployment status
         run: |

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ShoppingBag, Facebook, Receipt, Save, Loader2, CreditCard, MessageCircle } from "lucide-react";
+import { ShoppingBag, Facebook, Instagram, Receipt, Save, Loader2, CreditCard, MessageCircle } from "lucide-react";
 import { Link } from "react-router-dom";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { ShopeeIntegrationSettings } from "@/features/dashboard/components/ShopeeIntegrationSettings";
 import { FacebookIntegrationSettings } from "@/features/dashboard/components/FacebookIntegrationSettings";
+import { InstagramConnectionSettings } from "@/features/dashboard/components/InstagramConnectionSettings";
 import { WhatsappResumoSettings } from "@/features/dashboard/components/WhatsappResumoSettings";
 import { useTaxSettingsStore } from "@/stores/taxSettingsStore";
 import { usePlanStore } from "@/stores/planStore";
@@ -21,7 +22,7 @@ const resolveInitialTab = (): string => {
   const params = new URLSearchParams(window.location.search);
   if (params.get("code") || params.get("error")) return "facebook";
   const t = params.get("tab");
-  if (t === "facebook" || t === "shopee" || t === "impostos" || t === "assinatura") return t;
+  if (t === "facebook" || t === "shopee" || t === "instagram" || t === "impostos" || t === "assinatura") return t;
   if (t === "whatsapp" && !isProductionHost()) return t;
   return "shopee";
 };
@@ -34,12 +35,15 @@ const Configuracoes = () => {
     <DashboardLayout title="Configurações">
       <Tabs value={tab} onValueChange={setTab} className="max-w-3xl">
         <div className="-mx-4 px-4 md:mx-0 md:px-0 overflow-x-auto mb-6">
-          <TabsList className="w-max">
+          <TabsList className="w-max sm:w-full sm:justify-start">
             <TabsTrigger value="shopee" className="gap-2 whitespace-nowrap">
-              <ShoppingBag className="w-4 h-4" /> <span className="hidden sm:inline">Integração</span> Shopee
+              <ShoppingBag className="w-4 h-4" /> Shopee
             </TabsTrigger>
             <TabsTrigger value="facebook" className="gap-2 whitespace-nowrap">
-              <Facebook className="w-4 h-4" /> <span className="hidden sm:inline">Integração</span> Facebook
+              <Facebook className="w-4 h-4" /> Facebook
+            </TabsTrigger>
+            <TabsTrigger value="instagram" className="gap-2 whitespace-nowrap">
+              <Instagram className="w-4 h-4" /> Instagram
             </TabsTrigger>
             {showWhatsapp && (
               <TabsTrigger value="whatsapp" className="gap-2 whitespace-nowrap">
@@ -87,6 +91,24 @@ const Configuracoes = () => {
               </div>
             </div>
             <FacebookIntegrationSettings />
+          </div>
+        </TabsContent>
+
+        <TabsContent value="instagram">
+          <div className="bg-card border border-border rounded-2xl p-5 md:p-6">
+            <div className="flex items-start gap-3 md:gap-4 mb-5">
+              <div className="w-11 h-11 md:w-12 md:h-12 rounded-xl bg-pink-500/10 flex items-center justify-center flex-shrink-0">
+                <Instagram className="w-6 h-6 text-pink-500" />
+              </div>
+              <div className="min-w-0">
+                <h3 className="text-lg font-bold text-foreground">Instagram</h3>
+                <p className="text-sm text-muted-foreground">
+                  Conexão usada pela <strong>Automação Instagram</strong> (comentário → direct).
+                  É independente da conexão do Meta Ads: outro login, outro token.
+                </p>
+              </div>
+            </div>
+            <InstagramConnectionSettings />
           </div>
         </TabsContent>
 
