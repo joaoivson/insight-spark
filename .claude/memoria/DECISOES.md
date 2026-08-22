@@ -50,3 +50,13 @@
 | **Sem teste automatizado** | — | Playwright está no `package.json` mas não há suíte; toda verificação é manual | Validação por screenshot é obrigatória (`/validar-tela`) enquanto não houver |
 | **Catálogo de planos duplicado** | `shared/lib/plans.ts` × `backend/app/core/plans.py` | Espelho manual: plano novo em um lado e não no outro dá gating divergente | Ao mexer em um, mexer no outro no mesmo commit |
 | **`@typescript-eslint/no-explicit-any` é warn, não error** | `eslint.config.js` | `any` passa no lint | Não introduzir `any` novo; o legado fica |
+- **22/08/2026 — Automação Instagram oculta em produção** por `isProductionHost()`:
+  item do menu, aba de Configurações (incluindo o deep-link `?tab=instagram`) e as
+  4 rotas `/dashboard/automacoes*`, que em produção nem são registradas. O código
+  foi parar em `main` num merge de branch inteiro; a feature depende do App Review
+  da Meta e das migrations 052-056, não aplicadas lá. Homologação segue liberada.
+- **22/08/2026 — `npx tsc --noEmit` NÃO valida `src/`.** O `tsconfig.json` da raiz
+  tem `"files": []` e usa project references; sem `-b` nada é compilado. É o comando
+  que os workflows de deploy rodam, ou seja, **a checagem de tipos do CI é inócua**.
+  Para validar de verdade: `npx tsc -b` (tem ~26 erros pré-existentes — o que
+  importa é o número não subir) + `npm run build`.
