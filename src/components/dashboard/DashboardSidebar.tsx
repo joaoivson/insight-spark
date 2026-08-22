@@ -31,6 +31,7 @@ import { useIsMobile } from "@/shared/hooks/use-mobile";
 import { usePlanStore } from "@/stores/planStore";
 import { PATH_TO_MENU } from "@/shared/lib/plans";
 import { UpgradePlanoModal } from "@/features/subscription/components/UpgradePlanoModal";
+import { isProductionHost } from "@/core/config/api.config";
 
 type MenuItem = {
   icon: LucideIcon;
@@ -82,6 +83,12 @@ const DashboardSidebar = ({ mobileMenuOpen = false, onMobileMenuClose }: Dashboa
   const [menuBloqueado, setMenuBloqueado] = useState<string | undefined>();
   const isMobile = useIsMobile();
   const { fetch: fetchPlan, allowsMenu } = usePlanStore();
+  // Automação Instagram ainda não é pra produção: falta o App Review da Meta e
+  // as migrations 049-056 não foram aplicadas lá. Item some do menu inteiro, não
+  // fica só com cadeado (o cadeado é gating por plano, que é outra coisa).
+  const visibleMenu = isProductionHost()
+    ? menuItems.filter((item) => item.menuKey !== "automacoes")
+    : menuItems;
 
   useEffect(() => {
     if (!isDemoRoute) void fetchPlan();
@@ -133,7 +140,7 @@ const DashboardSidebar = ({ mobileMenuOpen = false, onMobileMenuClose }: Dashboa
 
       <nav className="flex-1 py-4 md:py-6 px-3 overflow-y-auto" aria-label="Navegação principal">
         <ul className="flex flex-col gap-1" role="list">
-          {menuItems.map((item) => {
+          {visibleMenu.map((item) => {
             const menuKey = item.menuKey || (item.path ? PATH_TO_MENU[item.path] : undefined);
             const locked = !isDemoRoute && !!menuKey && !allowsMenu(menuKey);
             const isActive = !!item.path && location.pathname === item.path && !isDemoRoute;

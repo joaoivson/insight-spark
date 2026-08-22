@@ -54,6 +54,7 @@ import { AdminLayout } from "@/features/admin/components/AdminLayout";
 import PlanosPage from "@/features/dashboard/pages/PlanosPage";
 import { RequirePlan } from "@/app/routes/RequirePlan";
 import { RequireAdmin } from "@/app/routes/RequireAdmin";
+import { isProductionHost } from "@/core/config/api.config";
 
 // Loading fallback component
 const LoadingFallback = () => (
@@ -195,22 +196,30 @@ export const AppRoutes = () => {
             Facebook, que é lido na tela de Configurações. Fica ANTES de /:id para o
             "callback" não ser lido como id de automação, e FORA do RequirePlan: a
             conexão precisa concluir mesmo se o plano mudar no meio do caminho. */}
-        <Route
-          path="/dashboard/automacoes/callback"
-          element={<ProtectedRoute element={<AutomacoesCallback />} />}
-        />
-        <Route
-          path="/dashboard/automacoes"
-          element={<ProtectedRoute element={<RequirePlan menuKey="automacoes" element={<Automacoes />} />} />}
-        />
-        <Route
-          path="/dashboard/automacoes/nova"
-          element={<ProtectedRoute element={<RequirePlan menuKey="automacoes" element={<AutomacaoEditor />} />} />}
-        />
-        <Route
-          path="/dashboard/automacoes/:id"
-          element={<ProtectedRoute element={<RequirePlan menuKey="automacoes" element={<AutomacaoEditor />} />} />}
-        />
+        {/* Automação Instagram ainda não é pra produção: falta o App Review da Meta
+            e as migrations 049-056 não foram aplicadas lá — a tela abriria contra
+            tabela inexistente. Em produção as 4 rotas não existem, então caem no
+            404, e não basta esconder o item do menu: quem já tem a URL entraria. */}
+        {!isProductionHost() && (
+          <>
+            <Route
+              path="/dashboard/automacoes/callback"
+              element={<ProtectedRoute element={<AutomacoesCallback />} />}
+            />
+            <Route
+              path="/dashboard/automacoes"
+              element={<ProtectedRoute element={<RequirePlan menuKey="automacoes" element={<Automacoes />} />} />}
+            />
+            <Route
+              path="/dashboard/automacoes/nova"
+              element={<ProtectedRoute element={<RequirePlan menuKey="automacoes" element={<AutomacaoEditor />} />} />}
+            />
+            <Route
+              path="/dashboard/automacoes/:id"
+              element={<ProtectedRoute element={<RequirePlan menuKey="automacoes" element={<AutomacaoEditor />} />} />}
+            />
+          </>
+        )}
         <Route path="/dashboard/configuracoes" element={<ProtectedRoute element={<Configuracoes />} />} />
         <Route path="/dashboard/planos" element={<ProtectedRoute element={<PlanosPage />} />} />
         <Route path="/dashboard/indique" element={<ProtectedRoute element={<IndiquePage />} />} />

@@ -16,20 +16,24 @@ import { usePlanStore } from "@/stores/planStore";
 import { isProductionHost } from "@/core/config/api.config";
 
 // Define a aba inicial: retorno do OAuth (?code/?error) ou deep-link (?tab=) abrem Facebook.
-// WhatsApp ainda não é pra produção — nem via deep-link (?tab=whatsapp) direto.
+// WhatsApp e Instagram ainda não são pra produção — nem via deep-link direto
+// (?tab=whatsapp / ?tab=instagram), senão a URL abre a aba que o botão esconde.
 const resolveInitialTab = (): string => {
   if (typeof window === "undefined") return "shopee";
   const params = new URLSearchParams(window.location.search);
   if (params.get("code") || params.get("error")) return "facebook";
   const t = params.get("tab");
-  if (t === "facebook" || t === "shopee" || t === "instagram" || t === "impostos" || t === "assinatura") return t;
-  if (t === "whatsapp" && !isProductionHost()) return t;
+  if (t === "facebook" || t === "shopee" || t === "impostos" || t === "assinatura") return t;
+  if ((t === "whatsapp" || t === "instagram") && !isProductionHost()) return t;
   return "shopee";
 };
 
 const Configuracoes = () => {
   const [tab, setTab] = useState<string>(resolveInitialTab);
   const showWhatsapp = !isProductionHost();
+  // Automação Instagram depende do App Review da Meta e das migrations 049-056,
+  // que não estão em produção — a aba fica só em homologação até isso fechar.
+  const showInstagram = !isProductionHost();
 
   return (
     <DashboardLayout title="Configurações">
@@ -42,9 +46,11 @@ const Configuracoes = () => {
             <TabsTrigger value="facebook" className="gap-2 whitespace-nowrap">
               <Facebook className="w-4 h-4" /> Facebook
             </TabsTrigger>
-            <TabsTrigger value="instagram" className="gap-2 whitespace-nowrap">
-              <Instagram className="w-4 h-4" /> Instagram
-            </TabsTrigger>
+            {showInstagram && (
+              <TabsTrigger value="instagram" className="gap-2 whitespace-nowrap">
+                <Instagram className="w-4 h-4" /> Instagram
+              </TabsTrigger>
+            )}
             {showWhatsapp && (
               <TabsTrigger value="whatsapp" className="gap-2 whitespace-nowrap">
                 <MessageCircle className="w-4 h-4" /> WhatsApp
