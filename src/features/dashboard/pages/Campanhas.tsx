@@ -63,6 +63,7 @@ import {
 import { getFacebookStatus, triggerFacebookSync } from "@/services/facebook.service";
 import { FacebookConnectionBanner } from "@/features/dashboard/components/FacebookConnectionBanner";
 import { PlatformBreakdownCard } from "@/features/dashboard/components/PlatformBreakdownCard";
+import { isProductionHost } from "@/core/config/api.config";
 import { DemoDataBanner } from "@/features/dashboard/components/DemoDataBanner";
 import { useFacebookConnectionStore } from "@/stores/facebookConnectionStore";
 import { usePlanStore } from "@/stores/planStore";
@@ -457,10 +458,13 @@ const Campanhas = () => {
 
         {error && <p className="text-sm text-destructive">{error}</p>}
 
-        {/* Veiculação por plataforma (Instagram vs Facebook) — some sozinho quando
-            ainda não há breakdown sincronizado, então não polui a tela de quem
-            acabou de conectar. */}
-        {!showEmptyState && !initialLoading && (
+        {/* Veiculação por plataforma (Instagram vs Facebook) — ainda não é pra
+            produção: o card mede ROAS como faturamento/gasto (a fórmula que o KPI
+            "ROAS Real" desta mesma tela abandonou de propósito por inflar o número)
+            e ignora os dois impostos, então briga com os KPIs logo acima. Foi parar
+            em main num merge de branch inteiro; fica só em homologação até as
+            fórmulas baterem. */}
+        {!isProductionHost() && !showEmptyState && !initialLoading && (
           <PlatformBreakdownCard startDate={range.startDate} endDate={range.endDate} />
         )}
 
