@@ -9,6 +9,9 @@
 
 | Data | Decisão | Por quê |
 |---|---|---|
+| 2026-08-25 | **Cadeado de plano no menu só renderiza com `planStore.context != null`** (sidebar + bottom nav) | O fallback do store é "essencial" antes do fetch e após falha — cadeado nesses estados trava assinante pagante no modal de upgrade. O cadeado é cosmético: quem garante é o `RequirePlan` da rota |
+| 2026-08-25 | **Seção de Configurações deriva de `useSearchParams`, não de useState** — push no mobile, replace no desktop | Estado local seedado no mount não ressincroniza com navegação interna e quebra o Back físico do celular na subtela; derivar da URL resolve os dois e torna a seção compartilhável |
+| 2026-08-25 | **`useIsMobile` tem valor inicial síncrono** (`window.innerWidth` no initializer) | `useState(undefined)` fazia o 1º render ser sempre "desktop": flash + montagem dupla de componentes com efeito de rede quando as árvores diferem por viewport |
 | — | **Componente nunca chama API direto**: `Components → stores → services → api.config` | O dia em que o header muda (auth, `X-User-Id`, retry de 401) é um arquivo, não trinta |
 | — | **shadcn/ui em `components/ui/` não se modifica** — estende via wrapper | `npx shadcn add` sobrescreve o arquivo; customização feita dentro dele evapora sem aviso |
 | — | **Tema dark é o padrão** e as cores saem das variáveis do tema | Cor hardcoded quebra no dia do tema claro e não aparece em review |

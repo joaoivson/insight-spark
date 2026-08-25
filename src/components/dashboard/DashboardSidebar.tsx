@@ -50,9 +50,8 @@ const menuItems: MenuItem[] = [
   { icon: MousePointerClick, label: "Upload Cliques", path: "/dashboard/upload-cliques", menuKey: "upload_cliques" },
   { icon: Globe, label: "Página de Captura", path: "/dashboard/captura", menuKey: "captura" },
   { icon: Link2, label: "Meus Links", path: "/dashboard/links", menuKey: "meus_links" },
-  // Entre Meus Links e Indique & Ganhe, conforme o spec. menuKey "automacoes"
-  // só existe no plano MAX — nos demais o item aparece com cadeado.
-  { icon: InstagramIcon, label: "Automação Instagram", path: "/dashboard/automacoes", isNew: true, menuKey: "automacoes" },
+  // menuKey "automacoes" só existe no plano MAX — nos demais o item aparece com cadeado.
+  { icon: InstagramIcon, label: "Instagram", path: "/dashboard/automacoes", isNew: true, menuKey: "automacoes" },
   { icon: Gift, label: "Indique & Ganhe", path: "/dashboard/indique", iconClass: "text-[#F0A94A]", menuKey: "indique_ganhe" },
   { icon: Settings, label: "Configurações", path: "/dashboard/configuracoes", menuKey: "configuracoes" },
 ];
@@ -83,6 +82,9 @@ const DashboardSidebar = ({ mobileMenuOpen = false, onMobileMenuClose }: Dashboa
   const [menuBloqueado, setMenuBloqueado] = useState<string | undefined>();
   const isMobile = useIsMobile();
   const { fetch: fetchPlan, allowsMenu } = usePlanStore();
+  // Cadeado só depois do contexto real chegar (fallback do store = essencial);
+  // a rota tem RequirePlan, então liberar o clique durante o fetch é seguro.
+  const planReady = usePlanStore((s) => !!s.context);
   // Automação Instagram ainda não é pra produção: falta o App Review da Meta e
   // as migrations 049-056 não foram aplicadas lá. Item some do menu inteiro, não
   // fica só com cadeado (o cadeado é gating por plano, que é outra coisa).
@@ -138,14 +140,22 @@ const DashboardSidebar = ({ mobileMenuOpen = false, onMobileMenuClose }: Dashboa
         )}
       </div>
 
-      <nav className="flex-1 py-4 md:py-6 px-3 overflow-y-auto" aria-label="Navegação principal">
+      <nav className="flex-1 py-3 md:py-4 px-3 overflow-y-auto" aria-label="Navegação principal">
         <ul className="flex flex-col gap-1" role="list">
           {visibleMenu.map((item) => {
             const menuKey = item.menuKey || (item.path ? PATH_TO_MENU[item.path] : undefined);
-            const locked = !isDemoRoute && !!menuKey && !allowsMenu(menuKey);
-            const isActive = !!item.path && location.pathname === item.path && !isDemoRoute;
+            const locked = !isDemoRoute && planReady && !!menuKey && !allowsMenu(menuKey);
+            // Prefix-match (exceto /dashboard, que é o índice): rota aninhada
+            // como /dashboard/automacoes/nova mantém o item pai destacado.
+            // Nenhum path do menu é prefixo de outro — se um dia for, o item
+            // mais específico e o pai acenderiam juntos.
+            const isActive =
+              !!item.path &&
+              !isDemoRoute &&
+              (location.pathname === item.path ||
+                (item.path !== "/dashboard" && location.pathname.startsWith(item.path + "/")));
             const classes = cn(
-              "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 border-l-[3px] border-l-transparent",
+              "flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200 border-l-[3px] border-l-transparent",
               locked
                 ? "text-sidebar-foreground/40 opacity-70 cursor-pointer"
                 : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent",
@@ -155,12 +165,12 @@ const DashboardSidebar = ({ mobileMenuOpen = false, onMobileMenuClose }: Dashboa
             );
             const itemContent = (
               <>
-                <item.icon className={cn("w-5 h-5 flex-shrink-0", item.iconClass, isActive && !locked && "text-[#318CE9]")} aria-hidden="true" />
+                <item.icon className={cn("w-4 h-4 flex-shrink-0", item.iconClass, isActive && !locked && "text-[#318CE9]")} aria-hidden="true" />
                 {(!collapsed || isMobile) && (
                   <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 min-w-0 flex-1">
                     {/* whitespace-nowrap: "Automação Instagram" quebrava em duas
                         linhas e desalinhava o item do resto do menu. */}
-                    <span className={cn("font-medium whitespace-nowrap", isActive && !locked && "text-white")}>{item.label}</span>
+                    <span className={cn("text-sm font-medium whitespace-nowrap", isActive && !locked && "text-white")}>{item.label}</span>
                     {item.isNew && !locked && (
                       <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-primary/20 text-primary flex-shrink-0">
                         Novo
@@ -257,42 +267,42 @@ const DashboardSidebar = ({ mobileMenuOpen = false, onMobileMenuClose }: Dashboa
             target="_blank"
             rel="noopener noreferrer"
             className={cn(
-              "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 w-full",
+              "flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200 w-full",
               "text-sidebar-foreground/70 hover:text-[#25D366] hover:bg-[#25D366]/10",
               collapsed && !isMobile && "justify-center px-0"
             )}
             aria-label="Suporte via WhatsApp"
           >
-            <WhatsAppLogo className="w-5 h-5 flex-shrink-0" />
-            {(!collapsed || isMobile) && <span className="font-medium">Suporte</span>}
+            <WhatsAppLogo className="w-4 h-4 flex-shrink-0" />
+            {(!collapsed || isMobile) && <span className="text-sm font-medium">Suporte</span>}
           </a>
         )}
         {isDemoRoute ? (
           <button
             type="button"
             className={cn(
-              "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 w-full",
+              "flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200 w-full",
               "text-sidebar-foreground/70 hover:text-destructive hover:bg-destructive/10",
               collapsed && !isMobile && "justify-center px-0"
             )}
             onClick={(e) => e.preventDefault()}
           >
-            <LogOut className="w-5 h-5 flex-shrink-0" />
-            {(!collapsed || isMobile) && <span className="font-medium">Sair</span>}
+            <LogOut className="w-4 h-4 flex-shrink-0" />
+            {(!collapsed || isMobile) && <span className="text-sm font-medium">Sair</span>}
           </button>
         ) : (
           <button
             type="button"
             onClick={handleLogout}
             className={cn(
-              "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 w-full",
+              "flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200 w-full",
               "text-sidebar-foreground/70 hover:text-destructive hover:bg-destructive/10",
               collapsed && !isMobile && "justify-center px-0"
             )}
             aria-label="Sair da conta"
           >
-            <LogOut className="w-5 h-5 flex-shrink-0" aria-hidden="true" />
-            {(!collapsed || isMobile) && <span className="font-medium">Sair</span>}
+            <LogOut className="w-4 h-4 flex-shrink-0" aria-hidden="true" />
+            {(!collapsed || isMobile) && <span className="text-sm font-medium">Sair</span>}
           </button>
         )}
       </div>

@@ -11,6 +11,37 @@
 
 ---
 
+## 2026-08-25 — Grupos WhatsApp F0: menu compacto, Configurações em sub-nav, gating no mobile
+
+Fase 0 do módulo de grupos (plano em `~/.claude/plans/claudinho-sobre-a-implementa-o-robust-reef.md`).
+Três raciocínios que o diff não conta:
+
+**Seção de Configurações deriva da URL, não de useState.** A primeira versão
+usava estado local seedado do `?tab=` só no mount — funcionava até alguém
+navegar para `?tab=...` com o componente já montado (nada remonta, nada muda),
+e o Back físico do Android saía da página em vez de voltar à lista no mobile.
+Derivar de `useSearchParams` resolveu os dois de graça: push no mobile (Back
+volta à lista), replace no desktop (Back sai da página, como as Tabs antigas).
+
+**Cadeado só com `context != null`.** O planStore cai para "essencial" antes
+do fetch E depois de falha — mostrar cadeado nesses estados trava assinante
+pagante no modal de upgrade. Como TODA rota paga tem `RequirePlan`, o cadeado
+do menu é cosmético; liberar o clique na janela de load é seguro. Vale para os
+dois navs.
+
+**`useIsMobile` agora é síncrono no primeiro render.** `useState(undefined)`
+fazia todo primeiro render ser "desktop"; com a Configurações renderizando
+árvores diferentes por viewport, isso virou flash + efeitos de rede duplicados
+(retorno OAuth do Facebook montava 2×). Corrigido no hook compartilhado —
+beneficia ResponsiveModal e afins também.
+
+**Pendente/anotado para F2**: sidebar e MobileBottomNav duplicam a lista de
+itens + gate de produção (4 lugares com `isProductionHost()` para automacoes);
+quando a F2 mexer no menu, extrair config compartilhada
+(`shared/config/dashboard-menu.ts`) e considerar `feature-flags.json`.
+
+---
+
 ## 2026-08-21 — Instagram Rodada 2: Card 4 em três campos, botão e emoji
 
 O direct passou a sair como **template `button`** da Meta. Na tela isso virou
