@@ -8,7 +8,12 @@ export type PeriodId = "mensal" | "trimestral" | "anual";
 
 export type PlanConfig = {
   menus: ReadonlySet<string>;
-  limites: { paginas_captura: number; links: number };
+  limites: {
+    paginas_captura: number;
+    links: number;
+    whatsapp_numeros: number;
+    whatsapp_grupos: number;
+  };
   label: string;
 };
 
@@ -22,7 +27,7 @@ export const FEATURES: Record<PlanId, PlanConfig> = {
       "configuracoes",
       "planos",
     ]),
-    limites: { paginas_captura: 0, links: 0 },
+    limites: { paginas_captura: 0, links: 0, whatsapp_numeros: 0, whatsapp_grupos: 0 },
     label: "Essencial",
   },
   pro: {
@@ -36,7 +41,7 @@ export const FEATURES: Record<PlanId, PlanConfig> = {
       "configuracoes",
       "planos",
     ]),
-    limites: { paginas_captura: 15, links: 30 },
+    limites: { paginas_captura: 15, links: 30, whatsapp_numeros: 0, whatsapp_grupos: 0 },
     label: "Pro",
   },
   max: {
@@ -52,7 +57,7 @@ export const FEATURES: Record<PlanId, PlanConfig> = {
       "configuracoes",
       "planos",
     ]),
-    limites: { paginas_captura: -1, links: -1 },
+    limites: { paginas_captura: -1, links: -1, whatsapp_numeros: 3, whatsapp_grupos: -1 },
     label: "Max",
   },
 };
@@ -97,7 +102,10 @@ export function planAllowsMenu(plan: string | null | undefined, menuKey: string)
   return cfg.menus.has(menuKey);
 }
 
-export function planLimit(plan: string | null | undefined, resource: "paginas_captura" | "links"): number {
+export function planLimit(
+  plan: string | null | undefined,
+  resource: "paginas_captura" | "links" | "whatsapp_numeros" | "whatsapp_grupos",
+): number {
   return FEATURES[normalizePlan(plan)].limites[resource];
 }
 

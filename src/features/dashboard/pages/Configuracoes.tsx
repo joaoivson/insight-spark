@@ -12,6 +12,7 @@ import {
   ChevronRight,
   Store,
   Megaphone,
+  Smartphone,
   type LucideIcon,
 } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
@@ -25,6 +26,7 @@ import { ShopeeIntegrationSettings } from "@/features/dashboard/components/Shope
 import { FacebookIntegrationSettings } from "@/features/dashboard/components/FacebookIntegrationSettings";
 import { InstagramConnectionSettings } from "@/features/dashboard/components/InstagramConnectionSettings";
 import { WhatsappResumoSettings } from "@/features/dashboard/components/WhatsappResumoSettings";
+import { NumerosSection } from "@/components/whatsapp/NumerosSection";
 import { useTaxSettingsStore } from "@/stores/taxSettingsStore";
 import { usePlanStore } from "@/stores/planStore";
 import { useIsMobile } from "@/shared/hooks/use-mobile";
@@ -32,7 +34,7 @@ import { isProductionHost } from "@/core/config/api.config";
 
 // Sub-navegação vertical agrupada (spec Grupos §3.3). Seções de features que
 // ainda não existem simplesmente não aparecem — nada de "em breve".
-type SecaoId = "marketplaces" | "canais" | "resumo" | "impostos" | "assinatura";
+type SecaoId = "marketplaces" | "canais" | "numeros" | "resumo" | "impostos" | "assinatura";
 
 // Aliases de deep-link: as abas antigas (?tab=shopee|facebook|...) continuam
 // abrindo o lugar certo. A seção deriva da URL (não de useState): navegação
@@ -46,6 +48,7 @@ const resolveSecao = (params: URLSearchParams): SecaoId | null => {
   // Instagram em produção é o `showInstagram` dentro de CanaisSecao — se essa
   // guarda sair de lá, o resolver NÃO segura o vazamento sozinho.
   if (t === "facebook" || t === "canais" || t === "instagram") return "canais";
+  if (t === "numeros") return isProductionHost() ? null : "numeros";
   if (t === "whatsapp" || t === "resumo") return isProductionHost() ? null : "resumo";
   if (t === "impostos") return "impostos";
   if (t === "assinatura") return "assinatura";
@@ -64,7 +67,13 @@ const GRUPOS: Grupo[] = [
       { id: "canais", label: "Canais", icon: Megaphone },
     ],
   },
-  { label: "WhatsApp", secoes: [{ id: "resumo", label: "Resumo diário", icon: MessageCircle }] },
+  {
+    label: "WhatsApp",
+    secoes: [
+      { id: "numeros", label: "Números", icon: Smartphone },
+      { id: "resumo", label: "Resumo diário", icon: MessageCircle },
+    ],
+  },
   { label: "Cálculos", secoes: [{ id: "impostos", label: "Impostos", icon: Receipt }] },
 ];
 
@@ -103,6 +112,7 @@ const Configuracoes = () => {
     <div className="space-y-6 min-w-0">
       {ativa === "marketplaces" && <MarketplacesSecao />}
       {ativa === "canais" && <CanaisSecao showInstagram={showInstagram} />}
+      {ativa === "numeros" && showWhatsapp && <NumerosSection />}
       {ativa === "resumo" && showWhatsapp && <ResumoSecao />}
       {ativa === "impostos" && <TaxSettingsCard />}
       {ativa === "assinatura" && <AssinaturaCard />}

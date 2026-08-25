@@ -11,6 +11,18 @@
 
 ---
 
+## 2026-08-25 — Grupos F1: seção Números (WAHA) em Configurações
+
+Seção nova no grupo WHATSAPP (hml-only) com o fluxo conectar→QR→sincronizar.
+Decisões locais: polling do QR em 5s (pareamento é interativo; os 20s do admin
+são para tela parada), "Sincronizar grupos" só aparece com instância
+conectada (evita o 409 previsível), e o limite do plano vem de
+`context.limites_whatsapp_numeros` com fallback no catálogo espelhado —
+`PlanContext` tipado não foi alterado (cast local), pendência aceitável até a
+F2 mexer no plan.service. Validação E2E contra WAHA real local.
+
+---
+
 ## 2026-08-25 — Grupos WhatsApp F0: menu compacto, Configurações em sub-nav, gating no mobile
 
 Fase 0 do módulo de grupos (plano em `~/.claude/plans/claudinho-sobre-a-implementa-o-robust-reef.md`).
