@@ -75,9 +75,47 @@ const PrivacyPolicy = () => (
           quantidade de participantes e se você é administrador).
         </li>
         <li>
-          <strong>Não lemos nem armazenamos o conteúdo das mensagens</strong>{" "}
-          dos seus grupos. A conexão é configurada para receber apenas eventos
-          de estado e de entrada/saída de participantes.
+          <strong>Por padrão, não lemos nem armazenamos o conteúdo das
+          mensagens</strong> dos seus grupos: a conexão é configurada para
+          receber apenas eventos de estado e de entrada/saída de participantes.
+          A única exceção é o monitoramento, descrito abaixo — e ele só existe
+          enquanto você o mantiver ligado.
+        </li>
+        <li>
+          <strong>Monitoramento de grupo (opcional, desligado por padrão).</strong>{" "}
+          Ao ligar um monitoramento, a conexão daquele número passa a receber
+          mensagens para que você possa replicar ofertas com o seu link. O
+          WhatsApp entrega esse evento <strong>por número, não por grupo</strong>:
+          enquanto o monitoramento estiver ligado, as mensagens das suas
+          conversas trafegam até o nosso servidor, que <strong>descarta na hora
+          tudo que não é do grupo monitorado</strong> — conversas privadas e
+          outros grupos são ignorados antes de qualquer gravação. Nesse caso:
+          <ul>
+            <li>
+              guardamos <strong>o texto</strong> das mensagens do grupo
+              monitorado que passam no seu filtro (por padrão, apenas as que
+              contêm um link) e descartamos as demais sem gravá-las. Como o
+              texto é escrito por outras pessoas, ele pode conter dados que elas
+              próprias divulgaram — use filtros por palavra-chave para restringir
+              a captura ao que interessa;
+            </li>
+            <li>
+              <strong>não guardamos quem escreveu</strong> — nenhum número, nome
+              ou identificador do autor da mensagem;
+            </li>
+            <li>
+              as mensagens capturadas são <strong>apagadas automaticamente após
+              30 dias</strong> — a finalidade (replicar uma oferta) é passageira,
+              e guardar além disso não serviria a nada;
+            </li>
+            <li>
+              ao desligar ou excluir o monitoramento, a conexão volta a não
+              receber mensagens daquele grupo, e excluir o monitoramento apaga
+              as capturas dele.
+            </li>
+          </ul>
+          Se o grupo for de terceiros, você é responsável por observar as regras
+          do grupo e os direitos de quem escreve nele.
         </li>
         <li>
           <strong>De quem entra ou sai dos seus grupos</strong>, registramos

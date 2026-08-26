@@ -14,6 +14,7 @@ export type PlanConfig = {
     whatsapp_numeros: number;
     whatsapp_grupos: number;
     campanhas_grupos: number;
+    monitoramentos: number;
   };
   label: string;
 };
@@ -34,6 +35,7 @@ export const FEATURES: Record<PlanId, PlanConfig> = {
       whatsapp_numeros: 0,
       whatsapp_grupos: 0,
       campanhas_grupos: 0,
+      monitoramentos: 0,
     },
     label: "Essencial",
   },
@@ -54,6 +56,7 @@ export const FEATURES: Record<PlanId, PlanConfig> = {
       whatsapp_numeros: 0,
       whatsapp_grupos: 0,
       campanhas_grupos: 0,
+      monitoramentos: 0,
     },
     label: "Pro",
   },
@@ -82,6 +85,7 @@ export const FEATURES: Record<PlanId, PlanConfig> = {
       whatsapp_numeros: 3,
       whatsapp_grupos: -1,
       campanhas_grupos: -1,
+      monitoramentos: 3,
     },
     label: "Max",
   },
