@@ -545,7 +545,7 @@ const AutomacaoEditor = () => {
       </div>
 
       {/* Barra fixa de ações */}
-      <div className="fixed inset-x-0 bottom-0 z-20 border-t border-border bg-background/95 backdrop-blur md:pl-64">
+      <div className="fixed inset-x-0 bottom-0 z-20 border-t border-border bg-background/95 backdrop-blur md:pl-72">
         <div className="mx-auto flex max-w-[1100px] flex-col gap-2 p-3 sm:flex-row sm:justify-end">
           <Button
             variant="outline"

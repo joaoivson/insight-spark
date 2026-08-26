@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useSearchParams } from "react-router-dom";
 import { ArrowDown, ArrowUp, Loader2, Plus, Send, X } from "lucide-react";
 
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { ResponsiveModal } from "@/components/shared/ResponsiveModal";
 import { EnvioRapidoModal } from "@/components/whatsapp/EnvioRapidoModal";
+import { RoteirosDaCampanha } from "@/features/dashboard/components/RoteirosDaCampanha";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -109,9 +110,17 @@ const paraVinculos = (detalhe: CampanhaGruposDetalhe): VinculoLocal[] =>
 const assinatura = (vinculos: VinculoLocal[]) =>
   vinculos.map((v) => `${v.grupo_id}:${v.aberto ? 1 : 0}`).join(",");
 
+/** Abas válidas em ?tab= — voltar do editor de roteiro cai direto na aba certa. */
+const ABAS = ["visao-geral", "grupos", "roteiros"] as const;
+
 const CampanhaGrupoDetalhe = () => {
   const { id } = useParams<{ id: string }>();
   const campanhaId = Number(id);
+  const [searchParams] = useSearchParams();
+  const abaDaUrl = searchParams.get("tab");
+  const abaInicial = ABAS.includes(abaDaUrl as (typeof ABAS)[number])
+    ? (abaDaUrl as string)
+    : "visao-geral";
   const { toast } = useToast();
   const { grupos: gruposSincronizados, fetch: fetchConexoes } = useWhatsappConexoesStore();
 
@@ -319,13 +328,14 @@ const CampanhaGrupoDetalhe = () => {
 
   return (
     <DashboardLayout title={detalhe.nome} action={<StatusCampanhaBadge status={detalhe.status} />}>
-      <Tabs defaultValue="visao-geral" className="space-y-5">
+      <Tabs defaultValue={abaInicial} className="space-y-5">
         <TabsList>
           <TabsTrigger value="visao-geral">Visão geral</TabsTrigger>
           <TabsTrigger value="grupos">
             Grupos
             <span className="ml-1.5 tabular-nums text-muted-foreground">{vinculos.length}</span>
           </TabsTrigger>
+          <TabsTrigger value="roteiros">Roteiros</TabsTrigger>
         </TabsList>
 
         <TabsContent value="visao-geral">
@@ -591,6 +601,10 @@ const CampanhaGrupoDetalhe = () => {
               </div>
             </>
           )}
+        </TabsContent>
+
+        <TabsContent value="roteiros">
+          <RoteirosDaCampanha campanhaId={campanhaId} />
         </TabsContent>
       </Tabs>
 

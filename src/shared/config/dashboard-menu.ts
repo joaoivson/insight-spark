@@ -12,6 +12,7 @@ import {
   LayoutDashboard,
   Link2,
   MessagesSquare,
+  MessageSquareText,
   MousePointerClick,
   Settings,
   Target,
@@ -39,6 +40,8 @@ export const DASHBOARD_MENU: DashboardMenuItem[] = [
   { icon: Target, label: "Anúncios", path: "/dashboard/campanhas", menuKey: "campanhas" },
   // "Campanhas" agora é o módulo de grupos de WhatsApp (MAX).
   { icon: MessagesSquare, label: "Campanhas", path: "/dashboard/grupos", menuKey: "campanhas_grupos", isNew: true, hmlOnly: true },
+  // Templates alimentam os passos de oferta das campanhas de grupos (MAX).
+  { icon: MessageSquareText, label: "Templates", path: "/dashboard/templates", menuKey: "templates", hmlOnly: true },
   { icon: MousePointerClick, label: "Upload Cliques", path: "/dashboard/upload-cliques", menuKey: "upload_cliques" },
   { icon: Globe, label: "Página de Captura", path: "/dashboard/captura", menuKey: "captura" },
   { icon: Link2, label: "Meus Links", shortLabel: "Links", path: "/dashboard/links", menuKey: "meus_links" },

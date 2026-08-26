@@ -39,6 +39,8 @@ import ImpostosMeta from "@/features/dashboard/pages/ImpostosMeta";
 import Campanhas from "@/features/dashboard/pages/Campanhas";
 import CampanhasGrupos from "@/features/dashboard/pages/CampanhasGrupos";
 import CampanhaGrupoDetalhe from "@/features/dashboard/pages/CampanhaGrupoDetalhe";
+import RoteiroEditor from "@/features/dashboard/pages/RoteiroEditor";
+import Templates from "@/features/dashboard/pages/Templates";
 import Automacoes from "@/features/dashboard/pages/Automacoes";
 import AutomacaoEditor from "@/features/dashboard/pages/AutomacaoEditor";
 import AutomacoesCallback from "@/features/dashboard/pages/AutomacoesCallback";
@@ -229,6 +231,16 @@ export const AppRoutes = () => {
             <Route
               path="/dashboard/grupos/:id"
               element={<ProtectedRoute element={<RequirePlan menuKey="campanhas_grupos" element={<CampanhaGrupoDetalhe />} />} />}
+            />
+            {/* Editor de roteiro (F4): a sequência de passos de uma campanha. */}
+            <Route
+              path="/dashboard/grupos/:campanhaId/roteiros/:roteiroId"
+              element={<ProtectedRoute element={<RequirePlan menuKey="campanhas_grupos" element={<RoteiroEditor />} />} />}
+            />
+            {/* Templates de mensagem (F4) — mesmo gate de ambiente do módulo de grupos. */}
+            <Route
+              path="/dashboard/templates"
+              element={<ProtectedRoute element={<RequirePlan menuKey="templates" element={<Templates />} />} />}
             />
           </>
         )}
