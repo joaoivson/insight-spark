@@ -2,14 +2,19 @@ import { createClient } from '@supabase/supabase-js';
 import { tokenStorage } from '@/shared/lib/storage';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+// O Supabase trocou o nome da chave pública: `anon` virou `sb_publishable_…`.
+// As duas convivem enquanto a rotação não termina, e a nova tem precedência.
+// Sem este fallback, quem configura só o nome novo recebe uma tela branca — o
+// `throw` abaixo acontece antes de qualquer render.
+const supabaseAnonKey =
+    import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 // Em build de produção, se as variáveis não estiverem no .env durante o 'npm run build',
 // elas ficarão 'undefined'. O erro no console ajuda a identificar se é falta no .env.
 if (!supabaseUrl || !supabaseAnonKey) {
     const missing = [];
     if (!supabaseUrl) missing.push('VITE_SUPABASE_URL');
-    if (!supabaseAnonKey) missing.push('VITE_SUPABASE_ANON_KEY');
+    if (!supabaseAnonKey) missing.push('VITE_SUPABASE_PUBLISHABLE_KEY (ou VITE_SUPABASE_ANON_KEY)');
 
     const errorMsg = `Supabase configuration missing: ${missing.join(', ')}. ` +
         `Certifique-se de que estas variáveis estão no seu arquivo .env durante o build.`;

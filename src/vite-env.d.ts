@@ -13,7 +13,10 @@ interface ImportMetaEnv {
   readonly VITE_FEEDBACK_EMAIL?: string;
   readonly VITE_FEEDBACK_MIN_NAVIGATIONS?: string;
   readonly VITE_SUPABASE_URL?: string;
+  /** Chave pública no formato ANTIGO (JWT `anon`). */
   readonly VITE_SUPABASE_ANON_KEY?: string;
+  /** Chave pública no formato NOVO (`sb_publishable_…`). Tem precedência. */
+  readonly VITE_SUPABASE_PUBLISHABLE_KEY?: string;
   readonly VITE_CACHE_TTL_SECONDS?: string;
   readonly VITE_CAKTO_ENFORCE_SUBSCRIPTION?: string;
   readonly VITE_DATABASE_URL?: string;
