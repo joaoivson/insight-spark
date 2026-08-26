@@ -159,7 +159,14 @@ export function NumerosSection() {
     setSincronizandoId(instancia.id);
     try {
       const r = await sincronizar(instancia.id);
-      toast({ title: `${r.vistos} grupos, ${r.novos} novos` });
+      // `ignorados` só aparece quando existe: é sintoma de formato novo do
+      // WhatsApp, e some da tela no caminho feliz.
+      toast({
+        title: `${r.vistos} grupos, ${r.novos} novos`,
+        description: r.ignorados
+          ? `${r.ignorados} não reconhecidos — avise o suporte`
+          : undefined,
+      });
     } catch (e) {
       toast({
         title: e instanceof Error ? e.message : "Não foi possível sincronizar os grupos.",

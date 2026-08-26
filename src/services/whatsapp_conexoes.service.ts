@@ -27,6 +27,12 @@ export type ResultadoSincronizacao = {
   novos: number;
   atualizados: number;
   desativados: number;
+  /** Itens que o WhatsApp devolveu e o backend não reconheceu como grupo.
+   *  Existe porque foi exatamente a métrica ausente que deixou o sync
+   *  "com sucesso e zero grupos" por dias, em 26/08. */
+  ignorados?: number;
+  /** Links de convite resolvidos nesta rodada — o resto vem no próximo sync. */
+  convites?: number;
 };
 
 export type GrupoWhatsapp = {
