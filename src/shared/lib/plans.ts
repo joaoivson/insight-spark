@@ -13,6 +13,7 @@ export type PlanConfig = {
     links: number;
     whatsapp_numeros: number;
     whatsapp_grupos: number;
+    campanhas_grupos: number;
   };
   label: string;
 };
@@ -27,7 +28,13 @@ export const FEATURES: Record<PlanId, PlanConfig> = {
       "configuracoes",
       "planos",
     ]),
-    limites: { paginas_captura: 0, links: 0, whatsapp_numeros: 0, whatsapp_grupos: 0 },
+    limites: {
+      paginas_captura: 0,
+      links: 0,
+      whatsapp_numeros: 0,
+      whatsapp_grupos: 0,
+      campanhas_grupos: 0,
+    },
     label: "Essencial",
   },
   pro: {
@@ -41,7 +48,13 @@ export const FEATURES: Record<PlanId, PlanConfig> = {
       "configuracoes",
       "planos",
     ]),
-    limites: { paginas_captura: 15, links: 30, whatsapp_numeros: 0, whatsapp_grupos: 0 },
+    limites: {
+      paginas_captura: 15,
+      links: 30,
+      whatsapp_numeros: 0,
+      whatsapp_grupos: 0,
+      campanhas_grupos: 0,
+    },
     label: "Pro",
   },
   max: {
@@ -53,11 +66,19 @@ export const FEATURES: Record<PlanId, PlanConfig> = {
       "meus_links",
       // Automação Instagram (comentário → direct) é exclusiva do MAX.
       "automacoes",
+      // Campanhas de grupos de WhatsApp também são exclusivas do MAX.
+      "campanhas_grupos",
       "indique_ganhe",
       "configuracoes",
       "planos",
     ]),
-    limites: { paginas_captura: -1, links: -1, whatsapp_numeros: 3, whatsapp_grupos: -1 },
+    limites: {
+      paginas_captura: -1,
+      links: -1,
+      whatsapp_numeros: 3,
+      whatsapp_grupos: -1,
+      campanhas_grupos: -1,
+    },
     label: "Max",
   },
 };
@@ -71,7 +92,7 @@ export function isUnlimited(value: number): boolean {
 export const PRO_ONLY_MENUS = new Set(["captura", "meus_links"]);
 
 /** Menus exclusivos do MAX (cadeado no Essencial E no Pro). */
-export const MAX_ONLY_MENUS = new Set(["automacoes"]);
+export const MAX_ONLY_MENUS = new Set(["automacoes", "campanhas_grupos"]);
 
 export const CHECKOUT_LINKS: Record<
   string,
@@ -104,7 +125,7 @@ export function planAllowsMenu(plan: string | null | undefined, menuKey: string)
 
 export function planLimit(
   plan: string | null | undefined,
-  resource: "paginas_captura" | "links" | "whatsapp_numeros" | "whatsapp_grupos",
+  resource: keyof PlanConfig["limites"],
 ): number {
   return FEATURES[normalizePlan(plan)].limites[resource];
 }
@@ -114,13 +135,6 @@ export function checkoutFor(plano: PlanId, periodo: PeriodId) {
 }
 
 /** Menu path → feature key used in FEATURES */
-export const PATH_TO_MENU: Record<string, string> = {
-  "/dashboard": "dashboard",
-  "/dashboard/campanhas": "campanhas",
-  "/dashboard/upload-cliques": "upload_cliques",
-  "/dashboard/captura": "captura",
-  "/dashboard/links": "meus_links",
-  "/dashboard/indique": "indique_ganhe",
-  "/dashboard/configuracoes": "configuracoes",
-  "/dashboard/planos": "planos",
-};
+// O mapa PATH_TO_MENU foi removido em 25/08: a fonte de rota→menuKey é
+// src/shared/config/dashboard-menu.ts (config única dos dois navs).
+

@@ -279,7 +279,7 @@ const Campanhas = () => {
 
   return (
     <DashboardLayout
-      title="Campanhas"
+      title="Anúncios"
       subtitle={`Shopee · ${fmtSync(lastSyncShopee)} · Facebook ${lastSyncAt ? fmtSync(lastSyncAt) : "nunca"}`}
       subtitleSize="xs"
       action={

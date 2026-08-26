@@ -37,6 +37,8 @@ import NotFound from "@/shared/pages/NotFound";
 import IntegrationsPage from "@/features/dashboard/pages/Integrations";
 import ImpostosMeta from "@/features/dashboard/pages/ImpostosMeta";
 import Campanhas from "@/features/dashboard/pages/Campanhas";
+import CampanhasGrupos from "@/features/dashboard/pages/CampanhasGrupos";
+import CampanhaGrupoDetalhe from "@/features/dashboard/pages/CampanhaGrupoDetalhe";
 import Automacoes from "@/features/dashboard/pages/Automacoes";
 import AutomacaoEditor from "@/features/dashboard/pages/AutomacaoEditor";
 import AutomacoesCallback from "@/features/dashboard/pages/AutomacoesCallback";
@@ -217,6 +219,16 @@ export const AppRoutes = () => {
             <Route
               path="/dashboard/automacoes/:id"
               element={<ProtectedRoute element={<RequirePlan menuKey="automacoes" element={<AutomacaoEditor />} />} />}
+            />
+            {/* Campanhas de grupos de WhatsApp (F2) — hml-only pelo mesmo motivo:
+                o backend do módulo ainda não está em produção. */}
+            <Route
+              path="/dashboard/grupos"
+              element={<ProtectedRoute element={<RequirePlan menuKey="campanhas_grupos" element={<CampanhasGrupos />} />} />}
+            />
+            <Route
+              path="/dashboard/grupos/:id"
+              element={<ProtectedRoute element={<RequirePlan menuKey="campanhas_grupos" element={<CampanhaGrupoDetalhe />} />} />}
             />
           </>
         )}

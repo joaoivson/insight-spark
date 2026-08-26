@@ -11,6 +11,32 @@
 
 ---
 
+## 2026-08-25 — Grupos F2: menu compartilhado, Anúncios×Campanhas, lista+detalhe
+
+O débito da F0 foi quitado: `shared/config/dashboard-menu.ts` é a fonte única
+dos itens de menu (sidebar consome a lista inteira; bottom nav deriva as 4 tabs
+por `menuKey` e joga o resto no "Mais"). O gate de produção virou `hmlOnly` na
+config + `menuVisivel()` — item novo hml-only não toca mais em 4 lugares. A
+config ganhou `shortLabel` fora do combinado ("Início"/"Links"): o bottom nav
+tinha rótulos próprios e encurtá-los na config quebraria a sidebar.
+
+O rename é só de rótulo: "Campanhas" (tráfego pago) virou **"Anúncios"** (mesmo
+path/menuKey `campanhas`, textos internos ficam pra F7); o novo item
+**"Campanhas"** é o módulo de grupos (`/dashboard/grupos`, menuKey
+`campanhas_grupos`, MAX-only, hml-only). Lista + detalhe (Visão geral/Grupos)
+no molde de Automacoes/NumerosSection. A aba Grupos acumula ordem/aberto/remoção
+localmente e um "Salvar ordem" único faz o PUT com a lista completa — o "sujo"
+é a assinatura `grupo_id:aberto` na ordem, espelho exato do que o PUT persiste.
+Posição enviada é o índice 0-based (backend só ordena, não interpreta o valor).
+
+Validação visual: hml sem grupos sincronizados no relacionamento@ — os fluxos
+de linha (reordenar/fechar/remover) foram validados com `page.route` mockando
+`/whatsapp/grupos` (sem sujar o banco); campanha real "Campanha de validação
+F2" criada via UI em hml para o resto. Gotcha do Playwright: `storage_state`
+do Supabase morre na 2ª sessão (rotação de refresh token) — logar de novo.
+
+---
+
 ## 2026-08-25 — Grupos F1: seção Números (WAHA) em Configurações
 
 Seção nova no grupo WHATSAPP (hml-only) com o fluxo conectar→QR→sincronizar.

@@ -1,18 +1,5 @@
 import { NavLink, useLocation } from "react-router-dom";
-import {
-  LogOut,
-  LayoutDashboard,
-  ChevronLeft,
-  ChevronRight,
-  X,
-  MousePointerClick,
-  Globe,
-  Link2,
-  Target,
-  Settings,
-  Gift,
-  Lock,
-  type LucideIcon, Instagram as InstagramIcon } from "lucide-react";
+import { LogOut, ChevronLeft, ChevronRight, X, Lock } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
@@ -29,32 +16,8 @@ import {
 } from "@/components/ui/sheet";
 import { useIsMobile } from "@/shared/hooks/use-mobile";
 import { usePlanStore } from "@/stores/planStore";
-import { PATH_TO_MENU } from "@/shared/lib/plans";
 import { UpgradePlanoModal } from "@/features/subscription/components/UpgradePlanoModal";
-import { isProductionHost } from "@/core/config/api.config";
-
-type MenuItem = {
-  icon: LucideIcon;
-  label: string;
-  path?: string;
-  href?: string;
-  external?: boolean;
-  isNew?: boolean;
-  iconClass?: string;
-  menuKey?: string;
-};
-
-const menuItems: MenuItem[] = [
-  { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard", menuKey: "dashboard" },
-  { icon: Target, label: "Campanhas", path: "/dashboard/campanhas", isNew: true, menuKey: "campanhas" },
-  { icon: MousePointerClick, label: "Upload Cliques", path: "/dashboard/upload-cliques", menuKey: "upload_cliques" },
-  { icon: Globe, label: "Página de Captura", path: "/dashboard/captura", menuKey: "captura" },
-  { icon: Link2, label: "Meus Links", path: "/dashboard/links", menuKey: "meus_links" },
-  // menuKey "automacoes" só existe no plano MAX — nos demais o item aparece com cadeado.
-  { icon: InstagramIcon, label: "Instagram", path: "/dashboard/automacoes", isNew: true, menuKey: "automacoes" },
-  { icon: Gift, label: "Indique & Ganhe", path: "/dashboard/indique", iconClass: "text-[#F0A94A]", menuKey: "indique_ganhe" },
-  { icon: Settings, label: "Configurações", path: "/dashboard/configuracoes", menuKey: "configuracoes" },
-];
+import { menuVisivel } from "@/shared/config/dashboard-menu";
 
 interface DashboardSidebarProps {
   mobileMenuOpen?: boolean;
@@ -85,12 +48,9 @@ const DashboardSidebar = ({ mobileMenuOpen = false, onMobileMenuClose }: Dashboa
   // Cadeado só depois do contexto real chegar (fallback do store = essencial);
   // a rota tem RequirePlan, então liberar o clique durante o fetch é seguro.
   const planReady = usePlanStore((s) => !!s.context);
-  // Automação Instagram ainda não é pra produção: falta o App Review da Meta e
-  // as migrations 049-056 não foram aplicadas lá. Item some do menu inteiro, não
+  // Gate de ambiente (hmlOnly): item some do menu inteiro em produção, não
   // fica só com cadeado (o cadeado é gating por plano, que é outra coisa).
-  const visibleMenu = isProductionHost()
-    ? menuItems.filter((item) => item.menuKey !== "automacoes")
-    : menuItems;
+  const visibleMenu = menuVisivel();
 
   useEffect(() => {
     if (!isDemoRoute) void fetchPlan();
@@ -143,14 +103,13 @@ const DashboardSidebar = ({ mobileMenuOpen = false, onMobileMenuClose }: Dashboa
       <nav className="flex-1 py-3 md:py-4 px-3 overflow-y-auto" aria-label="Navegação principal">
         <ul className="flex flex-col gap-1" role="list">
           {visibleMenu.map((item) => {
-            const menuKey = item.menuKey || (item.path ? PATH_TO_MENU[item.path] : undefined);
-            const locked = !isDemoRoute && planReady && !!menuKey && !allowsMenu(menuKey);
+            const menuKey = item.menuKey;
+            const locked = !isDemoRoute && planReady && !allowsMenu(menuKey);
             // Prefix-match (exceto /dashboard, que é o índice): rota aninhada
             // como /dashboard/automacoes/nova mantém o item pai destacado.
             // Nenhum path do menu é prefixo de outro — se um dia for, o item
             // mais específico e o pai acenderiam juntos.
             const isActive =
-              !!item.path &&
               !isDemoRoute &&
               (location.pathname === item.path ||
                 (item.path !== "/dashboard" && location.pathname.startsWith(item.path + "/")));
@@ -184,7 +143,7 @@ const DashboardSidebar = ({ mobileMenuOpen = false, onMobileMenuClose }: Dashboa
               </>
             );
             return (
-              <li key={item.path ?? item.href ?? item.label} className="w-full">
+              <li key={item.path} className="w-full">
                 {isDemoRoute ? (
                   <button
                     type="button"
@@ -207,20 +166,9 @@ const DashboardSidebar = ({ mobileMenuOpen = false, onMobileMenuClose }: Dashboa
                   >
                     {itemContent}
                   </button>
-                ) : item.external ? (
-                  <a
-                    href={item.href}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className={classes}
-                    aria-label={item.label}
-                    onClick={handleNavClick}
-                  >
-                    {itemContent}
-                  </a>
                 ) : (
                   <NavLink
-                    to={item.path ?? "#"}
+                    to={item.path}
                     className={classes}
                     aria-label={item.label}
                     aria-current={isActive ? "page" : undefined}

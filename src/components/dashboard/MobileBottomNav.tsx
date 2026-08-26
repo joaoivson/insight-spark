@@ -1,19 +1,5 @@
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
-import {
-  LayoutDashboard,
-  Target,
-  Link2,
-  MoreHorizontal,
-  MousePointerClick,
-  Globe,
-  Settings,
-  Sun,
-  Moon,
-  LogOut,
-  Gift,
-  Lock,
-  Instagram as InstagramIcon,
-} from "lucide-react";
+import { MoreHorizontal, Sun, Moon, LogOut, Gift, Lock } from "lucide-react";
 import { useEffect, useState } from "react";
 import { cn } from "@/shared/lib/utils";
 import {
@@ -29,32 +15,26 @@ import { APP_CONFIG } from "@/core/config/app.config";
 import { supabase } from "@/shared/lib/supabase";
 import { usePlanStore } from "@/stores/planStore";
 import { UpgradePlanoModal } from "@/features/subscription/components/UpgradePlanoModal";
-import { isProductionHost } from "@/core/config/api.config";
+import {
+  DASHBOARD_MENU,
+  menuVisivel,
+  type DashboardMenuItem,
+} from "@/shared/config/dashboard-menu";
 
-interface NavItem {
-  icon: typeof LayoutDashboard;
-  label: string;
-  path: string;
-  isNew?: boolean;
-  menuKey?: string;
-}
+// 4 ações principais na barra inferior — derivadas da config compartilhada
+// por menuKey; item novo na config cai automaticamente no drawer "Mais".
+const PRIMARY_MENU_KEYS = ["dashboard", "campanhas", "upload_cliques", "meus_links"];
 
-// 4 ações principais na barra inferior
-const primaryItems: NavItem[] = [
-  { icon: LayoutDashboard, label: "Início", path: "/dashboard", menuKey: "dashboard" },
-  { icon: Target, label: "Campanhas", path: "/dashboard/campanhas", isNew: true, menuKey: "campanhas" },
-  { icon: MousePointerClick, label: "Upload Cliques", path: "/dashboard/upload-cliques", menuKey: "upload_cliques" },
-  { icon: Link2, label: "Links", path: "/dashboard/links", menuKey: "meus_links" },
-];
+const primaryItems: DashboardMenuItem[] = PRIMARY_MENU_KEYS.flatMap((key) =>
+  DASHBOARD_MENU.filter((item) => item.menuKey === key),
+);
 
-// Demais ações vão para o drawer "Mais"
-const indiqueItem: NavItem = { icon: Gift, label: "Indique & Ganhe", path: "/dashboard/indique", menuKey: "indique_ganhe" };
+// Indique & Ganhe tem botão próprio em destaque no drawer, fora do grid.
+const indiqueItem = DASHBOARD_MENU.find((item) => item.menuKey === "indique_ganhe");
 
-const moreItems: NavItem[] = [
-  { icon: Globe, label: "Página de Captura", path: "/dashboard/captura", menuKey: "captura" },
-  { icon: InstagramIcon, label: "Instagram", path: "/dashboard/automacoes", menuKey: "automacoes" },
-  { icon: Settings, label: "Configurações", path: "/dashboard/configuracoes", menuKey: "configuracoes" },
-];
+const moreItems: DashboardMenuItem[] = DASHBOARD_MENU.filter(
+  (item) => !PRIMARY_MENU_KEYS.includes(item.menuKey) && item.menuKey !== "indique_ganhe",
+);
 
 const WHATSAPP_NUMBER = import.meta.env.VITE_WHATSAPP_NUMBER;
 const WhatsAppLogo = ({ className }: { className?: string }) => (
@@ -81,14 +61,15 @@ const MobileBottomNav = () => {
     if (!isDemo) void fetchPlan();
   }, [fetchPlan, isDemo]);
 
-  // Mesma regra da sidebar: Instagram some inteiro em produção (gate de
+  // Mesma regra da sidebar: item hmlOnly some inteiro em produção (gate de
   // ambiente); o cadeado é gating por plano, que é outra coisa.
-  const visibleMoreItems = isProductionHost()
-    ? moreItems.filter((item) => item.menuKey !== "automacoes")
-    : moreItems;
+  // O gate de ambiente vale para as DUAS metades do nav — uma tab primária
+  // com hmlOnly não pode vazar em produção enquanto some da sidebar.
+  const visiblePrimaryItems = menuVisivel(primaryItems);
+  const visibleMoreItems = menuVisivel(moreItems);
 
-  const isLocked = (item: NavItem) =>
-    !isDemo && planReady && !!item.menuKey && !allowsMenu(item.menuKey);
+  const isLocked = (item: DashboardMenuItem) =>
+    !isDemo && planReady && !allowsMenu(item.menuKey);
 
   const openUpgrade = (menuKey?: string) => {
     setMoreOpen(false);
@@ -111,7 +92,7 @@ const MobileBottomNav = () => {
 
   const isMoreActive = visibleMoreItems.some((i) => isPathActive(i.path));
 
-  const go = (item: NavItem) => {
+  const go = (item: DashboardMenuItem) => {
     if (isLocked(item)) {
       openUpgrade(item.menuKey);
       return;
@@ -137,7 +118,7 @@ const MobileBottomNav = () => {
         aria-label="Navegação inferior"
       >
         <div className="flex items-stretch">
-          {primaryItems.map((item) => {
+          {visiblePrimaryItems.map((item) => {
             const isActive = isPathActive(item.path);
             const locked = isLocked(item);
             return (
@@ -171,7 +152,7 @@ const MobileBottomNav = () => {
                     <Lock className="absolute -top-1 -right-1.5 w-2.5 h-2.5" aria-hidden />
                   )}
                 </span>
-                <span>{item.label}</span>
+                <span>{item.shortLabel ?? item.label}</span>
               </NavLink>
             );
           })}
@@ -201,7 +182,7 @@ const MobileBottomNav = () => {
           </DrawerHeader>
 
           <div className="overflow-y-auto px-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
-            {!isDemo && (
+            {!isDemo && indiqueItem && (
               <button
                 type="button"
                 onClick={() => go(indiqueItem)}
