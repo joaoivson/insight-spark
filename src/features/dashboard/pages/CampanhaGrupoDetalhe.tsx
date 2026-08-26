@@ -9,6 +9,7 @@ import { AnunciosDaCampanha } from "@/features/dashboard/components/AnunciosDaCa
 import { AtividadeDaCampanha } from "@/features/dashboard/components/AtividadeDaCampanha";
 import { LinkDeEntradaDaCampanha } from "@/features/dashboard/components/LinkDeEntradaDaCampanha";
 import { ResultadosDaCampanha } from "@/features/dashboard/components/ResultadosDaCampanha";
+import { MonitoramentoDaCampanha } from "@/features/dashboard/components/MonitoramentoDaCampanha";
 import { RoteirosDaCampanha } from "@/features/dashboard/components/RoteirosDaCampanha";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -123,6 +124,7 @@ const ABAS = [
   "atividade",
   "anuncios",
   "resultados",
+  "monitoramento",
 ] as const;
 
 const CampanhaGrupoDetalhe = () => {
@@ -376,6 +378,7 @@ const CampanhaGrupoDetalhe = () => {
             <TabsTrigger value="atividade">Atividade</TabsTrigger>
             <TabsTrigger value="anuncios">Anúncios</TabsTrigger>
             <TabsTrigger value="resultados">Resultados</TabsTrigger>
+            <TabsTrigger value="monitoramento">Monitoramento</TabsTrigger>
           </TabsList>
         </div>
 
@@ -658,6 +661,10 @@ const CampanhaGrupoDetalhe = () => {
 
         <TabsContent value="anuncios">
           <AnunciosDaCampanha campanhaId={campanhaId} />
+        </TabsContent>
+
+        <TabsContent value="monitoramento">
+          <MonitoramentoDaCampanha campanhaId={campanhaId} />
         </TabsContent>
 
         <TabsContent value="resultados">
