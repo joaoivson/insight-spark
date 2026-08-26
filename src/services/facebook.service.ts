@@ -35,10 +35,17 @@ export const completeFacebookOAuth = async (
   return (await res.json()) as FacebookIntegrationStatus;
 };
 
+/**
+ * Código que o backend devolve quando o token do usuário no Facebook não vale mais
+ * (expirado, senha trocada, app removido). A tela usa isso para oferecer a reconexão
+ * em vez de mostrar um erro cru.
+ */
+export const FACEBOOK_TOKEN_INVALIDO = "facebook_token_invalido";
+
 export const listFacebookAdAccounts = async (): Promise<FacebookAdAccount[]> => {
   const url = getApiUrl("/api/v1/facebook/ad-accounts");
   const res = await fetchWithAuth(url);
-  if (!res.ok) throw new Error((await res.text()) || "Erro ao listar contas de anúncio");
+  if (!res.ok) throw await erroDaResposta(res, "Erro ao listar contas de anúncio");
   return (await res.json()) as FacebookAdAccount[];
 };
 

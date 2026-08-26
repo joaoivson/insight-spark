@@ -232,9 +232,14 @@ export const fetchWithAuth = async (
     if (renewed) {
       headers.set('Authorization', `Bearer ${renewed}`);
       const retry = await fetch(finalUrl, { ...options, headers });
-      if (retry.status !== 401) return retry; // renovou e funcionou → sem logout, sem dado parcial
+      // Renovou a sessão → ela é VÁLIDA. Se o retry ainda devolve 401, esse 401 não é da
+      // nossa autenticação: veio de uma integração externa (ex.: token do Facebook
+      // revogado, code 190 da Graph API). Deslogar aqui expulsava o usuário justamente da
+      // tela de Configurações → Facebook, a única onde ele conseguiria reconectar a conta.
+      // Devolve a resposta para o chamador exibir o erro real.
+      return retry;
     }
-    // Sessão realmente inválida → desloga e vai pro login (sem deixar a tela montar pela metade).
+    // Sessão realmente inválida (não renovou) → desloga e vai pro login.
     if (!isRecentToken) {
       tokenStorage.remove();
       userStorage.remove();
