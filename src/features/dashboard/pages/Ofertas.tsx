@@ -261,8 +261,8 @@ const CardOferta = ({ oferta, onEnviar }: { oferta: Oferta; onEnviar: () => void
 };
 
 const GradeSkeleton = () => (
-  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-    {Array.from({ length: 8 }).map((_, i) => (
+  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
+    {Array.from({ length: 12 }).map((_, i) => (
       <div key={i} className="overflow-hidden rounded-2xl border border-border bg-card">
         <Skeleton className="aspect-square w-full rounded-none" />
         <div className="space-y-2 p-3">
@@ -572,7 +572,7 @@ const Ofertas = () => {
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
               {ofertas.map((o) => (
                 <CardOferta
                   key={`${o.item_id}-${o.url}`}

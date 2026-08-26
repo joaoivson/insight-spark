@@ -39,6 +39,7 @@ const CampanhasGrupos = () => {
   const { campanhas, loaded, loading, error, fetch, criar } = useCampanhasGruposStore();
   const {
     grupos: gruposSincronizados,
+    instancias,
     loaded: conexoesLoaded,
     error: erroConexoes,
     fetch: fetchConexoes,
@@ -79,6 +80,13 @@ const CampanhasGrupos = () => {
   // a lista vem vazia e mandaria a usuária reconectar um número que já existe.
   const semGruposSincronizados =
     conexoesLoaded && !erroConexoes && gruposSincronizados.length === 0;
+  // "Sem dispositivo" e "dispositivo conectado, mas sem grupos" são estados
+  // DIFERENTES. Tratá-los como um só mandava a afiliada conectar um número que
+  // ela já tinha conectado — e escondia a ação que resolvia (sincronizar).
+  const temDispositivoConectado =
+    conexoesLoaded &&
+    !erroConexoes &&
+    instancias.some((i) => i.status === "conectada");
 
   return (
     <DashboardLayout title="Campanhas">
@@ -106,11 +114,14 @@ const CampanhasGrupos = () => {
             <CardContent className="flex flex-col items-start gap-3 p-5 sm:flex-row sm:items-center">
               <Smartphone className="h-5 w-5 flex-shrink-0 text-emerald-500" />
               <p className="min-w-0 flex-1 text-sm text-muted-foreground">
-                Conecte um número e sincronize seus grupos para as campanhas terem onde
-                distribuir as pessoas.
+                {temDispositivoConectado
+                  ? "Seu dispositivo está conectado, mas nenhum grupo foi sincronizado ainda. Sincronize para as campanhas terem onde distribuir as pessoas."
+                  : "Conecte um dispositivo e sincronize seus grupos para as campanhas terem onde distribuir as pessoas."}
               </p>
               <Button asChild variant="outline">
-                <Link to="/dashboard/configuracoes?tab=numeros">Conectar número</Link>
+                <Link to="/dashboard/configuracoes?tab=numeros">
+                  {temDispositivoConectado ? "Sincronizar grupos" : "Conectar dispositivo"}
+                </Link>
               </Button>
             </CardContent>
           </Card>

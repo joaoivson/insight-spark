@@ -13,6 +13,7 @@ import {
   Megaphone,
   Smartphone,
   Clock,
+  ShieldBan,
   type LucideIcon,
 } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
@@ -28,6 +29,7 @@ import { InstagramConnectionSettings } from "@/features/dashboard/components/Ins
 import { WhatsappResumoSettings } from "@/features/dashboard/components/WhatsappResumoSettings";
 import { NumerosSection } from "@/components/whatsapp/NumerosSection";
 import { EnvioSection } from "@/components/whatsapp/EnvioSection";
+import { BlacklistSection } from "@/components/whatsapp/BlacklistSection";
 import { useTaxSettingsStore } from "@/stores/taxSettingsStore";
 import { usePlanStore } from "@/stores/planStore";
 import { useIsMobile } from "@/shared/hooks/use-mobile";
@@ -40,6 +42,7 @@ type SecaoId =
   | "canais"
   | "numeros"
   | "envio"
+  | "bloqueios"
   | "resumo"
   | "impostos"
   | "assinatura";
@@ -58,6 +61,7 @@ const resolveSecao = (params: URLSearchParams): SecaoId | null => {
   if (t === "facebook" || t === "canais" || t === "instagram") return "canais";
   if (t === "numeros") return isProductionHost() ? null : "numeros";
   if (t === "envio") return isProductionHost() ? null : "envio";
+  if (t === "bloqueios" || t === "blacklist") return isProductionHost() ? null : "bloqueios";
   if (t === "whatsapp" || t === "resumo") return isProductionHost() ? null : "resumo";
   if (t === "impostos") return "impostos";
   if (t === "assinatura") return "assinatura";
@@ -77,10 +81,11 @@ const GRUPOS: Grupo[] = [
     ],
   },
   {
-    label: "WhatsApp",
+    label: "Dispositivos",
     secoes: [
       { id: "numeros", label: "Números", icon: Smartphone },
       { id: "envio", label: "Envio", icon: Clock },
+      { id: "bloqueios", label: "Bloqueios", icon: ShieldBan },
       { id: "resumo", label: "Resumo diário", icon: MessageCircle },
     ],
   },
@@ -114,7 +119,7 @@ const Configuracoes = () => {
     setSearchParams(next);
   };
 
-  const grupos = showWhatsapp ? GRUPOS : GRUPOS.filter((g) => g.label !== "WhatsApp");
+  const grupos = showWhatsapp ? GRUPOS : GRUPOS.filter((g) => g.label !== "Dispositivos");
 
   const ativa: SecaoId = secao ?? "marketplaces";
 
@@ -124,6 +129,7 @@ const Configuracoes = () => {
       {ativa === "canais" && <CanaisSecao showInstagram={showInstagram} />}
       {ativa === "numeros" && showWhatsapp && <NumerosSection />}
       {ativa === "envio" && showWhatsapp && <EnvioSection />}
+      {ativa === "bloqueios" && showWhatsapp && <BlacklistSection />}
       {ativa === "resumo" && showWhatsapp && <ResumoSecao />}
       {ativa === "impostos" && <TaxSettingsCard />}
       {ativa === "assinatura" && <AssinaturaCard />}

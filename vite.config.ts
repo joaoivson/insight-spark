@@ -22,6 +22,13 @@ export default defineConfig(({ mode }) => ({
         changeOrigin: true,
         secure: false,
       },
+      // Conexão externa (item 18): a página de pareamento também vem inteira do
+      // backend. O polling do QR passa pelo proxy de '/api' logo acima.
+      '/conectar': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+        secure: false,
+      },
     },
   },
   plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),

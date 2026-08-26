@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { Loader2, Plus, QrCode, RefreshCw, Smartphone, Trash2 } from "lucide-react";
+import { Link2, Loader2, Plus, QrCode, RefreshCw, Smartphone, Trash2 } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/table";
 import { DataCard } from "@/components/shared/DataCard";
 import { ResponsiveModal } from "@/components/shared/ResponsiveModal";
+import { ConviteConexaoModal } from "@/components/whatsapp/ConviteConexaoModal";
 import { useToast } from "@/hooks/use-toast";
 import { usePlanStore } from "@/stores/planStore";
 import type { PlanContext } from "@/services/plan.service";
@@ -128,6 +129,9 @@ export function NumerosSection() {
     };
   }, [qrAlvo, fetch, toast]);
 
+  // ── Link de conexão externa (item 18) ─────────────────────────────────────
+  const [conviteAlvo, setConviteAlvo] = useState<InstanciaConexao | null>(null);
+
   // ── Sincronizar / remover ─────────────────────────────────────────────────
   const [sincronizandoId, setSincronizandoId] = useState<number | null>(null);
   const [paraRemover, setParaRemover] = useState<InstanciaConexao | null>(null);
@@ -194,6 +198,23 @@ export function NumerosSection() {
     : grupos;
   const algumaConectada = instancias.some((i) => i.status === "conectada");
 
+  /**
+   * Nome do(s) dispositivo(s) a que o grupo pertence.
+   *
+   * A coluna mostrava só a CONTAGEM ("1"), que não responde a pergunta que a
+   * afiliada faz — "esse grupo está em qual dos meus números?". Com dois
+   * dispositivos, saber que são "1" não ajuda em nada.
+   */
+  const dispositivosDoGrupo = (ids: number[]): string => {
+    const nomes = ids
+      .map((id) => instancias.find((i) => i.id === id))
+      .filter(Boolean)
+      .map((i) => i!.nome_exibicao || `Número ${i!.id}`);
+    if (nomes.length === 0) return "—";
+    if (nomes.length <= 2) return nomes.join(", ");
+    return `${nomes[0]} +${nomes.length - 1}`;
+  };
+
   const atingiuLimite = !isUnlimited(limite) && instancias.length >= limite;
   const contador = isUnlimited(limite) ? "" : ` (${instancias.length}/${limite})`;
 
@@ -206,7 +227,7 @@ export function NumerosSection() {
         <div className="min-w-0">
           <h3 className="text-lg font-bold text-foreground">Números</h3>
           <p className="text-sm text-muted-foreground">
-            Conecte números de WhatsApp por QR code e sincronize os grupos deles.
+            Conecte dispositivos por QR code e sincronize os grupos deles.
           </p>
         </div>
       </div>
@@ -227,7 +248,7 @@ export function NumerosSection() {
     return shell(
       <div className="rounded-xl border border-dashed border-border p-6 text-center space-y-3">
         <p className="text-sm text-muted-foreground">
-          Números de WhatsApp fazem parte do plano MAX.
+          Dispositivos fazem parte do plano MAX.
         </p>
         <Button asChild>
           <Link to="/dashboard/planos">Ver planos</Link>
@@ -314,6 +335,16 @@ export function NumerosSection() {
                     Conectar
                   </Button>
                 )}
+                {/* Número já conectado não tem QR para mostrar: o link nasceria
+                    morto — a página abriria, veria a sessão conectada e se
+                    invalidaria na primeira consulta. Oferecer a ação e entregar
+                    um link inútil é pior do que não oferecer. */}
+                {i.status !== "conectada" && (
+                  <Button size="sm" variant="outline" onClick={() => setConviteAlvo(i)}>
+                    <Link2 className="h-4 w-4 mr-1.5" />
+                    Conectar por link
+                  </Button>
+                )}
                 <Button
                   size="sm"
                   variant="ghost"
@@ -350,7 +381,11 @@ export function NumerosSection() {
           </div>
           {grupos.length === 0 ? (
             <p className="py-4 text-sm text-muted-foreground">
-              Nenhum grupo ainda. Conecte um número e sincronize.
+              {/* Mandar conectar um dispositivo que JÁ está conectado é o que
+                  fez parecer que a conexão não tinha sido reconhecida. */}
+              {algumaConectada
+                ? "Nenhum grupo ainda. Use “Sincronizar grupos” no dispositivo conectado."
+                : "Nenhum grupo ainda. Conecte um dispositivo e sincronize."}
             </p>
           ) : gruposFiltrados.length === 0 ? (
             <p className="py-4 text-sm text-muted-foreground">Nenhum grupo com esse nome.</p>
@@ -363,7 +398,7 @@ export function NumerosSection() {
                       <TableHead>Nome</TableHead>
                       <TableHead className="text-right">Participantes</TableHead>
                       <TableHead>Envio</TableHead>
-                      <TableHead className="text-right">Números</TableHead>
+                      <TableHead>Dispositivo</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -380,8 +415,8 @@ export function NumerosSection() {
                             <span className="text-muted-foreground">—</span>
                           )}
                         </TableCell>
-                        <TableCell className="text-right tabular-nums">
-                          {g.instancia_ids.length}
+                        <TableCell className="max-w-[220px] truncate">
+                          {dispositivosDoGrupo(g.instancia_ids)}
                         </TableCell>
                       </TableRow>
                     ))}
@@ -401,8 +436,8 @@ export function NumerosSection() {
                         emphasis: true,
                       },
                       {
-                        label: "Números",
-                        value: <span className="tabular-nums">{g.instancia_ids.length}</span>,
+                        label: "Dispositivo",
+                        value: dispositivosDoGrupo(g.instancia_ids),
                       },
                     ]}
                   />
@@ -474,6 +509,13 @@ export function NumerosSection() {
           </p>
         </div>
       </ResponsiveModal>
+
+      <ConviteConexaoModal
+        instancia={conviteAlvo}
+        onOpenChange={(o) => {
+          if (!o) setConviteAlvo(null);
+        }}
+      />
 
       <AlertDialog open={!!paraRemover} onOpenChange={(o) => !o && setParaRemover(null)}>
         <AlertDialogContent>
