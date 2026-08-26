@@ -40,6 +40,7 @@ import {
 } from "@/services/campanhas_grupos.service";
 import { cn } from "@/shared/lib/utils";
 import { useWhatsappConexoesStore } from "@/stores/whatsappConexoesStore";
+import { rotuloDoGrupo } from "@/shared/lib/grupo";
 
 /** Opção de rádio como cartão clicável — mesmo padrão do AutomacaoEditor. */
 const Opcao = ({
@@ -300,7 +301,7 @@ const CampanhaGrupoDetalhe = () => {
   const gruposFiltrados = useMemo(() => {
     const q = busca.trim().toLowerCase();
     if (!q) return gruposDisponiveis;
-    return gruposDisponiveis.filter((g) => g.nome.toLowerCase().includes(q));
+    return gruposDisponiveis.filter((g) => rotuloDoGrupo(g.nome, g.id).toLowerCase().includes(q));
   }, [gruposDisponiveis, busca]);
 
   const alternarSelecionado = (grupoId: number) => {
@@ -718,10 +719,10 @@ const CampanhaGrupoDetalhe = () => {
                       <Checkbox
                         checked={selecionados.has(g.id)}
                         onCheckedChange={() => alternarSelecionado(g.id)}
-                        aria-label={`Selecionar ${g.nome}`}
+                        aria-label={`Selecionar ${rotuloDoGrupo(g.nome, g.id)}`}
                       />
                       <span className="min-w-0 flex-1 truncate text-sm text-foreground">
-                        {g.nome}
+                        {rotuloDoGrupo(g.nome, g.id)}
                       </span>
                       <span className="flex-shrink-0 text-xs tabular-nums text-muted-foreground">
                         {g.participantes}

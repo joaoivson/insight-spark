@@ -91,7 +91,7 @@ export const AnunciosDaCampanha = ({ campanhaId }: { campanhaId: number }) => {
     if (!q) return anuncios;
     return anuncios.filter(
       (a) =>
-        a.nome.toLowerCase().includes(q) || (a.sub_id ?? "").toLowerCase().includes(q),
+        (a.nome ?? "").toLowerCase().includes(q) || (a.sub_id ?? "").toLowerCase().includes(q),
     );
   }, [anuncios, busca]);
 
@@ -221,11 +221,11 @@ export const AnunciosDaCampanha = ({ campanhaId }: { campanhaId: number }) => {
                   checked={selecionados.has(a.id)}
                   onCheckedChange={() => alternar(a.id, !!dona)}
                   disabled={salvando || !!dona}
-                  aria-label={`Vincular ${a.nome}`}
+                  aria-label={`Vincular ${a.nome ?? "anúncio"}`}
                 />
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-sm font-medium text-foreground">
-                    {a.nome}
+                    {a.nome ?? `Anúncio ${a.id}`}
                   </span>
                   {dona ? (
                     <Link

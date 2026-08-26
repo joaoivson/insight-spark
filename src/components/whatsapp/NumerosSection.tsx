@@ -37,6 +37,7 @@ import {
   type StatusInstancia,
 } from "@/services/whatsapp_conexoes.service";
 import { isUnlimited, planLimit } from "@/shared/lib/plans";
+import { rotuloDoGrupo } from "@/shared/lib/grupo";
 
 /** Pareamento é interativo — 5s mantém o QR vivo sem martelar a API. */
 const POLL_QR_MS = 5_000;
@@ -187,7 +188,9 @@ export function NumerosSection() {
   // ── Grupos (busca client-side) ────────────────────────────────────────────
   const [busca, setBusca] = useState("");
   const gruposFiltrados = busca.trim()
-    ? grupos.filter((g) => g.nome.toLowerCase().includes(busca.trim().toLowerCase()))
+    ? grupos.filter((g) =>
+        rotuloDoGrupo(g.nome, g.id).toLowerCase().includes(busca.trim().toLowerCase()),
+      )
     : grupos;
   const algumaConectada = instancias.some((i) => i.status === "conectada");
 
@@ -366,7 +369,7 @@ export function NumerosSection() {
                   <TableBody>
                     {gruposFiltrados.map((g) => (
                       <TableRow key={g.id}>
-                        <TableCell className="font-medium">{g.nome}</TableCell>
+                        <TableCell className="font-medium">{rotuloDoGrupo(g.nome, g.id)}</TableCell>
                         <TableCell className="text-right tabular-nums">
                           {g.participantes}
                         </TableCell>
@@ -389,7 +392,7 @@ export function NumerosSection() {
                 {gruposFiltrados.map((g) => (
                   <DataCard
                     key={g.id}
-                    title={g.nome}
+                    title={rotuloDoGrupo(g.nome, g.id)}
                     badge={g.permite_envio ? <BadgeEnvioOk /> : undefined}
                     fields={[
                       {

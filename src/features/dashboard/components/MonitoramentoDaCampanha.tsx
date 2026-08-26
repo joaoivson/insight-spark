@@ -46,6 +46,7 @@ import {
 } from "@/services/monitoramentos.service";
 import { listarGrupos, type GrupoWhatsapp } from "@/services/whatsapp_conexoes.service";
 import { cn } from "@/shared/lib/utils";
+import { rotuloDoGrupo } from "@/shared/lib/grupo";
 
 /** Acima disso a lista de grupos não se percorre com o polegar — entra a busca. */
 const GRUPOS_COM_BUSCA = 6;
@@ -402,7 +403,7 @@ export const MonitoramentoDaCampanha = ({ campanhaId }: { campanhaId: number }) 
   const gruposFiltrados = useMemo(() => {
     const termo = busca.trim().toLowerCase();
     if (!termo) return grupos;
-    return grupos.filter((g) => g.nome.toLowerCase().includes(termo));
+    return grupos.filter((g) => rotuloDoGrupo(g.nome, g.id).toLowerCase().includes(termo));
   }, [grupos, busca]);
 
   const adicionarPalavra = () => {
@@ -819,7 +820,7 @@ export const MonitoramentoDaCampanha = ({ campanhaId }: { campanhaId: number }) 
                           )}
                         >
                           <span className="min-w-0">
-                            <span className="block truncate text-sm text-foreground">{g.nome}</span>
+                            <span className="block truncate text-sm text-foreground">{rotuloDoGrupo(g.nome, g.id)}</span>
                             <span className="block text-xs tabular-nums text-muted-foreground">
                               {g.participantes} membros
                             </span>

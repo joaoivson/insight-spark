@@ -46,6 +46,7 @@ import {
 } from "@/services/roteiros.service";
 import { cn } from "@/shared/lib/utils";
 import { useWhatsappConexoesStore } from "@/stores/whatsappConexoesStore";
+import { rotuloDoGrupo } from "@/shared/lib/grupo";
 
 /** Estimativa local antes do POST — o backend devolve a real na resposta. */
 const SEGUNDOS_POR_GRUPO = 9;
@@ -230,10 +231,12 @@ export function EnvioRapidoModal({
 
   const gruposOrdenados = useMemo(() => {
     const q = busca.trim().toLowerCase();
-    const filtrados = q ? grupos.filter((g) => g.nome.toLowerCase().includes(q)) : grupos;
+    const filtrados = q ? grupos.filter((g) => rotuloDoGrupo(g.nome, g.id).toLowerCase().includes(q)) : grupos;
     // Quem permite envio primeiro; os demais aparecem desabilitados no fim.
     return [...filtrados].sort(
-      (a, b) => Number(b.permite_envio) - Number(a.permite_envio) || a.nome.localeCompare(b.nome),
+      (a, b) =>
+        Number(b.permite_envio) - Number(a.permite_envio) ||
+        rotuloDoGrupo(a.nome, a.id).localeCompare(rotuloDoGrupo(b.nome, b.id)),
     );
   }, [grupos, busca]);
 
@@ -484,10 +487,10 @@ export function EnvioRapidoModal({
                               checked={selecionados.has(g.id)}
                               disabled={semPermissao}
                               onCheckedChange={() => alternarGrupo(g.id)}
-                              aria-label={`Selecionar ${g.nome}`}
+                              aria-label={`Selecionar ${rotuloDoGrupo(g.nome, g.id)}`}
                             />
                             <span className="min-w-0 flex-1 truncate text-sm text-foreground">
-                              {g.nome}
+                              {rotuloDoGrupo(g.nome, g.id)}
                             </span>
                             {semPermissao ? (
                               <Badge variant="outline" className="flex-shrink-0 text-muted-foreground">

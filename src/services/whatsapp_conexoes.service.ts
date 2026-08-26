@@ -32,7 +32,9 @@ export type ResultadoSincronizacao = {
 export type GrupoWhatsapp = {
   id: number;
   jid: string;
-  nome: string;
+  /** Nullable no backend: o sync grava `None` quando o WhatsApp não
+   *  devolve `subject`/`name`. Ler sem fallback derruba a tela. */
+  nome: string | null;
   foto_url: string | null;
   participantes: number;
   capacidade: number;

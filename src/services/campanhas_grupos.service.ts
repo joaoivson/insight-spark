@@ -184,7 +184,8 @@ export async function listarAtividade(id: number, limite = 50): Promise<EventoDe
 /** Campanha de anúncio do Meta, com a flag do multi-select desta campanha. */
 export type AnuncioVinculavel = {
   id: number;
-  nome: string;
+  /** Nullable no backend (`Campaign.name`) — ler sem fallback derruba a tela. */
+  nome: string | null;
   status: string | null;
   sub_id: string | null;
   vinculada: boolean;
