@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ArrowDown, ArrowUp, Loader2, Plus, X } from "lucide-react";
+import { ArrowDown, ArrowUp, Loader2, Plus, Send, X } from "lucide-react";
 
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { ResponsiveModal } from "@/components/shared/ResponsiveModal";
+import { EnvioRapidoModal } from "@/components/whatsapp/EnvioRapidoModal";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -126,8 +127,15 @@ const CampanhaGrupoDetalhe = () => {
   const [salvandoGrupos, setSalvandoGrupos] = useState(false);
 
   const [modalAdicionar, setModalAdicionar] = useState(false);
+  const [modalEnvio, setModalEnvio] = useState(false);
   const [busca, setBusca] = useState("");
   const [selecionados, setSelecionados] = useState<Set<number>>(new Set());
+
+  // Pré-seleção do envio rápido: os grupos abertos da campanha.
+  const gruposAbertos = useMemo(
+    () => vinculos.filter((v) => v.aberto).map((v) => v.grupo_id),
+    [vinculos],
+  );
 
   const aplicarGrupos = useCallback((d: CampanhaGruposDetalhe) => {
     const lista = paraVinculos(d);
@@ -411,9 +419,14 @@ const CampanhaGrupoDetalhe = () => {
 
         <TabsContent value="grupos" className="space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <Button variant="outline" onClick={() => setModalAdicionar(true)}>
-              <Plus className="mr-2 h-4 w-4" /> Adicionar grupos
-            </Button>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button onClick={() => setModalEnvio(true)}>
+                <Send className="mr-2 h-4 w-4" /> Enviar oferta
+              </Button>
+              <Button variant="outline" onClick={() => setModalAdicionar(true)}>
+                <Plus className="mr-2 h-4 w-4" /> Adicionar grupos
+              </Button>
+            </div>
             <div className="flex items-center gap-3">
               {gruposDirty && (
                 <span className="text-xs text-amber-500">Alterações não salvas</span>
@@ -650,6 +663,13 @@ const CampanhaGrupoDetalhe = () => {
           )}
         </div>
       </ResponsiveModal>
+
+      <EnvioRapidoModal
+        open={modalEnvio}
+        onOpenChange={setModalEnvio}
+        campanhaId={campanhaId}
+        gruposPreSelecionados={gruposAbertos}
+      />
     </DashboardLayout>
   );
 };

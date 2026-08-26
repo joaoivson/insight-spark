@@ -13,6 +13,7 @@ import {
   Store,
   Megaphone,
   Smartphone,
+  Clock,
   type LucideIcon,
 } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
@@ -27,6 +28,7 @@ import { FacebookIntegrationSettings } from "@/features/dashboard/components/Fac
 import { InstagramConnectionSettings } from "@/features/dashboard/components/InstagramConnectionSettings";
 import { WhatsappResumoSettings } from "@/features/dashboard/components/WhatsappResumoSettings";
 import { NumerosSection } from "@/components/whatsapp/NumerosSection";
+import { EnvioSection } from "@/components/whatsapp/EnvioSection";
 import { useTaxSettingsStore } from "@/stores/taxSettingsStore";
 import { usePlanStore } from "@/stores/planStore";
 import { useIsMobile } from "@/shared/hooks/use-mobile";
@@ -34,7 +36,14 @@ import { isProductionHost } from "@/core/config/api.config";
 
 // Sub-navegação vertical agrupada (spec Grupos §3.3). Seções de features que
 // ainda não existem simplesmente não aparecem — nada de "em breve".
-type SecaoId = "marketplaces" | "canais" | "numeros" | "resumo" | "impostos" | "assinatura";
+type SecaoId =
+  | "marketplaces"
+  | "canais"
+  | "numeros"
+  | "envio"
+  | "resumo"
+  | "impostos"
+  | "assinatura";
 
 // Aliases de deep-link: as abas antigas (?tab=shopee|facebook|...) continuam
 // abrindo o lugar certo. A seção deriva da URL (não de useState): navegação
@@ -49,6 +58,7 @@ const resolveSecao = (params: URLSearchParams): SecaoId | null => {
   // guarda sair de lá, o resolver NÃO segura o vazamento sozinho.
   if (t === "facebook" || t === "canais" || t === "instagram") return "canais";
   if (t === "numeros") return isProductionHost() ? null : "numeros";
+  if (t === "envio") return isProductionHost() ? null : "envio";
   if (t === "whatsapp" || t === "resumo") return isProductionHost() ? null : "resumo";
   if (t === "impostos") return "impostos";
   if (t === "assinatura") return "assinatura";
@@ -71,6 +81,7 @@ const GRUPOS: Grupo[] = [
     label: "WhatsApp",
     secoes: [
       { id: "numeros", label: "Números", icon: Smartphone },
+      { id: "envio", label: "Envio", icon: Clock },
       { id: "resumo", label: "Resumo diário", icon: MessageCircle },
     ],
   },
@@ -113,6 +124,7 @@ const Configuracoes = () => {
       {ativa === "marketplaces" && <MarketplacesSecao />}
       {ativa === "canais" && <CanaisSecao showInstagram={showInstagram} />}
       {ativa === "numeros" && showWhatsapp && <NumerosSection />}
+      {ativa === "envio" && showWhatsapp && <EnvioSection />}
       {ativa === "resumo" && showWhatsapp && <ResumoSecao />}
       {ativa === "impostos" && <TaxSettingsCard />}
       {ativa === "assinatura" && <AssinaturaCard />}

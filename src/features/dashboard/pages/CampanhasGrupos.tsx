@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Loader2, MessagesSquare, Plus, Smartphone } from "lucide-react";
+import { Loader2, MessagesSquare, Plus, Send, Smartphone } from "lucide-react";
 
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { ResponsiveModal } from "@/components/shared/ResponsiveModal";
+import { EnvioRapidoModal } from "@/components/whatsapp/EnvioRapidoModal";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -39,10 +40,12 @@ const CampanhasGrupos = () => {
   const {
     grupos: gruposSincronizados,
     loaded: conexoesLoaded,
+    error: erroConexoes,
     fetch: fetchConexoes,
   } = useWhatsappConexoesStore();
 
   const [modalNova, setModalNova] = useState(false);
+  const [modalEnvio, setModalEnvio] = useState(false);
   const [nome, setNome] = useState("");
   const [descricao, setDescricao] = useState("");
   const [criando, setCriando] = useState(false);
@@ -72,15 +75,28 @@ const CampanhasGrupos = () => {
   };
 
   const initialLoading = loading && !loaded;
-  const semGruposSincronizados = conexoesLoaded && gruposSincronizados.length === 0;
+  // Só afirma "não tem grupos" quando a carga REALMENTE deu certo: com erro,
+  // a lista vem vazia e mandaria a usuária reconectar um número que já existe.
+  const semGruposSincronizados =
+    conexoesLoaded && !erroConexoes && gruposSincronizados.length === 0;
 
   return (
     <DashboardLayout title="Campanhas">
       <div className="space-y-5">
-        {campanhas.length > 0 && (
-          <div className="flex items-center justify-end">
-            <Button onClick={() => setModalNova(true)}>
-              <Plus className="mr-2 h-4 w-4" /> Nova campanha
+        {!initialLoading && (
+          <div className="flex items-center justify-end gap-2">
+            {campanhas.length > 0 && (
+              <Button
+                variant={semGruposSincronizados ? "default" : "outline"}
+                onClick={() => setModalNova(true)}
+              >
+                <Plus className="mr-2 h-4 w-4" /> Nova campanha
+              </Button>
+            )}
+            {/* Sem grupo sincronizado, "Enviar oferta" só levaria ao mesmo
+                estado vazio que já está na tela — o CTA certo é conectar. */}
+            <Button onClick={() => setModalEnvio(true)} disabled={semGruposSincronizados}>
+              <Send className="mr-2 h-4 w-4" /> Enviar oferta
             </Button>
           </div>
         )}
@@ -215,6 +231,8 @@ const CampanhasGrupos = () => {
           </Button>
         </div>
       </ResponsiveModal>
+
+      <EnvioRapidoModal open={modalEnvio} onOpenChange={setModalEnvio} />
     </DashboardLayout>
   );
 };
