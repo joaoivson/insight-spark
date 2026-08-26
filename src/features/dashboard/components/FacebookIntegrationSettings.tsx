@@ -24,6 +24,7 @@ import {
   selectFacebookAdAccounts,
   clearFacebookAdsData,
   triggerFacebookSync,
+  FACEBOOK_TOKEN_INVALIDO,
 } from "@/services/facebook.service";
 import type { FacebookAdAccount, FacebookIntegrationStatus } from "@/shared/types/campaign";
 import { usePlanStore } from "@/stores/planStore";
@@ -62,6 +63,9 @@ export const FacebookIntegrationSettings = () => {
   const [syncing, setSyncing] = useState(false);
   const [deselectAllOpen, setDeselectAllOpen] = useState(false);
   const [pendingDeselectId, setPendingDeselectId] = useState<string | null>(null);
+  // Conexão existe no banco, mas o token não vale mais no Facebook: a única saída é
+  // refazer o OAuth. Sem isso a tela mostrava "Conectado" com a lista de contas vazia.
+  const [precisaReconectar, setPrecisaReconectar] = useState(false);
 
   useEffect(() => {
     void fetchPlan();
@@ -86,8 +90,14 @@ export const FacebookIntegrationSettings = () => {
     try {
       const accs = await listFacebookAdAccounts();
       setAccounts(accs);
+      setPrecisaReconectar(false);
     } catch (e) {
-      toast({ title: "Erro ao listar contas de anúncio", description: (e as Error).message, variant: "destructive" });
+      const erro = e as Error & { code?: string };
+      if (erro.code === FACEBOOK_TOKEN_INVALIDO) {
+        setPrecisaReconectar(true);
+        return;
+      }
+      toast({ title: "Erro ao listar contas de anúncio", description: erro.message, variant: "destructive" });
     }
   };
 
@@ -339,12 +349,18 @@ export const FacebookIntegrationSettings = () => {
     );
   }
 
-  if (!status || status.connection_state === "nunca") {
+  if (!status || status.connection_state === "nunca" || precisaReconectar) {
     return (
       <div className="space-y-4">
+        {precisaReconectar && (
+          <Badge className="bg-amber-500/10 text-amber-500 border-amber-500/25 gap-1">
+            <Unplug className="w-3.5 h-3.5" /> Conexão expirada
+          </Badge>
+        )}
         <p className="text-sm text-muted-foreground">
-          Conecte sua conta do Facebook para sincronizar campanhas, gasto e métricas, e controlar pausar/ativar e
-          orçamento direto daqui.
+          {precisaReconectar
+            ? "Sua conexão com o Facebook expirou e as campanhas pararam de sincronizar. Conecte de novo para voltar a receber gasto e métricas."
+            : "Conecte sua conta do Facebook para sincronizar campanhas, gasto e métricas, e controlar pausar/ativar e orçamento direto daqui."}
         </p>
         <div className="flex items-start gap-2 rounded-lg border border-border bg-muted/40 p-3 text-xs text-muted-foreground">
           <Clock className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" />
@@ -355,7 +371,7 @@ export const FacebookIntegrationSettings = () => {
         </div>
         <Button onClick={handleConnect} disabled={busy} className="w-full md:w-auto">
           {busy ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Facebook className="w-4 h-4 mr-2" />}
-          Conectar com Facebook
+          {precisaReconectar ? "Reconectar com Facebook" : "Conectar com Facebook"}
         </Button>
       </div>
     );
