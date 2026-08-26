@@ -104,3 +104,77 @@ export async function definirGruposDaCampanha(
   });
   return json(res, "Não foi possível salvar os grupos da campanha.");
 }
+
+// ── Link de entrada (F6) ─────────────────────────────────────────────────────
+
+/** Eventos que o pixel do Facebook dispara na página do link. */
+export type PixelEventos = {
+  pageview: boolean;
+  lead: boolean;
+};
+
+export type CampanhaLink = {
+  id: number;
+  slug: string;
+  /** URL pública — é o que a afiliada divulga. */
+  url: string;
+  /** Mesma rota em modo teste: entra na campanha sem contar nas métricas. */
+  url_teste: string;
+  titulo_previa: string | null;
+  descricao_previa: string | null;
+  banner_previa_url: string | null;
+  pixel_facebook_id: string | null;
+  pixel_eventos: PixelEventos;
+  ativo: boolean;
+};
+
+/** Campos editáveis do link — qualquer subconjunto. */
+export type CampanhaLinkPatch = Partial<{
+  titulo_previa: string | null;
+  descricao_previa: string | null;
+  banner_previa_url: string | null;
+  pixel_facebook_id: string | null;
+  pixel_eventos: PixelEventos;
+  ativo: boolean;
+}>;
+
+export type TipoEventoGrupo = "entrada" | "saida";
+export type OrigemEventoGrupo = "link" | "organica" | "desconhecida";
+
+/** Entrada ou saída de um grupo da campanha — sem nenhum dado pessoal. */
+export type EventoDeGrupo = {
+  tipo: TipoEventoGrupo;
+  origem: OrigemEventoGrupo;
+  grupo_id: number;
+  grupo: string | null;
+  /** ISO 8601. Vem nulo quando o banco ainda não carimbou a data. */
+  quando: string | null;
+};
+
+/** O link é criado na primeira visita — a tela não precisa "gerar" nada. */
+export async function obterLinkDaCampanha(id: number): Promise<CampanhaLink> {
+  const res = await fetchWithAuth(`${base()}/${id}/link`);
+  return json(res, "Não foi possível carregar o link de entrada.");
+}
+
+export async function atualizarLinkDaCampanha(
+  id: number,
+  patch: CampanhaLinkPatch,
+): Promise<CampanhaLink> {
+  const res = await fetchWithAuth(`${base()}/${id}/link`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(patch),
+  });
+  return json(res, "Não foi possível salvar o link de entrada.");
+}
+
+/** Feed de entradas e saídas, do mais recente para o mais antigo. */
+export async function listarAtividade(id: number, limite = 50): Promise<EventoDeGrupo[]> {
+  const res = await fetchWithAuth(`${base()}/${id}/atividade?limite=${limite}`);
+  const corpo = await json<{ eventos: EventoDeGrupo[] }>(
+    res,
+    "Não foi possível carregar a atividade.",
+  );
+  return corpo.eventos ?? [];
+}

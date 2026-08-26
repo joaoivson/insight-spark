@@ -3,7 +3,7 @@ import LegalLayout from "./LegalLayout";
 const CONTACT = "relacionamento@marketdash.com.br";
 
 const PrivacyPolicy = () => (
-  <LegalLayout title="Política de Privacidade" updatedAt="junho de 2026">
+  <LegalLayout title="Política de Privacidade" updatedAt="agosto de 2026">
     <p>
       Esta Política de Privacidade descreve como a <strong>ORQUESTRA IA - TRANSFORMANDO SOLUÇÕES LTDA</strong>{" "}
       (CNPJ 66.641.347/0001-21), operadora da plataforma <strong>MarketDash</strong>, coleta, utiliza, armazena e
@@ -63,13 +63,50 @@ const PrivacyPolicy = () => (
       o acesso e remove as credenciais armazenadas.
     </p>
 
-    <h2>7. Seus direitos (LGPD)</h2>
+    <h2 id="grupos-whatsapp">7. Grupos de WhatsApp (plano Max)</h2>
+      <p>
+        Quem usa o módulo de campanhas em grupos conecta o próprio número de
+        WhatsApp ao MarketDash. Sobre esse uso:
+      </p>
+      <ul>
+        <li>
+          <strong>Do seu número</strong>, guardamos o estado da conexão, o
+          número em si e a lista dos grupos de que você participa (nome, foto,
+          quantidade de participantes e se você é administrador).
+        </li>
+        <li>
+          <strong>Não lemos nem armazenamos o conteúdo das mensagens</strong>{" "}
+          dos seus grupos. A conexão é configurada para receber apenas eventos
+          de estado e de entrada/saída de participantes.
+        </li>
+        <li>
+          <strong>De quem entra ou sai dos seus grupos</strong>, registramos
+          somente a data, o grupo, a origem (link ou entrada espontânea) e um{" "}
+          <em>código irreversível</em> derivado do número da pessoa. Esse
+          código serve apenas para saber quantas pessoas permaneceram no grupo
+          — o número de telefone de terceiros não é armazenado.
+        </li>
+        <li>
+          <strong>O envio é feito pelo seu número</strong>, por sua conta e
+          risco: o WhatsApp pode restringir números com uso considerado
+          abusivo. O MarketDash aplica limites e intervalos para reduzir esse
+          risco, mas não pode eliminá-lo.
+        </li>
+        <li>
+          Ao remover um número no painel, encerramos a sessão e apagamos as
+          credenciais de conexão. Os registros agregados de desempenho
+          (cliques, entradas, comissão por grupo) permanecem, por serem dados
+          da sua operação.
+        </li>
+      </ul>
+
+      <h2>8. Seus direitos (LGPD)</h2>
     <p>
       Você pode solicitar confirmação de tratamento, acesso, correção, anonimização, portabilidade e exclusão dos seus
       dados, bem como revogar consentimentos, entrando em contato pelo e-mail abaixo.
     </p>
 
-    <h2>8. Contato</h2>
+    <h2>9. Contato</h2>
     <p>
       Dúvidas sobre esta política ou sobre seus dados? Fale com o encarregado de dados pelo e-mail{" "}
       <a href={`mailto:${CONTACT}`}>{CONTACT}</a>.

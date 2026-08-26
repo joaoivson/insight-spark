@@ -1,10 +1,12 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { ArrowDown, ArrowUp, Loader2, Plus, Send, X } from "lucide-react";
 
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { ResponsiveModal } from "@/components/shared/ResponsiveModal";
 import { EnvioRapidoModal } from "@/components/whatsapp/EnvioRapidoModal";
+import { AtividadeDaCampanha } from "@/features/dashboard/components/AtividadeDaCampanha";
+import { LinkDeEntradaDaCampanha } from "@/features/dashboard/components/LinkDeEntradaDaCampanha";
 import { RoteirosDaCampanha } from "@/features/dashboard/components/RoteirosDaCampanha";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -111,7 +113,7 @@ const assinatura = (vinculos: VinculoLocal[]) =>
   vinculos.map((v) => `${v.grupo_id}:${v.aberto ? 1 : 0}`).join(",");
 
 /** Abas válidas em ?tab= — voltar do editor de roteiro cai direto na aba certa. */
-const ABAS = ["visao-geral", "grupos", "roteiros"] as const;
+const ABAS = ["visao-geral", "grupos", "roteiros", "link", "atividade"] as const;
 
 const CampanhaGrupoDetalhe = () => {
   const { id } = useParams<{ id: string }>();
@@ -183,6 +185,16 @@ const CampanhaGrupoDetalhe = () => {
     void carregar();
     void fetchConexoes();
   }, [carregar, fetchConexoes]);
+
+  // Cinco abas não cabem em 390px. Sem isto, quem chega por `?tab=atividade`
+  // cai numa lista rolada até o começo e não vê qual aba está ativa.
+  const abasRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (carregando) return;
+    abasRef.current
+      ?.querySelector('[data-state="active"]')
+      ?.scrollIntoView({ block: "nearest", inline: "center" });
+  }, [carregando]);
 
   // ── Visão geral ───────────────────────────────────────────────────────────
   const salvarForm = async () => {
@@ -329,14 +341,19 @@ const CampanhaGrupoDetalhe = () => {
   return (
     <DashboardLayout title={detalhe.nome} action={<StatusCampanhaBadge status={detalhe.status} />}>
       <Tabs defaultValue={abaInicial} className="space-y-5">
-        <TabsList>
-          <TabsTrigger value="visao-geral">Visão geral</TabsTrigger>
-          <TabsTrigger value="grupos">
-            Grupos
-            <span className="ml-1.5 tabular-nums text-muted-foreground">{vinculos.length}</span>
-          </TabsTrigger>
-          <TabsTrigger value="roteiros">Roteiros</TabsTrigger>
-        </TabsList>
+        {/* O scroll das abas fica no container, nunca na página. */}
+        <div ref={abasRef} className="-mx-1 overflow-x-auto px-1 pb-1">
+          <TabsList>
+            <TabsTrigger value="visao-geral">Visão geral</TabsTrigger>
+            <TabsTrigger value="grupos">
+              Grupos
+              <span className="ml-1.5 tabular-nums text-muted-foreground">{vinculos.length}</span>
+            </TabsTrigger>
+            <TabsTrigger value="roteiros">Roteiros</TabsTrigger>
+            <TabsTrigger value="link">Link de entrada</TabsTrigger>
+            <TabsTrigger value="atividade">Atividade</TabsTrigger>
+          </TabsList>
+        </div>
 
         <TabsContent value="visao-geral">
           <Card>
@@ -605,6 +622,14 @@ const CampanhaGrupoDetalhe = () => {
 
         <TabsContent value="roteiros">
           <RoteirosDaCampanha campanhaId={campanhaId} />
+        </TabsContent>
+
+        <TabsContent value="link" forceMount className="data-[state=inactive]:hidden">
+          <LinkDeEntradaDaCampanha campanhaId={campanhaId} />
+        </TabsContent>
+
+        <TabsContent value="atividade">
+          <AtividadeDaCampanha campanhaId={campanhaId} />
         </TabsContent>
       </Tabs>
 

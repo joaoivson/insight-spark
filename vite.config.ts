@@ -15,6 +15,13 @@ export default defineConfig(({ mode }) => ({
         changeOrigin: true,
         secure: false,
       },
+      // Link de entrada dos grupos (F6): a página vem inteira do backend
+      // (roteia o grupo, grava o clique, dispara o pixel e redireciona).
+      '/g': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+        secure: false,
+      },
     },
   },
   plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
