@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link as RouterLink, useNavigate } from "react-router-dom";
 import {
   ChevronDown,
   ChevronUp,
@@ -19,10 +19,12 @@ import {
   CalendarRange,
   Download,
   MousePointerClick,
+  MessagesSquare,
   type LucideIcon,
 } from "lucide-react";
 import type { DateRange } from "react-day-picker";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
@@ -61,6 +63,11 @@ import {
   setCampaignStatus,
 } from "@/services/campaigns.service";
 import { getFacebookStatus, triggerFacebookSync } from "@/services/facebook.service";
+import { mensagemAmigavel } from "@/services/http-error";
+import {
+  listarVinculosDeAnuncio,
+  type VinculoDeAnuncio,
+} from "@/services/campanhas_grupos.service";
 import { FacebookConnectionBanner } from "@/features/dashboard/components/FacebookConnectionBanner";
 import { PlatformBreakdownCard } from "@/features/dashboard/components/PlatformBreakdownCard";
 import { isProductionHost } from "@/core/config/api.config";
@@ -116,6 +123,19 @@ const fmtShort = (d: Date) => `${String(d.getDate()).padStart(2, "0")}/${String(
 const periodRange = (key: Exclude<PeriodKey, "custom">): { startDate: string; endDate: string } =>
   presetRangeKeys(key);
 
+/**
+ * Filtro de vínculo com campanha de grupos — ortogonal ao status, por isso é um
+ * controle próprio. Juntos num dropdown só, escolher "Vinculadas" zerava em
+ * silêncio o "Ativa" e não dava para expressar "ativa E vinculada".
+ */
+type VinculoFilter = "all" | "com-grupo" | "sem-grupo";
+
+const VINCULO_CHIPS: { key: VinculoFilter; label: string }[] = [
+  { key: "all", label: "Todas" },
+  { key: "com-grupo", label: "Vinculadas a grupo" },
+  { key: "sem-grupo", label: "Sem vínculo com grupo" },
+];
+
 type SortKey = "spend" | "roas" | "profit" | "commission" | "cpc" | "orders";
 
 const SORT_OPTIONS: { key: SortKey; label: string }[] = [
@@ -159,6 +179,8 @@ const Campanhas = () => {
   const [customRange, setCustomRange] = useState<DateRange | undefined>();
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState<CampaignStatusFilter>("all");
+  const [vinculoFilter, setVinculoFilter] = useState<VinculoFilter>("all");
+  const [vinculosGrupo, setVinculosGrupo] = useState<Record<string, VinculoDeAnuncio>>({});
   const [sortKey, setSortKey] = useState<SortKey>("spend");
   const [healthFilter, setHealthFilter] = useState<CampaignHealth | null>(null);
   const [fbConnected, setFbConnected] = useState<boolean | null>(null);
@@ -167,8 +189,12 @@ const Campanhas = () => {
   const [lastSyncAt, setLastSyncAt] = useState<string | null>(null);
   const [lastSyncShopee, setLastSyncShopee] = useState<string | null>(null);
   const { connectionState, fetch: fetchFbConn } = useFacebookConnectionStore();
-  const { isDemo, fetch: fetchPlan } = usePlanStore();
+  const { isDemo, fetch: fetchPlan, allowsMenu } = usePlanStore();
   const fbControlsEnabled = connectionState === "conectado" || isDemo;
+  // Duas portas: host (o módulo de grupos é hml-only) E plano (o endpoint é
+  // MAX-only). Sem a segunda, conta essencial/pro em homologação dispara uma
+  // request que dá 403 garantido e ainda vê chips que não filtram nada.
+  const gruposHabilitado = !isProductionHost() && allowsMenu("campanhas_grupos");
 
   const range = useMemo(() => {
     if (period === "custom" && customRange?.from && customRange?.to) {
@@ -192,9 +218,26 @@ const Campanhas = () => {
   const handleExport = async () => {
     setExporting(true);
     try {
-      await exportCampaigns({ startDate: range.startDate, endDate: range.endDate, status, search: search || undefined });
+      // O vínculo vai junto: sem ele o arquivo viria com TODAS as campanhas e
+      // não bateria com o que está na tela.
+      await exportCampaigns({
+        startDate: range.startDate,
+        endDate: range.endDate,
+        status,
+        search: search || undefined,
+        vinculo:
+          vinculoFilter === "com-grupo"
+            ? "com_grupo"
+            : vinculoFilter === "sem-grupo"
+              ? "sem_grupo"
+              : "all",
+      });
     } catch (e) {
-      toast({ title: "Erro ao exportar", description: (e as Error).message, variant: "destructive" });
+      toast({
+        title: "Erro ao exportar",
+        description: mensagemAmigavel(e, "Não foi possível exportar as campanhas. Tente novamente."),
+        variant: "destructive",
+      });
     } finally {
       setExporting(false);
     }
@@ -215,6 +258,16 @@ const Campanhas = () => {
       .then((s) => setLastSyncShopee(s?.last_sync_at ?? null))
       .catch(() => {});
   }, [fetchFbConn, fetchPlan]);
+
+  // Selo "vai para a campanha X de grupos". Uma request para a lista inteira — não
+  // entra no CampaignResponse justamente para não mexer no cálculo de KPIs que já
+  // está no ar. Falha em silêncio: sem selo a tela continua completa.
+  useEffect(() => {
+    if (!gruposHabilitado) return;
+    listarVinculosDeAnuncio()
+      .then(setVinculosGrupo)
+      .catch(() => setVinculosGrupo({}));
+  }, [gruposHabilitado]);
 
   // Força um sync do Facebook (gasto/CPC/impressões mudam ao longo do dia) e recarrega.
   // A Shopee não entra aqui — ela só atualiza 1x/dia, não tem dado em tempo real.
@@ -253,6 +306,8 @@ const Campanhas = () => {
 
   const visibleCampaigns = useMemo(() => {
     let list = campaigns;
+    if (vinculoFilter === "com-grupo") list = list.filter((c) => vinculosGrupo[String(c.id)]);
+    else if (vinculoFilter === "sem-grupo") list = list.filter((c) => !vinculosGrupo[String(c.id)]);
     if (healthFilter === "unlinked") list = list.filter((c) => !c.linked);
     else if (healthFilter === "loss") list = list.filter((c) => c.linked && c.metrics.roas < 1 && c.metrics.spend > 0);
     if (search.trim()) {
@@ -261,7 +316,7 @@ const Campanhas = () => {
     }
     const getVal = SORT_GETTERS[sortKey];
     return [...list].sort((a, b) => getVal(b) - getVal(a));
-  }, [campaigns, healthFilter, search, sortKey]);
+  }, [campaigns, healthFilter, search, sortKey, vinculoFilter, vinculosGrupo]);
 
   const unlinkedCount = campaigns.filter((c) => !c.linked).length;
   const unlinkedSpend = campaigns.filter((c) => !c.linked).reduce((acc, c) => acc + c.metrics.spend, 0);
@@ -269,6 +324,10 @@ const Campanhas = () => {
 
   // A3: se o banner que ativa o filtro deixa de existir (condição zerou — ex.: vinculou
   // todas as sem-vínculo), volta sozinho pra "Todas" em vez de prender numa tela vazia.
+  useEffect(() => {
+    if (!gruposHabilitado && vinculoFilter !== "all") setVinculoFilter("all");
+  }, [gruposHabilitado, vinculoFilter]);
+
   useEffect(() => {
     if (healthFilter === "unlinked" && unlinkedCount === 0) setHealthFilter(null);
     if (healthFilter === "loss" && lossCount === 0) setHealthFilter(null);
@@ -287,9 +346,9 @@ const Campanhas = () => {
           <Button
             variant="outline"
             size="sm"
+            className="hidden sm:inline-flex"
             onClick={handleExport}
             disabled={exporting || loading || campaigns.length === 0}
-            className="hidden sm:inline-flex"
           >
             <Download className={cn("w-4 h-4 mr-2", exporting && "animate-pulse")} />
             Exportar
@@ -351,6 +410,27 @@ const Campanhas = () => {
                 </SelectContent>
               </Select>
             </div>
+
+            {gruposHabilitado && (
+              <div className="flex gap-2 overflow-x-auto">
+                <div className="inline-flex flex-shrink-0 rounded-lg border border-border bg-card p-1">
+                  {VINCULO_CHIPS.map((c) => (
+                    <button
+                      key={c.key}
+                      onClick={() => setVinculoFilter(c.key)}
+                      className={cn(
+                        "whitespace-nowrap rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors",
+                        vinculoFilter === c.key
+                          ? "bg-primary text-primary-foreground"
+                          : "text-muted-foreground hover:text-foreground",
+                      )}
+                    >
+                      {c.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <div className="flex gap-2 overflow-x-auto sm:ml-auto">
               <div className="inline-flex flex-shrink-0 rounded-lg border border-border bg-card p-1">
@@ -485,6 +565,7 @@ const Campanhas = () => {
                 campaign={c}
                 range={range}
                 hasTax={hasTax}
+                grupoVinculado={vinculosGrupo[String(c.id)]}
                 controlsEnabled={fbControlsEnabled}
                 onPatch={(patch) => patchCampaign(c.id, patch)}
                 onChanged={reload}
@@ -599,6 +680,7 @@ const CampaignCard = ({
   range,
   hasTax,
   controlsEnabled,
+  grupoVinculado,
   onPatch,
   onChanged,
 }: {
@@ -606,6 +688,8 @@ const CampaignCard = ({
   range: { startDate: string; endDate: string };
   hasTax: boolean;
   controlsEnabled: boolean;
+  /** Campanha de grupos que reivindica este anúncio — só existe em homologação. */
+  grupoVinculado?: VinculoDeAnuncio;
   onPatch: (patch: Partial<Campaign>) => void;
   onChanged: () => void;
 }) => {
@@ -723,18 +807,35 @@ const CampaignCard = ({
             </TooltipProvider>
             <span className="min-w-0">
               <span className="block truncate text-sm font-semibold">{campaign.name}</span>
-              {campaign.linked ? (
-                <button
-                  type="button"
-                  onClick={() => setLinkOpen(true)}
-                  title="Trocar ou desvincular"
-                  className="mt-0.5 inline-flex items-center gap-1 rounded text-[11px] text-primary transition-colors hover:text-primary/80 hover:underline"
-                >
-                  <Link2 className="h-3 w-3" /> {campaign.sub_id}
-                </button>
-              ) : (
-                <span className="text-[11px] text-warning">não vinculada</span>
-              )}
+              <span className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1">
+                {campaign.linked ? (
+                  <button
+                    type="button"
+                    onClick={() => setLinkOpen(true)}
+                    title="Trocar ou desvincular"
+                    className="inline-flex items-center gap-1 rounded text-[11px] text-primary transition-colors hover:text-primary/80 hover:underline"
+                  >
+                    <Link2 className="h-3 w-3" /> {campaign.sub_id}
+                  </button>
+                ) : (
+                  <span className="text-[11px] text-warning">não vinculada</span>
+                )}
+                {grupoVinculado && (
+                  <RouterLink
+                    to={`/dashboard/grupos/${grupoVinculado.id}?tab=resultados`}
+                    className="max-w-[180px] rounded-full"
+                    title={`Ver resultados de ${grupoVinculado.nome}`}
+                  >
+                    <Badge
+                      variant="outline"
+                      className="max-w-full gap-1 border-border text-[11px] font-normal text-muted-foreground transition-colors hover:text-foreground"
+                    >
+                      <MessagesSquare className="h-3 w-3 flex-shrink-0" aria-hidden="true" />
+                      <span className="truncate">{grupoVinculado.nome}</span>
+                    </Badge>
+                  </RouterLink>
+                )}
+              </span>
             </span>
           </span>
           <span className="flex flex-shrink-0 items-center gap-2">

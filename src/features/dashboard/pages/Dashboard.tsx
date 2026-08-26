@@ -11,7 +11,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useDatasetStore } from "@/stores/datasetStore";
 import { useAdSpendsStore } from "@/stores/adSpendsStore";
 import { useClicksStore } from "@/stores/clicksStore";
-import { isBeforeDateKey, isAfterDateKey, presetRangeDates } from "@/shared/lib/date";
+import { isBeforeDateKey, isAfterDateKey, presetRangeDates, toDateKey } from "@/shared/lib/date";
+import { ResumoDeGruposCard } from "@/features/dashboard/components/ResumoDeGruposCard";
 import {
   calcDashTotals,
   buildSeries,
@@ -105,6 +106,11 @@ const Dashboard = () => {
   );
 
   const isEmpty = totals.comissao === 0 && totals.gasto === 0 && totals.orders === 0;
+
+  // O bloco de grupos usa O MESMO período da tela. Sem filtro (a usuária limpou),
+  // manda vazio e o backend assume os últimos 30 dias.
+  const inicioGrupos = dateRange.from ? toDateKey(dateRange.from) : undefined;
+  const fimGrupos = dateRange.to ? toDateKey(dateRange.to) : undefined;
 
   const statusOptions = useMemo(() => Array.from(new Set(rows.map((r) => r.status).filter(Boolean))).sort(), [rows]);
   // Filtro de Categoria = só as categorias Global L1 (igual ao bloco "Por categoria"). As
@@ -220,6 +226,10 @@ const Dashboard = () => {
               )}
             </TabsContent>
           </Tabs>
+
+          {/* Bloco secundário: só aparece em homologação e só para quem tem campanha
+              de grupos ativa. Erro/403 não renderiza nada — não pode quebrar o Dashboard. */}
+          <ResumoDeGruposCard inicio={inicioGrupos} fim={fimGrupos} />
         </div>
       </motion.div>
     </DashboardLayout>

@@ -254,7 +254,13 @@ export const fetchWithAuth = async (
   if (response.status === 403) {
     // Clonar antes de consumir o body — caller pode precisar ler o response depois.
     const errorData = await response.clone().json().catch(() => ({}));
-    const errorMessage = errorData.detail || errorData.message || '';
+    // `detail` vem como objeto em 403 estruturado (require_plan devolve
+    // {code, message, required_plan}). Sem normalizar, o .toLowerCase() abaixo
+    // lança TypeError de dentro do fetchWithAuth — e o erro técnico acabava
+    // renderizado como estado de erro na tela.
+    const rawDetail = errorData.detail ?? errorData.message ?? '';
+    const errorMessage: string =
+      typeof rawDetail === 'string' ? rawDetail : String(rawDetail?.message ?? '');
     const isSubscriptionError = 
       errorMessage.toLowerCase().includes("assinatura") ||
       errorMessage.toLowerCase().includes("subscription") ||

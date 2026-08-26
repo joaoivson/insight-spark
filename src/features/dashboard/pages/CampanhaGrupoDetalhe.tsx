@@ -5,8 +5,10 @@ import { ArrowDown, ArrowUp, Loader2, Plus, Send, X } from "lucide-react";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { ResponsiveModal } from "@/components/shared/ResponsiveModal";
 import { EnvioRapidoModal } from "@/components/whatsapp/EnvioRapidoModal";
+import { AnunciosDaCampanha } from "@/features/dashboard/components/AnunciosDaCampanha";
 import { AtividadeDaCampanha } from "@/features/dashboard/components/AtividadeDaCampanha";
 import { LinkDeEntradaDaCampanha } from "@/features/dashboard/components/LinkDeEntradaDaCampanha";
+import { ResultadosDaCampanha } from "@/features/dashboard/components/ResultadosDaCampanha";
 import { RoteirosDaCampanha } from "@/features/dashboard/components/RoteirosDaCampanha";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -113,16 +115,36 @@ const assinatura = (vinculos: VinculoLocal[]) =>
   vinculos.map((v) => `${v.grupo_id}:${v.aberto ? 1 : 0}`).join(",");
 
 /** Abas válidas em ?tab= — voltar do editor de roteiro cai direto na aba certa. */
-const ABAS = ["visao-geral", "grupos", "roteiros", "link", "atividade"] as const;
+const ABAS = [
+  "visao-geral",
+  "grupos",
+  "roteiros",
+  "link",
+  "atividade",
+  "anuncios",
+  "resultados",
+] as const;
 
 const CampanhaGrupoDetalhe = () => {
   const { id } = useParams<{ id: string }>();
   const campanhaId = Number(id);
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const abaDaUrl = searchParams.get("tab");
-  const abaInicial = ABAS.includes(abaDaUrl as (typeof ABAS)[number])
+  const abaAtiva = ABAS.includes(abaDaUrl as (typeof ABAS)[number])
     ? (abaDaUrl as string)
     : "visao-geral";
+
+  // Abas controladas pela URL: com `defaultValue` a aba só era lida na montagem,
+  // então trocar `?tab=` (link de outra tela, ação de estado vazio) não mudava
+  // nada na tela. `replace` para não encher o histórico com cada clique de aba.
+  const trocarAba = useCallback(
+    (aba: string) => {
+      const proximo = new URLSearchParams(searchParams);
+      proximo.set("tab", aba);
+      setSearchParams(proximo, { replace: true });
+    },
+    [searchParams, setSearchParams],
+  );
   const { toast } = useToast();
   const { grupos: gruposSincronizados, fetch: fetchConexoes } = useWhatsappConexoesStore();
 
@@ -186,7 +208,7 @@ const CampanhaGrupoDetalhe = () => {
     void fetchConexoes();
   }, [carregar, fetchConexoes]);
 
-  // Cinco abas não cabem em 390px. Sem isto, quem chega por `?tab=atividade`
+  // Sete abas não cabem em 390px. Sem isto, quem chega por `?tab=resultados`
   // cai numa lista rolada até o começo e não vê qual aba está ativa.
   const abasRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -194,7 +216,7 @@ const CampanhaGrupoDetalhe = () => {
     abasRef.current
       ?.querySelector('[data-state="active"]')
       ?.scrollIntoView({ block: "nearest", inline: "center" });
-  }, [carregando]);
+  }, [carregando, abaAtiva]);
 
   // ── Visão geral ───────────────────────────────────────────────────────────
   const salvarForm = async () => {
@@ -340,7 +362,7 @@ const CampanhaGrupoDetalhe = () => {
 
   return (
     <DashboardLayout title={detalhe.nome} action={<StatusCampanhaBadge status={detalhe.status} />}>
-      <Tabs defaultValue={abaInicial} className="space-y-5">
+      <Tabs value={abaAtiva} onValueChange={trocarAba} className="space-y-5">
         {/* O scroll das abas fica no container, nunca na página. */}
         <div ref={abasRef} className="-mx-1 overflow-x-auto px-1 pb-1">
           <TabsList>
@@ -352,6 +374,8 @@ const CampanhaGrupoDetalhe = () => {
             <TabsTrigger value="roteiros">Roteiros</TabsTrigger>
             <TabsTrigger value="link">Link de entrada</TabsTrigger>
             <TabsTrigger value="atividade">Atividade</TabsTrigger>
+            <TabsTrigger value="anuncios">Anúncios</TabsTrigger>
+            <TabsTrigger value="resultados">Resultados</TabsTrigger>
           </TabsList>
         </div>
 
@@ -630,6 +654,14 @@ const CampanhaGrupoDetalhe = () => {
 
         <TabsContent value="atividade">
           <AtividadeDaCampanha campanhaId={campanhaId} />
+        </TabsContent>
+
+        <TabsContent value="anuncios">
+          <AnunciosDaCampanha campanhaId={campanhaId} />
+        </TabsContent>
+
+        <TabsContent value="resultados">
+          <ResultadosDaCampanha campanhaId={campanhaId} onIrParaAba={trocarAba} />
         </TabsContent>
       </Tabs>
 

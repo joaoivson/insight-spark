@@ -12,6 +12,8 @@ export interface CampaignListParams {
   endDate?: string;
   status?: CampaignStatusFilter;
   search?: string;
+  /** Vínculo com campanha de grupos — só o export usa; a lista filtra na tela. */
+  vinculo?: "all" | "com_grupo" | "sem_grupo";
 }
 
 const buildQuery = (params: CampaignListParams): string => {
@@ -20,6 +22,7 @@ const buildQuery = (params: CampaignListParams): string => {
   if (params.endDate) qs.set("end_date", params.endDate);
   if (params.status && params.status !== "all") qs.set("status", params.status);
   if (params.search) qs.set("search", params.search);
+  if (params.vinculo && params.vinculo !== "all") qs.set("vinculo", params.vinculo);
   const s = qs.toString();
   return s ? `?${s}` : "";
 };
