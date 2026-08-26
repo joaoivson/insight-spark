@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import {
-  ShoppingBag,
   Facebook,
   Instagram,
   Receipt,
@@ -23,8 +22,8 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/shared/lib/utils";
-import { ShopeeIntegrationSettings } from "@/features/dashboard/components/ShopeeIntegrationSettings";
 import { FacebookIntegrationSettings } from "@/features/dashboard/components/FacebookIntegrationSettings";
+import { MarketplacesSection } from "@/features/dashboard/components/MarketplacesSection";
 import { InstagramConnectionSettings } from "@/features/dashboard/components/InstagramConnectionSettings";
 import { WhatsappResumoSettings } from "@/features/dashboard/components/WhatsappResumoSettings";
 import { NumerosSection } from "@/components/whatsapp/NumerosSection";
@@ -121,7 +120,7 @@ const Configuracoes = () => {
 
   const conteudo = (
     <div className="space-y-6 min-w-0">
-      {ativa === "marketplaces" && <MarketplacesSecao />}
+      {ativa === "marketplaces" && <MarketplacesSection />}
       {ativa === "canais" && <CanaisSecao showInstagram={showInstagram} />}
       {ativa === "numeros" && showWhatsapp && <NumerosSection />}
       {ativa === "envio" && showWhatsapp && <EnvioSection />}
@@ -219,24 +218,6 @@ const Configuracoes = () => {
     </DashboardLayout>
   );
 };
-
-const MarketplacesSecao = () => (
-  <div className="bg-card border border-border rounded-2xl p-5 md:p-6">
-    <div className="flex items-start gap-3 md:gap-4 mb-5">
-      <div className="w-11 h-11 md:w-12 md:h-12 rounded-xl bg-orange-500/10 flex items-center justify-center flex-shrink-0">
-        <ShoppingBag className="w-6 h-6 text-orange-500" />
-      </div>
-      <div className="min-w-0">
-        <h3 className="text-lg font-bold text-foreground">Shopee Afiliados</h3>
-        <p className="text-sm text-muted-foreground">
-          Sincroniza automaticamente suas <strong>comissões</strong> de hora em hora (últimos 7 dias) e um
-          reconcile completo na madrugada. Dados de cliques devem ser importados via Upload Cliques.
-        </p>
-      </div>
-    </div>
-    <ShopeeIntegrationSettings />
-  </div>
-);
 
 const CanaisSecao = ({ showInstagram }: { showInstagram: boolean }) => (
   <>

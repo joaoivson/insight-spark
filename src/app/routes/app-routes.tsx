@@ -41,6 +41,7 @@ import CampanhasGrupos from "@/features/dashboard/pages/CampanhasGrupos";
 import CampanhaGrupoDetalhe from "@/features/dashboard/pages/CampanhaGrupoDetalhe";
 import RoteiroEditor from "@/features/dashboard/pages/RoteiroEditor";
 import Templates from "@/features/dashboard/pages/Templates";
+import Ofertas from "@/features/dashboard/pages/Ofertas";
 import Automacoes from "@/features/dashboard/pages/Automacoes";
 import AutomacaoEditor from "@/features/dashboard/pages/AutomacaoEditor";
 import AutomacoesCallback from "@/features/dashboard/pages/AutomacoesCallback";
@@ -236,6 +237,11 @@ export const AppRoutes = () => {
             <Route
               path="/dashboard/grupos/:campanhaId/roteiros/:roteiroId"
               element={<ProtectedRoute element={<RequirePlan menuKey="campanhas_grupos" element={<RoteiroEditor />} />} />}
+            />
+            {/* Busca de ofertas (F5) — mesmo gate de ambiente do módulo de grupos. */}
+            <Route
+              path="/dashboard/ofertas"
+              element={<ProtectedRoute element={<RequirePlan menuKey="ofertas" element={<Ofertas />} />} />}
             />
             {/* Templates de mensagem (F4) — mesmo gate de ambiente do módulo de grupos. */}
             <Route

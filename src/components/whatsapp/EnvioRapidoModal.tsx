@@ -109,6 +109,12 @@ type EnvioRapidoModalProps = {
   campanhaId?: number;
   /** Grupos pré-selecionados — ex.: os grupos abertos da campanha. */
   gruposPreSelecionados?: number[];
+  /**
+   * Pré-preenche o formulário na abertura — ex.: a oferta escolhida na tela de
+   * Ofertas. Aplicado uma vez por abertura: depois disso o que vale é o que a
+   * afiliada digitou, senão um re-render apagaria a edição dela.
+   */
+  valoresIniciais?: { texto?: string; oferta_url?: string; midia_url?: string };
 };
 
 export function EnvioRapidoModal({
@@ -116,6 +122,7 @@ export function EnvioRapidoModal({
   onOpenChange,
   campanhaId,
   gruposPreSelecionados,
+  valoresIniciais,
 }: EnvioRapidoModalProps) {
   const { toast } = useToast();
   const {
@@ -145,11 +152,22 @@ export function EnvioRapidoModal({
 
   const inputImagemRef = useRef<HTMLInputElement>(null);
   const preSelAplicado = useRef(false);
+  const valoresAplicados = useRef(false);
   const pollEmVoo = useRef(false);
 
   useEffect(() => {
     if (open) void fetchConexoes();
   }, [open, fetchConexoes]);
+
+  // Pré-preenchimento (uma vez por abertura).
+  useEffect(() => {
+    if (!open || valoresAplicados.current) return;
+    valoresAplicados.current = true;
+    if (!valoresIniciais) return;
+    if (valoresIniciais.texto) setTexto(valoresIniciais.texto);
+    if (valoresIniciais.oferta_url) setOfertaUrl(valoresIniciais.oferta_url);
+    if (valoresIniciais.midia_url) setMidiaUrl(valoresIniciais.midia_url);
+  }, [open, valoresIniciais]);
 
   // Pré-seleção (uma vez por abertura), restrita aos grupos que permitem envio.
   useEffect(() => {
@@ -206,6 +224,7 @@ export function EnvioRapidoModal({
       setConfirmCancelar(false);
       setAcaoLoading(null);
       preSelAplicado.current = false;
+      valoresAplicados.current = false;
     }
   };
 

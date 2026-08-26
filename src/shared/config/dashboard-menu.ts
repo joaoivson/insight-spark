@@ -15,6 +15,7 @@ import {
   MessageSquareText,
   MousePointerClick,
   Settings,
+  ShoppingBag,
   Target,
   type LucideIcon,
 } from "lucide-react";
@@ -40,6 +41,8 @@ export const DASHBOARD_MENU: DashboardMenuItem[] = [
   { icon: Target, label: "Anúncios", path: "/dashboard/campanhas", menuKey: "campanhas" },
   // "Campanhas" agora é o módulo de grupos de WhatsApp (MAX).
   { icon: MessagesSquare, label: "Campanhas", path: "/dashboard/grupos", menuKey: "campanhas_grupos", isNew: true, hmlOnly: true },
+  // Busca de ofertas do marketplace — alimenta os envios das campanhas de grupos (MAX).
+  { icon: ShoppingBag, label: "Ofertas", path: "/dashboard/ofertas", menuKey: "ofertas", hmlOnly: true },
   // Templates alimentam os passos de oferta das campanhas de grupos (MAX).
   { icon: MessageSquareText, label: "Templates", path: "/dashboard/templates", menuKey: "templates", hmlOnly: true },
   { icon: MousePointerClick, label: "Upload Cliques", path: "/dashboard/upload-cliques", menuKey: "upload_cliques" },

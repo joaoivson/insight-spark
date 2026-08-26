@@ -70,6 +70,8 @@ export const FEATURES: Record<PlanId, PlanConfig> = {
       "campanhas_grupos",
       // Templates de mensagem (variações + IA) atendem as campanhas de grupos.
       "templates",
+      // Busca de ofertas do marketplace (F5) — entrada dos envios de oferta.
+      "ofertas",
       "indique_ganhe",
       "configuracoes",
       "planos",
@@ -94,7 +96,12 @@ export function isUnlimited(value: number): boolean {
 export const PRO_ONLY_MENUS = new Set(["captura", "meus_links"]);
 
 /** Menus exclusivos do MAX (cadeado no Essencial E no Pro). */
-export const MAX_ONLY_MENUS = new Set(["automacoes", "campanhas_grupos", "templates"]);
+export const MAX_ONLY_MENUS = new Set([
+  "automacoes",
+  "campanhas_grupos",
+  "templates",
+  "ofertas",
+]);
 
 export const CHECKOUT_LINKS: Record<
   string,
