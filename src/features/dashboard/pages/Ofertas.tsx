@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   ExternalLink,
@@ -55,7 +55,10 @@ type Filtros = {
 };
 
 const FILTROS_INICIAIS: Filtros = {
-  ordenacao: "relevancia",
+  // A tela abre nos mais vendidos: é o recorte que a afiliada quer ver primeiro,
+  // e é o único em que a ordem da lista significa alguma coisa (o backend
+  // ordena de fato por vendas — o `sortType` da Shopee é ranking, não ordenação).
+  ordenacao: "mais_vendidos",
   comissaoMin: null,
   precoMax: null,
   descontoMin: null,
@@ -261,7 +264,7 @@ const CardOferta = ({ oferta, onEnviar }: { oferta: Oferta; onEnviar: () => void
 };
 
 const GradeSkeleton = () => (
-  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
+  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
     {Array.from({ length: 12 }).map((_, i) => (
       <div key={i} className="overflow-hidden rounded-2xl border border-border bg-card">
         <Skeleton className="aspect-square w-full rounded-none" />
@@ -290,6 +293,8 @@ const Ofertas = () => {
   const [temProxima, setTemProxima] = useState(false);
   /** null = ninguém buscou ainda (estado inicial da tela). */
   const [termoBuscado, setTermoBuscado] = useState<string | null>(null);
+  /** A tela abriu com a vitrine (sem termo) em vez de um resultado de busca. */
+  const [ehVitrine, setEhVitrine] = useState(false);
   const [carregando, setCarregando] = useState(false);
   const [carregandoMais, setCarregandoMais] = useState(false);
   const [erro, setErro] = useState<BuscaOfertasError | null>(null);
@@ -333,6 +338,7 @@ const Ofertas = () => {
         setPagina(resultado.pagina);
         setTemProxima(resultado.tem_proxima);
         setTermoBuscado(termoBusca);
+        setEhVitrine(Boolean(resultado.vitrine));
       } catch (e) {
         if (meuPedido !== pedidoAtual.current) return;   // erro de pedido velho
         const falha =
@@ -369,6 +375,16 @@ const Ofertas = () => {
     [toast],
   );
 
+  // Abrir a tela já com ofertas, em vez de um campo de busca vazio. Sem termo,
+  // a `productOfferV2` devolve a vitrine da conta — e o backend a ordena por
+  // vendas de fato (o `sortType` da Shopee é ranking, não ordenação).
+  const vitrineCarregada = useRef(false);
+  useEffect(() => {
+    if (vitrineCarregada.current) return;
+    vitrineCarregada.current = true;
+    void buscar("", 1, FILTROS_INICIAIS, null);
+  }, [buscar]);
+
   const submeterBusca = (e: React.FormEvent) => {
     e.preventDefault();
     const q = termo.trim();
@@ -379,7 +395,9 @@ const Ofertas = () => {
   const aplicarFiltros = (patch: Partial<Filtros>) => {
     const proximos = { ...filtros, ...patch };
     setFiltros(proximos);
-    if (termoBuscado) void buscar(termoBuscado, 1, proximos, contaId);
+    // `termoBuscado` é "" na vitrine — comparar com null, não por truthiness,
+    // senão filtrar não faz nada na tela recém-aberta.
+    if (termoBuscado !== null) void buscar(termoBuscado, 1, proximos, contaId);
   };
 
   const escolherConta = (id: number) => {
@@ -484,7 +502,8 @@ const Ofertas = () => {
                   type="button"
                   onClick={() => {
                     setContaId(null);
-                    if (termoBuscado) void buscar(termoBuscado, 1, filtros, null);
+                    if (termoBuscado !== null)
+                      void buscar(termoBuscado, 1, filtros, null);
                   }}
                   aria-label="Remover filtro de conta"
                   className="flex h-10 w-8 items-center justify-center rounded-r-full text-muted-foreground hover:text-foreground"
@@ -543,7 +562,9 @@ const Ofertas = () => {
               <Button
                 variant="outline"
                 className="mt-4 min-h-10"
-                onClick={() => termoBuscado && void buscar(termoBuscado, 1, filtros, contaId)}
+                onClick={() =>
+                  termoBuscado !== null && void buscar(termoBuscado, 1, filtros, contaId)
+                }
               >
                 Tentar de novo
               </Button>
@@ -564,7 +585,9 @@ const Ofertas = () => {
         ) : ofertas.length === 0 ? (
           <div className="rounded-2xl border border-border bg-card p-8 text-center">
             <p className="font-medium text-foreground">
-              Nada encontrado para “{termoBuscado}” — tente outro termo
+              {ehVitrine
+                ? "Nenhuma oferta disponível agora — busque por um produto"
+                : `Nada encontrado para “${termoBuscado}” — tente outro termo`}
             </p>
             <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">
               Filtros de comissão, preço ou desconto também podem estar cortando tudo desta página.
@@ -572,7 +595,7 @@ const Ofertas = () => {
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
               {ofertas.map((o) => (
                 <CardOferta
                   key={`${o.item_id}-${o.url}`}
@@ -587,7 +610,9 @@ const Ofertas = () => {
                   variant="outline"
                   className="min-h-10 w-full sm:w-auto"
                   disabled={carregandoMais}
-                  onClick={() => void buscar(termoBuscado, pagina + 1, filtros, contaId)}
+                  onClick={() =>
+                    void buscar(termoBuscado ?? "", pagina + 1, filtros, contaId)
+                  }
                 >
                   {carregandoMais && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   Carregar mais

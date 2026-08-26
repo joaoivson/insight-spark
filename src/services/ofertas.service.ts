@@ -25,6 +25,9 @@ export type BuscaOfertasResultado = {
   tem_proxima: boolean;
   total_na_pagina: number;
   termo_usado: string;
+  /** True quando não houve termo: é a vitrine que a tela abre por
+   *  padrão, não um resultado de busca. */
+  vitrine?: boolean;
 };
 
 export type OrdenacaoOferta =
