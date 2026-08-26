@@ -137,7 +137,7 @@ export const ResumoDeGruposCard = ({ inicio, fim }: { inicio?: string; fim?: str
       emphasis: true,
       value: (
         <span className={cn("tabular-nums", lucroClass(t.lucro_por_pessoa))}>
-          {formatCurrency(t.lucro_por_pessoa)}
+          {t.lucro_por_pessoa == null ? "—" : formatCurrency(t.lucro_por_pessoa)}
         </span>
       ),
     },
@@ -158,7 +158,7 @@ export const ResumoDeGruposCard = ({ inicio, fim }: { inicio?: string; fim?: str
                 lucroClass(c.lucro_por_pessoa),
               )}
             >
-              {formatCurrency(c.lucro_por_pessoa)}
+              {c.lucro_por_pessoa == null ? "—" : formatCurrency(c.lucro_por_pessoa)}
             </span>
           </Link>
         </li>
@@ -188,7 +188,7 @@ export const ResumoDeGruposCard = ({ inicio, fim }: { inicio?: string; fim?: str
         <Numero rotulo="Lucro" valor={formatCurrency(t.lucro)} valorClass={lucroClass(t.lucro)} />
         <Numero
           rotulo="Lucro por pessoa"
-          valor={formatCurrency(t.lucro_por_pessoa)}
+          valor={t.lucro_por_pessoa == null ? "—" : formatCurrency(t.lucro_por_pessoa)}
           valorClass={lucroClass(t.lucro_por_pessoa)}
           destaque
         />

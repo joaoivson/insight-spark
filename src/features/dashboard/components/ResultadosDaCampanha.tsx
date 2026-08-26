@@ -456,7 +456,7 @@ export const ResultadosDaCampanha = ({
                           lucroClass(l.lucro_por_pessoa),
                         )}
                       >
-                        {formatCurrency(l.lucro_por_pessoa)}
+                        {l.lucro_por_pessoa == null ? "—" : formatCurrency(l.lucro_por_pessoa)}
                       </TableCell>
                     </TableRow>,
                     aberto ? (
@@ -505,7 +505,7 @@ export const ResultadosDaCampanha = ({
                         lucroClass(totais.lucro_por_pessoa),
                       )}
                     >
-                      {formatCurrency(totais.lucro_por_pessoa)}
+                      {totais.lucro_por_pessoa == null ? "—" : formatCurrency(totais.lucro_por_pessoa)}
                     </TableCell>
                   </TableRow>
                 </TableFooter>
@@ -537,7 +537,7 @@ export const ResultadosDaCampanha = ({
                   emphasis: true,
                   value: (
                     <span className={cn("tabular-nums", lucroClass(l.lucro_por_pessoa))}>
-                      {formatCurrency(l.lucro_por_pessoa)}
+                      {l.lucro_por_pessoa == null ? "—" : formatCurrency(l.lucro_por_pessoa)}
                     </span>
                   ),
                 },
@@ -595,7 +595,7 @@ export const ResultadosDaCampanha = ({
                     emphasis: true,
                     value: (
                       <span className={cn("tabular-nums", lucroClass(totais.lucro_por_pessoa))}>
-                        {formatCurrency(totais.lucro_por_pessoa)}
+                        {totais.lucro_por_pessoa == null ? "—" : formatCurrency(totais.lucro_por_pessoa)}
                       </span>
                     ),
                   },

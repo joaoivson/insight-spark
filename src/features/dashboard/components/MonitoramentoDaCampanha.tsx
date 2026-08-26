@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowRight,
   Check,
@@ -224,21 +224,33 @@ export const MonitoramentoDaCampanha = ({ campanhaId }: { campanhaId: number }) 
     void carregar();
   }, [carregar]);
 
+  // Guarda de resposta obsoleta: trocar de monitoramento rápido resolvia por
+  // ordem de CHEGADA, e a lista do anterior aparecia sob o nome do novo — sem
+  // skeleton e sem erro, nada na tela indicava que estava errado. Pior: clicar
+  // "Replicar" ali mandava o id de uma captura que não é daquele monitoramento
+  // e o backend respondia 404.
+  const pedidoDeCapturas = useRef(0);
+
   const carregarCapturas = useCallback(async (monitoramentoId: number) => {
+    const meu = ++pedidoDeCapturas.current;
     setCarregandoCapturas(true);
     setErroCapturas(null);
     try {
-      setCapturas(await listarCapturas(monitoramentoId));
+      const lista = await listarCapturas(monitoramentoId);
+      if (meu !== pedidoDeCapturas.current) return;
+      setCapturas(lista);
     } catch (e) {
+      if (meu !== pedidoDeCapturas.current) return;
       setCapturas([]);
       setErroCapturas(textoDoErro(e, "Não foi possível carregar as capturas."));
     } finally {
-      setCarregandoCapturas(false);
+      if (meu === pedidoDeCapturas.current) setCarregandoCapturas(false);
     }
   }, []);
 
   useEffect(() => {
     if (selecionadoId == null) {
+      pedidoDeCapturas.current += 1;   // invalida resposta em voo
       setCapturas([]);
       return;
     }
@@ -560,10 +572,24 @@ export const MonitoramentoDaCampanha = ({ campanhaId }: { campanhaId: number }) 
         <Card>
           <CardContent className="space-y-4 p-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className="min-w-0 truncate text-sm font-semibold text-foreground">
-                Ofertas capturadas
-                <span className="font-normal text-muted-foreground"> · {selecionado.nome}</span>
-              </p>
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold text-foreground">
+                  Ofertas capturadas
+                  <span className="font-normal text-muted-foreground">
+                    {" "}
+                    · {selecionado.nome}
+                  </span>
+                </p>
+                {/* O card anuncia o total, mas a lista traz as 50 mais
+                    recentes. Sem dizer isso, a afiliada procura uma oferta que
+                    ela sabe que existe e conclui que o produto perdeu. */}
+                {selecionado.total_capturas > capturas.length && !carregandoCapturas && (
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    Mostrando as {capturas.length} mais recentes de{" "}
+                    <span className="tabular-nums">{selecionado.total_capturas}</span>.
+                  </p>
+                )}
+              </div>
               <Button
                 variant="outline"
                 size="sm"

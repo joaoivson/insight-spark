@@ -213,7 +213,9 @@ export type LinhaResultado = {
   comissao_liquida: number;
   gasto_atribuido: number;
   lucro: number;
-  lucro_por_pessoa: number;
+  /** `null` quando não há participante: a métrica não existe. 0,00 diria
+   *  "cada pessoa rende zero", que é outra afirmação. */
+  lucro_por_pessoa: number | null;
 };
 
 /** Rodapé de totais — as mesmas grandezas, sem os identificadores do grupo. */
@@ -331,7 +333,9 @@ export type ResumoPorCampanha = {
   entradas: number;
   comissao_liquida: number;
   lucro: number;
-  lucro_por_pessoa: number;
+  /** `null` quando não há participante: a métrica não existe. 0,00 diria
+   *  "cada pessoa rende zero", que é outra afirmação. */
+  lucro_por_pessoa: number | null;
 };
 
 /**

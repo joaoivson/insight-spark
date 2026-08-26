@@ -106,7 +106,9 @@ const PrivacyPolicy = () => (
             <li>
               as mensagens capturadas são <strong>apagadas automaticamente após
               30 dias</strong> — a finalidade (replicar uma oferta) é passageira,
-              e guardar além disso não serviria a nada;
+              e guardar além disso não serviria a nada. O que você escolheu
+              <em>enviar</em> continua no seu histórico de envios, como qualquer
+              outra mensagem sua;
             </li>
             <li>
               ao desligar ou excluir o monitoramento, a conexão volta a não
