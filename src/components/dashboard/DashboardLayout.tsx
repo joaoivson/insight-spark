@@ -1,4 +1,4 @@
-import { ReactNode, useState } from "react";
+import { ReactNode } from "react";
 import DashboardSidebar from "./DashboardSidebar";
 import DashboardHeader from "./DashboardHeader";
 import MobileBottomNav from "./MobileBottomNav";
@@ -12,22 +12,24 @@ interface DashboardLayoutProps {
 }
 
 const DashboardLayout = ({ children, title, subtitle, subtitleSize, action }: DashboardLayoutProps) => {
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-
   // E (rodada 5): SEM overlay de bloqueio no login. Com a persistência, os dados já estão no
   // banco — abre direto com a última sync e o sync roda em background (cron/botão Atualizar).
   return (
     <div className="min-h-screen bg-background flex flex-col md:flex-row">
-      {/* Sidebar - Renders as aside on desktop, Sheet on mobile */}
-      <DashboardSidebar mobileMenuOpen={mobileMenuOpen} onMobileMenuClose={() => setMobileMenuOpen(false)} />
-      
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <DashboardHeader 
-          title={title} 
+      {/* Sidebar — só desktop; no mobile a navegação é a bottom nav */}
+      <DashboardSidebar />
+
+      {/* min-w-0: filho de flex não encolhe abaixo do conteúdo por padrão. Sem
+          isso o container fica mais largo que a tela, os `overflow-x-auto`
+          internos nunca ativam e o `overflow-hidden` daqui corta a tabela em
+          silêncio — era assim que o painel admin sumia com metade das colunas
+          no celular. */}
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        <DashboardHeader
+          title={title}
           subtitle={subtitle}
           subtitleSize={subtitleSize}
           action={action}
-          onMobileMenuToggle={() => setMobileMenuOpen(!mobileMenuOpen)}
         />
         <main
           className="flex-1 overflow-y-auto px-3 pt-3 pb-[calc(5rem+env(safe-area-inset-bottom))] md:p-6 md:pb-6"

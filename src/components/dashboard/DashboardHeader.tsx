@@ -17,10 +17,9 @@ interface DashboardHeaderProps {
   subtitle?: string;
   subtitleSize?: "sm" | "xs";
   action?: ReactNode;
-  onMobileMenuToggle?: () => void;
 }
 
-const DashboardHeader = ({ title, subtitle, subtitleSize = "sm", action, onMobileMenuToggle }: DashboardHeaderProps) => {
+const DashboardHeader = ({ title, subtitle, subtitleSize = "sm", action }: DashboardHeaderProps) => {
   const { toast } = useToast();
   const { theme, toggleTheme } = useTheme();
   const { fetchRows } = useDatasetStore();
