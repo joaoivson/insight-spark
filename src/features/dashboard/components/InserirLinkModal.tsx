@@ -2,13 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link2, Loader2, Search } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { ResponsiveModal } from "@/components/shared/ResponsiveModal";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { getUserLinks, type CustomLink } from "@/services/custom_link.service";
@@ -68,14 +62,12 @@ export const InserirLinkModal = ({
   };
 
   return (
-    <Dialog open={aberto} onOpenChange={(v) => !v && onFechar()}>
-      <DialogContent className="max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Inserir link</DialogTitle>
-          <DialogDescription>
-            Escolha um dos seus links encurtados ou cole um endereço.
-          </DialogDescription>
-        </DialogHeader>
+    <ResponsiveModal
+      open={aberto}
+      onOpenChange={(v) => !v && onFechar()}
+      title="Inserir link"
+      description="Escolha um dos seus links encurtados ou cole um endereço."
+    >
 
         <div className="space-y-4">
           {carregando ? (
@@ -147,7 +139,6 @@ export const InserirLinkModal = ({
             </div>
           </div>
         </div>
-      </DialogContent>
-    </Dialog>
+    </ResponsiveModal>
   );
 };

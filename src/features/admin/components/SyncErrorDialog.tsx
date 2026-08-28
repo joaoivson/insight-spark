@@ -2,12 +2,7 @@ import { useState } from "react";
 import { Check, Copy } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { ResponsiveModal } from "@/components/shared/ResponsiveModal";
 import type { SyncRun } from "@/services/admin-panel.service";
 
 /**
@@ -54,11 +49,12 @@ export function SyncErrorDialog({
   };
 
   return (
-    <Dialog open={!!run} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
-        <DialogHeader>
-          <DialogTitle>Detalhe do erro</DialogTitle>
-        </DialogHeader>
+    <ResponsiveModal
+      open={!!run}
+      onOpenChange={onOpenChange}
+      title="Detalhe do erro"
+      contentClassName="sm:max-w-2xl"
+    >
         {run && (
           <div className="space-y-4">
             <dl className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
@@ -116,7 +112,6 @@ export function SyncErrorDialog({
             </div>
           </div>
         )}
-      </DialogContent>
-    </Dialog>
+    </ResponsiveModal>
   );
 }

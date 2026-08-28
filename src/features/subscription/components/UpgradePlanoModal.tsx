@@ -1,11 +1,4 @@
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { ResponsiveModal } from "@/components/shared/ResponsiveModal";
 import { Button } from "@/components/ui/button";
 import { Check } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -50,12 +43,13 @@ export function UpgradePlanoModal({ open, onOpenChange, menuKey }: UpgradePlanoM
   const { titulo, descricao, beneficios } = CONTEUDO[plano];
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>{titulo}</DialogTitle>
-          <DialogDescription>{descricao}</DialogDescription>
-        </DialogHeader>
+    <ResponsiveModal
+      open={open}
+      onOpenChange={onOpenChange}
+      title={titulo}
+      description={descricao}
+      contentClassName="sm:max-w-md"
+    >
         <ul className="space-y-2 py-2">
           {beneficios.map((b) => (
             <li key={b} className="flex items-start gap-2 text-sm text-foreground">
@@ -64,7 +58,7 @@ export function UpgradePlanoModal({ open, onOpenChange, menuKey }: UpgradePlanoM
             </li>
           ))}
         </ul>
-        <DialogFooter className="gap-2 sm:gap-0">
+        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end sm:gap-0">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Agora não
           </Button>
@@ -76,8 +70,7 @@ export function UpgradePlanoModal({ open, onOpenChange, menuKey }: UpgradePlanoM
           >
             Fazer upgrade
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </div>
+    </ResponsiveModal>
   );
 }
