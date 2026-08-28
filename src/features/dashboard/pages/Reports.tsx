@@ -449,7 +449,7 @@ const ReportsPage = () => {
         />
 
         <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-3">
-          <div className="flex-1 bg-card border border-border rounded-xl p-2.5 flex items-center gap-2.5 shadow-sm focus-within:ring-2 focus-within:ring-primary/20 transition-all group">
+          <div className="flex-1 min-w-0 bg-card border border-border rounded-xl p-2.5 flex items-center gap-2.5 shadow-sm focus-within:ring-2 focus-within:ring-primary/20 transition-all group">
             <div className="p-2 bg-secondary/50 rounded-lg group-focus-within:bg-primary/10 transition-colors flex-shrink-0">
               <Search className="w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
             </div>

@@ -6,7 +6,6 @@ import { useToast } from "@/hooks/use-toast";
 import { useTheme } from "@/shared/hooks/useTheme";
 import { useDatasetStore } from "@/stores/datasetStore";
 import { useAdSpendsStore } from "@/stores/adSpendsStore";
-import { useIsMobile } from "@/shared/hooks/use-mobile";
 import { useNavigate, useLocation } from "react-router-dom";
 import { APP_CONFIG } from "@/core/config/app.config";
 import { userStorage } from "@/shared/lib/storage";
@@ -69,8 +68,6 @@ const DashboardHeader = ({ title, subtitle, subtitleSize = "sm", action }: Dashb
     }
   };
 
-  const isMobile = useIsMobile();
-
   return (
     <header className="bg-card border-b border-border px-3 md:px-6 py-2 md:py-3 flex-shrink-0" role="banner">
       <div className="flex items-center justify-between gap-2 md:gap-3">
@@ -92,7 +89,7 @@ const DashboardHeader = ({ title, subtitle, subtitleSize = "sm", action }: Dashb
           </div>
         </div>
 
-        <div className="flex items-center gap-1.5 md:gap-3 flex-shrink-0">
+        <div className="flex min-w-0 items-center gap-1.5 md:gap-3">
           {action && (
             <div className="flex items-center gap-1.5 md:gap-3 shrink-0 [&>*]:flex-none">
               {action}
@@ -105,8 +102,8 @@ const DashboardHeader = ({ title, subtitle, subtitleSize = "sm", action }: Dashb
           </Button>
 
           <div className="flex items-center gap-2 md:gap-3 pl-1.5 md:pl-2 border-l border-border/50">
-            {!isMobile && userName && (
-              <div className="flex flex-col items-end">
+            {userName && (
+              <div className="hidden flex-col items-end lg:flex">
                 <span className="text-xs font-semibold text-foreground leading-none">
                   {userName}
                 </span>

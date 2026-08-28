@@ -73,7 +73,10 @@ const ROUTES = [
 const overflowProbe = () => {
   const vw = window.innerWidth;
   const root = document.documentElement;
-  const docOverflow = Math.max(0, root.scrollWidth - vw);
+  // max(html, body): com um ancestral em overflow-hidden o scrollWidth do
+  // html não cresce, mas o do body sim — medir só o html dava "0px" em
+  // página que o screenshot mostrava claramente cortada.
+  const docOverflow = Math.max(0, Math.max(root.scrollWidth, document.body.scrollWidth) - vw);
   const offenders = [];
   for (const el of document.body.querySelectorAll("*")) {
     const r = el.getBoundingClientRect();

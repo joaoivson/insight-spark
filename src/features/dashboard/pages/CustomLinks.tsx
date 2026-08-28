@@ -237,8 +237,7 @@ const CustomLinks = () => {
         <div className="space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div className="min-w-0">
-                    <h1 className="text-xl md:text-2xl font-bold">Meus Links</h1>
-                    <p className="text-muted-foreground text-sm mt-1">
+                    <p className="text-muted-foreground text-sm">
                         Crie links personalizados que redirecionam para seus links de afiliado
                         <span className={`ml-2 text-xs font-medium ${!linksIlimitado && links.length >= MAX_CUSTOM_LINKS ? "text-destructive" : "text-muted-foreground"}`}>
                             {linksIlimitado ? "(ilimitado)" : `(${links.length}/${MAX_CUSTOM_LINKS})`}
@@ -616,8 +615,10 @@ const CustomLinks = () => {
     );
 
     return (
-        <DashboardLayout>
-            <div className="max-w-6xl mx-auto p-4 md:p-6">
+        <DashboardLayout title="Meus Links">
+            {/* Sem px próprio: o <main> do DashboardLayout já dá o respiro
+                lateral, e o padding duplicado comia 56px dos 390px do celular. */}
+            <div className="max-w-6xl mx-auto">
                 <Tabs
                     value={activeTab}
                     onValueChange={(v) => setActiveTab(v as "converter" | "links")}

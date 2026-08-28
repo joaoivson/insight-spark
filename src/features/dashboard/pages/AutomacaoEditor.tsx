@@ -255,7 +255,7 @@ const AutomacaoEditor = () => {
   return (
     <DashboardLayout title="Automação Instagram">
       {/* Página inteira em duas colunas — não uma sidebar estreita com scroll infinito. */}
-      <div className="mx-auto w-full max-w-[1100px] pb-24">
+      <div className="mx-auto w-full max-w-[1100px] pb-40 md:pb-24">
         <div className="grid gap-6 lg:grid-cols-[62fr_38fr]">
           <div className="space-y-6">
             <div className="space-y-2">
@@ -544,8 +544,11 @@ const AutomacaoEditor = () => {
         </div>
       </div>
 
-      {/* Barra fixa de ações */}
-      <div className="fixed inset-x-0 bottom-0 z-20 border-t border-border bg-background/95 backdrop-blur md:pl-72">
+      {/* Barra fixa de ações. No celular ela sobe acima da bottom nav (z-40,
+          58px) — em bottom-0 os botões ficavam escondidos atrás da navegação,
+          e "Publicar automação" era inalcançável. Mesmo tratamento do
+          RoteiroEditor. */}
+      <div className="fixed inset-x-0 bottom-[calc(58px+env(safe-area-inset-bottom))] z-30 border-t border-border bg-background/95 backdrop-blur md:bottom-0 md:pl-72">
         <div className="mx-auto flex max-w-[1100px] flex-col gap-2 p-3 sm:flex-row sm:justify-end">
           <Button
             variant="outline"
