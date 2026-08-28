@@ -11,6 +11,60 @@
 
 ---
 
+## 2026-08-27 — Rodada mobile/tablet: auditoria por screenshot e correção geral
+
+Relato de que o app estava "totalmente quebrado" no celular e no tablet.
+Auditoria visual das 25 rotas (aluna + admin) em 390×844, 820×1180 e 1440×900,
+com `mobile-audit.mjs` medindo overflow e erros de console. **Elementos
+passando da borda: mobile 51 → 14, tablet 32 → 0, desktop 0 → 0.** Os 14 que
+sobram são a nav rolável do admin (a aba fora da vista é o próprio scroll) e
+dois blobs decorativos clipados na Captura.
+
+**A causa-raiz que amplificava todo o resto** estava no shell: o container do
+conteúdo em `DashboardLayout` não tinha `min-w-0`. Filho de flex não encolhe
+abaixo do conteúdo, então os `overflow-x-auto` internos nunca ativavam e o
+`overflow-hidden` do próprio shell cortava a tabela **em silêncio** — sem
+scroll, sem aviso. Foi por isso que a sonda de overflow do documento vinha
+"0px" com a tela visivelmente cortada; a sonda passou a medir
+`max(html, body).scrollWidth`.
+
+O que mais quebrava, por tela:
+
+- **Ofertas** abria em duas colunas no celular com um card desenhado para a
+  linha inteira: sobravam ~29px e nome, preço e comissão saíam cortados. Entre
+  640 e 1023px eram três colunas de 153px e o botão de abrir na loja vazava —
+  virou 1 coluna no celular e 2 no tablet.
+- **Editor de automação**: barra de ações em `bottom-0 z-20` contra a bottom
+  nav em `z-40` — "Publicar automação" era literalmente inalcançável no
+  celular. O `RoteiroEditor` já tinha resolvido isso e serviu de modelo.
+- **Painel admin** não tinha estratégia mobile nenhuma: a tabela de uso da
+  plataforma era cortada em 329px, os filtros de largura fixa somavam mais que
+  a tela e os rótulos longos do DRE empurravam os valores para fora.
+- **Envio rápido de oferta**: colunas de grid sem `min-w-0` faziam o conteúdo
+  ter 749px dentro de um drawer de 390px. **Só apareceu na validação
+  interativa** — o script que fotografa rotas paradas não abre modal.
+- **Meus Links** não passava `title` ao layout (h1 vazio no header) e repetia o
+  padding do `main`, perdendo 56px dos 390px.
+
+**Por quê assim.** O shell veio primeiro de propósito: mudar a base depois
+obrigaria a revalidar tudo de novo. O menu lateral mobile foi **removido**, não
+consertado — ele não tinha gatilho nenhum (o header recebia
+`onMobileMenuToggle` e nunca renderizou o hambúrguer), e a navegação mobile
+do produto é a bottom nav.
+
+**Pendente:**
+
+- `SubscriptionPlanModal` continua com `Dialog` cru (`max-w-4xl`, gate de
+  assinatura) — a margem lateral da base já resolve o pior; migrar para
+  `ResponsiveModal` fica para uma rodada com mais folga de teste.
+- `CategoryBarChart` e `ChannelPieChart` cortam rótulo no celular, mas só a
+  `/demo` os usa (fora do escopo desta rodada). O padrão a copiar é o
+  `overflow-x-auto -mx-2 px-2` do `EvolutionBarChart`.
+- `AdSpends.tsx` (41KB) segue órfão, sem rota — não foi auditado.
+- Um `ProxyPoolTab.tsx` untracked (feature de proxy pool, com service e store
+  próprios) entrou por engano num `git add` de diretório e foi retirado do
+  commit. **Continua untracked** e fora desta rodada.
+
 ## 2026-08-25 — Grupos F2: menu compartilhado, Anúncios×Campanhas, lista+detalhe
 
 O débito da F0 foi quitado: `shared/config/dashboard-menu.ts` é a fonte única

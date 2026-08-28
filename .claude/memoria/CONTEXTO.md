@@ -1,7 +1,7 @@
 # Contexto — MarketDash Frontend
 
 > **Estado atual do repositório.** Sobrescreva as seções ao mudarem — o
-> histórico vive em `DIARIO.md`. Última atualização: **2026-08-21**.
+> histórico vive em `DIARIO.md`. Última atualização: **2026-08-27**.
 >
 > Esta primeira versão foi montada por inspeção do código, do `CHANGELOG.md`
 > da raiz e do `git log` de `develop`. Onde ela divergir do código, **o
@@ -35,10 +35,49 @@ Componente **nunca** chama API direto.
 - `src/services/` — 22 services
 - `src/hooks/queries/` — `useAdSpends`, `useClicks`, `useDatasetRows`
 - `src/components/ui/` — shadcn, **não modificar**; estender via wrapper
-- `src/components/shared/` — `DataCard`, `ResponsiveModal`,
-  `FeedbackFloatingButton`
+- `src/components/shared/` — `DataCard`, `ResponsiveModal`, `EmojiPicker`
 - `src/shared/lib/` — `date.ts` (helpers `*BR`), `kpi.ts`, `plans.ts`,
   `tax.ts`, `chart-utils.ts`, `storage.ts`, `supabase.ts`
+
+## Shell do dashboard (mobile)
+
+`DashboardLayout` = sidebar (só desktop) + header + `main` + `MobileBottomNav`.
+
+- **No mobile não existe menu lateral.** A navegação é a bottom nav (4 tabs +
+  "Mais"); `DashboardSidebar` retorna `null` abaixo de `md`. O `Sheet` lateral
+  foi removido em 27/08 — não tinha gatilho nenhum que o abrisse.
+- O container do conteúdo tem **`min-w-0 overflow-hidden`**. O `min-w-0` não é
+  decorativo: sem ele os `overflow-x-auto` das tabelas não ativam e o conteúdo
+  é cortado sem scroll.
+- Barra de ação fixa de página (editores) fica em
+  `bottom-[calc(58px+env(safe-area-inset-bottom))] md:bottom-0` — em `bottom-0`
+  ela some atrás da bottom nav (`z-40`).
+- `dialog.tsx` / `alert-dialog.tsx` foram ajustados para não encostar nas
+  bordas no celular — exceção registrada em `DECISOES.md`.
+
+## Verificação visual
+
+`mobile-audit.mjs` percorre as 25 rotas em **390×844, 820×1180 e 1440×900**,
+grava screenshot, mede overflow e coleta erro de console/rede:
+
+```bash
+AUDIT_EMAIL=... AUDIT_PASSWORD=... node mobile-audit.mjs [--only=a,b] [--viewport=mobile]
+```
+
+Ele **não** cobre modal aberto, drawer nem filtro aplicado — esses vão no
+`/validar-tela` interativo. Foi assim que o drawer de envio de oferta (conteúdo
+de 749px em tela de 390px) apareceu.
+
+⚠️ O `.env` do frontend aponta para o Supabase `iprdyorxqdiivthtcvxf` e o
+backend local, para o de homologação (`ytjpdvjuxtvxacredekk`). O login funciona
+e **toda** chamada volta 401 (`unrecognized JWT kid`). Suba o Vite com as envs
+de hml por fora, sem tocar em arquivo:
+
+```bash
+HML_KEY=$(grep '^SUPABASE_KEY=' ../marketdash-backend/.env | cut -d= -f2-)
+VITE_SUPABASE_URL="https://ytjpdvjuxtvxacredekk.supabase.co" \
+  VITE_SUPABASE_ANON_KEY="$HML_KEY" npm run dev
+```
 
 ## `fetchWithAuth` — o que ele injeta em TODA request
 
@@ -86,7 +125,7 @@ mostravam números diferentes.
 ```bash
 npm run dev          # :8080, proxy /api → :8000
 npm run lint
-npx tsc --noEmit
+npx tsc -b            # `--noEmit` NÃO valida src/ (project references)
 npm run build
 ```
 

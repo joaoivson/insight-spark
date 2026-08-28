@@ -9,6 +9,9 @@
 
 | Data | Decisão | Por quê |
 |---|---|---|
+| 2026-08-27 | **`dialog.tsx` e `alert-dialog.tsx` foram editados em `components/ui/`** — exceção consciente à regra de não tocar nos primitivos | `max-w-lg` sem margem lateral encosta o modal nas duas bordas em 390px, e isso valia para os ~18 `AlertDialog` de confirmação. Wrapper exigiria trocar o import em 22 arquivos com o mesmo risco. As classes aplicadas (`max-w-[calc(100%-2rem)] rounded-lg sm:max-w-lg`) são as do shadcn atual, então um `shadcn add` futuro reescreve com o equivalente em vez de regredir — há comentário no topo dos dois arquivos dizendo isso |
+| 2026-08-27 | **O menu lateral do mobile foi removido, não consertado** | O `Sheet` existia sem nenhum gatilho que o abrisse: o header recebia `onMobileMenuToggle` e nunca renderizou hambúrguer. Era menu morto, e a navegação mobile do produto é a bottom nav — adicionar o hambúrguer contrariaria o design system |
+| 2026-08-27 | **Tabela de 6 colunas vira card até `lg`, não até `md`** (uso da plataforma, despesas) | No tablet elas não cabem nem com scroll contido, e a coluna cortada não se anuncia — o usuário não descobre que há mais conteúdo à direita |
 | 2026-08-25 | **Cadeado de plano no menu só renderiza com `planStore.context != null`** (sidebar + bottom nav) | O fallback do store é "essencial" antes do fetch e após falha — cadeado nesses estados trava assinante pagante no modal de upgrade. O cadeado é cosmético: quem garante é o `RequirePlan` da rota |
 | 2026-08-25 | **Seção de Configurações deriva de `useSearchParams`, não de useState** — push no mobile, replace no desktop | Estado local seedado no mount não ressincroniza com navegação interna e quebra o Back físico do celular na subtela; derivar da URL resolve os dois e torna a seção compartilhável |
 | 2026-08-25 | **`useIsMobile` tem valor inicial síncrono** (`window.innerWidth` no initializer) | `useState(undefined)` fazia o 1º render ser sempre "desktop": flash + montagem dupla de componentes com efeito de rede quando as árvores diferem por viewport |
@@ -51,6 +54,7 @@
 | Item | Onde | Impacto | Plano |
 |---|---|---|---|
 | **Sem teste automatizado** | — | Playwright está no `package.json` mas não há suíte; toda verificação é manual | Validação por screenshot é obrigatória (`/validar-tela`) enquanto não houver |
+| **`min-width: auto` de flex/grid** | telas com `flex`/`grid` | Filho não encolhe sem `min-w-0`: o container fica mais largo que a tela, o `overflow-x-auto` interno nunca ativa e o conteúdo é cortado sem scroll | Ao criar coluna de grid ou filho de flex que recebe conteúdo variável, `min-w-0` junto |
 | **Catálogo de planos duplicado** | `shared/lib/plans.ts` × `backend/app/core/plans.py` | Espelho manual: plano novo em um lado e não no outro dá gating divergente | Ao mexer em um, mexer no outro no mesmo commit |
 | **`@typescript-eslint/no-explicit-any` é warn, não error** | `eslint.config.js` | `any` passa no lint | Não introduzir `any` novo; o legado fica |
 - **22/08/2026 — Automação Instagram oculta em produção** por `isProductionHost()`:
