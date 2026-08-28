@@ -153,7 +153,14 @@ const run = async () => {
       erros = [];
       try {
         await page.goto(`${BASE}${rota}`, { waitUntil: "domcontentloaded" });
-        await page.waitForTimeout(2800);
+        // O gate de assinatura cobre a tela por ~2s; fotografar antes dele sair
+        // rende um screenshot de spinner que não diz nada sobre o layout.
+        await page
+          .waitForFunction(() => !document.body.innerText.includes("Verificando assinatura"), {
+            timeout: 15000,
+          })
+          .catch(() => {});
+        await page.waitForTimeout(3000);
         const probe = await page.evaluate(overflowProbe);
         const file = path.join(dir, `${nome}.png`);
         await page.screenshot({ path: file, fullPage: true });
