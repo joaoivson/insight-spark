@@ -72,6 +72,9 @@ const STATUS_BADGE: Record<string, { label: string; className: string }> = {
   success: { label: "Sucesso", className: "border-transparent bg-emerald-500/15 text-emerald-600" },
   failed: { label: "Falhou", className: "border-transparent bg-destructive/15 text-destructive" },
   skipped_lock: { label: "Já rodando (skip)", className: "border-transparent bg-amber-500/15 text-amber-600" },
+  // Processo morto no meio (deploy/restart/OOM) e fechado depois pelo próprio
+  // ciclo. Não é falha de sincronização — cinza, e fora da contagem de erros.
+  interrupted: { label: "Interrompida", className: "border-transparent bg-muted text-muted-foreground" },
 };
 
 function StatusBadge({ run }: { run: SyncRun }) {
