@@ -26,12 +26,14 @@ function LineRow({
 }) {
   return (
     <div
-      className={`flex items-baseline justify-between border-b border-border/50 py-2 ${
+      className={`flex items-baseline justify-between gap-3 border-b border-border/50 py-2 ${
         strong ? "font-semibold" : ""
       } ${muted ? "text-muted-foreground text-sm" : ""}`}
     >
-      <span>{label}</span>
-      <span className="tabular-nums">{value}</span>
+      {/* min-w-0 no rótulo e shrink-0 no valor: sem isso o rótulo longo do DRE
+          empurra o número para fora e a coluna de valores desalinha. */}
+      <span className="min-w-0">{label}</span>
+      <span className="shrink-0 text-right tabular-nums">{value}</span>
     </div>
   );
 }

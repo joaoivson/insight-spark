@@ -92,7 +92,9 @@ export function AdminLayout() {
               Voltar ao app
             </Link>
           </div>
-          <nav className="mt-3 flex gap-1 overflow-x-auto">
+          {/* -mx-4 px-4: a sangria leva o scroll até a borda física, então a
+              aba cortada aparece pela metade e anuncia que há mais abas. */}
+          <nav className="-mx-4 mt-3 flex gap-1 overflow-x-auto px-4 pb-1">
             {TABS.map((tab) => {
               const active = tab.exact
                 ? pathname === tab.to
@@ -102,7 +104,7 @@ export function AdminLayout() {
                   key={tab.to}
                   to={tab.to}
                   className={cn(
-                    "rounded-md px-3 py-1.5 text-sm whitespace-nowrap transition-colors",
+                    "rounded-md px-3 py-2 text-sm whitespace-nowrap transition-colors",
                     active
                       ? "bg-primary text-primary-foreground"
                       : "text-muted-foreground hover:bg-muted hover:text-foreground",

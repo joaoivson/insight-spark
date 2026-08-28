@@ -12,6 +12,7 @@ import {
 } from "recharts";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { DataCard } from "@/components/shared/DataCard";
 import {
   Table,
   TableBody,
@@ -209,6 +210,7 @@ export function PlatformUsageTab() {
               <CardTitle className="text-base">Atividade por usuária</CardTitle>
             </CardHeader>
             <CardContent>
+              <div className="hidden overflow-x-auto lg:block">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -254,6 +256,52 @@ export function PlatformUsageTab() {
                   )}
                 </TableBody>
               </Table>
+              </div>
+
+              {/* Seis colunas não cabem em 390px: no celular a linha vira card.
+                  Limite 0 = o plano não tem o recurso, então mostra "—". */}
+              <div className="space-y-3 lg:hidden">
+                {linhasPagina.map((u) => (
+                  <DataCard
+                    key={u.user_id}
+                    title={
+                      <Link className="hover:underline" to={`/admin/clientes/${u.user_id}`}>
+                        {u.nome}
+                      </Link>
+                    }
+                    fields={[
+                      { label: "Acessos", value: u.acessos, emphasis: true },
+                      { label: "Dias ativos", value: u.dias_ativos },
+                      {
+                        label: "Links",
+                        value:
+                          planLimit(u.plan, "links") === 0
+                            ? "—"
+                            : `${u.links_em_uso}/${u.links_criados}`,
+                      },
+                      {
+                        label: "Páginas",
+                        value:
+                          planLimit(u.plan, "paginas_captura") === 0
+                            ? "—"
+                            : `${u.paginas_em_uso}/${u.paginas_criadas}`,
+                      },
+                      {
+                        label: "Último acesso",
+                        value: u.ultimo_acesso
+                          ? new Date(u.ultimo_acesso).toLocaleDateString("pt-BR")
+                          : "—",
+                      },
+                    ]}
+                  />
+                ))}
+                {linhasPagina.length === 0 && (
+                  <p className="py-6 text-center text-sm text-muted-foreground">
+                    Nenhum acesso no período
+                  </p>
+                )}
+              </div>
+
               {totalPaginas > 1 && (
                 <div className="mt-4 flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">

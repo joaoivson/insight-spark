@@ -5,14 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+import { ResponsiveModal } from "@/components/shared/ResponsiveModal";
+import { DataCard } from "@/components/shared/DataCard";
 import {
   Select,
   SelectContent,
@@ -161,25 +155,25 @@ export default function AdminExpensesPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-lg font-semibold">Despesas</h2>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button variant="outline" size="sm" onClick={() => void onRepeat()}>
             Repetir mês anterior
           </Button>
           <Button asChild size="sm" variant="secondary">
             <Link to="/admin/dre">Ver DRE do mês</Link>
           </Button>
-          <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
+          <ResponsiveModal
+            open={open}
+            onOpenChange={setOpen}
+            title={editingId ? "Editar despesa" : "Nova despesa"}
+            trigger={
               <Button size="sm" onClick={openNew}>
                 <Plus className="mr-1 h-4 w-4" />
                 Nova despesa
               </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>{editingId ? "Editar despesa" : "Nova despesa"}</DialogTitle>
-              </DialogHeader>
-              <form className="space-y-3" onSubmit={onSubmit}>
+            }
+          >
+            <form className="space-y-3" onSubmit={onSubmit}>
                 <div>
                   <Label>Data</Label>
                   <Input
@@ -236,14 +230,13 @@ export default function AdminExpensesPage() {
                   />
                   <Label htmlFor="recurring">Recorrente</Label>
                 </div>
-                <DialogFooter>
+                <div className="flex justify-end pt-2">
                   <Button type="submit" disabled={saving}>
                     {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : editingId ? "Salvar" : "Lançar"}
                   </Button>
-                </DialogFooter>
+                </div>
               </form>
-            </DialogContent>
-          </Dialog>
+          </ResponsiveModal>
         </div>
       </div>
 
@@ -282,7 +275,8 @@ export default function AdminExpensesPage() {
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-md border">
+        <>
+        <div className="hidden overflow-x-auto rounded-md border lg:block">
           <Table>
             <TableHeader>
               <TableRow>
@@ -325,6 +319,45 @@ export default function AdminExpensesPage() {
             </TableBody>
           </Table>
         </div>
+
+        {/* Mesma informação empilhada — tabela de 6 colunas não se lê em 390px. */}
+        <div className="space-y-3 lg:hidden">
+          {items.map((e) => (
+            <DataCard
+              key={e.id}
+              title={e.description || e.supplier || e.category}
+              badge={
+                e.recurring ? (
+                  <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                    recorrente
+                  </span>
+                ) : undefined
+              }
+              fields={[
+                { label: "Valor", value: centsToBRL(e.amount_cents), emphasis: true },
+                { label: "Data", value: e.date },
+                { label: "Categoria", value: e.category },
+                { label: "Fornecedor", value: e.supplier || "—" },
+              ]}
+              actions={
+                <>
+                  <Button size="icon" variant="ghost" onClick={() => openEdit(e)} aria-label="Editar despesa">
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                  <Button size="icon" variant="ghost" onClick={() => void onDelete(e.id)} aria-label="Excluir despesa">
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
+                </>
+              }
+            />
+          ))}
+          {items.length === 0 && (
+            <p className="rounded-md border border-border p-6 text-center text-sm text-muted-foreground">
+              Lance despesas para fechar o resultado no DRE
+            </p>
+          )}
+        </div>
+        </>
       )}
     </div>
   );

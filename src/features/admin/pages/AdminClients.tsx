@@ -212,7 +212,7 @@ export default function AdminClientsPage() {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-end gap-3">
-        <div className="relative min-w-[220px] flex-1">
+        <div className="relative w-full flex-1 sm:min-w-[220px]">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
             className="pl-9"
@@ -222,7 +222,7 @@ export default function AdminClientsPage() {
           />
         </div>
         <Select value={status || "all"} onValueChange={(v) => setStatus(v === "all" ? "" : v)}>
-          <SelectTrigger className="w-[180px]">
+          <SelectTrigger className="w-full sm:w-[180px]">
             <SelectValue placeholder="Status" />
           </SelectTrigger>
           <SelectContent>
@@ -235,7 +235,7 @@ export default function AdminClientsPage() {
           </SelectContent>
         </Select>
         <Select value={plan || "all"} onValueChange={(v) => setPlan(v === "all" ? "" : v)}>
-          <SelectTrigger className="w-[140px]">
+          <SelectTrigger className="w-full sm:w-[140px]">
             <SelectValue placeholder="Plano" />
           </SelectTrigger>
           <SelectContent>

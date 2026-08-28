@@ -30,7 +30,7 @@ export function Paginacao({
   const inicio = (pagina - 1) * porPagina + 1;
   const fim = Math.min(pagina * porPagina, total);
   return (
-    <div className="mt-4 flex items-center justify-between text-sm">
+    <div className="mt-4 flex flex-wrap items-center justify-between gap-2 text-sm">
       <span className="text-muted-foreground">
         {formato === "intervalo"
           ? `Mostrando ${inicio}–${fim} de ${total}`

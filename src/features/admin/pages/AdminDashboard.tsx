@@ -230,16 +230,16 @@ export default function AdminDashboardPage() {
           </CardHeader>
           <CardContent className="space-y-3">
             {planFreq.map((r) => (
-              <div key={r.name} className="flex items-center gap-3 text-sm">
-                <span className="w-36 shrink-0 truncate">{r.name}</span>
-                <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
+              <div key={r.name} className="flex items-center gap-2 text-sm sm:gap-3">
+                <span className="w-24 shrink-0 truncate sm:w-36">{r.name}</span>
+                <div className="h-2 min-w-0 flex-1 overflow-hidden rounded-full bg-muted">
                   <div
                     className="h-full rounded-full"
                     style={{ width: `${r.barPct}%`, background: CHART_COLORS.blue }}
                   />
                 </div>
-                <span className="w-10 shrink-0 text-right tabular-nums text-muted-foreground">{r.count}</span>
-                <span className="w-14 shrink-0 text-right tabular-nums text-muted-foreground">{r.sharePct}%</span>
+                <span className="w-8 shrink-0 text-right tabular-nums text-muted-foreground sm:w-10">{r.count}</span>
+                <span className="w-12 shrink-0 text-right tabular-nums text-muted-foreground sm:w-14">{r.sharePct}%</span>
               </div>
             ))}
             {planFreq.length === 0 && (

@@ -46,6 +46,7 @@ import { PlatformUsageTab } from "@/features/admin/components/PlatformUsageTab";
 import { SyncErrorDialog } from "@/features/admin/components/SyncErrorDialog";
 import { SyncErrorReasons } from "@/features/admin/components/SyncErrorReasons";
 import { WhatsappInstanciaTab } from "@/features/admin/components/WhatsappInstanciaTab";
+import { ProxyPoolTab } from "@/features/admin/components/ProxyPoolTab";
 import {
   CelulaUsuaria,
   Paginacao,
@@ -138,7 +139,7 @@ function HealthCard({ title, health, loading }: { title: string; health: SyncHea
           <p className="text-sm text-muted-foreground">Sem dados</p>
         ) : (
           <div className="space-y-2">
-            <div className="grid grid-cols-3 gap-2 text-center">
+            <div className="grid grid-cols-1 gap-2 text-center sm:grid-cols-3">
               <div>
                 <p className="text-2xl font-semibold text-emerald-600">{health.sucesso}</p>
                 <p className="text-xs text-muted-foreground">Sucesso</p>
@@ -418,7 +419,7 @@ function SyncsTab() {
             runsOpen ? (
               <>
                 <Select value={sourceFilter} onValueChange={setSourceFilter}>
-                  <SelectTrigger className="w-48">
+                  <SelectTrigger className="w-full sm:w-48">
                     <SelectValue placeholder="Fonte" />
                   </SelectTrigger>
                   <SelectContent>
@@ -428,7 +429,7 @@ function SyncsTab() {
                   </SelectContent>
                 </Select>
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="w-52">
+                  <SelectTrigger className="w-full sm:w-52">
                     <SelectValue placeholder="Status" />
                   </SelectTrigger>
                   <SelectContent>
@@ -551,6 +552,15 @@ export default function AdminSyncStatusPage() {
         <div className="border-t border-border pt-8">
           <h3 className="mb-3 text-sm font-medium text-muted-foreground">WhatsApp</h3>
           <WhatsappInstanciaTab />
+        </div>
+        <div className="border-t border-border pt-8">
+          {/* Fica junto do WhatsApp de propósito: a pergunta que traz o admin
+              aqui é sempre "qual número está em qual IP?". A afiliada não vê
+              nada disto — para ela, proxy é capacidade de conexão. */}
+          <h3 className="mb-3 text-sm font-medium text-muted-foreground">
+            IPs das conexões (proxy)
+          </h3>
+          <ProxyPoolTab />
         </div>
       </TabsContent>
     </Tabs>
