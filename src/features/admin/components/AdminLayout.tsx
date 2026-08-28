@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { Link, Outlet, useLocation } from "react-router-dom";
 import { BrandLogo, BrandSymbol } from "@/components/brand/BrandLogo";
 import { MonthYearPicker } from "@/features/admin/components/MonthYearPicker";
@@ -13,6 +14,14 @@ const TABS = [
 
 export function AdminLayout() {
   const { pathname } = useLocation();
+  const abaAtivaRef = useRef<HTMLAnchorElement>(null);
+
+  // A nav mobile rola na horizontal e cabem ~3 abas e meia: entrando direto em
+  // /admin/dre pelo link, a aba ativa ficava fora da vista e a tela parecia
+  // não ter seleção nenhuma.
+  useEffect(() => {
+    abaAtivaRef.current?.scrollIntoView({ block: "nearest", inline: "center" });
+  }, [pathname]);
   const onPeriodScreen =
     pathname === "/admin" || pathname === "/admin/despesas" || pathname === "/admin/dre";
   // Clientes precisa da largura cheia pra caber as colunas sem scroll horizontal
@@ -103,6 +112,7 @@ export function AdminLayout() {
                 <Link
                   key={tab.to}
                   to={tab.to}
+                  ref={active ? abaAtivaRef : undefined}
                   className={cn(
                     "rounded-md px-3 py-2 text-sm whitespace-nowrap transition-colors",
                     active

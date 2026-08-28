@@ -348,7 +348,7 @@ export function EnvioRapidoModal({
         <div className="space-y-4 pb-2">
           <div className="grid gap-4 md:grid-cols-2">
             {/* ── Conteúdo ── */}
-            <div className="space-y-4">
+            <div className="min-w-0 space-y-4">
               <div className="space-y-2">
                 <div className="flex items-center justify-between gap-2">
                   <Label htmlFor="envio-texto">Texto</Label>
@@ -424,7 +424,7 @@ export function EnvioRapidoModal({
             </div>
 
             {/* ── Grupos ── */}
-            <div className="space-y-2">
+            <div className="min-w-0 space-y-2">
               <div className="flex items-center justify-between gap-2">
                 <Label htmlFor="envio-busca-grupos">Grupos</Label>
                 {selecionados.size > 0 && (
