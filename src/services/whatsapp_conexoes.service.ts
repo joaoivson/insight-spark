@@ -11,8 +11,17 @@ export type InstanciaConexao = {
   nome_exibicao: string | null;
   numero_mascarado: string | null;
   status: StatusInstancia;
+  /** Eixo SEPARADO de `status`: o chip pode estar conectado E pausado.
+   *  `status` é a saúde da conexão (quem escreve é o webhook do WAHA);
+   *  este é a intenção da afiliada. */
+  envio_pausado: boolean;
   ultima_conexao_em: string | null;
   criado_em: string;
+};
+
+export type InstanciaAtualizacao = {
+  nome_exibicao?: string;
+  envio_pausado?: boolean;
 };
 
 export type QrInstancia = {
@@ -69,6 +78,20 @@ export async function criarInstancia(nomeExibicao?: string): Promise<InstanciaCo
     body: JSON.stringify(nomeExibicao ? { nome_exibicao: nomeExibicao } : {}),
   });
   return json(res, "Não foi possível criar o número.");
+}
+
+/** PATCH parcial: só o que vem é alterado. Não fala com o WAHA — pausar
+ *  precisa funcionar justamente quando a conexão está ruim. */
+export async function atualizarInstancia(
+  id: number,
+  dados: InstanciaAtualizacao,
+): Promise<InstanciaConexao> {
+  const res = await fetchWithAuth(`${base()}/instancias/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(dados),
+  });
+  return json(res, "Não foi possível atualizar o número.");
 }
 
 export async function qrDaInstancia(id: number): Promise<QrInstancia> {

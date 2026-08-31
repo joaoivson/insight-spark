@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { Link2, Loader2, Plus, QrCode, RefreshCw, Smartphone, Trash2 } from "lucide-react";
+import { Loader2, Plus, Smartphone } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -11,22 +11,15 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { DataCard } from "@/components/shared/DataCard";
 import { ResponsiveModal } from "@/components/shared/ResponsiveModal";
 import { ConviteConexaoModal } from "@/components/whatsapp/ConviteConexaoModal";
+import { DispositivoCard } from "@/components/whatsapp/DispositivoCard";
+import { GerenciarDispositivoModal } from "@/components/whatsapp/GerenciarDispositivoModal";
+import { GruposDoDispositivo } from "@/components/whatsapp/GruposDoDispositivo";
 import { useToast } from "@/hooks/use-toast";
 import { usePlanStore } from "@/stores/planStore";
 import type { PlanContext } from "@/services/plan.service";
@@ -35,35 +28,27 @@ import {
   qrDaInstancia,
   type InstanciaConexao,
   type QrInstancia,
-  type StatusInstancia,
 } from "@/services/whatsapp_conexoes.service";
 import { isUnlimited, planLimit } from "@/shared/lib/plans";
-import { rotuloDoGrupo } from "@/shared/lib/grupo";
 
 /** Pareamento é interativo — 5s mantém o QR vivo sem martelar a API. */
 const POLL_QR_MS = 5_000;
 
-function StatusBadge({ status }: { status: StatusInstancia }) {
-  if (status === "conectada") {
-    return (
-      <Badge className="border-emerald-500/25 bg-emerald-500/10 text-emerald-500">Conectado</Badge>
-    );
-  }
-  if (status === "desconectada") {
-    return <Badge variant="destructive">Desconectado</Badge>;
-  }
-  return <Badge variant="secondary">Aguardando conexão</Badge>;
-}
-
-const BadgeEnvioOk = () => (
-  <Badge className="border-emerald-500/25 bg-emerald-500/10 text-emerald-500">ok</Badge>
-);
-
 export function NumerosSection() {
   const { toast } = useToast();
   const { context, plan, loaded: planLoaded, fetch: fetchPlan } = usePlanStore();
-  const { instancias, grupos, loaded, loading, error, fetch, criar, remover, sincronizar } =
-    useWhatsappConexoesStore();
+  const {
+    instancias,
+    grupos,
+    loaded,
+    loading,
+    error,
+    fetch,
+    criar,
+    remover,
+    sincronizar,
+    definirPausa,
+  } = useWhatsappConexoesStore();
 
   const montado = useRef(true);
   useEffect(() => {
@@ -132,7 +117,8 @@ export function NumerosSection() {
   // ── Link de conexão externa (item 18) ─────────────────────────────────────
   const [conviteAlvo, setConviteAlvo] = useState<InstanciaConexao | null>(null);
 
-  // ── Sincronizar / remover ─────────────────────────────────────────────────
+  // ── Gerenciar / sincronizar / remover ─────────────────────────────────────
+  const [gerenciarAlvo, setGerenciarAlvo] = useState<InstanciaConexao | null>(null);
   const [sincronizandoId, setSincronizandoId] = useState<number | null>(null);
   const [paraRemover, setParaRemover] = useState<InstanciaConexao | null>(null);
   const [removendo, setRemovendo] = useState(false);
@@ -177,6 +163,18 @@ export function NumerosSection() {
     }
   };
 
+  const alternarPausa = async (instancia: InstanciaConexao, pausado: boolean) => {
+    try {
+      await definirPausa(instancia.id, pausado);
+      toast({ title: pausado ? "Envio pausado neste número" : "Envio retomado" });
+    } catch (e) {
+      toast({
+        title: e instanceof Error ? e.message : "Não foi possível alterar o envio.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const confirmarRemocao = async () => {
     if (!paraRemover) return;
     setRemovendo(true);
@@ -196,31 +194,32 @@ export function NumerosSection() {
     }
   };
 
-  // ── Grupos (busca client-side) ────────────────────────────────────────────
-  const [busca, setBusca] = useState("");
-  const gruposFiltrados = busca.trim()
-    ? grupos.filter((g) =>
-        rotuloDoGrupo(g.nome, g.id).toLowerCase().includes(busca.trim().toLowerCase()),
-      )
-    : grupos;
-  const algumaConectada = instancias.some((i) => i.status === "conectada");
-
   /**
-   * Nome do(s) dispositivo(s) a que o grupo pertence.
+   * Grupos por dispositivo + o que sobrou.
    *
-   * A coluna mostrava só a CONTAGEM ("1"), que não responde a pergunta que a
-   * afiliada faz — "esse grupo está em qual dos meus números?". Com dois
-   * dispositivos, saber que são "1" não ajuda em nada.
+   * O vínculo grupo↔número é N:N: o mesmo grupo pode estar em dois chips (é o
+   * desenho — o motor faz failover entre eles) e por isso aparece nos dois
+   * blocos, marcado com "também em".
+   *
+   * O bucket órfão existe porque remover um número é soft-delete: o vínculo
+   * histórico continua no banco e, sem ele, os grupos sumiriam da tela sem
+   * explicação.
    */
-  const dispositivosDoGrupo = (ids: number[]): string => {
-    const nomes = ids
-      .map((id) => instancias.find((i) => i.id === id))
-      .filter(Boolean)
-      .map((i) => i!.nome_exibicao || `Número ${i!.id}`);
-    if (nomes.length === 0) return "—";
-    if (nomes.length <= 2) return nomes.join(", ");
-    return `${nomes[0]} +${nomes.length - 1}`;
-  };
+  const { porInstancia, orfaos } = useMemo(() => {
+    const ids = new Set(instancias.map((i) => i.id));
+    const mapa = new Map<number, typeof grupos>();
+    instancias.forEach((i) => mapa.set(i.id, []));
+    const sobra: typeof grupos = [];
+    grupos.forEach((g) => {
+      const donos = g.instancia_ids.filter((id) => ids.has(id));
+      if (donos.length === 0) {
+        sobra.push(g);
+        return;
+      }
+      donos.forEach((id) => mapa.get(id)!.push(g));
+    });
+    return { porInstancia: mapa, orfaos: sobra };
+  }, [instancias, grupos]);
 
   const atingiuLimite = !isUnlimited(limite) && instancias.length >= limite;
   const contador = isUnlimited(limite) ? "" : ` (${instancias.length}/${limite})`;
@@ -268,8 +267,8 @@ export function NumerosSection() {
     return shell(
       <div className="space-y-3">
         <Skeleton className="h-9 w-48" />
-        <Skeleton className="h-20 w-full rounded-xl" />
-        <Skeleton className="h-20 w-full rounded-xl" />
+        <Skeleton className="h-40 w-full rounded-xl" />
+        <Skeleton className="h-40 w-full rounded-xl" />
       </div>,
     );
   }
@@ -286,7 +285,7 @@ export function NumerosSection() {
   }
 
   return shell(
-    <div className="space-y-6">
+    <div className="space-y-4">
       {instancias.length === 0 ? (
         <div className="rounded-xl border border-dashed border-border p-6 text-center space-y-3">
           <p className="text-sm text-muted-foreground">Nenhum número conectado ainda.</p>
@@ -296,75 +295,32 @@ export function NumerosSection() {
           </Button>
         </div>
       ) : (
-        <div className="space-y-3">
+        <>
           <div className="flex justify-end">
             <Button size="sm" onClick={() => setModalCriar(true)} disabled={atingiuLimite}>
               <Plus className="h-4 w-4 mr-1.5" />
               Conectar número{contador}
             </Button>
           </div>
-          {instancias.map((i) => (
-            <div
-              key={i.id}
-              className="rounded-xl border border-border p-4 flex flex-wrap items-center gap-3"
-            >
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="font-semibold text-sm text-foreground">
-                    {i.nome_exibicao || `Número ${i.id}`}
-                  </span>
-                  <StatusBadge status={i.status} />
-                </div>
-                {i.numero_mascarado && (
-                  <p className="mt-0.5 text-sm text-muted-foreground tabular-nums">
-                    {i.numero_mascarado}
-                  </p>
-                )}
-              </div>
-              <div className="flex items-center gap-2 flex-wrap">
-                {i.status === "conectada" ? (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => void sincronizarInstancia(i)}
-                    disabled={sincronizandoId === i.id}
-                  >
-                    {sincronizandoId === i.id ? (
-                      <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
-                    ) : (
-                      <RefreshCw className="h-4 w-4 mr-1.5" />
-                    )}
-                    Sincronizar grupos
-                  </Button>
-                ) : (
-                  <Button size="sm" variant="outline" onClick={() => setQrAlvo(i)}>
-                    <QrCode className="h-4 w-4 mr-1.5" />
-                    Conectar
-                  </Button>
-                )}
-                {/* Número já conectado não tem QR para mostrar: o link nasceria
-                    morto — a página abriria, veria a sessão conectada e se
-                    invalidaria na primeira consulta. Oferecer a ação e entregar
-                    um link inútil é pior do que não oferecer. */}
-                {i.status !== "conectada" && (
-                  <Button size="sm" variant="outline" onClick={() => setConviteAlvo(i)}>
-                    <Link2 className="h-4 w-4 mr-1.5" />
-                    Conectar por link
-                  </Button>
-                )}
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="text-destructive hover:text-destructive"
-                  onClick={() => setParaRemover(i)}
-                >
-                  <Trash2 className="h-4 w-4" />
-                  <span className="sr-only">Remover número</span>
-                </Button>
-              </div>
-            </div>
-          ))}
-        </div>
+
+          <div className="space-y-4">
+            {instancias.map((i) => (
+              <DispositivoCard
+                key={i.id}
+                instancia={i}
+                grupos={porInstancia.get(i.id) ?? []}
+                instancias={instancias}
+                sincronizando={sincronizandoId === i.id}
+                onSincronizar={(x) => void sincronizarInstancia(x)}
+                onConectar={setQrAlvo}
+                onConectarPorLink={setConviteAlvo}
+                onGerenciar={setGerenciarAlvo}
+                onRemover={setParaRemover}
+                onAlternarPausa={(x, pausado) => void alternarPausa(x, pausado)}
+              />
+            ))}
+          </div>
+        </>
       )}
 
       {atingiuLimite && (
@@ -373,85 +329,16 @@ export function NumerosSection() {
         </p>
       )}
 
-      {(algumaConectada || grupos.length > 0) && (
-        <div className="space-y-3">
-          <div className="flex items-center justify-between gap-3 flex-wrap">
-            <h4 className="text-sm font-bold text-foreground">Grupos</h4>
-            {grupos.length > 0 && (
-              <Input
-                value={busca}
-                onChange={(e) => setBusca(e.target.value)}
-                placeholder="Buscar grupo…"
-                className="h-9 w-full sm:max-w-[240px]"
-              />
-            )}
-          </div>
-          {grupos.length === 0 ? (
-            <p className="py-4 text-sm text-muted-foreground">
-              {/* Mandar conectar um dispositivo que JÁ está conectado é o que
-                  fez parecer que a conexão não tinha sido reconhecida. */}
-              {algumaConectada
-                ? "Nenhum grupo ainda. Use “Sincronizar grupos” no dispositivo conectado."
-                : "Nenhum grupo ainda. Conecte um dispositivo e sincronize."}
+      {orfaos.length > 0 && (
+        <div className="rounded-xl border border-dashed border-border p-4 space-y-3">
+          <div>
+            <h4 className="text-sm font-bold text-foreground">Grupos sem dispositivo ativo</h4>
+            <p className="text-xs text-muted-foreground">
+              O número que trouxe estes grupos foi removido. Conecte-o de novo para voltar a
+              enviar neles.
             </p>
-          ) : gruposFiltrados.length === 0 ? (
-            <p className="py-4 text-sm text-muted-foreground">Nenhum grupo com esse nome.</p>
-          ) : (
-            <>
-              <div className="hidden md:block rounded-xl border border-border overflow-hidden">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Nome</TableHead>
-                      <TableHead className="text-right">Participantes</TableHead>
-                      <TableHead>Envio</TableHead>
-                      <TableHead>Dispositivo</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {gruposFiltrados.map((g) => (
-                      <TableRow key={g.id}>
-                        <TableCell className="font-medium">{rotuloDoGrupo(g.nome, g.id)}</TableCell>
-                        <TableCell className="text-right tabular-nums">
-                          {g.participantes}
-                        </TableCell>
-                        <TableCell>
-                          {g.permite_envio ? (
-                            <BadgeEnvioOk />
-                          ) : (
-                            <span className="text-muted-foreground">—</span>
-                          )}
-                        </TableCell>
-                        <TableCell className="max-w-[220px] truncate">
-                          {dispositivosDoGrupo(g.instancia_ids)}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-              <div className="md:hidden space-y-3">
-                {gruposFiltrados.map((g) => (
-                  <DataCard
-                    key={g.id}
-                    title={rotuloDoGrupo(g.nome, g.id)}
-                    badge={g.permite_envio ? <BadgeEnvioOk /> : undefined}
-                    fields={[
-                      {
-                        label: "Participantes",
-                        value: <span className="tabular-nums">{g.participantes}</span>,
-                        emphasis: true,
-                      },
-                      {
-                        label: "Dispositivo",
-                        value: dispositivosDoGrupo(g.instancia_ids),
-                      },
-                    ]}
-                  />
-                ))}
-              </div>
-            </>
-          )}
+          </div>
+          <GruposDoDispositivo grupos={orfaos} instancias={instancias} instanciaId={null} />
         </div>
       )}
 
@@ -516,6 +403,22 @@ export function NumerosSection() {
           </p>
         </div>
       </ResponsiveModal>
+
+      <GerenciarDispositivoModal
+        instancia={gerenciarAlvo}
+        totalDeGrupos={gerenciarAlvo ? (porInstancia.get(gerenciarAlvo.id)?.length ?? 0) : 0}
+        onOpenChange={(o) => {
+          if (!o) setGerenciarAlvo(null);
+        }}
+        onConectarPorLink={(i) => {
+          setGerenciarAlvo(null);
+          setConviteAlvo(i);
+        }}
+        onRemover={(i) => {
+          setGerenciarAlvo(null);
+          setParaRemover(i);
+        }}
+      />
 
       <ConviteConexaoModal
         instancia={conviteAlvo}

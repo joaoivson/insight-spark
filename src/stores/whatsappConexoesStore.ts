@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import {
+  atualizarInstancia,
   criarInstancia,
   listarGrupos,
   listarInstancias,
@@ -21,6 +22,9 @@ type WhatsappConexoesState = {
   criar: (nomeExibicao?: string) => Promise<InstanciaConexao>;
   remover: (id: number) => Promise<void>;
   sincronizar: (id: number) => Promise<ResultadoSincronizacao>;
+  renomear: (id: number, nome: string) => Promise<void>;
+  /** Otimista: o switch tem que responder ao toque, não ao round-trip. */
+  definirPausa: (id: number, pausado: boolean) => Promise<void>;
 };
 
 export const useWhatsappConexoesStore = create<WhatsappConexoesState>((set, get) => ({
@@ -55,6 +59,25 @@ export const useWhatsappConexoesStore = create<WhatsappConexoesState>((set, get)
 
   remover: async (id) => {
     await removerInstancia(id);
+    await get().fetch({ force: true });
+  },
+
+  renomear: async (id, nome) => {
+    await atualizarInstancia(id, { nome_exibicao: nome });
+    await get().fetch({ force: true });
+  },
+
+  definirPausa: async (id, pausado) => {
+    // Sem o otimismo o switch fica preso até o servidor responder e a
+    // afiliada clica de novo, achando que não pegou.
+    const antes = get().instancias;
+    set({ instancias: antes.map((i) => (i.id === id ? { ...i, envio_pausado: pausado } : i)) });
+    try {
+      await atualizarInstancia(id, { envio_pausado: pausado });
+    } catch (e) {
+      set({ instancias: antes });   // reverte: a tela não pode mentir
+      throw e;
+    }
     await get().fetch({ force: true });
   },
 
