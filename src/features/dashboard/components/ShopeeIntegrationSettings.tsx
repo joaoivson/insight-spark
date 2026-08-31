@@ -8,6 +8,7 @@ import { AlertTriangle, Eye, EyeOff, Loader2, Pencil, RefreshCw, Unplug, X, Chec
 import { AnimatePresence, motion } from "framer-motion";
 import { SyncModal } from "./SyncModal";
 import { SyncDaysDialog, SyncDaysOption } from "./SyncDaysDialog";
+import { ShopeeApiHelpModal } from "./ShopeeApiHelpModal";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -284,7 +285,14 @@ export const ShopeeIntegrationSettings = () => {
             className="space-y-4 overflow-hidden"
           >
             <div className="space-y-2">
-              <Label htmlFor="appId">AppID</Label>
+              {/* A ajuda mora ao lado do PRIMEIRO campo porque é onde a dúvida
+                  aparece: a API da Shopee não vem ligada, precisa ser pedida e
+                  pode demorar dias — sem isso a afiliada trava aqui sem saber
+                  que não é erro do MarketDash. */}
+              <div className="flex flex-wrap items-center justify-between gap-1">
+                <Label htmlFor="appId">AppID</Label>
+                <ShopeeApiHelpModal />
+              </div>
               <Input
                 id="appId"
                 placeholder="Ex: 18191340007"
