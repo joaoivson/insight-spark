@@ -4,10 +4,20 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { buscarInstancia, type InstanciaWhatsapp } from "@/services/whatsapp.service";
 
+/**
+ * Estados que a rota devolve. `open` é contrato mantido da era Evolution (o
+ * backend traduz `WORKING` para ele); o resto vem do WAHA em minúsculas —
+ * sem estas entradas a tela mostrava `scan_qr_code` cru para o admin.
+ */
 const ESTADOS: Record<string, { rotulo: string; cor: string }> = {
   open: { rotulo: "Conectado", cor: "text-emerald-500" },
+  starting: { rotulo: "Iniciando…", cor: "text-amber-500" },
+  scan_qr_code: { rotulo: "Aguardando leitura do QR", cor: "text-amber-500" },
   connecting: { rotulo: "Conectando…", cor: "text-amber-500" },
+  stopped: { rotulo: "Parada", cor: "text-destructive" },
+  failed: { rotulo: "Falhou", cor: "text-destructive" },
   close: { rotulo: "Desconectado", cor: "text-destructive" },
+  inexistente: { rotulo: "Sessão não existe no WAHA", cor: "text-destructive" },
   sem_config: { rotulo: "Não configurado", cor: "text-muted-foreground" },
 };
 
@@ -79,8 +89,8 @@ export function WhatsappInstanciaTab() {
 
           {!dados?.configurado && (
             <p className="text-sm text-muted-foreground">
-              Faltam <code>EVOLUTION_URL</code>, <code>EVOLUTION_API_KEY</code> e{" "}
-              <code>EVOLUTION_INSTANCIA</code> nas variáveis de ambiente da API.
+              Faltam <code>WAHA_URL</code>, <code>WAHA_API_KEY</code> e{" "}
+              <code>WAHA_SESSAO_RESUMO</code> nas variáveis de ambiente da API.
             </p>
           )}
 
@@ -92,8 +102,8 @@ export function WhatsappInstanciaTab() {
                 <Loader2 className="h-4 w-4 animate-spin" /> Gerando o QR code…
               </p>
               <p>
-                Se não aparecer em cerca de 30 segundos, recrie a instância na
-                Evolution — ver <code>docs/whatsapp-evolution.md</code>.
+                Se não aparecer em cerca de 30 segundos, confira a sessão no
+                WAHA — ver <code>docs/whatsapp-waha.md</code>.
               </p>
             </div>
           )}
