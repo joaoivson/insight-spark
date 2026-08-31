@@ -11,6 +11,56 @@
 
 ---
 
+## 2026-08-31 — Dispositivos: um card por número, com os grupos dentro
+
+`NumerosSection.tsx` (555 linhas) misturava casca, lista de números, tabela de
+grupos e quatro modais. Virou orquestrador; nasceram `DispositivoCard`,
+`GruposDoDispositivo` e `GerenciarDispositivoModal`.
+
+**A mudança de fundo não é visual.** Antes: uma lista de números e, embaixo,
+uma tabela com os grupos de *todos* eles juntos, com uma coluna "Dispositivo"
+que só dizia o nome. Para responder "o que este chip aqui está fazendo?", a
+afiliada cruzava as duas listas com o dedo. Agora cada número carrega os
+próprios grupos dentro de um bloco expansível.
+
+**Três armadilhas que o layout tinha que resolver:**
+
+1. **O mesmo grupo aparece em dois blocos** quando dois chips estão nele. Isso
+   é o desenho (vínculo N:N, o motor faz failover entre eles), não bug — mas
+   sem o marcador **"também em: X"** parece bug. Sinalizado só quando
+   `instancia_ids.length > 1`.
+2. **Grupo órfão sumiria da tela.** Remover número é soft-delete e o vínculo
+   histórico fica no banco. Daí o bucket "Grupos sem dispositivo ativo" no
+   fim — sem ele, remover um chip apagaria grupos da tela sem explicação.
+3. **Os dois vazios pedem ações diferentes** (a lição de 26/08 registrada no
+   DIARIO do backend): *conectado e sem grupos* → "use Sincronizar"; *não
+   conectado* → "conecte este número". Mandar conectar quem já está conectado
+   foi o que fez parecer que a conexão não tinha sido reconhecida.
+
+**Pausado ≠ desconectado.** O badge de status continua "Conectado" e a pausa é
+um segundo badge âmbar + card apagado. São eixos independentes no backend
+(ver DIARIO de lá, mesma data) e a tela não pode fundi-los.
+
+**O toggle é otimista.** `definirPausa` atualiza o array local, chama, e
+reverte em erro. Sem isso o switch fica preso até o round-trip e a afiliada
+clica de novo achando que não pegou. `criar`/`remover`/`sincronizar` seguem só
+re-fetchando — lento demais só para um switch.
+
+**Achado na validação visual (390px).** O cabeçalho usava `truncate` e o badge
+"Envio pausado" disputava a linha: o status virava **"Conect…"** — o dado mais
+importante do card cortado por causa do secundário. Virou `flex-wrap` +
+`whitespace-nowrap`. Só apareceu no screenshot; `tsc` e lint passavam verdes.
+
+**Gotcha de ambiente para a próxima validação.** O app do docker-compose local
+aponta `WAHA_URL` para o WAHA de **homologação** (hostname interno do Coolify,
+inalcançável da máquina) — criar número local devolve 502 `motivo="rede"`,
+mesmo com o container `waha` do perfil `whatsapp` de pé. Os ramos que exigem
+número novo (QR, card desconectado) foram validados com `page.route`
+interceptando `/instancias` e `/grupos`: app real, CSS real, zero escrita no
+banco compartilhado.
+
+---
+
 ## 2026-08-27 — Rodada mobile/tablet: auditoria por screenshot e correção geral
 
 Relato de que o app estava "totalmente quebrado" no celular e no tablet.

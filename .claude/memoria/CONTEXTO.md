@@ -36,6 +36,9 @@ Componente **nunca** chama API direto.
 - `src/hooks/queries/` — `useAdSpends`, `useClicks`, `useDatasetRows`
 - `src/components/ui/` — shadcn, **não modificar**; estender via wrapper
 - `src/components/shared/` — `DataCard`, `ResponsiveModal`, `EmojiPicker`
+- `src/components/whatsapp/` — a aba Dispositivos. `NumerosSection` orquestra;
+  `DispositivoCard` (um bloco por chip, grupos aninhados), `GruposDoDispositivo`
+  (tabela→DataCard) e `GerenciarDispositivoModal` (renomear/remover) são as peças
 - `src/shared/lib/` — `date.ts` (helpers `*BR`), `kpi.ts`, `plans.ts`,
   `tax.ts`, `chart-utils.ts`, `storage.ts`, `supabase.ts`
 
