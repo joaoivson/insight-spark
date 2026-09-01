@@ -59,8 +59,9 @@ export function DispositivoCard({
   onAlternarPausa,
 }: Props) {
   const conectada = instancia.status === "conectada";
-  // Só faz sentido expandir quem tem o que mostrar.
-  const [aberto, setAberto] = useState(grupos.length > 0);
+  // Nasce recolhido: a lista de grupos é longa e empurra os outros números
+  // para fora da tela. Quem quer ver, abre.
+  const [aberto, setAberto] = useState(false);
   const cores = CORES_DO_STATUS[instancia.status];
   const nome = instancia.nome_exibicao || `Número ${instancia.id}`;
 
