@@ -16,6 +16,7 @@ import {
   ShieldBan,
   type LucideIcon,
 } from "lucide-react";
+import { WhatsAppLogo } from "@/components/shared/BrandIcons";
 import { Link, useSearchParams } from "react-router-dom";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { Input } from "@/components/ui/input";
@@ -266,7 +267,7 @@ const ResumoSecao = () => (
   <div className="bg-card border border-border rounded-2xl p-5 md:p-6">
     <div className="flex items-start gap-3 md:gap-4 mb-5">
       <div className="w-11 h-11 md:w-12 md:h-12 rounded-xl bg-emerald-500/10 flex items-center justify-center flex-shrink-0">
-        <MessageCircle className="w-6 h-6 text-emerald-500" />
+        <WhatsAppLogo className="w-6 h-6 text-emerald-500" />
       </div>
       <div className="min-w-0">
         <h3 className="text-lg font-bold text-foreground">Resumo diário</h3>
