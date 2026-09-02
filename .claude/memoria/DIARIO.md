@@ -11,6 +11,203 @@
 
 ---
 
+## 2026-09-02 — Rodada 9 (item 3): gráfico Novas × canceladas + labels de periodicidade
+
+O que mudou: `trimLeadingNoMovement` corta os meses sem movimento do início
+da série do gráfico Novas × canceladas (AdminDashboard.tsx) — clone
+estrutural do `trimLeadingEmpty` que o MRR/Faturamento já usavam; o BarChart
+ganhou `margin={CHART_MARGIN}`, que era o ÚNICO dos gráficos do admin sem
+ele — por isso o label "31"/"32" da maior barra cortava no topo.
+`translateFrequency` (admin-panel.service.ts) aprendeu "annually"/"quarter".
+
+Por quê assim: a folga do label não foi resolvida com domain/YAxis custom
+porque o codebase já tem a solução canônica (CHART_MARGIN, criado na Rodada 7
+exatamente para label cortado) — faltava aplicar aqui. O corte de meses ficou
+no frontend, e não no backend, porque é o mesmo padrão dos cards vizinhos e
+não muda a API para outros consumidores. O "annually" cru vem do banco (o
+recorder guarda o rótulo da Kiwify só lowercased); o backend normaliza o
+cálculo, mas a coluna Periodicidade da tabela de clientes renderiza o valor
+cru — sem a entrada nova o rótulo apareceria em inglês (caso real: João
+Victor e Alice, as duas anuais "annually" de produção).
+
+Pendente: nada. Validação visual feita com interceptação de rotas no
+Playwright (supabase.co estava inalcançável da máquina — ver memória global).
+
+---
+
+## 2026-08-31 — Dispositivos: um card por número, com os grupos dentro
+
+`NumerosSection.tsx` (555 linhas) misturava casca, lista de números, tabela de
+grupos e quatro modais. Virou orquestrador; nasceram `DispositivoCard`,
+`GruposDoDispositivo` e `GerenciarDispositivoModal`.
+
+**A mudança de fundo não é visual.** Antes: uma lista de números e, embaixo,
+uma tabela com os grupos de *todos* eles juntos, com uma coluna "Dispositivo"
+que só dizia o nome. Para responder "o que este chip aqui está fazendo?", a
+afiliada cruzava as duas listas com o dedo. Agora cada número carrega os
+próprios grupos dentro de um bloco expansível.
+
+**Três armadilhas que o layout tinha que resolver:**
+
+1. **O mesmo grupo aparece em dois blocos** quando dois chips estão nele. Isso
+   é o desenho (vínculo N:N, o motor faz failover entre eles), não bug — mas
+   sem o marcador **"também em: X"** parece bug. Sinalizado só quando
+   `instancia_ids.length > 1`.
+2. **Grupo órfão sumiria da tela.** Remover número é soft-delete e o vínculo
+   histórico fica no banco. Daí o bucket "Grupos sem dispositivo ativo" no
+   fim — sem ele, remover um chip apagaria grupos da tela sem explicação.
+3. **Os dois vazios pedem ações diferentes** (a lição de 26/08 registrada no
+   DIARIO do backend): *conectado e sem grupos* → "use Sincronizar"; *não
+   conectado* → "conecte este número". Mandar conectar quem já está conectado
+   foi o que fez parecer que a conexão não tinha sido reconhecida.
+
+**Pausado ≠ desconectado.** O badge de status continua "Conectado" e a pausa é
+um segundo badge âmbar + card apagado. São eixos independentes no backend
+(ver DIARIO de lá, mesma data) e a tela não pode fundi-los.
+
+**O toggle é otimista.** `definirPausa` atualiza o array local, chama, e
+reverte em erro. Sem isso o switch fica preso até o round-trip e a afiliada
+clica de novo achando que não pegou. `criar`/`remover`/`sincronizar` seguem só
+re-fetchando — lento demais só para um switch.
+
+**Achado na validação visual (390px).** O cabeçalho usava `truncate` e o badge
+"Envio pausado" disputava a linha: o status virava **"Conect…"** — o dado mais
+importante do card cortado por causa do secundário. Virou `flex-wrap` +
+`whitespace-nowrap`. Só apareceu no screenshot; `tsc` e lint passavam verdes.
+
+**Gotcha de ambiente para a próxima validação.** O app do docker-compose local
+aponta `WAHA_URL` para o WAHA de **homologação** (hostname interno do Coolify,
+inalcançável da máquina) — criar número local devolve 502 `motivo="rede"`,
+mesmo com o container `waha` do perfil `whatsapp` de pé. Os ramos que exigem
+número novo (QR, card desconectado) foram validados com `page.route`
+interceptando `/instancias` e `/grupos`: app real, CSS real, zero escrita no
+banco compartilhado.
+
+---
+
+## 2026-08-27 — Rodada mobile/tablet: auditoria por screenshot e correção geral
+
+Relato de que o app estava "totalmente quebrado" no celular e no tablet.
+Auditoria visual das 25 rotas (aluna + admin) em 390×844, 820×1180 e 1440×900,
+com `mobile-audit.mjs` medindo overflow e erros de console. **Elementos
+passando da borda: mobile 51 → 14, tablet 32 → 0, desktop 0 → 0.** Os 14 que
+sobram são a nav rolável do admin (a aba fora da vista é o próprio scroll) e
+dois blobs decorativos clipados na Captura.
+
+**A causa-raiz que amplificava todo o resto** estava no shell: o container do
+conteúdo em `DashboardLayout` não tinha `min-w-0`. Filho de flex não encolhe
+abaixo do conteúdo, então os `overflow-x-auto` internos nunca ativavam e o
+`overflow-hidden` do próprio shell cortava a tabela **em silêncio** — sem
+scroll, sem aviso. Foi por isso que a sonda de overflow do documento vinha
+"0px" com a tela visivelmente cortada; a sonda passou a medir
+`max(html, body).scrollWidth`.
+
+O que mais quebrava, por tela:
+
+- **Ofertas** abria em duas colunas no celular com um card desenhado para a
+  linha inteira: sobravam ~29px e nome, preço e comissão saíam cortados. Entre
+  640 e 1023px eram três colunas de 153px e o botão de abrir na loja vazava —
+  virou 1 coluna no celular e 2 no tablet.
+- **Editor de automação**: barra de ações em `bottom-0 z-20` contra a bottom
+  nav em `z-40` — "Publicar automação" era literalmente inalcançável no
+  celular. O `RoteiroEditor` já tinha resolvido isso e serviu de modelo.
+- **Painel admin** não tinha estratégia mobile nenhuma: a tabela de uso da
+  plataforma era cortada em 329px, os filtros de largura fixa somavam mais que
+  a tela e os rótulos longos do DRE empurravam os valores para fora.
+- **Envio rápido de oferta**: colunas de grid sem `min-w-0` faziam o conteúdo
+  ter 749px dentro de um drawer de 390px. **Só apareceu na validação
+  interativa** — o script que fotografa rotas paradas não abre modal.
+- **Meus Links** não passava `title` ao layout (h1 vazio no header) e repetia o
+  padding do `main`, perdendo 56px dos 390px.
+
+**Por quê assim.** O shell veio primeiro de propósito: mudar a base depois
+obrigaria a revalidar tudo de novo. O menu lateral mobile foi **removido**, não
+consertado — ele não tinha gatilho nenhum (o header recebia
+`onMobileMenuToggle` e nunca renderizou o hambúrguer), e a navegação mobile
+do produto é a bottom nav.
+
+**Pendente:**
+
+- `SubscriptionPlanModal` continua com `Dialog` cru (`max-w-4xl`, gate de
+  assinatura) — a margem lateral da base já resolve o pior; migrar para
+  `ResponsiveModal` fica para uma rodada com mais folga de teste.
+- `CategoryBarChart` e `ChannelPieChart` cortam rótulo no celular, mas só a
+  `/demo` os usa (fora do escopo desta rodada). O padrão a copiar é o
+  `overflow-x-auto -mx-2 px-2` do `EvolutionBarChart`.
+- `AdSpends.tsx` (41KB) segue órfão, sem rota — não foi auditado.
+- Um `ProxyPoolTab.tsx` untracked (feature de proxy pool, com service e store
+  próprios) entrou por engano num `git add` de diretório e foi retirado do
+  commit. **Continua untracked** e fora desta rodada.
+
+## 2026-08-25 — Grupos F2: menu compartilhado, Anúncios×Campanhas, lista+detalhe
+
+O débito da F0 foi quitado: `shared/config/dashboard-menu.ts` é a fonte única
+dos itens de menu (sidebar consome a lista inteira; bottom nav deriva as 4 tabs
+por `menuKey` e joga o resto no "Mais"). O gate de produção virou `hmlOnly` na
+config + `menuVisivel()` — item novo hml-only não toca mais em 4 lugares. A
+config ganhou `shortLabel` fora do combinado ("Início"/"Links"): o bottom nav
+tinha rótulos próprios e encurtá-los na config quebraria a sidebar.
+
+O rename é só de rótulo: "Campanhas" (tráfego pago) virou **"Anúncios"** (mesmo
+path/menuKey `campanhas`, textos internos ficam pra F7); o novo item
+**"Campanhas"** é o módulo de grupos (`/dashboard/grupos`, menuKey
+`campanhas_grupos`, MAX-only, hml-only). Lista + detalhe (Visão geral/Grupos)
+no molde de Automacoes/NumerosSection. A aba Grupos acumula ordem/aberto/remoção
+localmente e um "Salvar ordem" único faz o PUT com a lista completa — o "sujo"
+é a assinatura `grupo_id:aberto` na ordem, espelho exato do que o PUT persiste.
+Posição enviada é o índice 0-based (backend só ordena, não interpreta o valor).
+
+Validação visual: hml sem grupos sincronizados no relacionamento@ — os fluxos
+de linha (reordenar/fechar/remover) foram validados com `page.route` mockando
+`/whatsapp/grupos` (sem sujar o banco); campanha real "Campanha de validação
+F2" criada via UI em hml para o resto. Gotcha do Playwright: `storage_state`
+do Supabase morre na 2ª sessão (rotação de refresh token) — logar de novo.
+
+---
+
+## 2026-08-25 — Grupos F1: seção Números (WAHA) em Configurações
+
+Seção nova no grupo WHATSAPP (hml-only) com o fluxo conectar→QR→sincronizar.
+Decisões locais: polling do QR em 5s (pareamento é interativo; os 20s do admin
+são para tela parada), "Sincronizar grupos" só aparece com instância
+conectada (evita o 409 previsível), e o limite do plano vem de
+`context.limites_whatsapp_numeros` com fallback no catálogo espelhado —
+`PlanContext` tipado não foi alterado (cast local), pendência aceitável até a
+F2 mexer no plan.service. Validação E2E contra WAHA real local.
+
+---
+
+## 2026-08-25 — Grupos WhatsApp F0: menu compacto, Configurações em sub-nav, gating no mobile
+
+Fase 0 do módulo de grupos (plano em `~/.claude/plans/claudinho-sobre-a-implementa-o-robust-reef.md`).
+Três raciocínios que o diff não conta:
+
+**Seção de Configurações deriva da URL, não de useState.** A primeira versão
+usava estado local seedado do `?tab=` só no mount — funcionava até alguém
+navegar para `?tab=...` com o componente já montado (nada remonta, nada muda),
+e o Back físico do Android saía da página em vez de voltar à lista no mobile.
+Derivar de `useSearchParams` resolveu os dois de graça: push no mobile (Back
+volta à lista), replace no desktop (Back sai da página, como as Tabs antigas).
+
+**Cadeado só com `context != null`.** O planStore cai para "essencial" antes
+do fetch E depois de falha — mostrar cadeado nesses estados trava assinante
+pagante no modal de upgrade. Como TODA rota paga tem `RequirePlan`, o cadeado
+do menu é cosmético; liberar o clique na janela de load é seguro. Vale para os
+dois navs.
+
+**`useIsMobile` agora é síncrono no primeiro render.** `useState(undefined)`
+fazia todo primeiro render ser "desktop"; com a Configurações renderizando
+árvores diferentes por viewport, isso virou flash + efeitos de rede duplicados
+(retorno OAuth do Facebook montava 2×). Corrigido no hook compartilhado —
+beneficia ResponsiveModal e afins também.
+
+**Pendente/anotado para F2**: sidebar e MobileBottomNav duplicam a lista de
+itens + gate de produção (4 lugares com `isProductionHost()` para automacoes);
+quando a F2 mexer no menu, extrair config compartilhada
+(`shared/config/dashboard-menu.ts`) e considerar `feature-flags.json`.
+
+---
+
 ## 2026-08-21 — Instagram Rodada 2: Card 4 em três campos, botão e emoji
 
 O direct passou a sair como **template `button`** da Meta. Na tela isso virou
