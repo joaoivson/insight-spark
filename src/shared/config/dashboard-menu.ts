@@ -49,7 +49,7 @@ export const DASHBOARD_MENU: DashboardMenuItem[] = [
   { icon: Globe, label: "Página de Captura", path: "/dashboard/captura", menuKey: "captura" },
   { icon: Link2, label: "Meus Links", shortLabel: "Links", path: "/dashboard/links", menuKey: "meus_links" },
   // menuKey "automacoes" só existe no plano MAX — nos demais o item aparece com cadeado.
-  { icon: Instagram, label: "Instagram", path: "/dashboard/automacoes", isNew: true, menuKey: "automacoes", hmlOnly: true },
+  { icon: Instagram, label: "Instagram", path: "/dashboard/automacoes", isNew: true, menuKey: "automacoes" },
   { icon: Gift, label: "Indique & Ganhe", path: "/dashboard/indique", iconClass: "text-[#F0A94A]", menuKey: "indique_ganhe" },
   { icon: Settings, label: "Configurações", path: "/dashboard/configuracoes", menuKey: "configuracoes" },
 ];

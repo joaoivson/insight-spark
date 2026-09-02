@@ -201,30 +201,29 @@ export const AppRoutes = () => {
             Facebook, que é lido na tela de Configurações. Fica ANTES de /:id para o
             "callback" não ser lido como id de automação, e FORA do RequirePlan: a
             conexão precisa concluir mesmo se o plano mudar no meio do caminho. */}
-        {/* Automação Instagram ainda não é pra produção: falta o App Review da Meta
-            e as migrations 049-056 não foram aplicadas lá — a tela abriria contra
-            tabela inexistente. Em produção as 4 rotas não existem, então caem no
-            404, e não basta esconder o item do menu: quem já tem a URL entraria. */}
+        {/* Instagram liberado em produção em 01/09/2026: App Review da Meta
+            aprovado (3 permissões) e migrations 052-056 aplicadas lá. O gate de
+            ambiente abaixo ficou SÓ para o módulo de grupos de WhatsApp. */}
+        <Route
+          path="/dashboard/automacoes/callback"
+          element={<ProtectedRoute element={<AutomacoesCallback />} />}
+        />
+        <Route
+          path="/dashboard/automacoes"
+          element={<ProtectedRoute element={<RequirePlan menuKey="automacoes" element={<Automacoes />} />} />}
+        />
+        <Route
+          path="/dashboard/automacoes/nova"
+          element={<ProtectedRoute element={<RequirePlan menuKey="automacoes" element={<AutomacaoEditor />} />} />}
+        />
+        <Route
+          path="/dashboard/automacoes/:id"
+          element={<ProtectedRoute element={<RequirePlan menuKey="automacoes" element={<AutomacaoEditor />} />} />}
+        />
         {!isProductionHost() && (
           <>
-            <Route
-              path="/dashboard/automacoes/callback"
-              element={<ProtectedRoute element={<AutomacoesCallback />} />}
-            />
-            <Route
-              path="/dashboard/automacoes"
-              element={<ProtectedRoute element={<RequirePlan menuKey="automacoes" element={<Automacoes />} />} />}
-            />
-            <Route
-              path="/dashboard/automacoes/nova"
-              element={<ProtectedRoute element={<RequirePlan menuKey="automacoes" element={<AutomacaoEditor />} />} />}
-            />
-            <Route
-              path="/dashboard/automacoes/:id"
-              element={<ProtectedRoute element={<RequirePlan menuKey="automacoes" element={<AutomacaoEditor />} />} />}
-            />
-            {/* Campanhas de grupos de WhatsApp (F2) — hml-only pelo mesmo motivo:
-                o backend do módulo ainda não está em produção. */}
+            {/* Campanhas de grupos de WhatsApp (F2) — hml-only: o backend do
+                módulo ainda não está em produção. */}
             <Route
               path="/dashboard/grupos"
               element={<ProtectedRoute element={<RequirePlan menuKey="campanhas_grupos" element={<CampanhasGrupos />} />} />}

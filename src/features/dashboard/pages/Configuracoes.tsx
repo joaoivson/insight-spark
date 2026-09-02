@@ -96,9 +96,9 @@ const GRUPOS: Grupo[] = [
 const Configuracoes = () => {
   const isMobile = useIsMobile();
   const showWhatsapp = !isProductionHost();
-  // Automação Instagram depende do App Review da Meta e das migrations 049-056,
-  // que não estão em produção — a seção fica só em homologação até isso fechar.
-  const showInstagram = !isProductionHost();
+  // Instagram liberado em produção em 01/09/2026 (App Review aprovado +
+  // migrations 052-056 aplicadas). O gate de ambiente segue só no WhatsApp.
+  const showInstagram = true;
 
   // null = lista (mobile). No desktop, null vira "marketplaces".
   const [searchParams, setSearchParams] = useSearchParams();
