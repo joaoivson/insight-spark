@@ -144,4 +144,8 @@ Não há suíte de teste automatizada. **A verificação é visual, via Playwrig
   `develop` (06a396d) — os dois patches divergem de propósito, NÃO fazer
   merge develop→main por causa disso. O cadeado por plano (MAX) continua.
   Pendente: prints `public/instagram/passo-{1,2,3}*.png` (design).
+- **Plano Max LANÇADO em 02/09**: card dourado (`#F0A94A`, badge "Novo") na
+  landing (`SalesPrecos.tsx`) e em `/dashboard/planos`. R$ 97/207/627, toggle
+  "até 29%/46%". Copy sem WhatsApp (módulo fora de produção). Commits
+  `develop 60931a6` / `main b0eefd5` (cherry-pick — arquivos eram idênticos).
 - Branch de trabalho: **`develop`**. Produção sai de `main`.

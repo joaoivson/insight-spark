@@ -36,8 +36,10 @@ recurso"**, não "tem e não usou". No Essencial, Links e Páginas mostram
 **"—"**, não "0/0" — "0/0" não distingue problema de adoção (Pro que não
 usa) de limitação de plano (Essencial que não tem).
 
-`max` ainda está **fora da página de vendas**: só entra por link direto da
-Kiwify.
+`max` foi **lançado em 02/09/2026**: aparece na landing (`SalesPrecos.tsx`) e
+em `/dashboard/planos` (`PLAN_ORDER`), com card dourado (`#F0A94A`) e badge
+"Novo". A copy do Max **não promete o módulo de grupos de WhatsApp** enquanto
+ele não estiver em produção — vende Instagram + ilimitados.
 
 ## Oculto em produção
 
