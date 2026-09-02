@@ -360,6 +360,21 @@ const AutomacaoEditor = () => {
                 />
               </div>
 
+              {/* Consequência real, não decoração: o CTA errado mata a automação
+                  em silêncio. Comentário de story não existe na API da Meta
+                  (verificado em 02/09/2026) — só a RESPOSTA (reply) chega. */}
+              {ehStory && (
+                <p className="flex items-start gap-2 text-xs text-muted-foreground">
+                  <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                  <span>
+                    No texto do story, peça para <strong>responder</strong> o story
+                    (ex.: “Responda com QUERO”). Comentário de story{" "}
+                    <strong>não dispara</strong> a automação — a Meta não entrega
+                    comentários de story para nenhum app.
+                  </span>
+                </p>
+              )}
+
               {form.escopo === "story_especifico" && (
                 <SelecionarStory
                   selecionado={form.media_id}
