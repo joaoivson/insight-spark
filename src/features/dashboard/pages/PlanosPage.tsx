@@ -17,12 +17,20 @@ const PERIODS: { id: PeriodId; label: string }[] = [
   { id: "anual", label: "Anual" },
 ];
 
-const PLAN_ORDER: PlanId[] = ["essencial", "pro"]; // max futuro: incluir quando lançar
+// Max lançado em 02/09/2026 junto com a Automação Instagram em produção.
+const PLAN_ORDER: PlanId[] = ["essencial", "pro", "max"];
 
 const PRO_EXTRAS = [
   "Páginas de captura (até 15)",
   "Links rastreáveis (até 30)",
   "Gerar link de afiliado com Sub ID",
+  "Suporte prioritário",
+];
+
+const MAX_EXTRAS = [
+  "Tudo do Pro incluído",
+  "Automação de Instagram (comentário → direct)",
+  "Páginas de captura e links ilimitados",
   "Suporte prioritário",
 ];
 
@@ -56,7 +64,7 @@ export default function PlanosPage() {
 
   return (
     <DashboardLayout>
-      <div className="mx-auto max-w-4xl space-y-8 p-4 md:p-8">
+      <div className="mx-auto max-w-5xl space-y-8 p-4 md:p-8">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Planos</h1>
           <p className="mt-1 text-sm text-muted-foreground">
@@ -82,7 +90,7 @@ export default function PlanosPage() {
           ))}
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-4 md:grid-cols-3">
           {cards.map((card) => (
             <div
               key={card.id}
@@ -97,7 +105,9 @@ export default function PlanosPage() {
                 </span>
               )}
               <div className="flex items-center gap-2">
-                {card.id === "pro" && <Crown className="h-4 w-4 text-primary" />}
+                {(card.id === "pro" || card.id === "max") && (
+                  <Crown className={card.id === "max" ? "h-4 w-4 text-[#F0A94A]" : "h-4 w-4 text-primary"} />
+                )}
                 <h2 className="text-lg font-semibold">{card.label}</h2>
               </div>
               <p className="mt-3 text-3xl font-bold">
@@ -111,7 +121,14 @@ export default function PlanosPage() {
                   <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
                   Dashboard, Campanhas e Upload de cliques
                 </li>
-                {card.id === "pro" || card.id === "max"
+                {card.id === "max"
+                  ? MAX_EXTRAS.map((b) => (
+                      <li key={b} className="flex gap-2">
+                        <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                        {b}
+                      </li>
+                    ))
+                  : card.id === "pro"
                   ? PRO_EXTRAS.map((b) => (
                       <li key={b} className="flex gap-2">
                         <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
