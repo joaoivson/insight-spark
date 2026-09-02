@@ -49,6 +49,8 @@ import { useInstagramConnectionStore } from "@/stores/instagramConnectionStore";
 const ROTULO_ESCOPO: Record<string, string> = {
   post_especifico: "Uma publicação",
   qualquer: "Qualquer publicação",
+  story_especifico: "Um story",
+  story_qualquer: "Qualquer story",
 };
 
 const AutomacaoCard = ({

@@ -13,6 +13,7 @@ import { EmojiPicker } from "@/components/shared/EmojiPicker";
 import { AutomacaoPreview } from "@/features/dashboard/components/AutomacaoPreview";
 import { InserirLinkModal } from "@/features/dashboard/components/InserirLinkModal";
 import { SelecionarPublicacao } from "@/features/dashboard/components/SelecionarPublicacao";
+import { SelecionarStory } from "@/features/dashboard/components/SelecionarStory";
 import { useToast } from "@/hooks/use-toast";
 import {
   createAutomation,
@@ -197,17 +198,21 @@ const AutomacaoEditor = () => {
     setChipAtual("");
   };
 
+  const ehStory = form.escopo === "story_especifico" || form.escopo === "story_qualquer";
+  const comMidia = form.escopo === "post_especifico" || form.escopo === "story_especifico";
+
   const montarPayload = (status: "ativa" | "rascunho"): InstagramAutomationPayload => ({
     nome: form.nome.trim() || "Automação sem nome",
     escopo: form.escopo,
-    media_id: form.escopo === "post_especifico" ? form.media_id : null,
-    media_thumbnail_url: form.escopo === "post_especifico" ? form.media_thumbnail_url : null,
-    media_caption_preview: form.escopo === "post_especifico" ? form.media_caption_preview : null,
-    media_permalink: form.escopo === "post_especifico" ? form.media_permalink : null,
+    media_id: comMidia ? form.media_id : null,
+    media_thumbnail_url: comMidia ? form.media_thumbnail_url : null,
+    media_caption_preview: comMidia ? form.media_caption_preview : null,
+    media_permalink: comMidia ? form.media_permalink : null,
     trigger_tipo: form.trigger_tipo,
     palavras: form.trigger_tipo === "palavras" ? form.palavras : [],
-    resposta_publica_ativa: form.resposta_publica_ativa,
-    resposta_publica_variacoes: form.resposta_publica_ativa ? variacoes : [],
+    // Story não tem comentário público — o backend também força isso.
+    resposta_publica_ativa: ehStory ? false : form.resposta_publica_ativa,
+    resposta_publica_variacoes: !ehStory && form.resposta_publica_ativa ? variacoes : [],
     dm_texto: form.dm_texto,
     dm_link: form.dm_link.trim() || null,
     dm_botao_texto: form.dm_botao_texto.trim() || null,
@@ -272,7 +277,7 @@ const AutomacaoEditor = () => {
             <CardNumerado
               numero={1}
               titulo="Onde"
-              apoio="Escolha em quais publicações essa automação vai funcionar."
+              apoio="Escolha em quais publicações ou stories essa automação vai funcionar."
             >
               <div className="space-y-2" role="radiogroup" aria-label="Onde">
                 <Opcao
@@ -287,7 +292,34 @@ const AutomacaoEditor = () => {
                   ativo={form.escopo === "qualquer"}
                   onClick={() => setForm({ ...form, escopo: "qualquer" })}
                 />
+                <Opcao
+                  titulo="Um story específico"
+                  descricao="Responde quem responder esse story no direct. Ele expira em 24h — a automação para junto."
+                  ativo={form.escopo === "story_especifico"}
+                  onClick={() => setForm({ ...form, escopo: "story_especifico" })}
+                />
+                <Opcao
+                  titulo="Qualquer story"
+                  descricao="Vale para todos os stories, inclusive os que você ainda vai postar."
+                  ativo={form.escopo === "story_qualquer"}
+                  onClick={() => setForm({ ...form, escopo: "story_qualquer" })}
+                />
               </div>
+
+              {form.escopo === "story_especifico" && (
+                <SelecionarStory
+                  selecionado={form.media_id}
+                  onSelecionar={(item) =>
+                    setForm({
+                      ...form,
+                      media_id: item.id,
+                      media_thumbnail_url: item.thumbnail_url ?? null,
+                      media_caption_preview: item.caption_preview ?? null,
+                      media_permalink: null,
+                    })
+                  }
+                />
+              )}
 
               {form.escopo === "post_especifico" && (
                 <SelecionarPublicacao
@@ -309,7 +341,11 @@ const AutomacaoEditor = () => {
             <CardNumerado
               numero={2}
               titulo="Quando"
-              apoio="A automação dispara quando o comentário contiver uma dessas palavras."
+              apoio={
+                ehStory
+                  ? "A automação dispara quando a resposta ao story contiver uma dessas palavras."
+                  : "A automação dispara quando o comentário contiver uma dessas palavras."
+              }
             >
               <div className="space-y-2" role="radiogroup" aria-label="Quando">
                 <Opcao
@@ -385,6 +421,7 @@ const AutomacaoEditor = () => {
               )}
             </CardNumerado>
 
+            {!ehStory && (
             <CardNumerado
               numero={3}
               titulo="Responder no comentário"
@@ -458,11 +495,16 @@ const AutomacaoEditor = () => {
                 </div>
               )}
             </CardNumerado>
+            )}
 
             <CardNumerado
-              numero={4}
+              numero={ehStory ? 3 : 4}
               titulo="Mensagem no direct"
-              apoio="É a única mensagem que a pessoa vai receber."
+              apoio={
+                ehStory
+                  ? "A resposta que a pessoa recebe no direct ao responder seu story."
+                  : "É a única mensagem que a pessoa vai receber."
+              }
             >
               {/* Rodada 2: mensagem, link e botão em campos separados. O link
                   saiu de dentro do texto e vira um botão no direct — link cru no
@@ -534,7 +576,7 @@ const AutomacaoEditor = () => {
               palavraExemplo={
                 form.trigger_tipo === "qualquer" ? "que lindo!" : form.palavras[0] || "quero"
               }
-              respostaPublica={form.resposta_publica_ativa ? variacoes[0] : null}
+              respostaPublica={!ehStory && form.resposta_publica_ativa ? variacoes[0] : null}
               dmTexto={form.dm_texto}
               dmLink={form.dm_link}
               dmBotaoTexto={form.dm_botao_texto}
