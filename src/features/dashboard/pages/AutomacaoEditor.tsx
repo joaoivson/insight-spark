@@ -201,6 +201,28 @@ const AutomacaoEditor = () => {
   const ehStory = form.escopo === "story_especifico" || form.escopo === "story_qualquer";
   const comMidia = form.escopo === "post_especifico" || form.escopo === "story_especifico";
 
+  // Toggle Publicações × Stories do Card 1: troca o "mundo" preservando a
+  // escolha específica/qualquer, e limpa a mídia — um media_id de post não
+  // vale para story e vice-versa.
+  const trocarTipoAlvo = (novo: "publicacoes" | "stories") => {
+    if ((novo === "stories") === ehStory) return;
+    setForm((f) => ({
+      ...f,
+      escopo:
+        novo === "stories"
+          ? f.escopo === "post_especifico"
+            ? "story_especifico"
+            : "story_qualquer"
+          : f.escopo === "story_especifico"
+            ? "post_especifico"
+            : "qualquer",
+      media_id: null,
+      media_thumbnail_url: null,
+      media_caption_preview: null,
+      media_permalink: null,
+    }));
+  };
+
   const montarPayload = (status: "ativa" | "rascunho"): InstagramAutomationPayload => ({
     nome: form.nome.trim() || "Automação sem nome",
     escopo: form.escopo,
@@ -279,30 +301,62 @@ const AutomacaoEditor = () => {
               titulo="Onde"
               apoio="Escolha em quais publicações ou stories essa automação vai funcionar."
             >
+              {/* Primeiro o MUNDO (feed/reels × story), depois específica/qualquer —
+                  4 opções empilhadas escondiam as de story abaixo da dobra. */}
+              <div
+                className="inline-flex rounded-lg border border-border bg-muted/40 p-1"
+                role="tablist"
+                aria-label="Tipo de conteúdo"
+              >
+                {[
+                  { id: "publicacoes" as const, rotulo: "Publicações (feed/reels)" },
+                  { id: "stories" as const, rotulo: "Stories" },
+                ].map((t) => (
+                  <button
+                    key={t.id}
+                    type="button"
+                    role="tab"
+                    aria-selected={(t.id === "stories") === ehStory}
+                    onClick={() => trocarTipoAlvo(t.id)}
+                    className={cn(
+                      "rounded-md px-3 py-1.5 text-sm transition-colors",
+                      (t.id === "stories") === ehStory
+                        ? "bg-background text-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    {t.rotulo}
+                  </button>
+                ))}
+              </div>
+
               <div className="space-y-2" role="radiogroup" aria-label="Onde">
                 <Opcao
-                  titulo="Uma publicação específica"
-                  descricao="A automação responde só nos comentários desse post."
-                  ativo={form.escopo === "post_especifico"}
-                  onClick={() => setForm({ ...form, escopo: "post_especifico" })}
+                  titulo={ehStory ? "Um story específico" : "Uma publicação específica"}
+                  descricao={
+                    ehStory
+                      ? "Responde quem responder esse story no direct. Ele expira em 24h — a automação para junto."
+                      : "A automação responde só nos comentários desse post."
+                  }
+                  ativo={comMidia}
+                  onClick={() =>
+                    setForm({
+                      ...form,
+                      escopo: ehStory ? "story_especifico" : "post_especifico",
+                    })
+                  }
                 />
                 <Opcao
-                  titulo="Qualquer publicação"
-                  descricao="Vale para todos os posts, inclusive os que você ainda vai publicar."
-                  ativo={form.escopo === "qualquer"}
-                  onClick={() => setForm({ ...form, escopo: "qualquer" })}
-                />
-                <Opcao
-                  titulo="Um story específico"
-                  descricao="Responde quem responder esse story no direct. Ele expira em 24h — a automação para junto."
-                  ativo={form.escopo === "story_especifico"}
-                  onClick={() => setForm({ ...form, escopo: "story_especifico" })}
-                />
-                <Opcao
-                  titulo="Qualquer story"
-                  descricao="Vale para todos os stories, inclusive os que você ainda vai postar."
-                  ativo={form.escopo === "story_qualquer"}
-                  onClick={() => setForm({ ...form, escopo: "story_qualquer" })}
+                  titulo={ehStory ? "Qualquer story" : "Qualquer publicação"}
+                  descricao={
+                    ehStory
+                      ? "Vale para todos os stories, inclusive os que você ainda vai postar."
+                      : "Vale para todos os posts, inclusive os que você ainda vai publicar."
+                  }
+                  ativo={!comMidia}
+                  onClick={() =>
+                    setForm({ ...form, escopo: ehStory ? "story_qualquer" : "qualquer" })
+                  }
                 />
               </div>
 
