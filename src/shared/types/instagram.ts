@@ -45,7 +45,12 @@ export interface InstagramMediaPage {
   from_cache: boolean;
 }
 
-export type AutomacaoEscopo = "post_especifico" | "qualquer";
+export type AutomacaoEscopo =
+  | "post_especifico"
+  | "qualquer"
+  // Story: reply do story (que chega como DM) dispara a automação.
+  | "story_especifico"
+  | "story_qualquer";
 export type AutomacaoTrigger = "palavras" | "qualquer";
 export type AutomacaoStatus = "ativa" | "pausada" | "rascunho";
 

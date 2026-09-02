@@ -67,6 +67,12 @@ export const listInstagramMedia = async (
   return (await res.json()) as InstagramMediaPage;
 };
 
+export const listInstagramStories = async (): Promise<InstagramMediaPage> => {
+  const res = await fetchWithAuth(getApiUrl(`${BASE}/stories`));
+  if (!res.ok) throw await erroDaResposta(res, "Erro ao carregar seus stories");
+  return (await res.json()) as InstagramMediaPage;
+};
+
 // -------------------------------------------------------------- automações --
 
 export const listAutomations = async (): Promise<InstagramAutomation[]> => {
