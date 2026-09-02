@@ -11,6 +11,30 @@
 
 ---
 
+## 2026-09-02 — Rodada 9 (item 3): gráfico Novas × canceladas + labels de periodicidade
+
+O que mudou: `trimLeadingNoMovement` corta os meses sem movimento do início
+da série do gráfico Novas × canceladas (AdminDashboard.tsx) — clone
+estrutural do `trimLeadingEmpty` que o MRR/Faturamento já usavam; o BarChart
+ganhou `margin={CHART_MARGIN}`, que era o ÚNICO dos gráficos do admin sem
+ele — por isso o label "31"/"32" da maior barra cortava no topo.
+`translateFrequency` (admin-panel.service.ts) aprendeu "annually"/"quarter".
+
+Por quê assim: a folga do label não foi resolvida com domain/YAxis custom
+porque o codebase já tem a solução canônica (CHART_MARGIN, criado na Rodada 7
+exatamente para label cortado) — faltava aplicar aqui. O corte de meses ficou
+no frontend, e não no backend, porque é o mesmo padrão dos cards vizinhos e
+não muda a API para outros consumidores. O "annually" cru vem do banco (o
+recorder guarda o rótulo da Kiwify só lowercased); o backend normaliza o
+cálculo, mas a coluna Periodicidade da tabela de clientes renderiza o valor
+cru — sem a entrada nova o rótulo apareceria em inglês (caso real: João
+Victor e Alice, as duas anuais "annually" de produção).
+
+Pendente: nada. Validação visual feita com interceptação de rotas no
+Playwright (supabase.co estava inalcançável da máquina — ver memória global).
+
+---
+
 ## 2026-08-31 — Dispositivos: um card por número, com os grupos dentro
 
 `NumerosSection.tsx` (555 linhas) misturava casca, lista de números, tabela de
