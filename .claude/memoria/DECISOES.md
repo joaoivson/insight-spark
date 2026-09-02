@@ -62,6 +62,12 @@
   4 rotas `/dashboard/automacoes*`, que em produção nem são registradas. O código
   foi parar em `main` num merge de branch inteiro; a feature depende do App Review
   da Meta e das migrations 052-056, não aplicadas lá. Homologação segue liberada.
+- **02/09/2026 — Instagram LIBERADO em produção** (supera a decisão de 22/08):
+  App Review aprovado e migrations 052-056 aplicadas. Em `main` (2d336a8) o
+  gate `!isProductionHost()` saiu das 4 rotas; em `develop` (06a396d) o bloco
+  compartilhado foi SEPARADO (Grupos/Ofertas/Templates continuam gated). Os
+  patches divergem de propósito — o futuro merge develop→main vai conflitar em
+  `app-routes.tsx` e deve resolver mantendo a versão de develop.
 - **22/08/2026 — `npx tsc --noEmit` NÃO valida `src/`.** O `tsconfig.json` da raiz
   tem `"files": []` e usa project references; sem `-b` nada é compilado. É o comando
   que os workflows de deploy rodam, ou seja, **a checagem de tipos do CI é inócua**.

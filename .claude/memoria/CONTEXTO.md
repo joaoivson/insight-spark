@@ -139,9 +139,9 @@ Não há suíte de teste automatizada. **A verificação é visual, via Playwrig
 
 - Badge de desconto do plano Pro na página de vendas.
 - Botão "Atualizar" do header é **dead code** desde a migração para SWR.
-- **Automação Instagram** (telas): Rodadas 1 e 2 no ar em homologação. Editor
-  com Card 1 em fileira de 4 + modal com busca, Card 3 com um campo por
-  variação, Card 4 em três campos (Mensagem / Link / Texto do botão) e seletor
-  de emoji nos Cards 3 e 4. Falta o **App Review** — sem ele, aluna comum nem
-  completa o OAuth.
+- **Automação Instagram: EM PRODUÇÃO desde 02/09** (App Review aprovado em
+  01/09). Gate de ambiente removido em `main` (2d336a8) e separado em
+  `develop` (06a396d) — os dois patches divergem de propósito, NÃO fazer
+  merge develop→main por causa disso. O cadeado por plano (MAX) continua.
+  Pendente: prints `public/instagram/passo-{1,2,3}*.png` (design).
 - Branch de trabalho: **`develop`**. Produção sai de `main`.
