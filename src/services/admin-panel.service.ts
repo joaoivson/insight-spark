@@ -103,9 +103,13 @@ const FREQUENCY_LABELS: Record<string, string> = {
   mensal: "Mensal",
   quarterly: "Trimestral",
   trimestral: "Trimestral",
+  quarter: "Trimestral",
   yearly: "Anual",
   annual: "Anual",
+  // a Kiwify manda "annually" em parte das assinaturas anuais (Rodada 9)
+  annually: "Anual",
   anual: "Anual",
+  year: "Anual",
 };
 
 export const translateFrequency = (frequency: string | null | undefined): string => {

@@ -38,6 +38,14 @@ function trimLeadingEmpty<T extends { net: number; gross: number }>(series: T[])
   return series.slice(firstReal);
 }
 
+/** Mesmo corte para Novas × canceladas (Rodada 9, item 3): meses sem nenhum
+ * movimento no início da série saem — como o DRE já faz na lista de meses. */
+function trimLeadingNoMovement<T extends { novas: number; canceladas: number }>(series: T[]): T[] {
+  const firstReal = series.findIndex((p) => p.novas !== 0 || p.canceladas !== 0);
+  if (firstReal <= 0) return series;
+  return series.slice(firstReal);
+}
+
 function MetricCard({
   title,
   value,
@@ -210,7 +218,7 @@ export default function AdminDashboardPage() {
           </CardHeader>
           <CardContent className="h-64">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={data.series?.new_vs_canceled || []}>
+              <BarChart data={trimLeadingNoMovement(data.series?.new_vs_canceled || [])} margin={CHART_MARGIN}>
                 <XAxis dataKey="month" {...AXIS_PROPS} />
                 <YAxis allowDecimals={false} {...AXIS_PROPS} />
                 <Tooltip cursor={BAR_CURSOR} content={<AdminChartTooltip />} />
