@@ -11,6 +11,7 @@ import {
   Moon,
   LogOut,
   Gift,
+  Instagram as InstagramIcon,
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/shared/lib/utils";
@@ -44,6 +45,9 @@ const primaryItems: NavItem[] = [
 // Demais ações vão para o drawer "Mais"
 const moreItems: NavItem[] = [
   { icon: Globe, label: "Página de Captura", path: "/dashboard/captura" },
+  // Instagram entrou em produção em 02/09/2026 — faltava aqui: a sidebar do
+  // desktop e este nav têm listas separadas em main (só develop unifica).
+  { icon: InstagramIcon, label: "Automação Instagram", path: "/dashboard/automacoes", isNew: true },
   { icon: Settings, label: "Configurações", path: "/dashboard/configuracoes" },
 ];
 
