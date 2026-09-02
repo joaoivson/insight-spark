@@ -144,6 +144,12 @@ Não há suíte de teste automatizada. **A verificação é visual, via Playwrig
   `develop` (06a396d) — os dois patches divergem de propósito, NÃO fazer
   merge develop→main por causa disso. O cadeado por plano (MAX) continua.
   Pendente: prints `public/instagram/passo-{1,2,3}*.png` (design).
+- **Automação em STORY (hml, 02/09 à tarde)**: Card 1 do editor virou toggle
+  Publicações×Stories + SelecionarStory (thumbs 9:16, aviso de 24h); no escopo
+  story o card de resposta pública some e o direct vira card 3. Barra de ações
+  corrigida (não cobre mais o sidebar, `md:left-72`) + botão Voltar — esse fix
+  TAMBÉM está em produção (`main 1ce08d2`). Pendência cosmética: o preview
+  ainda mostra o mock de comentário no escopo story.
 - **Plano Max LANÇADO em 02/09**: card dourado (`#F0A94A`, badge "Novo") na
   landing (`SalesPrecos.tsx`) e em `/dashboard/planos`. R$ 97/207/627, toggle
   "até 29%/46%". Copy sem WhatsApp (módulo fora de produção). Commits
