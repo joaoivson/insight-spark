@@ -24,16 +24,17 @@ const resolveInitialTab = (): string => {
   if (params.get("code") || params.get("error")) return "facebook";
   const t = params.get("tab");
   if (t === "facebook" || t === "shopee" || t === "impostos" || t === "assinatura") return t;
-  if ((t === "whatsapp" || t === "instagram") && !isProductionHost()) return t;
+  if (t === "instagram") return t;
+  if (t === "whatsapp" && !isProductionHost()) return t;
   return "shopee";
 };
 
 const Configuracoes = () => {
   const [tab, setTab] = useState<string>(resolveInitialTab);
   const showWhatsapp = !isProductionHost();
-  // Automação Instagram depende do App Review da Meta e das migrations 049-056,
-  // que não estão em produção — a aba fica só em homologação até isso fechar.
-  const showInstagram = !isProductionHost();
+  // Instagram liberado em produção em 01/09/2026 (App Review aprovado +
+  // migrations 052-056 aplicadas). O gate de ambiente segue só no WhatsApp.
+  const showInstagram = true;
 
   return (
     <DashboardLayout title="Configurações">
