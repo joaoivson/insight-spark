@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { AlertTriangle, Info, Link2, Loader2, X } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Info, Link2, Loader2, X } from "lucide-react";
 
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { Button } from "@/components/ui/button";
@@ -548,25 +548,40 @@ const AutomacaoEditor = () => {
           58px) — em bottom-0 os botões ficavam escondidos atrás da navegação,
           e "Publicar automação" era inalcançável. Mesmo tratamento do
           RoteiroEditor. */}
-      <div className="fixed inset-x-0 bottom-[calc(58px+env(safe-area-inset-bottom))] z-30 border-t border-border bg-background/95 backdrop-blur md:bottom-0 md:pl-72">
-        <div className="mx-auto flex max-w-[1100px] flex-col gap-2 p-3 sm:flex-row sm:justify-end">
+      {/* No desktop a barra começa DEPOIS do sidebar (md:left-72): com
+          inset-x-0 ela cobria o menu lateral. Com o sidebar recolhido sobra uma
+          fresta à esquerda — preferível a tampar o menu. */}
+      <div className="fixed left-0 right-0 bottom-[calc(58px+env(safe-area-inset-bottom))] z-30 border-t border-border bg-background/95 backdrop-blur md:bottom-0 md:left-72">
+        <div className="mx-auto flex max-w-[1100px] flex-col gap-2 p-3 sm:flex-row sm:items-center sm:justify-between">
+          {/* Voltar não salva nada — só devolve para a lista. Some no celular:
+              lá o espaço é curto e a bottom nav já dá o caminho de volta. */}
           <Button
-            variant="outline"
-            onClick={() => void salvar("rascunho")}
+            variant="ghost"
+            className="hidden sm:inline-flex"
+            onClick={() => navigate("/dashboard/automacoes")}
             disabled={salvando}
-            className="w-full sm:w-auto"
           >
-            {salvando && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Salvar rascunho
+            <ArrowLeft className="mr-2 h-4 w-4" /> Voltar
           </Button>
-          <Button
-            onClick={() => void salvar("ativa")}
-            disabled={salvando}
-            className="w-full sm:w-auto"
-          >
-            {salvando && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Publicar automação
-          </Button>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Button
+              variant="outline"
+              onClick={() => void salvar("rascunho")}
+              disabled={salvando}
+              className="w-full sm:w-auto"
+            >
+              {salvando && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Salvar rascunho
+            </Button>
+            <Button
+              onClick={() => void salvar("ativa")}
+              disabled={salvando}
+              className="w-full sm:w-auto"
+            >
+              {salvando && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Publicar automação
+            </Button>
+          </div>
         </div>
       </div>
 
