@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ResponsiveModal } from "@/components/shared/ResponsiveModal";
 import { useToast } from "@/hooks/use-toast";
 import {
   disconnectInstagram,
@@ -47,7 +48,8 @@ const formatarData = (iso: string | null) => {
 };
 
 /**
- * Checklist antes de conectar.
+ * Passo a passo detalhado (caminho de menu + prints), exibido no modal
+ * "Onde encontrar cada passo". Na tela fica só a versão enxuta.
  *
  * O passo do "Permitir acesso a mensagens" é o mais importante e o único que não
  * dá pra fazer pela nossa tela: sem ele a Meta não entrega o webhook de
@@ -78,7 +80,7 @@ const PASSOS: { titulo: string; texto: string; imagem?: string; destaque?: boole
   },
 ];
 
-const Checklist = () => (
+const PassosDetalhados = () => (
   <ol className="space-y-3">
     {PASSOS.map((passo, i) => (
       <li key={passo.titulo} className="flex gap-3">
@@ -111,6 +113,37 @@ const Checklist = () => (
   </ol>
 );
 
+// Versão enxuta exibida na tela — o detalhe fica no modal. O destaque amber do
+// passo 2 é obrigatório: sem essa permissão a Meta não envia o webhook de
+// comentário e a automação fica silenciosa, sem nenhum erro.
+const PASSOS_RESUMO: { texto: string; destaque?: boolean }[] = [
+  { texto: "Conta profissional e pública." },
+  {
+    texto: "Ligue “Permitir acesso às mensagens” — sem isso a automação não dispara.",
+    destaque: true,
+  },
+  { texto: "Conecte aqui." },
+];
+
+const ChecklistResumo = () => (
+  <ol className="space-y-1.5">
+    {PASSOS_RESUMO.map((passo, i) => (
+      <li key={passo.texto} className="flex items-center gap-2">
+        <span
+          className={`flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full text-[11px] font-bold ${
+            passo.destaque ? "bg-amber-500/15 text-amber-500" : "bg-primary/15 text-primary"
+          }`}
+        >
+          {i + 1}
+        </span>
+        <span className={`text-xs ${passo.destaque ? "text-amber-500" : "text-foreground"}`}>
+          {passo.texto}
+        </span>
+      </li>
+    ))}
+  </ol>
+);
+
 export const InstagramConnectionSettings = () => {
   const { toast } = useToast();
   const { isDemo, loaded: planLoaded, fetch: fetchPlan } = usePlanStore();
@@ -120,6 +153,7 @@ export const InstagramConnectionSettings = () => {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [desconectarAberto, setDesconectarAberto] = useState(false);
+  const [passosAberto, setPassosAberto] = useState(false);
 
   useEffect(() => {
     void fetchPlan();
@@ -270,19 +304,12 @@ export const InstagramConnectionSettings = () => {
   // Estado: nunca conectou
   if (!conexao) {
     return (
-      <div className="space-y-5">
-        <p className="text-sm text-muted-foreground">
-          Antes de conectar, confira estes três passos no app do Instagram:
-        </p>
-        <Checklist />
+      <div className="space-y-4">
         <div className="space-y-2">
-          {/* Público de mentoria trava em tela de senha. Dizer de quem é a tela e
-              o que a gente NÃO vê resolve a hesitação antes de ela acontecer. */}
-          <p className="text-xs text-muted-foreground">
-            O login acontece no site do próprio Instagram. O MarketDash não vê e não
-            guarda sua senha — mesmo que você já esteja logada, ele vai pedir para você
-            entrar de novo, para garantir que a conta conectada é a certa.
-          </p>
+          <p className="text-xs text-muted-foreground">Antes de conectar, no app do Instagram:</p>
+          <ChecklistResumo />
+        </div>
+        <div className="flex flex-col gap-2 md:flex-row md:items-center md:gap-4">
           <Button onClick={conectar} disabled={busy} className="w-full md:w-auto">
             {busy ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -291,7 +318,22 @@ export const InstagramConnectionSettings = () => {
             )}
             Conectar Instagram
           </Button>
+          <button
+            type="button"
+            onClick={() => setPassosAberto(true)}
+            className="text-xs text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
+          >
+            Onde encontrar cada passo →
+          </button>
         </div>
+        <ResponsiveModal
+          open={passosAberto}
+          onOpenChange={setPassosAberto}
+          title="Onde encontrar cada passo"
+          contentClassName="max-h-[85vh] overflow-y-auto"
+        >
+          <PassosDetalhados />
+        </ResponsiveModal>
       </div>
     );
   }

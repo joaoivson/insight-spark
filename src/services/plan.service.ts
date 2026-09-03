@@ -19,9 +19,27 @@ export type PlanContext = {
   is_demo: boolean;
   menus: string[];
   pro_only_menus: string[];
-  limites: { paginas_captura: number; links: number };
+  max_only_menus: string[];
+  // Sentinelas: -1 = ilimitado; 0 = plano não tem o recurso (exibir travessão).
+  limites: {
+    paginas_captura: number;
+    links: number;
+    whatsapp_numeros?: number;
+    whatsapp_grupos?: number;
+    campanhas_grupos?: number;
+    monitoramentos?: number;
+    whatsapp_msgs_dia?: number;
+  };
   limites_paginas_captura: number;
   limites_links: number;
+  limites_whatsapp_numeros?: number;
+  // Consumo atual (10.3) — para exibir "usado/limite" na tela de assinatura.
+  uso?: {
+    links: number;
+    paginas_captura: number;
+    whatsapp_numeros: number;
+    whatsapp_grupos_ativos: number;
+  };
   checkouts: PlanCheckout[];
 };
 

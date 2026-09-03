@@ -170,14 +170,21 @@ export function EnvioRapidoModal({
     if (valoresIniciais.midia_url) setMidiaUrl(valoresIniciais.midia_url);
   }, [open, valoresIniciais]);
 
-  // Pré-seleção (uma vez por abertura), restrita aos grupos que permitem envio.
+  // §6.3: o picker só oferece grupos que a usuária ATIVOU. Os demais seguem
+  // existindo (tela de grupos, histórico) — só não entram em envio novo.
+  const gruposAtivados = useMemo(() => grupos.filter((g) => g.ativado), [grupos]);
+
+  // Pré-seleção (uma vez por abertura), restrita aos grupos ativados que
+  // permitem envio.
   useEffect(() => {
     if (!open || !loaded || preSelAplicado.current) return;
     preSelAplicado.current = true;
     if (!gruposPreSelecionados?.length) return;
-    const permitidos = new Set(grupos.filter((g) => g.permite_envio).map((g) => g.id));
+    const permitidos = new Set(
+      gruposAtivados.filter((g) => g.permite_envio).map((g) => g.id),
+    );
     setSelecionados(new Set(gruposPreSelecionados.filter((id) => permitidos.has(id))));
-  }, [open, loaded, grupos, gruposPreSelecionados]);
+  }, [open, loaded, gruposAtivados, gruposPreSelecionados]);
 
   // Polling do progresso enquanto o envio está vivo. Fechar o modal para o
   // polling, não o envio — o backend segue sozinho.
@@ -231,14 +238,16 @@ export function EnvioRapidoModal({
 
   const gruposOrdenados = useMemo(() => {
     const q = busca.trim().toLowerCase();
-    const filtrados = q ? grupos.filter((g) => rotuloDoGrupo(g.nome, g.id).toLowerCase().includes(q)) : grupos;
+    const filtrados = q
+      ? gruposAtivados.filter((g) => rotuloDoGrupo(g.nome, g.id).toLowerCase().includes(q))
+      : gruposAtivados;
     // Quem permite envio primeiro; os demais aparecem desabilitados no fim.
     return [...filtrados].sort(
       (a, b) =>
         Number(b.permite_envio) - Number(a.permite_envio) ||
         rotuloDoGrupo(a.nome, a.id).localeCompare(rotuloDoGrupo(b.nome, b.id)),
     );
-  }, [grupos, busca]);
+  }, [gruposAtivados, busca]);
 
   const alternarGrupo = (grupoId: number) => {
     setSelecionados((atual) => {
@@ -429,7 +438,7 @@ export function EnvioRapidoModal({
                 <Label htmlFor="envio-busca-grupos">Grupos</Label>
                 {selecionados.size > 0 && (
                   <span className="text-xs tabular-nums text-muted-foreground">
-                    {selecionados.size} de {grupos.filter((g) => g.permite_envio).length}
+                    {selecionados.size} de {gruposAtivados.filter((g) => g.permite_envio).length}
                   </span>
                 )}
               </div>
@@ -451,6 +460,17 @@ export function EnvioRapidoModal({
                   </p>
                   <Button asChild variant="outline">
                     <Link to="/dashboard/configuracoes?tab=numeros">Conectar número</Link>
+                  </Button>
+                </div>
+              ) : loaded && gruposAtivados.length === 0 ? (
+                /* Há grupos sincronizados, mas nenhum ativado — mandar
+                   reconectar aqui seria a instrução errada. */
+                <div className="space-y-3 rounded-xl border border-border py-6 text-center">
+                  <p className="px-4 text-sm text-muted-foreground">
+                    Nenhum grupo ativado ainda. Ative os grupos que vão receber envios.
+                  </p>
+                  <Button asChild variant="outline">
+                    <Link to="/dashboard/configuracoes?tab=numeros">Ativar grupos</Link>
                   </Button>
                 </div>
               ) : (

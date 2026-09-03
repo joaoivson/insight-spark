@@ -293,10 +293,17 @@ const CampanhaGrupoDetalhe = () => {
     }
   };
 
+  // §6.3: a campanha só oferece grupos ATIVADOS pela usuária. Grupos já
+  // vinculados continuam visíveis na lista da campanha — só saem da oferta.
   const gruposDisponiveis = useMemo(() => {
     const vinculados = new Set(vinculos.map((v) => v.grupo_id));
-    return gruposSincronizados.filter((g) => !vinculados.has(g.id));
+    return gruposSincronizados.filter((g) => g.ativado && !vinculados.has(g.id));
   }, [gruposSincronizados, vinculos]);
+
+  const temGrupoAtivado = useMemo(
+    () => gruposSincronizados.some((g) => g.ativado),
+    [gruposSincronizados],
+  );
 
   const gruposFiltrados = useMemo(() => {
     const q = busca.trim().toLowerCase();
@@ -690,12 +697,20 @@ const CampanhaGrupoDetalhe = () => {
               <p className="text-sm text-muted-foreground">
                 {gruposSincronizados.length === 0
                   ? "Nenhum grupo sincronizado ainda. Conecte um número e sincronize seus grupos."
-                  : "Todos os grupos sincronizados já estão na campanha."}
+                  : temGrupoAtivado
+                    ? "Todos os grupos ativados já estão na campanha."
+                    : "Nenhum grupo ativado ainda. Ative os grupos que vão entrar nas campanhas."}
               </p>
-              {gruposSincronizados.length === 0 && (
+              {gruposSincronizados.length === 0 ? (
                 <Button asChild variant="outline">
                   <Link to="/dashboard/configuracoes?tab=numeros">Conectar número</Link>
                 </Button>
+              ) : (
+                !temGrupoAtivado && (
+                  <Button asChild variant="outline">
+                    <Link to="/dashboard/configuracoes?tab=numeros">Ativar grupos</Link>
+                  </Button>
+                )
               )}
             </div>
           ) : (

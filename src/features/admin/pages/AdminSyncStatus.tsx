@@ -45,7 +45,6 @@ import { AdminChartTooltip, CHART_COLORS } from "@/features/admin/components/Adm
 import { PlatformUsageTab } from "@/features/admin/components/PlatformUsageTab";
 import { SyncErrorDialog } from "@/features/admin/components/SyncErrorDialog";
 import { SyncErrorReasons } from "@/features/admin/components/SyncErrorReasons";
-import { WhatsappInstanciaTab } from "@/features/admin/components/WhatsappInstanciaTab";
 import { ProxyPoolTab } from "@/features/admin/components/ProxyPoolTab";
 import {
   CelulaUsuaria,
@@ -553,13 +552,9 @@ export default function AdminSyncStatusPage() {
           <SyncsTab />
         </div>
         <div className="border-t border-border pt-8">
-          <h3 className="mb-3 text-sm font-medium text-muted-foreground">WhatsApp</h3>
-          <WhatsappInstanciaTab />
-        </div>
-        <div className="border-t border-border pt-8">
-          {/* Fica junto do WhatsApp de propósito: a pergunta que traz o admin
-              aqui é sempre "qual número está em qual IP?". A afiliada não vê
-              nada disto — para ela, proxy é capacidade de conexão. */}
+          {/* A pergunta que traz o admin aqui é sempre "qual número está em
+              qual IP?". A afiliada não vê nada disto — para ela, proxy é
+              capacidade de conexão. */}
           <h3 className="mb-3 text-sm font-medium text-muted-foreground">
             IPs das conexões (proxy)
           </h3>

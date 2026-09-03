@@ -1,15 +1,6 @@
-import { useState } from "react";
-import {
-  ChevronDown,
-  Link2,
-  Loader2,
-  MoreVertical,
-  Pencil,
-  QrCode,
-  RefreshCw,
-  Smartphone,
-  Trash2,
-} from "lucide-react";
+import type { KeyboardEvent, MouseEvent } from "react";
+import { useNavigate } from "react-router-dom";
+import { ChevronRight, Link2, MoreVertical, Pencil, QrCode, Trash2 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -20,12 +11,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Switch } from "@/components/ui/switch";
-import { GruposDoDispositivo } from "@/components/whatsapp/GruposDoDispositivo";
-import type { GrupoWhatsapp, InstanciaConexao } from "@/services/whatsapp_conexoes.service";
+import type { InstanciaConexao } from "@/services/whatsapp_conexoes.service";
 import { cn } from "@/shared/lib/utils";
-import { formatDateTime } from "@/shared/lib/utils";
 
-const CORES_DO_STATUS: Record<InstanciaConexao["status"], { dot: string; texto: string; rotulo: string }> = {
+export const CORES_DO_STATUS: Record<
+  InstanciaConexao["status"],
+  { dot: string; texto: string; rotulo: string }
+> = {
   conectada: { dot: "bg-emerald-500", texto: "text-emerald-500", rotulo: "Conectado" },
   desconectada: { dot: "bg-destructive", texto: "text-destructive", rotulo: "Desconectado" },
   criada: { dot: "bg-muted-foreground", texto: "text-muted-foreground", rotulo: "Aguardando conexão" },
@@ -33,12 +25,8 @@ const CORES_DO_STATUS: Record<InstanciaConexao["status"], { dot: string; texto: 
 
 type Props = {
   instancia: InstanciaConexao;
-  /** Já filtrados para este dispositivo. */
-  grupos: GrupoWhatsapp[];
-  /** Todos os dispositivos — para o "também em: X" dos grupos compartilhados. */
-  instancias: InstanciaConexao[];
-  sincronizando: boolean;
-  onSincronizar: (i: InstanciaConexao) => void;
+  /** Só a contagem — a lista de grupos vive na página do número (spec §6.2). */
+  totalDeGrupos: number;
   onConectar: (i: InstanciaConexao) => void;
   onConectarPorLink: (i: InstanciaConexao) => void;
   onGerenciar: (i: InstanciaConexao) => void;
@@ -46,179 +34,139 @@ type Props = {
   onAlternarPausa: (i: InstanciaConexao, pausado: boolean) => void;
 };
 
+/**
+ * Card compacto de um número (spec §6.1) — status, nome, número e contagem
+ * de grupos. O corpo inteiro navega para a página do número; switch, menu e
+ * "Conectar" param a propagação para não arrastar a navegação junto.
+ */
 export function DispositivoCard({
   instancia,
-  grupos,
-  instancias,
-  sincronizando,
-  onSincronizar,
+  totalDeGrupos,
   onConectar,
   onConectarPorLink,
   onGerenciar,
   onRemover,
   onAlternarPausa,
 }: Props) {
+  const navigate = useNavigate();
   const conectada = instancia.status === "conectada";
-  // Nasce recolhido: a lista de grupos é longa e empurra os outros números
-  // para fora da tela. Quem quer ver, abre.
-  const [aberto, setAberto] = useState(false);
   const cores = CORES_DO_STATUS[instancia.status];
   const nome = instancia.nome_exibicao || `Número ${instancia.id}`;
 
+  const abrir = () => navigate(`/dashboard/configuracoes/numeros/${instancia.id}`);
+
+  // Enter/Espaço abrem o card, mas só quando o foco está NELE — sem o guard,
+  // Enter num item do menu navegaria junto.
+  const aoTeclar = (e: KeyboardEvent<HTMLDivElement>) => {
+    if (e.target !== e.currentTarget) return;
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      abrir();
+    }
+  };
+
+  const semNavegar = (e: MouseEvent) => e.stopPropagation();
+
   return (
     <div
+      role="button"
+      tabIndex={0}
+      aria-label={`Abrir ${nome}`}
+      onClick={abrir}
+      onKeyDown={aoTeclar}
       className={cn(
-        "rounded-xl border border-border bg-card overflow-hidden",
+        "rounded-xl border border-border bg-card p-4 text-left cursor-pointer transition-colors",
+        "hover:border-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
         // Pausado fica visivelmente apagado: o chip está lá, conectado, e
         // mesmo assim não dispara — sem o contraste isso não se lê.
         instancia.envio_pausado && "opacity-75",
       )}
     >
-      <div className="p-4 space-y-4">
-        <div className="flex items-start justify-between gap-3">
-          {/* Wrap em vez de truncate: no 390 o badge de pausa disputava a
-              linha e o status virava "Conect…" — o dado mais importante do
-              card cortado por causa do secundário. */}
-          <div className="flex items-center gap-x-2 gap-y-1 min-w-0 flex-wrap">
-            <span className={cn("h-2 w-2 rounded-full flex-shrink-0", cores.dot)} />
-            <span className={cn("text-sm font-medium whitespace-nowrap", cores.texto)}>
-              {cores.rotulo}
-            </span>
-            {instancia.envio_pausado && (
-              <Badge className="border-amber-500/25 bg-amber-500/10 text-amber-500 whitespace-nowrap">
-                Envio pausado
-              </Badge>
-            )}
-          </div>
-
-          <div className="flex items-center gap-2 flex-shrink-0">
-            {/* Só quem está conectado tem envio para pausar. */}
-            {conectada && (
-              <Switch
-                checked={!instancia.envio_pausado}
-                onCheckedChange={(ligado) => onAlternarPausa(instancia, !ligado)}
-                aria-label={
-                  instancia.envio_pausado ? "Retomar o envio por este número" : "Pausar o envio por este número"
-                }
-              />
-            )}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-9 w-9">
-                  <MoreVertical className="h-4 w-4" />
-                  <span className="sr-only">Ações do número</span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => onGerenciar(instancia)}>
-                  <Pencil className="h-4 w-4 mr-2" />
-                  Renomear
-                </DropdownMenuItem>
-                {!conectada && (
-                  <DropdownMenuItem onClick={() => onConectarPorLink(instancia)}>
-                    <Link2 className="h-4 w-4 mr-2" />
-                    Conectar por link
-                  </DropdownMenuItem>
-                )}
-                <DropdownMenuItem
-                  className="text-destructive focus:text-destructive"
-                  onClick={() => onRemover(instancia)}
-                >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Remover
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        </div>
-
-        <div className="flex items-start gap-3">
-          <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center flex-shrink-0">
-            <Smartphone className="w-5 h-5 text-emerald-500" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <button
-              type="button"
-              onClick={() => onGerenciar(instancia)}
-              className="group flex items-center gap-1.5 text-left"
-            >
-              <span className="font-semibold text-foreground truncate">{nome}</span>
-              <Pencil className="h-3.5 w-3.5 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100 flex-shrink-0" />
-            </button>
-            <p className="text-sm text-muted-foreground tabular-nums">
-              {instancia.numero_mascarado || "Número ainda não pareado"}
-            </p>
-          </div>
-        </div>
-
-        <p className="text-xs text-muted-foreground">
-          <span className="tabular-nums">{grupos.length}</span>{" "}
-          {grupos.length === 1 ? "grupo" : "grupos"}
-          {conectada && instancia.ultima_conexao_em && (
-            <> · conectado desde {formatDateTime(instancia.ultima_conexao_em)}</>
+      <div className="flex items-start justify-between gap-2">
+        {/* Wrap em vez de truncate: no 390 o badge de pausa disputava a linha
+            e o status virava "Conect…" — o dado principal cortado pelo secundário. */}
+        <div className="flex items-center gap-x-2 gap-y-1 min-w-0 flex-wrap">
+          <span className={cn("h-2 w-2 rounded-full flex-shrink-0", cores.dot)} />
+          <span className={cn("text-xs font-medium whitespace-nowrap", cores.texto)}>
+            {cores.rotulo}
+          </span>
+          {instancia.envio_pausado && (
+            <Badge className="border-amber-500/25 bg-amber-500/10 text-amber-500 whitespace-nowrap">
+              Envio pausado
+            </Badge>
           )}
+        </div>
+
+        <div className="flex items-center gap-1.5 flex-shrink-0" onClick={semNavegar}>
+          {/* Só quem está conectado tem envio para pausar. */}
+          {conectada && (
+            <Switch
+              checked={!instancia.envio_pausado}
+              onCheckedChange={(ligado) => onAlternarPausa(instancia, !ligado)}
+              aria-label={
+                instancia.envio_pausado
+                  ? "Retomar o envio por este número"
+                  : "Pausar o envio por este número"
+              }
+            />
+          )}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-8 w-8">
+                <MoreVertical className="h-4 w-4" />
+                <span className="sr-only">Ações do número</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => onGerenciar(instancia)}>
+                <Pencil className="h-4 w-4 mr-2" />
+                Renomear
+              </DropdownMenuItem>
+              {!conectada && (
+                <DropdownMenuItem onClick={() => onConectarPorLink(instancia)}>
+                  <Link2 className="h-4 w-4 mr-2" />
+                  Conectar por link
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuItem
+                className="text-destructive focus:text-destructive"
+                onClick={() => onRemover(instancia)}
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Remover
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </div>
+
+      <div className="mt-3 min-w-0">
+        <p className="font-semibold text-foreground truncate">{nome}</p>
+        <p className="text-sm text-muted-foreground tabular-nums">
+          {instancia.numero_mascarado || "Número ainda não pareado"}
         </p>
       </div>
 
-      <div className="border-t border-border px-4 py-3 flex items-center justify-between gap-2 flex-wrap">
+      <div className="mt-3 flex items-center justify-between gap-2">
+        <p className="text-xs text-muted-foreground">
+          <span className="tabular-nums">{totalDeGrupos}</span>{" "}
+          {totalDeGrupos === 1 ? "grupo" : "grupos"}
+        </p>
         {conectada ? (
+          <ChevronRight className="h-4 w-4 text-muted-foreground" aria-hidden />
+        ) : (
           <Button
             size="sm"
-            variant="outline"
-            onClick={() => onSincronizar(instancia)}
-            disabled={sincronizando}
+            onClick={(e) => {
+              e.stopPropagation();
+              onConectar(instancia);
+            }}
           >
-            {sincronizando ? (
-              <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
-            ) : (
-              <RefreshCw className="h-4 w-4 mr-1.5" />
-            )}
-            Sincronizar grupos
-          </Button>
-        ) : (
-          <Button size="sm" onClick={() => onConectar(instancia)}>
             <QrCode className="h-4 w-4 mr-1.5" />
             Conectar
           </Button>
         )}
-
-        {grupos.length > 0 && (
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={() => setAberto((v) => !v)}
-            aria-expanded={aberto}
-          >
-            Grupos ({grupos.length})
-            <ChevronDown
-              className={cn("h-4 w-4 ml-1.5 transition-transform", aberto && "rotate-180")}
-            />
-          </Button>
-        )}
       </div>
-
-      {/* Os dois vazios são diferentes e pedem ações diferentes: mandar
-          conectar quem JÁ está conectado é o que fez parecer que a conexão
-          não tinha sido reconhecida. */}
-      {grupos.length === 0 ? (
-        <div className="border-t border-border px-4 py-3">
-          <p className="text-sm text-muted-foreground">
-            {conectada
-              ? "Nenhum grupo ainda. Use “Sincronizar grupos”."
-              : "Nenhum grupo ainda. Conecte este número e sincronize."}
-          </p>
-        </div>
-      ) : (
-        aberto && (
-          <div className="border-t border-border p-4">
-            <GruposDoDispositivo
-              grupos={grupos}
-              instancias={instancias}
-              instanciaId={instancia.id}
-            />
-          </div>
-        )
-      )}
     </div>
   );
 }

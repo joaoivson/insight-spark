@@ -35,10 +35,17 @@ Componente **nunca** chama API direto.
 - `src/services/` — 22 services
 - `src/hooks/queries/` — `useAdSpends`, `useClicks`, `useDatasetRows`
 - `src/components/ui/` — shadcn, **não modificar**; estender via wrapper
-- `src/components/shared/` — `DataCard`, `ResponsiveModal`, `EmojiPicker`
-- `src/components/whatsapp/` — a aba Dispositivos. `NumerosSection` orquestra;
-  `DispositivoCard` (um bloco por chip, grupos aninhados), `GruposDoDispositivo`
-  (tabela→DataCard) e `GerenciarDispositivoModal` (renomear/remover) são as peças
+- `src/components/shared/` — `DataCard`, `ResponsiveModal`, `EmojiPicker`,
+  `SecaoCard` (a régua de densidade de TODAS as abas de Configurações — mexer
+  aqui muda em todas de uma vez, que é o ponto)
+- `src/components/whatsapp/` — Configurações › Integrações › **WhatsApp**
+  (desde 03/09/2026; era a aba "Dispositivos"), com abas Números e Envio.
+  `NumerosSection` orquestra o grid; `DispositivoCard` é o card compacto e
+  clicável (sem grupos dentro — abre `/dashboard/configuracoes/numeros/:id`,
+  a página `NumeroDetalhe`), `TabelaDeGrupos` é a tabela→DataCard de 3 colunas
+  (Ativo/Nome/Participantes) e `GerenciarDispositivoModal` renomeia/remove.
+  `GruposDoDispositivo`, `BlacklistSection` e `WhatsappResumoSettings` foram
+  removidos nessa mesma rodada
 - `src/shared/lib/` — `date.ts` (helpers `*BR`), `kpi.ts`, `plans.ts`,
   `tax.ts`, `chart-utils.ts`, `storage.ts`, `supabase.ts`
 

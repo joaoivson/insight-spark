@@ -282,6 +282,7 @@ export const ShopeeIntegrationSettings = () => {
             exit={{ opacity: 0, height: 0 }}
             transition={{ duration: 0.25, ease: "easeInOut" }}
             onSubmit={handleSubmit(onSubmit)}
+            autoComplete="off"
             className="space-y-4 overflow-hidden"
           >
             <div className="space-y-2">
@@ -295,6 +296,7 @@ export const ShopeeIntegrationSettings = () => {
               </div>
               <Input
                 id="appId"
+                autoComplete="off"
                 placeholder="Ex: 18191340007"
                 defaultValue={
                   status?.app_id && /^\d+$/.test(status.app_id) ? status.app_id : ""
@@ -316,6 +318,7 @@ export const ShopeeIntegrationSettings = () => {
                 <Input
                   id="password"
                   type={showPassword ? "text" : "password"}
+                  autoComplete="new-password"
                   placeholder="Senha da API Shopee"
                   {...register("password")}
                   className="bg-background pr-10"

@@ -16,19 +16,21 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ResponsiveModal } from "@/components/shared/ResponsiveModal";
+import { SecaoCard } from "@/components/shared/SecaoCard";
 import { ConviteConexaoModal } from "@/components/whatsapp/ConviteConexaoModal";
 import { DispositivoCard } from "@/components/whatsapp/DispositivoCard";
 import { GerenciarDispositivoModal } from "@/components/whatsapp/GerenciarDispositivoModal";
-import { GruposDoDispositivo } from "@/components/whatsapp/GruposDoDispositivo";
+import { TabelaDeGrupos } from "@/components/whatsapp/TabelaDeGrupos";
 import { useToast } from "@/hooks/use-toast";
 import { usePlanStore } from "@/stores/planStore";
-import type { PlanContext } from "@/services/plan.service";
 import { useWhatsappConexoesStore } from "@/stores/whatsappConexoesStore";
 import {
   qrDaInstancia,
+  type GrupoWhatsapp,
   type InstanciaConexao,
   type QrInstancia,
 } from "@/services/whatsapp_conexoes.service";
+import { mensagemAmigavel } from "@/services/http-error";
 import { isUnlimited, planLimit } from "@/shared/lib/plans";
 
 /** Pareamento é interativo — 5s mantém o QR vivo sem martelar a API. */
@@ -46,8 +48,8 @@ export function NumerosSection() {
     fetch,
     criar,
     remover,
-    sincronizar,
     definirPausa,
+    definirAtivado,
   } = useWhatsappConexoesStore();
 
   const montado = useRef(true);
@@ -62,16 +64,9 @@ export function NumerosSection() {
     void fetchPlan();
   }, [fetchPlan]);
 
-  // O contrato do plano ainda não expõe os campos de WhatsApp no tipo — lê com
-  // fallback para o catálogo local (espelho de app/core/plans.py).
-  type ContextoComWhatsapp = PlanContext & {
-    limites_whatsapp_numeros?: number;
-    limites: PlanContext["limites"] & { whatsapp_numeros?: number };
-  };
-  const ctxWhatsapp = context as ContextoComWhatsapp | null;
   const limite =
-    ctxWhatsapp?.limites_whatsapp_numeros ??
-    ctxWhatsapp?.limites?.whatsapp_numeros ??
+    context?.limites_whatsapp_numeros ??
+    context?.limites?.whatsapp_numeros ??
     planLimit(plan, "whatsapp_numeros");
   const temRecurso = limite !== 0;
 
@@ -117,9 +112,8 @@ export function NumerosSection() {
   // ── Link de conexão externa (item 18) ─────────────────────────────────────
   const [conviteAlvo, setConviteAlvo] = useState<InstanciaConexao | null>(null);
 
-  // ── Gerenciar / sincronizar / remover ─────────────────────────────────────
+  // ── Gerenciar / remover ───────────────────────────────────────────────────
   const [gerenciarAlvo, setGerenciarAlvo] = useState<InstanciaConexao | null>(null);
-  const [sincronizandoId, setSincronizandoId] = useState<number | null>(null);
   const [paraRemover, setParaRemover] = useState<InstanciaConexao | null>(null);
   const [removendo, setRemovendo] = useState(false);
 
@@ -141,28 +135,6 @@ export function NumerosSection() {
     }
   };
 
-  const sincronizarInstancia = async (instancia: InstanciaConexao) => {
-    setSincronizandoId(instancia.id);
-    try {
-      const r = await sincronizar(instancia.id);
-      // `ignorados` só aparece quando existe: é sintoma de formato novo do
-      // WhatsApp, e some da tela no caminho feliz.
-      toast({
-        title: `${r.vistos} grupos, ${r.novos} novos`,
-        description: r.ignorados
-          ? `${r.ignorados} não reconhecidos — avise o suporte`
-          : undefined,
-      });
-    } catch (e) {
-      toast({
-        title: e instanceof Error ? e.message : "Não foi possível sincronizar os grupos.",
-        variant: "destructive",
-      });
-    } finally {
-      if (montado.current) setSincronizandoId(null);
-    }
-  };
-
   const alternarPausa = async (instancia: InstanciaConexao, pausado: boolean) => {
     try {
       await definirPausa(instancia.id, pausado);
@@ -170,6 +142,20 @@ export function NumerosSection() {
     } catch (e) {
       toast({
         title: e instanceof Error ? e.message : "Não foi possível alterar o envio.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  /** Toggle "Ativo" do bloco de grupos sem dispositivo (spec §6.3). */
+  const alternarAtivado = async (grupo: GrupoWhatsapp, ativado: boolean) => {
+    try {
+      await definirAtivado(grupo.id, ativado);
+    } catch (e) {
+      // O 403 de limite vem com a mensagem pronta do backend; o resto vira
+      // frase fixa — mensagem técnica nunca chega à tela.
+      toast({
+        title: mensagemAmigavel(e, "Não foi possível alterar o grupo."),
         variant: "destructive",
       });
     }
@@ -195,50 +181,59 @@ export function NumerosSection() {
   };
 
   /**
-   * Grupos por dispositivo + o que sobrou.
+   * Contagem de grupos por dispositivo + o que sobrou.
    *
    * O vínculo grupo↔número é N:N: o mesmo grupo pode estar em dois chips (é o
-   * desenho — o motor faz failover entre eles) e por isso aparece nos dois
-   * blocos, marcado com "também em".
+   * desenho — o motor faz failover entre eles) e por isso conta nos dois.
    *
    * O bucket órfão existe porque remover um número é soft-delete: o vínculo
    * histórico continua no banco e, sem ele, os grupos sumiriam da tela sem
    * explicação.
    */
-  const { porInstancia, orfaos } = useMemo(() => {
+  const { contagem, orfaos } = useMemo(() => {
     const ids = new Set(instancias.map((i) => i.id));
-    const mapa = new Map<number, typeof grupos>();
-    instancias.forEach((i) => mapa.set(i.id, []));
-    const sobra: typeof grupos = [];
+    const mapa = new Map<number, number>();
+    instancias.forEach((i) => mapa.set(i.id, 0));
+    const sobra: GrupoWhatsapp[] = [];
     grupos.forEach((g) => {
       const donos = g.instancia_ids.filter((id) => ids.has(id));
       if (donos.length === 0) {
         sobra.push(g);
         return;
       }
-      donos.forEach((id) => mapa.get(id)!.push(g));
+      donos.forEach((id) => mapa.set(id, (mapa.get(id) ?? 0) + 1));
     });
-    return { porInstancia: mapa, orfaos: sobra };
+    return { contagem: mapa, orfaos: sobra };
   }, [instancias, grupos]);
 
   const atingiuLimite = !isUnlimited(limite) && instancias.length >= limite;
   const contador = isUnlimited(limite) ? "" : ` (${instancias.length}/${limite})`;
 
+  // Consequência real (limite de plano) fica visível junto ao botão — no MAX
+  // não há tier acima, então só a explicação, sem link de upgrade.
+  const explicacaoDoLimite = atingiuLimite && (
+    <p className="text-xs text-muted-foreground">
+      Limite de <span className="tabular-nums">{limite}</span> números do plano atingido.
+      {plan !== "max" && (
+        <>
+          {" "}
+          <Link to="/dashboard/planos" className="text-primary hover:underline">
+            Fazer upgrade
+          </Link>
+        </>
+      )}
+    </p>
+  );
+
   const shell = (children: ReactNode) => (
-    <div className="bg-card border border-border rounded-2xl p-5 md:p-6">
-      <div className="flex items-start gap-3 md:gap-4 mb-5">
-        <div className="w-11 h-11 md:w-12 md:h-12 rounded-xl bg-emerald-500/10 flex items-center justify-center flex-shrink-0">
-          <Smartphone className="w-6 h-6 text-emerald-500" />
-        </div>
-        <div className="min-w-0">
-          <h3 className="text-lg font-bold text-foreground">Números</h3>
-          <p className="text-sm text-muted-foreground">
-            Conecte dispositivos por QR code e sincronize os grupos deles.
-          </p>
-        </div>
-      </div>
+    <SecaoCard
+      icon={<Smartphone className="w-5 h-5 text-emerald-500" />}
+      iconBoxClassName="bg-emerald-500/10"
+      title="Números"
+      description="Conecte dispositivos por QR code e sincronize os grupos deles."
+    >
       {children}
-    </div>
+    </SecaoCard>
   );
 
   if (!planLoaded) {
@@ -267,8 +262,11 @@ export function NumerosSection() {
     return shell(
       <div className="space-y-3">
         <Skeleton className="h-9 w-48" />
-        <Skeleton className="h-40 w-full rounded-xl" />
-        <Skeleton className="h-40 w-full rounded-xl" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          <Skeleton className="h-36 w-full rounded-xl" />
+          <Skeleton className="h-36 w-full rounded-xl" />
+          <Skeleton className="h-36 w-full rounded-xl" />
+        </div>
       </div>,
     );
   }
@@ -289,29 +287,32 @@ export function NumerosSection() {
       {instancias.length === 0 ? (
         <div className="rounded-xl border border-dashed border-border p-6 text-center space-y-3">
           <p className="text-sm text-muted-foreground">Nenhum número conectado ainda.</p>
-          <Button onClick={() => setModalCriar(true)} disabled={atingiuLimite}>
-            <Plus className="h-4 w-4 mr-1.5" />
-            Conectar número{contador}
-          </Button>
+          <div className="flex flex-col items-center gap-1.5">
+            <Button onClick={() => setModalCriar(true)} disabled={atingiuLimite}>
+              <Plus className="h-4 w-4 mr-1.5" />
+              Conectar número{contador}
+            </Button>
+            {explicacaoDoLimite}
+          </div>
         </div>
       ) : (
         <>
-          <div className="flex justify-end">
+          <div className="flex flex-col items-end gap-1.5">
             <Button size="sm" onClick={() => setModalCriar(true)} disabled={atingiuLimite}>
               <Plus className="h-4 w-4 mr-1.5" />
               Conectar número{contador}
             </Button>
+            {explicacaoDoLimite}
           </div>
 
-          <div className="space-y-4">
+          {/* Grid compacto (spec §6.1): a lista de grupos saiu do card — o
+              corpo dele navega para a página do número. */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {instancias.map((i) => (
               <DispositivoCard
                 key={i.id}
                 instancia={i}
-                grupos={porInstancia.get(i.id) ?? []}
-                instancias={instancias}
-                sincronizando={sincronizandoId === i.id}
-                onSincronizar={(x) => void sincronizarInstancia(x)}
+                totalDeGrupos={contagem.get(i.id) ?? 0}
                 onConectar={setQrAlvo}
                 onConectarPorLink={setConviteAlvo}
                 onGerenciar={setGerenciarAlvo}
@@ -323,12 +324,6 @@ export function NumerosSection() {
         </>
       )}
 
-      {atingiuLimite && (
-        <p className="text-xs text-muted-foreground">
-          Limite de {limite} números do plano atingido.
-        </p>
-      )}
-
       {orfaos.length > 0 && (
         <div className="rounded-xl border border-dashed border-border p-4 space-y-3">
           <div>
@@ -338,7 +333,10 @@ export function NumerosSection() {
               enviar neles.
             </p>
           </div>
-          <GruposDoDispositivo grupos={orfaos} instancias={instancias} instanciaId={null} />
+          <TabelaDeGrupos
+            grupos={orfaos}
+            onAlternarAtivado={(g, ativado) => void alternarAtivado(g, ativado)}
+          />
         </div>
       )}
 
@@ -406,7 +404,7 @@ export function NumerosSection() {
 
       <GerenciarDispositivoModal
         instancia={gerenciarAlvo}
-        totalDeGrupos={gerenciarAlvo ? (porInstancia.get(gerenciarAlvo.id)?.length ?? 0) : 0}
+        totalDeGrupos={gerenciarAlvo ? (contagem.get(gerenciarAlvo.id) ?? 0) : 0}
         onOpenChange={(o) => {
           if (!o) setGerenciarAlvo(null);
         }}

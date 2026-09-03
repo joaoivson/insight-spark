@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
-import { ChevronDown, ChevronUp, Clock, Loader2, Save } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { ChevronDown, ChevronUp, Loader2, Save } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,9 +33,6 @@ type DiaForm = {
   ativo: boolean;
   inicio: string;
   fim: string;
-  /** "" = sem pausa. */
-  pausa_inicio: string;
-  pausa_fim: string;
 };
 
 /** O backend serializa `time` como "HH:MM:SS" — a tela trabalha com "HH:MM". */
@@ -45,8 +42,6 @@ const paraForm = (dia?: JanelaDia): DiaForm => ({
   ativo: dia?.ativo ?? true,
   inicio: hhmm(dia?.inicio) || PADRAO_INICIO,
   fim: hhmm(dia?.fim) || PADRAO_FIM,
-  pausa_inicio: hhmm(dia?.pausa_inicio),
-  pausa_fim: hhmm(dia?.pausa_fim),
 });
 
 export function EnvioSection() {
@@ -54,9 +49,13 @@ export function EnvioSection() {
 
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
-  const [ativo, setAtivo] = useState(true);
+  // Desmarcado por padrão (§7.1) — quem manda mesmo é a config do backend,
+  // aplicada logo abaixo quando a carga responde.
+  const [ativo, setAtivo] = useState(false);
   const [dias, setDias] = useState<DiaForm[]>([]);
-  const [pausaAberta, setPausaAberta] = useState<Set<number>>(new Set());
+  // As 7 linhas ficam colapsadas por padrão (§7.2): o caso comum é uma janela
+  // única, e as linhas abertas empurravam o resto da aba para fora da dobra.
+  const [porDia, setPorDia] = useState(false);
   const [salvando, setSalvando] = useState(false);
 
   const carregar = useCallback(async () => {
@@ -65,13 +64,7 @@ export function EnvioSection() {
     try {
       const config = await obterConfigEnvio();
       setAtivo(config.ativo);
-      const lista = Array.from({ length: 7 }, (_, i) => paraForm(config.dias?.[String(i)]));
-      setDias(lista);
-      setPausaAberta(
-        new Set(
-          lista.flatMap((d, i) => (d.pausa_inicio || d.pausa_fim ? [i] : [])),
-        ),
-      );
+      setDias(Array.from({ length: 7 }, (_, i) => paraForm(config.dias?.[String(i)])));
     } catch (e) {
       setErro((e as Error).message);
     } finally {
@@ -87,30 +80,31 @@ export function EnvioSection() {
     setDias((atual) => atual.map((d, i) => (i === indice ? { ...d, ...patch } : d)));
   };
 
-  const alternarPausa = (indice: number) => {
-    setPausaAberta((atual) => {
-      const proximo = new Set(atual);
-      if (proximo.has(indice)) proximo.delete(indice);
-      else proximo.add(indice);
-      return proximo;
-    });
+  // Resumo do estado REAL — nunca um texto fixo que minta sobre a config salva.
+  const resumo = useMemo(() => {
+    const [primeiro] = dias;
+    if (!primeiro) return "";
+    const uniforme = dias.every(
+      (d) => d.ativo === primeiro.ativo && d.inicio === primeiro.inicio && d.fim === primeiro.fim,
+    );
+    if (!uniforme) return "Personalizado por dia";
+    if (!primeiro.ativo) return "Nenhum dia com envio";
+    return `Todos os dias · ${primeiro.inicio} – ${primeiro.fim}`;
+  }, [dias]);
+
+  // Copia início/fim/toggle do primeiro dia ATIVO para os demais (§7.2).
+  const aplicarATodos = () => {
+    const modelo = dias.find((d) => d.ativo) ?? dias[0];
+    if (!modelo) return;
+    setDias((atual) => atual.map(() => ({ ...modelo })));
   };
 
   // "HH:MM" compara certo como string. O backend valida fim > início em TODOS
   // os dias (ativos ou não) — a validação aqui cobre o mesmo conjunto.
   const validar = (): string | null => {
     for (let i = 0; i < dias.length; i++) {
-      const d = dias[i];
-      if (d.fim <= d.inicio) {
+      if (dias[i].fim <= dias[i].inicio) {
         return `${DIAS_LONGOS[i]}: o fim precisa ser depois do início.`;
-      }
-      if (d.pausa_inicio || d.pausa_fim) {
-        if (!d.pausa_inicio || !d.pausa_fim) {
-          return `${DIAS_LONGOS[i]}: informe início e fim da pausa.`;
-        }
-        if (d.pausa_fim <= d.pausa_inicio) {
-          return `${DIAS_LONGOS[i]}: o fim da pausa precisa ser depois do início.`;
-        }
       }
     }
     return null;
@@ -133,8 +127,9 @@ export function EnvioSection() {
               ativo: d.ativo,
               inicio: d.inicio,
               fim: d.fim,
-              pausa_inicio: d.pausa_inicio || null,
-              pausa_fim: d.pausa_fim || null,
+              // A pausa saiu da UI (§7.3); o PUT zera o que houver salvo.
+              pausa_inicio: null,
+              pausa_fim: null,
             },
           ]),
         ),
@@ -152,25 +147,12 @@ export function EnvioSection() {
   };
 
   return (
-    <div className="bg-card border border-border rounded-2xl p-5 md:p-6">
-      <div className="flex items-start gap-3 md:gap-4 mb-5">
-        <div className="w-11 h-11 md:w-12 md:h-12 rounded-xl bg-emerald-500/10 flex items-center justify-center flex-shrink-0">
-          <Clock className="w-6 h-6 text-emerald-500" />
-        </div>
-        <div className="min-w-0">
-          <h3 className="text-lg font-bold text-foreground">Envio</h3>
-          <p className="text-sm text-muted-foreground">
-            Fora da janela, os envios pausam e retomam sozinhos na próxima abertura.
-          </p>
-        </div>
-      </div>
-
+    <div className="bg-card border border-border rounded-2xl p-4 md:p-5">
       {carregando ? (
         <div className="space-y-3">
-          <Skeleton className="h-14 w-full rounded-xl" />
-          {[0, 1, 2].map((i) => (
-            <Skeleton key={i} className="h-16 w-full rounded-xl" />
-          ))}
+          <Skeleton className="h-10 w-full rounded-xl" />
+          <Skeleton className="h-12 w-full rounded-xl" />
+          <Skeleton className="h-9 w-24 rounded-lg" />
         </div>
       ) : erro ? (
         <div className="flex flex-col items-center gap-3 py-8 text-center">
@@ -180,41 +162,84 @@ export function EnvioSection() {
           </Button>
         </div>
       ) : (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between gap-3 rounded-xl border border-border p-4">
-            <Label htmlFor="restringir-horario" className="text-sm font-medium">
-              Restringir horário de envio
-            </Label>
+        <div className="space-y-3">
+          {/* A seção vive numa aba: o switch faz o papel de título. */}
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <Label htmlFor="restringir-horario" className="text-sm font-semibold">
+                Restringir horário de envio
+              </Label>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                Fora da janela, os envios pausam e retomam sozinhos na próxima abertura.
+              </p>
+            </div>
             <Switch id="restringir-horario" checked={ativo} onCheckedChange={setAtivo} />
           </div>
 
-          <div className={cn("space-y-3", !ativo && "pointer-events-none opacity-50")}>
-            {dias.map((d, i) => {
-              const pausaDefinida = Boolean(d.pausa_inicio && d.pausa_fim);
-              const aberta = pausaAberta.has(i);
-              const janelaInvalida = d.fim <= d.inicio;
-              return (
-                <div key={i} className="rounded-xl border border-border p-3">
-                  <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-                    <label className="flex w-20 flex-shrink-0 items-center gap-2">
-                      <Switch
-                        checked={d.ativo}
-                        disabled={!ativo}
-                        onCheckedChange={(v) => atualizarDia(i, { ativo: v })}
-                        aria-label={`${DIAS_LONGOS[i]} com envio`}
-                      />
-                      <span className="text-sm font-medium text-foreground">{DIAS_CURTOS[i]}</span>
-                    </label>
-                    <div className="flex items-center gap-2">
+          <div className={cn("space-y-2", !ativo && "pointer-events-none opacity-50")}>
+            <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 rounded-xl border border-border px-3 py-2">
+              <span className="text-sm text-foreground tabular-nums">{resumo}</span>
+              <div className="flex items-center gap-1">
+                {porDia && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    disabled={!ativo}
+                    onClick={aplicarATodos}
+                    className="h-8 text-xs text-muted-foreground"
+                  >
+                    Aplicar a todos os dias
+                  </Button>
+                )}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  disabled={!ativo}
+                  onClick={() => setPorDia((v) => !v)}
+                  aria-expanded={porDia}
+                  className="h-8 text-xs text-muted-foreground"
+                >
+                  {porDia ? "Recolher" : "Personalizar por dia"}
+                  {porDia ? (
+                    <ChevronUp className="ml-1 h-4 w-4" />
+                  ) : (
+                    <ChevronDown className="ml-1 h-4 w-4" />
+                  )}
+                </Button>
+              </div>
+            </div>
+
+            {porDia && (
+              <div className="space-y-1.5">
+                {dias.map((d, i) => {
+                  const janelaInvalida = d.fim <= d.inicio;
+                  return (
+                    <div
+                      key={i}
+                      className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-border px-2 py-1.5"
+                    >
+                      {/* w-[4.75rem]: o Switch come ~36px do rótulo e em w-16
+                          "Sáb"/"Dom" saíam cortados ("Don") na validação. */}
+                      <label className="flex w-[4.75rem] flex-shrink-0 items-center gap-1.5">
+                        <Switch
+                          checked={d.ativo}
+                          disabled={!ativo}
+                          onCheckedChange={(v) => atualizarDia(i, { ativo: v })}
+                          aria-label={`${DIAS_LONGOS[i]} com envio`}
+                        />
+                        <span className="whitespace-nowrap text-xs font-medium text-foreground">
+                          {DIAS_CURTOS[i]}
+                        </span>
+                      </label>
                       <Input
                         type="time"
                         value={d.inicio}
                         disabled={!ativo || !d.ativo}
                         onChange={(e) => atualizarDia(i, { inicio: e.target.value })}
                         aria-label={`Início ${DIAS_LONGOS[i]}`}
-                        className="h-9 w-[6.75rem] tabular-nums"
+                        className="h-8 w-[6.25rem] text-xs tabular-nums"
                       />
-                      <span className="text-muted-foreground" aria-hidden>
+                      <span className="text-xs text-muted-foreground" aria-hidden>
                         –
                       </span>
                       <Input
@@ -223,71 +248,24 @@ export function EnvioSection() {
                         disabled={!ativo || !d.ativo}
                         onChange={(e) => atualizarDia(i, { fim: e.target.value })}
                         aria-label={`Fim ${DIAS_LONGOS[i]}`}
-                        className="h-9 w-[6.75rem] tabular-nums"
+                        className="h-8 w-[6.25rem] text-xs tabular-nums"
                       />
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      disabled={!ativo || !d.ativo}
-                      onClick={() => alternarPausa(i)}
-                      className="ml-auto text-muted-foreground"
-                      aria-expanded={aberta}
-                      aria-label={`Pausa de ${DIAS_LONGOS[i]}`}
-                    >
-                      <span className="tabular-nums">
-                        {pausaDefinida ? `Pausa ${d.pausa_inicio}–${d.pausa_fim}` : "Pausa"}
-                      </span>
-                      {aberta ? (
-                        <ChevronUp className="ml-1 h-4 w-4" />
-                      ) : (
-                        <ChevronDown className="ml-1 h-4 w-4" />
-                      )}
-                    </Button>
-                  </div>
-                  {janelaInvalida && (
-                    <p className="mt-2 text-xs text-destructive">
-                      O fim precisa ser depois do início.
-                    </p>
-                  )}
-                  {aberta && (
-                    <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-2 border-t border-border pt-3">
-                      <span className="w-20 flex-shrink-0 text-xs text-muted-foreground">Pausa</span>
-                      <Input
-                        type="time"
-                        value={d.pausa_inicio}
-                        disabled={!ativo || !d.ativo}
-                        onChange={(e) => atualizarDia(i, { pausa_inicio: e.target.value })}
-                        aria-label={`Início da pausa ${DIAS_LONGOS[i]}`}
-                        className="h-9 w-[6.75rem] tabular-nums"
-                      />
-                      <span className="text-muted-foreground" aria-hidden>
-                        –
-                      </span>
-                      <Input
-                        type="time"
-                        value={d.pausa_fim}
-                        disabled={!ativo || !d.ativo}
-                        onChange={(e) => atualizarDia(i, { pausa_fim: e.target.value })}
-                        aria-label={`Fim da pausa ${DIAS_LONGOS[i]}`}
-                        className="h-9 w-[6.75rem] tabular-nums"
-                      />
-                      {(d.pausa_inicio || d.pausa_fim) && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          disabled={!ativo || !d.ativo}
-                          className="text-muted-foreground"
-                          onClick={() => atualizarDia(i, { pausa_inicio: "", pausa_fim: "" })}
-                        >
-                          Remover
-                        </Button>
+                      {janelaInvalida && (
+                        <span className="text-xs text-destructive">
+                          O fim precisa ser depois do início.
+                        </span>
                       )}
                     </div>
-                  )}
-                </div>
-              );
-            })}
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Regra de borda (§7.4) — no lugar onde ficava a pausa. */}
+            <p className="text-xs text-muted-foreground">
+              Execução que começa dentro da janela é concluída, mesmo que ultrapasse o
+              horário de fim.
+            </p>
           </div>
 
           <Button onClick={() => void salvar()} disabled={salvando}>

@@ -11,6 +11,57 @@
 
 ---
 
+## 2026-09-03 — Configurações: 4 seções, grupos com toggle e o upgrade de período que não abria
+
+O que mudou: `Configuracoes.tsx` reescrito (4 seções, sem "Dispositivos" nem
+"Canais"; WhatsApp virou integração com abas Números/Envio); `SecaoCard` como
+régua única de densidade; grid de números + página nova
+`/dashboard/configuracoes/numeros/:id`; `TabelaDeGrupos` com toggle Ativo;
+modal de seleção de contas do Facebook com carga lazy; Instagram enxuto com
+modal de passos; contador de uso na Assinatura; `PlanosPage` comparando plano +
+periodicidade. Saíram `BlacklistSection`, `WhatsappResumoSettings`,
+`GruposDoDispositivo` e `whatsapp.service.ts`.
+
+**Isto reverte parte da entrada de 2026-08-31 ("um card por número, com os
+grupos dentro") — e a razão é volume, não gosto.** Aquele desenho resolvia o
+problema certo (cruzar duas listas com o dedo para saber o que um chip fazia),
+mas assumia uma quantidade de grupos que não é a real: ao conectar o WhatsApp
+pessoal, o sync traz *tudo* — 492 grupos no teste, dos quais talvez 6 são de
+trabalho. Lista inline dentro do card, nesse volume, é inutilizável. O card
+compacto passa a responder só "este chip está de pé?" e o detalhe do número
+responde "o que ele faz". As duas armadilhas daquela entrada continuam
+valendo e foram preservadas: o bucket **"Grupos sem dispositivo ativo"** (órfão
+de soft-delete não pode sumir da tela) e o vínculo N:N. O que morreu foi o
+marcador **"também em: X"** — junto com a coluna "Envio", ambas sempre vazias
+para a usuária e sem significado que ela pudesse usar.
+
+**Densidade em um arquivo, não em sete.** O pedido era "fonte e padding grandes
+demais", e a armadilha óbvia era ajustar tela a tela e desalinhar as abas entre
+si. Por isso `SecaoCard`: a régua é uma só, e o critério de aceite (os 7 dias
+da semana cabendo em 1366×768 com o footer fixo) foi medido por screenshot, não
+por impressão.
+
+**O bug que mais custava dinheiro era de uma linha.** `isCurrent: id ===
+currentPlan` ignorava a periodicidade: quem estava no Max Mensal via o card Max
+desabilitado nas abas Trimestral e Anual e simplesmente não tinha como fazer
+upgrade de período. Aconteceu com aluna real. Agora casa plano + período, e o
+mesmo plano em outro período fica habilitado como "Mudar para trimestral".
+
+**Duas coisas que a validação por screenshot pegou e o `tsc` não:** o rótulo do
+dia cortado ("Don" em vez de "Dom" — o Switch comia o `w-16`), e a navegação
+lateral travando em "Facebook Ads" para sempre depois do OAuth. Essa segunda é
+sutil: o componente do Facebook limpa a URL com `history.replaceState`, que
+**não avisa o React Router** — o `?code` continuava nos `searchParams` em
+memória e tinha precedência sobre o `?tab`. Agora `tab` explícito vence.
+
+Pendências: contas do Facebook selecionadas antes desta rodada não têm nome
+gravado no backend e aparecem pelo id até a afiliada re-salvar a seleção no
+modal. A página do número renderiza os 493 grupos de uma vez (~29k px de
+altura) — funciona e tem busca, mas paginação/virtualização é o próximo passo
+natural se o volume incomodar.
+
+---
+
 ## 2026-09-02 — Rodada 9 (item 3): gráfico Novas × canceladas + labels de periodicidade
 
 O que mudou: `trimLeadingNoMovement` corta os meses sem movimento do início

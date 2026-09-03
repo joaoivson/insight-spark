@@ -34,6 +34,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { MarcaMarketplace } from "@/components/shared/BrandIcons";
 import { ResponsiveModal } from "@/components/shared/ResponsiveModal";
+import { ShopeeApiHelpModal } from "@/features/dashboard/components/ShopeeApiHelpModal";
 import { ShopeeIntegrationSettings } from "@/features/dashboard/components/ShopeeIntegrationSettings";
 import { useToast } from "@/hooks/use-toast";
 import { getShopeeStatus, type ShopeeStatus } from "@/services/shopee.service";
@@ -117,7 +118,7 @@ export const MarketplacesSection = () => {
     handleSubmit,
     reset,
     formState: { errors },
-  } = useForm<FormData>({ resolver: zodResolver(schema) });
+  } = useForm<FormData>({ resolver: zodResolver(schema), mode: "onBlur" });
 
   const carregarSync = useCallback(async () => {
     try {
@@ -264,15 +265,15 @@ export const MarketplacesSection = () => {
 
   return (
     <>
-      <div className="bg-card border border-border rounded-2xl p-5 md:p-6">
+      <div className="bg-card border border-border rounded-2xl p-4 md:p-5">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between mb-5">
           <div className="flex items-start gap-3 md:gap-4 min-w-0">
             <div className="w-11 h-11 md:w-12 md:h-12 rounded-xl bg-orange-500/10 flex items-center justify-center flex-shrink-0">
               <Store className="w-6 h-6 text-orange-500" />
             </div>
             <div className="min-w-0">
-              <h3 className="text-lg font-bold text-foreground">Contas de marketplace</h3>
-              <p className="text-sm text-muted-foreground">
+              <h3 className="text-base font-bold text-foreground">Contas de marketplace</h3>
+              <p className="text-xs text-muted-foreground">
                 A busca de ofertas e a conversão de links assinam com a <strong>sua</strong>{" "}
                 credencial — é ela que garante a comissão na sua conta.
               </p>
@@ -379,7 +380,9 @@ export const MarketplacesSection = () => {
                     <span className="font-medium text-foreground">
                       {rotuloProvedor(conta.provedor)}
                     </span>
-                    <Badge variant="secondary">{conta.label}</Badge>
+                    {conta.label.toLowerCase() !== "principal" && (
+                      <Badge variant="secondary">{conta.label}</Badge>
+                    )}
                     {!conta.ativa && (
                       <Badge variant="outline" className="text-muted-foreground">
                         inativa
@@ -524,7 +527,7 @@ export const MarketplacesSection = () => {
         title={`Conectar ${rotuloProvedor(provedor)}`}
         description="As credenciais ficam cifradas e só são usadas para assinar suas próprias buscas e links."
       >
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 pb-2">
+        <form onSubmit={handleSubmit(onSubmit)} autoComplete="off" className="space-y-4 pb-2">
           <button
             type="button"
             onClick={() => setPasso("escolher")}
@@ -538,7 +541,7 @@ export const MarketplacesSection = () => {
             <Label htmlFor="conta-label">Nome da conta</Label>
             <Input
               id="conta-label"
-              placeholder={sugestaoDeLabel()}
+              placeholder="Opcional — ex.: conta 2"
               maxLength={64}
               {...register("label")}
             />
@@ -549,10 +552,11 @@ export const MarketplacesSection = () => {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="conta-app-id">App ID</Label>
+            <Label htmlFor="shopee-open-api-id">App ID</Label>
             <Input
-              id="conta-app-id"
+              id="shopee-open-api-id"
               inputMode="numeric"
+              autoComplete="off"
               placeholder="Ex.: 18191340007"
               {...register("app_id")}
             />
@@ -560,11 +564,12 @@ export const MarketplacesSection = () => {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="conta-senha">Senha / Secret</Label>
+            <Label htmlFor="shopee-open-api-key">Senha / Secret</Label>
             <div className="relative">
               <Input
-                id="conta-senha"
+                id="shopee-open-api-key"
                 type={mostrarSenha ? "text" : "password"}
+                autoComplete="new-password"
                 placeholder="Senha da API"
                 className="pr-10"
                 {...register("senha")}
@@ -579,6 +584,18 @@ export const MarketplacesSection = () => {
               </button>
             </div>
             {errors.senha && <p className="text-sm text-destructive">{errors.senha.message}</p>}
+            {provedor === "shopee" && (
+              <ShopeeApiHelpModal
+                trigger={
+                  <button
+                    type="button"
+                    className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+                  >
+                    Não sei onde pegar / não tenho ainda
+                  </button>
+                }
+              />
+            )}
           </div>
 
           <Button type="submit" className="w-full min-h-10" disabled={salvando}>

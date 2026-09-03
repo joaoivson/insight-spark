@@ -17,6 +17,13 @@ const PERIODS: { id: PeriodId; label: string }[] = [
   { id: "anual", label: "Anual" },
 ];
 
+// Sufixo exibido junto ao preço (o id cru "trimestral"/"anual" não é sufixo de preço).
+const PERIOD_SUFFIX: Record<PeriodId, string> = {
+  mensal: "mês",
+  trimestral: "trimestre",
+  anual: "ano",
+};
+
 // Max lançado em 02/09/2026 junto com a Automação Instagram em produção.
 const PLAN_ORDER: PlanId[] = ["essencial", "pro", "max"];
 
@@ -43,6 +50,8 @@ export default function PlanosPage() {
   }, [fetch]);
 
   const currentPlan = (context?.plano || plan) as PlanId;
+  // Periodicidade atual do assinante (backend garante default mensal).
+  const currentPeriodo = (context?.periodo || "mensal").toLowerCase() as PeriodId;
 
   const cards = useMemo(() => {
     return PLAN_ORDER.map((id) => {
@@ -51,16 +60,20 @@ export default function PlanosPage() {
       const fromApi = context?.checkouts?.find(
         (c) => c.plano === id && c.periodo === periodo,
       );
+      const samePlan = id === currentPlan;
       return {
         id,
         label: cfg.label,
         price: fromApi?.price ?? checkout?.price ?? "—",
         url: fromApi?.url ?? checkout?.url ?? "#",
-        isCurrent: id === currentPlan,
+        // "Plano atual" só quando plano E periodicidade batem — mesmo plano em
+        // outra periodicidade mantém o checkout habilitado (upgrade de período).
+        isCurrent: samePlan && periodo === currentPeriodo,
+        samePlan,
         limites: cfg.limites,
       };
     });
-  }, [context, currentPlan, periodo]);
+  }, [context, currentPlan, currentPeriodo, periodo]);
 
   return (
     <DashboardLayout>
@@ -113,7 +126,7 @@ export default function PlanosPage() {
               <p className="mt-3 text-3xl font-bold">
                 R$ {card.price}
                 <span className="text-sm font-normal text-muted-foreground">
-                  /{periodo === "mensal" ? "mês" : periodo}
+                  /{PERIOD_SUFFIX[periodo]}
                 </span>
               </p>
               <ul className="mt-4 flex-1 space-y-2 text-sm text-muted-foreground">
@@ -152,7 +165,11 @@ export default function PlanosPage() {
                   }
                 }}
               >
-                {card.isCurrent ? "Plano atual" : `Assinar ${card.label}`}
+                {card.isCurrent
+                  ? "Plano atual"
+                  : card.samePlan
+                  ? `Mudar para ${periodo}`
+                  : `Assinar ${card.label}`}
               </Button>
             </div>
           ))}

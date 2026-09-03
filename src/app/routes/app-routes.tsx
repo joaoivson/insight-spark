@@ -46,6 +46,7 @@ import Automacoes from "@/features/dashboard/pages/Automacoes";
 import AutomacaoEditor from "@/features/dashboard/pages/AutomacaoEditor";
 import AutomacoesCallback from "@/features/dashboard/pages/AutomacoesCallback";
 import Configuracoes from "@/features/dashboard/pages/Configuracoes";
+import NumeroDetalhe from "@/features/dashboard/pages/NumeroDetalhe";
 import IndiquePage from "@/features/dashboard/pages/IndiquePage";
 import AfiliadosPage from "@/features/dashboard/pages/Afiliados";
 import AfiliadosPendentesPage from "@/features/admin/pages/AfiliadosPendentes";
@@ -246,6 +247,13 @@ export const AppRoutes = () => {
             <Route
               path="/dashboard/templates"
               element={<ProtectedRoute element={<RequirePlan menuKey="templates" element={<Templates />} />} />}
+            />
+            {/* Página de um número de WhatsApp (spec §6.2) — grupos e toggle
+                "Ativo". Sem RequirePlan: Configurações é de todos os planos e
+                o backend já exige MAX; mesmo gate de ambiente do módulo. */}
+            <Route
+              path="/dashboard/configuracoes/numeros/:id"
+              element={<ProtectedRoute element={<NumeroDetalhe />} />}
             />
           </>
         )}

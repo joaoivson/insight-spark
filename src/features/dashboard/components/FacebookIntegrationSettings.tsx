@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
-import { Loader2, Unplug, Facebook, CheckCircle2, Clock, RefreshCw } from "lucide-react";
+import { Loader2, Unplug, Facebook, CheckCircle2, Clock, RefreshCw, Search, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -14,6 +16,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { ResponsiveModal } from "@/components/shared/ResponsiveModal";
 import { useToast } from "@/hooks/use-toast";
 import {
   completeFacebookOAuth,
@@ -28,7 +31,6 @@ import {
 } from "@/services/facebook.service";
 import type { FacebookAdAccount, FacebookIntegrationStatus } from "@/shared/types/campaign";
 import { usePlanStore } from "@/stores/planStore";
-import { Trash2 } from "lucide-react";
 
 const REDIRECT_PATH = "/dashboard/configuracoes";
 const META_OAUTH_SUCCESS = "meta_oauth_success";
@@ -54,7 +56,6 @@ export const FacebookIntegrationSettings = () => {
   const { toast } = useToast();
   const { isDemo, loaded: planLoaded, fetch: fetchPlan } = usePlanStore();
   const [status, setStatus] = useState<FacebookIntegrationStatus | null>(null);
-  const [accounts, setAccounts] = useState<FacebookAdAccount[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [selectedAccounts, setSelectedAccounts] = useState<string[]>([]);
@@ -62,10 +63,18 @@ export const FacebookIntegrationSettings = () => {
   const [clearOpen, setClearOpen] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [deselectAllOpen, setDeselectAllOpen] = useState(false);
-  const [pendingDeselectId, setPendingDeselectId] = useState<string | null>(null);
   // Conexão existe no banco, mas o token não vale mais no Facebook: a única saída é
   // refazer o OAuth. Sem isso a tela mostrava "Conectado" com a lista de contas vazia.
   const [precisaReconectar, setPrecisaReconectar] = useState(false);
+  // Modal de seleção: a lista completa da Graph só é buscada ao ABRIR (lazy), e a
+  // seleção vira rascunho local aplicado em lote — 1 PUT, 1 sync, não 1 por clique.
+  const [seletorOpen, setSeletorOpen] = useState(false);
+  const [modalAccounts, setModalAccounts] = useState<FacebookAdAccount[]>([]);
+  const [modalLoading, setModalLoading] = useState(false);
+  const [busca, setBusca] = useState("");
+  const [draftIds, setDraftIds] = useState<string[]>([]);
+  const [applying, setApplying] = useState(false);
+  const [ajudaAberta, setAjudaAberta] = useState(false);
 
   useEffect(() => {
     void fetchPlan();
@@ -84,27 +93,11 @@ export const FacebookIntegrationSettings = () => {
     }
   };
 
-  const loadAccounts = async () => {
-    // Conta demo: nunca chama Graph API (token placeholder).
-    if (usePlanStore.getState().isDemo) return;
-    try {
-      const accs = await listFacebookAdAccounts();
-      setAccounts(accs);
-      setPrecisaReconectar(false);
-    } catch (e) {
-      const erro = e as Error & { code?: string };
-      if (erro.code === FACEBOOK_TOKEN_INVALIDO) {
-        setPrecisaReconectar(true);
-        return;
-      }
-      toast({ title: "Erro ao listar contas de anúncio", description: erro.message, variant: "destructive" });
-    }
-  };
-
   const refreshAfterConnect = async () => {
     if (usePlanStore.getState().isDemo) return;
     const s = await loadStatus();
-    if (s) await loadAccounts();
+    // OAuth refeito com sucesso — o token novo vale, sai do estado de reconexão.
+    if (s) setPrecisaReconectar(false);
   };
 
   // Popup OAuth: a aba original escuta o postMessage do callback.
@@ -136,7 +129,8 @@ export const FacebookIntegrationSettings = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Espera o plano (is_demo) antes de tocar em status/contas — evita toast no user demo.
+  // Espera o plano (is_demo) antes de tocar no status — evita toast no user demo.
+  // No mount só o /status é consultado: a lista completa da Graph fica para o modal.
   useEffect(() => {
     if (!planLoaded) return;
 
@@ -188,8 +182,7 @@ export const FacebookIntegrationSettings = () => {
           setBusy(false);
         }
       }
-      const s = await loadStatus();
-      if (s) await loadAccounts();
+      await loadStatus();
       setLoading(false);
     };
     void run();
@@ -221,41 +214,89 @@ export const FacebookIntegrationSettings = () => {
     }
   };
 
-  const applyToggle = async (accountId: string, checked: boolean) => {
-    const prev = selectedAccounts;
-    const next = checked ? [...prev, accountId] : prev.filter((id) => id !== accountId);
-    setSelectedAccounts(next);
-    setBusy(true);
+  const carregarContasDoModal = async () => {
+    // Conta demo: nunca chama Graph API (token placeholder).
+    if (usePlanStore.getState().isDemo) return;
+    setModalLoading(true);
     try {
-      const updated = await selectFacebookAdAccounts(next);
-      setStatus(updated);
-      toast({ title: "Contas atualizadas", description: "Sincronizando campanhas em segundo plano…" });
+      const accs = await listFacebookAdAccounts();
+      setModalAccounts(accs);
     } catch (e) {
-      setSelectedAccounts(prev); // rollback
-      toast({ title: "Erro ao salvar contas", description: (e as Error).message, variant: "destructive" });
+      const erro = e as Error & { code?: string };
+      // Erro dentro do modal não pode deixar a usuária presa nele.
+      setSeletorOpen(false);
+      if (erro.code === FACEBOOK_TOKEN_INVALIDO) {
+        setPrecisaReconectar(true);
+        return;
+      }
+      toast({ title: "Erro ao listar contas de anúncio", description: erro.message, variant: "destructive" });
     } finally {
-      setBusy(false);
+      setModalLoading(false);
     }
   };
 
-  const toggleAccount = async (accountId: string, checked: boolean) => {
-    // Desmarcar a ÚLTIMA conta selecionada zera a integração inteira (mesmo efeito de
+  const abrirSeletor = () => {
+    setBusca("");
+    setAjudaAberta(false);
+    setDraftIds(selectedAccounts);
+    setSeletorOpen(true);
+    void carregarContasDoModal();
+  };
+
+  const alternarNoRascunho = (id: string, checked: boolean) => {
+    setDraftIds((prev) => (checked ? [...prev, id] : prev.filter((x) => x !== id)));
+  };
+
+  const aplicarLote = async (ids: string[]) => {
+    setApplying(true);
+    try {
+      // Nomes vão junto para o backend persistir — o status passa a exibir as
+      // selecionadas sem nova chamada à Graph. O nome já conhecido é o fallback
+      // de quem continua marcada mas sumiu da lista da Graph (deixou de ser
+      // compartilhada com o app): sem isso, aplicar substituiria o nome dela
+      // por null e a conta passaria a aparecer como "act_123" cru.
+      const porId = new Map(modalAccounts.map((a) => [fullAccountId(a), a]));
+      const nomeConhecido = new Map(
+        (status?.ad_accounts ?? []).map((a) => [a.id, a.name]),
+      );
+      const updated = await selectFacebookAdAccounts(
+        ids,
+        ids.map((id) => ({
+          id,
+          name: porId.get(id)?.name ?? nomeConhecido.get(id) ?? null,
+        })),
+      );
+      setStatus(updated);
+      setSelectedAccounts(updated?.ad_account_ids ?? ids);
+      setSeletorOpen(false);
+      toast({ title: "Contas atualizadas", description: "Sincronizando em segundo plano…" });
+    } catch (e) {
+      // Rollback: a seleção só é commitada no sucesso — o rascunho fica no modal.
+      const erro = e as Error & { code?: string };
+      if (erro.code === FACEBOOK_TOKEN_INVALIDO) {
+        setSeletorOpen(false);
+        setPrecisaReconectar(true);
+        return;
+      }
+      toast({ title: "Erro ao salvar contas", description: erro.message, variant: "destructive" });
+    } finally {
+      setApplying(false);
+    }
+  };
+
+  const aplicarSelecao = async () => {
+    // Aplicar com a lista vazia zera a integração inteira (mesmo efeito de
     // "Desconectar"), então pede confirmação em vez de aplicar direto.
-    const wouldDeselectAll = !checked && selectedAccounts.length === 1 && selectedAccounts[0] === accountId;
-    if (wouldDeselectAll) {
-      setPendingDeselectId(accountId);
+    if (draftIds.length === 0 && selectedAccounts.length > 0) {
       setDeselectAllOpen(true);
       return;
     }
-    await applyToggle(accountId, checked);
+    await aplicarLote(draftIds);
   };
 
   const confirmDeselectAll = async () => {
-    if (!pendingDeselectId) return;
-    const id = pendingDeselectId;
     setDeselectAllOpen(false);
-    setPendingDeselectId(null);
-    await applyToggle(id, false);
+    await aplicarLote([]);
   };
 
   const handleDisconnect = async () => {
@@ -263,7 +304,7 @@ export const FacebookIntegrationSettings = () => {
     try {
       await disconnectFacebook();
       setStatus(null);
-      setAccounts([]);
+      setModalAccounts([]);
       setSelectedAccounts([]);
       toast({ title: "Facebook desconectado" });
     } catch (e) {
@@ -338,11 +379,11 @@ export const FacebookIntegrationSettings = () => {
 
   if (isDemo) {
     return (
-      <div className="space-y-4">
+      <div className="space-y-3">
         <Badge className="bg-amber-500/10 text-amber-400 border-amber-500/25 gap-1">
           <CheckCircle2 className="w-3.5 h-3.5" /> Conectado · dados demonstrativos
         </Badge>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-xs text-muted-foreground">
           Esta conta usa dados demonstrativos para treinamento. Nenhuma conta real está conectada.
         </p>
       </div>
@@ -351,16 +392,16 @@ export const FacebookIntegrationSettings = () => {
 
   if (!status || status.connection_state === "nunca" || precisaReconectar) {
     return (
-      <div className="space-y-4">
+      <div className="space-y-3">
         {precisaReconectar && (
           <Badge className="bg-amber-500/10 text-amber-500 border-amber-500/25 gap-1">
             <Unplug className="w-3.5 h-3.5" /> Conexão expirada
           </Badge>
         )}
-        <p className="text-sm text-muted-foreground">
+        <p className="text-xs text-muted-foreground">
           {precisaReconectar
             ? "Sua conexão com o Facebook expirou e as campanhas pararam de sincronizar. Conecte de novo para voltar a receber gasto e métricas."
-            : "Conecte sua conta do Facebook para sincronizar campanhas, gasto e métricas, e controlar pausar/ativar e orçamento direto daqui."}
+            : "Conecte sua conta do Facebook para trazer o gasto dos seus anúncios pra dentro do MarketDash."}
         </p>
         <div className="flex items-start gap-2 rounded-lg border border-border bg-muted/40 p-3 text-xs text-muted-foreground">
           <Clock className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" />
@@ -377,57 +418,63 @@ export const FacebookIntegrationSettings = () => {
     );
   }
 
+  // Contas selecionadas vêm do status (nome persistido); fallback só com o id
+  // cobre resposta antiga do backend sem `ad_accounts`.
+  const contasSelecionadas =
+    status.ad_accounts ?? (status.ad_account_ids ?? []).map((id) => ({ id, name: null as string | null }));
+
+  const filtro = busca.trim().toLowerCase();
+  const contasFiltradas = filtro
+    ? modalAccounts.filter(
+        (a) =>
+          (a.name ?? "").toLowerCase().includes(filtro) ||
+          fullAccountId(a).toLowerCase().includes(filtro) ||
+          a.account_id.toLowerCase().includes(filtro),
+      )
+    : modalAccounts;
+
+  const selecaoMudou =
+    draftIds.length !== selectedAccounts.length || draftIds.some((id) => !selectedAccounts.includes(id));
+
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
         <Badge className="bg-emerald-500/10 text-emerald-500 border-emerald-500/25 gap-1">
           <CheckCircle2 className="w-3.5 h-3.5" /> Conectado
         </Badge>
-        {status.fb_user_name && <span className="text-sm text-muted-foreground">como {status.fb_user_name}</span>}
+        {status.fb_user_name && <span className="text-xs text-muted-foreground">como {status.fb_user_name}</span>}
         <span className="text-xs text-muted-foreground w-full md:w-auto md:ml-auto">Última sync: {formatDate(status.last_sync_at)}</span>
       </div>
 
       <div className="space-y-2">
         <Label>Contas de anúncio</Label>
-        <p className="text-xs text-muted-foreground">Marque uma ou mais contas para sincronizar as campanhas.</p>
-        <p className="text-xs text-muted-foreground">
-          Não encontra uma conta que você sabe que tem acesso? No login do Facebook, a Meta pede pra você escolher
-          manualmente quais contas/portfólios compartilhar com o MarketDash — clique em &quot;Desconectar&quot; e
-          conecte de novo marcando essa conta na tela de permissões do Facebook.
-        </p>
 
-        {accounts.length === 0 ? (
+        {contasSelecionadas.length === 0 ? (
           <p className="text-xs text-muted-foreground">
-            Nenhuma conta encontrada para este token. Reconecte com uma conta que tenha acesso ao Gerenciador de Anúncios.
+            Nenhuma conta selecionada — as campanhas só sincronizam depois de escolher ao menos uma.
           </p>
         ) : (
-          <div className="max-h-64 overflow-y-auto rounded-xl border border-border divide-y divide-border">
-            {accounts.map((a) => {
-              const id = fullAccountId(a);
-              const checked = selectedAccounts.includes(id);
-              return (
-                <label
-                  key={id}
-                  className="flex items-center gap-3 px-3 py-2.5 cursor-pointer transition-colors hover:bg-accent/40"
-                >
-                  <Checkbox
-                    checked={checked}
-                    disabled={busy}
-                    onCheckedChange={(v) => toggleAccount(id, v === true)}
-                    aria-label={`Selecionar ${a.name || id}`}
-                  />
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm text-foreground">{a.name || id}</span>
-                    <span className="text-xs text-muted-foreground">
-                      {a.account_id}
-                      {a.currency ? ` · ${a.currency}` : ""}
-                    </span>
-                  </span>
-                </label>
-              );
-            })}
-          </div>
+          <ul className="rounded-xl border border-border divide-y divide-border">
+            {contasSelecionadas.map((c) => (
+              <li key={c.id} className="flex items-center justify-between gap-3 px-3 py-2">
+                <span className="min-w-0 truncate text-sm text-foreground">{c.name || c.id}</span>
+                {c.name && (
+                  <span className="flex-shrink-0 text-xs text-muted-foreground tabular-nums">{c.id}</span>
+                )}
+              </li>
+            ))}
+          </ul>
         )}
+
+        <Button
+          variant="outline"
+          size="sm"
+          className="w-full sm:w-auto"
+          onClick={abrirSeletor}
+          disabled={busy || syncing}
+        >
+          Selecionar contas de anúncio
+        </Button>
 
         <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
           <Clock className="w-3.5 h-3.5" /> Sync automática a cada 1 hora — ou use &quot;Sincronizar agora&quot; quando quiser atualizar na hora.
@@ -465,6 +512,96 @@ export const FacebookIntegrationSettings = () => {
         </Button>
       </div>
 
+      <ResponsiveModal
+        open={seletorOpen}
+        onOpenChange={(open) => {
+          if (applying) return;
+          setSeletorOpen(open);
+          if (!open) setAjudaAberta(false);
+        }}
+        title="Selecionar contas de anúncio"
+        description="Marque as contas cujas campanhas você quer sincronizar."
+      >
+        <div className="space-y-3">
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={busca}
+              onChange={(e) => setBusca(e.target.value)}
+              placeholder="Buscar por nome ou ID"
+              className="h-9 pl-8 text-sm"
+            />
+          </div>
+
+          {modalLoading ? (
+            <div className="space-y-2">
+              <Skeleton className="h-10 w-full rounded-lg" />
+              <Skeleton className="h-10 w-full rounded-lg" />
+              <Skeleton className="h-10 w-full rounded-lg" />
+            </div>
+          ) : contasFiltradas.length === 0 ? (
+            <p className="py-4 text-center text-xs text-muted-foreground">
+              {modalAccounts.length === 0
+                ? "Nenhuma conta encontrada para este token. Reconecte com uma conta que tenha acesso ao Gerenciador de Anúncios."
+                : "Nenhuma conta corresponde à busca."}
+            </p>
+          ) : (
+            <div className="max-h-60 overflow-y-auto rounded-xl border border-border divide-y divide-border">
+              {contasFiltradas.map((a) => {
+                const id = fullAccountId(a);
+                const checked = draftIds.includes(id);
+                return (
+                  <label
+                    key={id}
+                    className="flex items-center gap-3 px-3 py-2.5 cursor-pointer transition-colors hover:bg-accent/40"
+                  >
+                    <Checkbox
+                      checked={checked}
+                      disabled={applying}
+                      onCheckedChange={(v) => alternarNoRascunho(id, v === true)}
+                      aria-label={`Selecionar ${a.name || id}`}
+                    />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm text-foreground">{a.name || id}</span>
+                      <span className="text-xs text-muted-foreground tabular-nums">
+                        {a.account_id}
+                        {a.currency ? ` · ${a.currency}` : ""}
+                      </span>
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+          )}
+
+          <div>
+            <button
+              type="button"
+              className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+              onClick={() => setAjudaAberta((v) => !v)}
+            >
+              Não achou uma conta?
+            </button>
+            {ajudaAberta && (
+              <p className="mt-1.5 text-xs text-muted-foreground">
+                No login do Facebook, a Meta pede pra você escolher manualmente quais contas/portfólios
+                compartilhar com o MarketDash — clique em &quot;Desconectar&quot; e conecte de novo marcando
+                essa conta na tela de permissões do Facebook.
+              </p>
+            )}
+          </div>
+
+          <Button
+            className="w-full"
+            onClick={() => void aplicarSelecao()}
+            disabled={applying || modalLoading || !selecaoMudou}
+          >
+            {applying && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+            Aplicar
+          </Button>
+        </div>
+      </ResponsiveModal>
+
       <AlertDialog open={disconnectOpen} onOpenChange={setDisconnectOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -483,24 +620,18 @@ export const FacebookIntegrationSettings = () => {
         </AlertDialogContent>
       </AlertDialog>
 
-      <AlertDialog
-        open={deselectAllOpen}
-        onOpenChange={(open) => {
-          setDeselectAllOpen(open);
-          if (!open) setPendingDeselectId(null);
-        }}
-      >
+      <AlertDialog open={deselectAllOpen} onOpenChange={setDeselectAllOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Desmarcar a última conta?</AlertDialogTitle>
+            <AlertDialogTitle>Desmarcar todas as contas?</AlertDialogTitle>
             <AlertDialogDescription>
               Isso desconecta a sincronização por completo (mesmo efeito de &quot;Desconectar&quot;) — as campanhas
               deixam de ser atualizadas até você marcar uma conta de novo.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={busy}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={() => void confirmDeselectAll()} disabled={busy}>
+            <AlertDialogCancel disabled={applying}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={() => void confirmDeselectAll()} disabled={applying}>
               Desmarcar
             </AlertDialogAction>
           </AlertDialogFooter>

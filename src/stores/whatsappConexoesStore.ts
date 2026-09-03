@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import {
+  atualizarGrupo,
   atualizarInstancia,
   criarInstancia,
   listarGrupos,
@@ -25,6 +26,8 @@ type WhatsappConexoesState = {
   renomear: (id: number, nome: string) => Promise<void>;
   /** Otimista: o switch tem que responder ao toque, não ao round-trip. */
   definirPausa: (id: number, pausado: boolean) => Promise<void>;
+  /** Toggle "Ativo" de um grupo (spec §6.3) — otimista como definirPausa. */
+  definirAtivado: (id: number, ativado: boolean) => Promise<void>;
 };
 
 export const useWhatsappConexoesStore = create<WhatsappConexoesState>((set, get) => ({
@@ -78,6 +81,21 @@ export const useWhatsappConexoesStore = create<WhatsappConexoesState>((set, get)
       set({ instancias: antes });   // reverte: a tela não pode mentir
       throw e;
     }
+    await get().fetch({ force: true });
+  },
+
+  definirAtivado: async (id, ativado) => {
+    // Mesmo desenho de definirPausa: otimista com rollback — inclusive no 403
+    // de limite do plano, que a tela transforma em toast.
+    const antes = get().grupos;
+    set({ grupos: antes.map((g) => (g.id === id ? { ...g, ativado } : g)) });
+    try {
+      await atualizarGrupo(id, { ativado });
+    } catch (e) {
+      set({ grupos: antes });   // reverte: a tela não pode mentir
+      throw e;
+    }
+    // Ativar cria sub_id/custom_link no backend — o force traz os dois.
     await get().fetch({ force: true });
   },
 

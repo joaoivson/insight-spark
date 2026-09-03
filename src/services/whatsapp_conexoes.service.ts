@@ -56,7 +56,11 @@ export type GrupoWhatsapp = {
   sou_admin: boolean;
   permite_envio: boolean;
   link_convite: string | null;
+  /** Lifecycle do SYNC: o grupo ainda existe no WhatsApp. Quem escreve é o sync. */
   ativo: boolean;
+  /** Escolha da USUÁRIA (spec §6): o toggle "Ativo" da tela — eixo separado
+   *  de `ativo`, é o que conta no limite do plano e liga o monitoramento. */
+  ativado: boolean;
   sub_id: string | null;
   instancia_ids: number[];
 };
@@ -65,6 +69,18 @@ const json = async <T>(res: Response, fallback: string): Promise<T> => {
   if (!res.ok) throw await erroDaResposta(res, fallback);
   return res.json() as Promise<T>;
 };
+
+/**
+ * Status em que o backend escreve `detail` PARA A USUÁRIA.
+ *
+ * Fora deles o corpo é técnico (HTML do proxy, lista de erros do Pydantic,
+ * stack do FastAPI) e `erroDaResposta` devolve o texto cru — que nunca pode
+ * chegar à tela. Por isso o erro vira frase fixa antes de sair daqui.
+ */
+const DETALHE_PARA_A_USUARIA = new Set([403, 409, 422]);
+
+const falha = async (res: Response, fallback: string): Promise<Error> =>
+  DETALHE_PARA_A_USUARIA.has(res.status) ? erroDaResposta(res, fallback) : new Error(fallback);
 
 export async function listarInstancias(): Promise<InstanciaConexao[]> {
   const res = await fetchWithAuth(`${base()}/instancias`);
@@ -115,6 +131,8 @@ export type ListarGruposParams = {
   instanciaId?: number;
   q?: string;
   incluirInativos?: boolean;
+  /** Só grupos com o toggle "Ativo" ligado — o que os pickers de campanha pedem. */
+  apenasAtivados?: boolean;
 };
 
 // ⚠️ Nunca usar `user_id` como query param aqui — fetchWithAuth injeta o dele.
@@ -123,69 +141,34 @@ export async function listarGrupos(params: ListarGruposParams = {}): Promise<Gru
   if (params.instanciaId != null) query.set("filter_instancia_id", String(params.instanciaId));
   if (params.q) query.set("q", params.q);
   if (params.incluirInativos) query.set("incluir_inativos", "true");
+  if (params.apenasAtivados) query.set("apenas_ativados", "true");
   const qs = query.toString();
   const sufixo = qs ? `?${qs}` : "";
   const res = await fetchWithAuth(`${base()}/grupos${sufixo}`);
   return json(res, "Não foi possível carregar os grupos.");
 }
 
-// --- item 17: blacklist de números -------------------------------------------
-
-export type BlacklistItem = {
-  id: number;
-  /**
-   * "+55 11 ****-4321". Nullable no contrato do backend, e é tudo o que existe:
-   * o número em claro nunca é gravado (só o hash). Ler sem fallback derruba a
-   * lista inteira por causa de uma linha antiga sem máscara.
-   */
-  numero_mascarado: string | null;
-  motivo: string | null;
-  remover_dos_grupos: boolean;
-  criado_em: string;
-};
-
-export type BlacklistCriar = {
-  numero: string;
-  motivo?: string | null;
-  remover_dos_grupos?: boolean;
+export type GrupoAtualizacao = {
+  /** Só o toggle da usuária — nome/participantes/admin são do sync. */
+  ativado: boolean;
 };
 
 /**
- * Status em que o backend escreve `detail` PARA A USUÁRIA.
- *
- * Fora deles o corpo é técnico (HTML do proxy, lista de erros do Pydantic,
- * stack do FastAPI) e `erroDaResposta` devolve o texto cru — que nunca pode
- * chegar à tela. Por isso o erro vira frase fixa antes de sair daqui.
+ * Toggle "Ativo" de um grupo (spec §6.3). Ativar pode falhar por limite do
+ * plano: 403 com detail {code: "PLANO_INSUFICIENTE", message} — a mensagem já
+ * vem pronta para a usuária. Desativar nunca apaga nada.
  */
-const DETALHE_PARA_A_USUARIA = new Set([403, 409, 422]);
-
-const falha = async (res: Response, fallback: string): Promise<Error> =>
-  DETALHE_PARA_A_USUARIA.has(res.status) ? erroDaResposta(res, fallback) : new Error(fallback);
-
-export async function listarBlacklist(): Promise<BlacklistItem[]> {
-  const res = await fetchWithAuth(`${base()}/blacklist`);
-  if (!res.ok) throw await falha(res, "Não foi possível carregar os números bloqueados.");
-  return res.json() as Promise<BlacklistItem[]>;
-}
-
-export async function adicionarNaBlacklist(dados: BlacklistCriar): Promise<BlacklistItem> {
-  const res = await fetchWithAuth(`${base()}/blacklist`, {
-    method: "POST",
+export async function atualizarGrupo(
+  id: number,
+  dados: GrupoAtualizacao,
+): Promise<GrupoWhatsapp> {
+  const res = await fetchWithAuth(`${base()}/grupos/${id}`, {
+    method: "PATCH",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      numero: dados.numero,
-      motivo: dados.motivo?.trim() || null,
-      remover_dos_grupos: dados.remover_dos_grupos ?? true,
-    }),
+    body: JSON.stringify(dados),
   });
-  // 422 traz o motivo em PT-BR ("Informe um celular, não um telefone fixo.").
-  if (!res.ok) throw await falha(res, "Não foi possível bloquear o número.");
-  return res.json() as Promise<BlacklistItem>;
-}
-
-export async function removerDaBlacklist(id: number): Promise<void> {
-  const res = await fetchWithAuth(`${base()}/blacklist/${id}`, { method: "DELETE" });
-  if (!res.ok) throw await falha(res, "Não foi possível desbloquear o número.");
+  if (!res.ok) throw await falha(res, "Não foi possível alterar o grupo.");
+  return res.json() as Promise<GrupoWhatsapp>;
 }
 
 // --- item 18: link de conexão externa ----------------------------------------

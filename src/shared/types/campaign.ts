@@ -89,6 +89,12 @@ export interface SubIdOptionsResponse {
   options: SubIdOption[];
 }
 
+/** Conta selecionada como o status devolve: id "act_..." + nome persistido (null se desconhecido). */
+export interface FacebookSelectedAdAccount {
+  id: string;
+  name: string | null;
+}
+
 export interface FacebookIntegrationStatus {
   id: number;
   user_id: number;
@@ -96,6 +102,8 @@ export interface FacebookIntegrationStatus {
   ad_account_id: string | null;
   ad_account_name: string | null;
   ad_account_ids: string[];
+  /** Contas SELECIONADAS com nome persistido — não exige chamada à Graph para exibir. */
+  ad_accounts?: FacebookSelectedAdAccount[];
   is_active: boolean;
   /** conectado | nunca | desconectado */
   connection_state?: "conectado" | "nunca" | "desconectado";

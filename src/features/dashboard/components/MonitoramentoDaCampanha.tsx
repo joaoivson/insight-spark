@@ -260,7 +260,9 @@ export const MonitoramentoDaCampanha = ({ campanhaId }: { campanhaId: number }) 
   const carregarGrupos = useCallback(async () => {
     setErroGrupos(null);
     try {
-      setGrupos(await listarGrupos());
+      // §6.3: o monitoramento só processa grupos ativados — oferecer os outros
+      // aqui criaria um monitoramento que nunca captura nada.
+      setGrupos(await listarGrupos({ apenasAtivados: true }));
     } catch (e) {
       setErroGrupos(textoDoErro(e, "Não foi possível carregar os grupos."));
     }
@@ -816,7 +818,8 @@ export const MonitoramentoDaCampanha = ({ campanhaId }: { campanhaId: number }) 
               </div>
             ) : grupos.length === 0 ? (
               <div className="rounded-lg border border-border p-3 text-sm text-muted-foreground">
-                Nenhum grupo sincronizado. Sincronize seus grupos em Configurações → WhatsApp.
+                Nenhum grupo ativado. Sincronize e ative seus grupos em Configurações →
+                WhatsApp.
               </div>
             ) : (
               <>

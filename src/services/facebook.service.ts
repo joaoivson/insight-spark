@@ -65,14 +65,17 @@ export const selectFacebookAdAccount = async (
 
 export const selectFacebookAdAccounts = async (
   accountIds: string[],
+  accounts?: { id: string; name: string | null }[],
 ): Promise<FacebookIntegrationStatus> => {
   const url = getApiUrl("/api/v1/facebook/ad-accounts");
   const res = await fetchWithAuth(url, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ account_ids: accountIds }),
+    // `accounts` leva os nomes para o backend persistir — o status passa a exibir
+    // as contas selecionadas sem precisar bater na Graph API.
+    body: JSON.stringify({ account_ids: accountIds, ...(accounts ? { accounts } : {}) }),
   });
-  if (!res.ok) throw new Error((await res.text()) || "Erro ao salvar contas de anúncio");
+  if (!res.ok) throw await erroDaResposta(res, "Erro ao salvar contas de anúncio");
   return (await res.json()) as FacebookIntegrationStatus;
 };
 
