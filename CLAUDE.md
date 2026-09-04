@@ -46,7 +46,8 @@ src/
 - Components never call API directly
 - Zustand stores manage global state (dataset, ad spends, user)
 - React Query for server state in `hooks/queries/`
-- localStorage cache: `dataset-cache:{userId}`, `adspends-cache:{userId}`
+- localStorage cache: `dataset-cache:{periodo}:{userId}`, `clicks-cache:{periodo}:{userId}`, `adspends-cache:{userId}` — vendas e cliques
+  são cacheados **por período** e só até 8.000 linhas (acima disso estoura a cota)
 
 ## API Configuration
 
@@ -107,4 +108,4 @@ Padrões:
 | Proxy error 502 | Backend não rodando | Iniciar uvicorn na porta 8081 |
 | Import `@/` não resolve | Alias não configurado | Verificar `tsconfig.app.json` paths |
 | shadcn component missing | Não instalado | `npx shadcn-ui@latest add [nome]` |
-| Zustand state stale | Cache localStorage | Limpar `dataset-cache:{userId}` no DevTools |
+| Zustand state stale | Cache localStorage | Limpar as chaves `dataset-cache:*` no DevTools (uma por período) |

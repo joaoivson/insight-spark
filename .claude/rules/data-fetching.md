@@ -39,8 +39,8 @@ como nome de query param** — o valor injetado sobrescreve o seu, em silêncio.
 O padrão canônico é o do `adSpendsStore`, replicado em `datasetStore` e
 `clicksStore`:
 
-1. Hidrata da cache do localStorage (`{recurso}-cache:{userId}`) — tela
-   aparece na hora
+1. Hidrata da cache do localStorage (`{recurso}-cache:{periodo}:{userId}`) —
+   tela aparece na hora
 2. **Dispara revalidação em background**, com guarda contra chamadas
    concorrentes
 3. Substitui e regrava a cache
@@ -51,6 +51,31 @@ exatamente o bug que motivou o padrão.
 **Chave de cache sempre escopada por usuário** (`getScopedKey`). Cache global
 de dado de usuário é vazamento entre contas com outra roupa. Ao trocar de
 usuário, o store compara `loadedUserId` e descarta o que estava em memória.
+
+**E escopada por PERÍODO** (`dataset-cache:2026-08-28_2026-09-03:user_9`,
+desde 04/09/2026). Uma chave só por usuário devolvia a fatia de "7 dias" para
+quem tinha pedido "mês atual" — a tela mostrava um período afirmando outro até
+a revalidação terminar. O store também guarda `loadedRangeKey` e trata período
+diferente como cache frio.
+
+**Teto para gravar: 8.000 linhas.** O localStorage tem 5–10 MB **por origem**,
+divididos entre todos os caches. `setItem` de um JSON de 30 MB (67 mil linhas
+de vendas) lança `QuotaExceededError`, o `catch` engole, e o cache nunca
+persiste **justamente na conta grande** — toda carga vira carga fria, sem
+sinal nenhum. Acima do teto o store nem tenta: o `JSON.stringify` desse
+tamanho trava a thread antes mesmo de falhar.
+
+## Peça à API o que a tela mostra
+
+Baixar a base inteira e filtrar no cliente é o erro caro deste projeto: o
+dashboard puxava **67.631 linhas (~30 MB)** para exibir as **3.882** dos
+últimos 7 dias — 2.018 ms de banco contra **14 ms** com o filtro de data (o
+índice `(user_id, date)` sempre existiu). O filtro do cliente continua fazendo
+o corte fino; ele opera sobre o que a API já recortou, não sobre o histórico.
+
+Consequência para quem mexe em filtro: **mudar o período tem que rebuscar** —
+inclusive "Limpar filtros", que significa histórico inteiro. Sem isso a tela
+diz "sem filtro" exibindo a fatia antiga.
 
 ## Período e datas
 

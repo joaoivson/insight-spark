@@ -11,6 +11,90 @@
 
 ---
 
+## 2026-09-04 — Campanha de grupos: Visão geral vira painel, e nasce a aba Números
+
+O que mudou: `VisaoGeralDaCampanha`, `NumerosDaCampanha`,
+`ConfiguracoesDaCampanha` e `ExportarLeadsModal` (novos); aba Grupos com
+ocupação e menu de três pontinhos; aba Anúncios com chips de status, período,
+gasto e paginação; ordem das abas trocada; Descrição fora da UI.
+
+**Por que a Visão geral mudou de natureza.** Era a primeira tela da campanha e
+não dizia nada sobre a campanha: um formulário com nome, descrição e toggles. A
+afiliada não via o link que ela divulga, nem quantas pessoas entraram, nem se
+ainda há grupo com vaga. A edição foi para um botão Configurações; a aba virou
+leitura: link copiável, KPIs, ritmo (entradas × saídas) e estado dos grupos.
+
+**`null` ≠ `0` também aqui.** Taxa de entrada sem clique e evasão sem entrada
+mostram "—" com a nota do motivo. "0%" afirmaria "ninguém converteu", que é
+outra coisa — mesma regra que `leads`/`cpl` já seguiam em Resultados.
+
+**A taxa de entrada usa `entradas_do_link`, não `entradas`.** Misturar a entrada
+orgânica no numerador dá taxa acima de 100% em campanha divulgada também fora do
+link, e aí ela não confia mais em nenhum número da tela.
+
+**`PresetKind` ganhou `"30d"`.** O gráfico precisa de 7/14/30 e o helper só tinha
+7/14/mês. Fazer a conta na mão no componente reintroduziria o bug de fuso: entre
+21h e 0h BRT o dia UTC já virou.
+
+**Paginação saiu de `features/admin`.** `paginar`/`totalDePaginas`/`<Paginacao>`
+foram para `components/shared/Paginacao.tsx` (com seletor 25/50/100); o
+`AdminTableFooter` reexporta. Importar de `features/admin` dentro de
+`features/dashboard` cruzaria fronteira de feature.
+
+**Armadilha do `tsc`:** `npx tsc --noEmit` na raiz **não valida nada** —
+`tsconfig.json` tem `"files": []`. O comando que checa de verdade é
+`tsc -p tsconfig.app.json --noEmit` (25 erros pré-existentes são a baseline).
+
+**Armadilha do ambiente local:** o `.env` do frontend aponta para o Supabase de
+**produção** e o backend do docker valida contra **homologação** — todo request
+tomava 401 no login local. Para validar via Playwright é preciso alinhar os dois
+(e restaurar o `.env` depois).
+
+---
+
+## 2026-09-04 — O dashboard baixava a base inteira para mostrar 7 dias
+
+O que mudou: `datasetStore` passou a mandar `start_date`/`end_date` para a API
+(antes chamava `fetchDatasetRows({})`, sem período nenhum); cache do
+`datasetStore` e do `clicksStore` agora é **por período**, não uma chave por
+usuário; teto de linhas para gravar no localStorage; `onClear` do Dashboard e
+do Relatórios rebusca; `ShopeeIntegrationSettings` invalida em vez de rebuscar
+tudo.
+
+**A medida, não a impressão** (conta do Luiz, produção): 67.631 linhas de
+vendas = **~30 MB de JSON** por carregamento, para exibir as **3.882** dos
+últimos 7 dias. No banco, a mesma consulta com o filtro de data cai de
+**2.018 ms para 14 ms** — o índice `(user_id, date)` já existia, ninguém o
+usava. Em homologação (52.372 linhas) a request sem período leva **8,7 s**
+contra **2,3 s** de uma janela de 19 dias.
+
+**O cache que ele pediu já existia — e falhava calado justamente em quem
+precisava.** `dataset-cache:user_N` era gravado com `localStorage.setItem` de
+um JSON de 30 MB: acima da cota de 5–10 MB por origem o `setItem` lança, o
+`catch` engolia, e o cache **nunca** persistia para as contas grandes. Toda
+carga era uma carga fria. Por isso a correção não é "cachear mais": é **pedir
+menos**. O teto de 8.000 linhas existe para não repetir isso — acima dele nem
+tenta (o `JSON.stringify` de 30 MB ainda travaria a thread antes de falhar).
+
+**Cache por período resolve um bug junto.** A chave era só do usuário, então
+trocar de "7 dias" para "mês atual" devolvia a fatia anterior enquanto a
+revalidação não terminava — a tela mostrava um período dizendo outro.
+
+**`onClear` precisou rebuscar.** "Limpar filtros" significa histórico inteiro;
+como agora é a API que corta por data, sem rebuscar a tela diria "sem filtro"
+exibindo só a fatia carregada. É a única ação que voltou a puxar tudo — e é o
+que ela pede.
+
+Validado com Playwright contra hml (`relacionamento@`, 52.372 linhas): 01/08–
+19/08 rende **R$ 13.457,00 de comissão e 4.916 pedidos**, idêntico ao SQL
+descontando UNPAID e cancelados; "limpar" volta a R$ 100.702,85 / 43.614; 390px
+sem overflow.
+
+Pendente: **Relatórios e Impostos continuam pedindo tudo** — o primeiro por
+default de produto ("Todo período", 9,9 s em hml), o segundo porque monta a
+lista de meses a partir do histórico. O fim da linha é agregar no backend (os
+KPIs são calculados no cliente hoje), não baixar linha.
+
 ## 2026-09-04 — Configurações, rodada 2: Parâmetros ganha tela, o gate vira flag e a isca de autofill
 
 O que mudou: quinta seção **Operação › Parâmetros** (o `EnvioSection` saiu de
