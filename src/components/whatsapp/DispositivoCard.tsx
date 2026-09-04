@@ -23,6 +23,23 @@ export const CORES_DO_STATUS: Record<
   criada: { dot: "bg-muted-foreground", texto: "text-muted-foreground", rotulo: "Aguardando conexão" },
 };
 
+/**
+ * A linha de baixo do card: o número, ou o que fazer quando não há número.
+ *
+ * "Desconectado" e "Aguardando conexão" são estados DIFERENTES e mostravam a
+ * mesma frase ("Número ainda não pareado") — quem já tinha pareado e caiu lia
+ * que nunca havia pareado. Cada um tem a sua ação:
+ *   criada        → nunca pareou; precisa parear pela primeira vez
+ *   desconectada  → já pareou e caiu; precisa reconectar (e o número, quando
+ *                   conhecido, continua sendo a identidade do chip)
+ */
+export const legendaDoNumero = (instancia: InstanciaConexao): string => {
+  if (instancia.numero_mascarado) return instancia.numero_mascarado;
+  return instancia.status === "desconectada"
+    ? "Conexão perdida — reconecte para voltar a enviar"
+    : "Número ainda não pareado";
+};
+
 type Props = {
   instancia: InstanciaConexao;
   /** Só a contagem — a lista de grupos vive na página do número (spec §6.2). */
@@ -143,7 +160,7 @@ export function DispositivoCard({
       <div className="mt-3 min-w-0">
         <p className="font-semibold text-foreground truncate">{nome}</p>
         <p className="text-sm text-muted-foreground tabular-nums">
-          {instancia.numero_mascarado || "Número ainda não pareado"}
+          {legendaDoNumero(instancia)}
         </p>
       </div>
 

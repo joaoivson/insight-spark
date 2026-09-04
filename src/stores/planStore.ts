@@ -9,9 +9,14 @@ type PlanState = {
   error: string | null;
   fetch: (opts?: { force?: boolean }) => Promise<void>;
   allowsMenu: (menuKey: string) => boolean;
+  /** Módulo em beta liberado para esta conta (§ Subida para produção). */
+  moduloLiberado: (modulo: string) => boolean;
   plan: PlanId;
   isDemo: boolean;
 };
+
+/** Disparo em grupo: WhatsApp, Operação › Parâmetros e o menu Campanhas. */
+export const MODULO_GRUPOS_WHATSAPP = "grupos_whatsapp";
 
 export const usePlanStore = create<PlanState>((set, get) => ({
   context: null,
@@ -49,4 +54,9 @@ export const usePlanStore = create<PlanState>((set, get) => ({
     if (ctx?.menus?.length) return ctx.menus.includes(menuKey);
     return planAllowsMenu(get().plan, menuKey);
   },
+
+  // Fechado por padrão: enquanto o contexto não chegou (ou veio de um backend
+  // antigo, sem o campo), módulo em beta NÃO aparece. O default oposto abriria
+  // WhatsApp e Campanhas em produção no intervalo entre o paint e a resposta.
+  moduloLiberado: (modulo: string) => Boolean(get().context?.modulos?.includes(modulo)),
 }));

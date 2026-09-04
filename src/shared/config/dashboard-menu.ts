@@ -20,7 +20,8 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
-import { isProductionHost } from "@/core/config/api.config";
+import { MODULO_GRUPOS_WHATSAPP, usePlanStore } from "@/stores/planStore";
+
 
 export type DashboardMenuItem = {
   icon: LucideIcon;
@@ -31,8 +32,13 @@ export type DashboardMenuItem = {
   menuKey: string;
   isNew?: boolean;
   iconClass?: string;
-  /** Gate de AMBIENTE (some inteiro em produção) — não confundir com o cadeado, que é gating por plano. */
-  hmlOnly?: boolean;
+  /**
+   * Gate de MÓDULO EM BETA: o item some inteiro enquanto a conta não tiver o
+   * módulo liberado — não confundir com o cadeado, que é gating por plano.
+   * Era `hmlOnly` (hostname, build-time); virou flag do backend para dar
+   * liberação em beta sem redeploy.
+   */
+  modulo?: string;
 };
 
 export const DASHBOARD_MENU: DashboardMenuItem[] = [
@@ -40,11 +46,11 @@ export const DASHBOARD_MENU: DashboardMenuItem[] = [
   // "Anúncios" = a antiga tela Campanhas (tráfego pago Shopee/Meta).
   { icon: Target, label: "Anúncios", path: "/dashboard/campanhas", menuKey: "campanhas" },
   // "Campanhas" agora é o módulo de grupos de WhatsApp (MAX).
-  { icon: MessagesSquare, label: "Campanhas", path: "/dashboard/grupos", menuKey: "campanhas_grupos", isNew: true, hmlOnly: true },
+  { icon: MessagesSquare, label: "Campanhas", path: "/dashboard/grupos", menuKey: "campanhas_grupos", isNew: true, modulo: MODULO_GRUPOS_WHATSAPP },
   // Busca de ofertas do marketplace — alimenta os envios das campanhas de grupos (MAX).
-  { icon: ShoppingBag, label: "Ofertas", path: "/dashboard/ofertas", menuKey: "ofertas", hmlOnly: true },
+  { icon: ShoppingBag, label: "Ofertas", path: "/dashboard/ofertas", menuKey: "ofertas", modulo: MODULO_GRUPOS_WHATSAPP },
   // Templates alimentam os passos de oferta das campanhas de grupos (MAX).
-  { icon: MessageSquareText, label: "Templates", path: "/dashboard/templates", menuKey: "templates", hmlOnly: true },
+  { icon: MessageSquareText, label: "Templates", path: "/dashboard/templates", menuKey: "templates", modulo: MODULO_GRUPOS_WHATSAPP },
   { icon: MousePointerClick, label: "Upload Cliques", path: "/dashboard/upload-cliques", menuKey: "upload_cliques" },
   { icon: Globe, label: "Página de Captura", path: "/dashboard/captura", menuKey: "captura" },
   { icon: Link2, label: "Meus Links", shortLabel: "Links", path: "/dashboard/links", menuKey: "meus_links" },
@@ -55,10 +61,14 @@ export const DASHBOARD_MENU: DashboardMenuItem[] = [
 ];
 
 /**
- * Aplica o gate de ambiente: em produção os itens `hmlOnly` somem inteiros
- * (a rota correspondente também não existe lá — quem tem a URL cai no 404).
+ * Aplica o gate de módulo em beta: item cujo `modulo` a conta não tem liberado
+ * some inteiro (a rota correspondente redireciona — quem tem a URL não entra).
+ *
+ * Lê o store direto em vez de receber a lista por prop porque os dois navs
+ * (sidebar e bottom nav) chamam daqui; passar por prop reabriria a chance de
+ * um deles esquecer o gate, que foi o débito da F0.
  */
 export function menuVisivel(itens: DashboardMenuItem[] = DASHBOARD_MENU): DashboardMenuItem[] {
-  if (!isProductionHost()) return itens;
-  return itens.filter((item) => !item.hmlOnly);
+  const { moduloLiberado } = usePlanStore.getState();
+  return itens.filter((item) => !item.modulo || moduloLiberado(item.modulo));
 }

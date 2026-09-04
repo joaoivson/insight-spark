@@ -33,13 +33,19 @@ import {
 } from "@/services/shopee.service";
 import { usePlanStore } from "@/stores/planStore";
 
+/**
+ * Nomes NEUTROS pelo mesmo motivo do formulário de Marketplaces: com
+ * `appId` + `password` o Chrome lê o par como login e preenche o AppID com o
+ * e-mail da conta. A afiliada salva sem ver e a Shopee passa a responder
+ * `10020`. O mapeamento para o payload é feito no submit.
+ */
 const schema = z.object({
-  appId: z
+  refPublica: z
     .string()
     .trim()
     .min(1, "AppID é obrigatório")
     .regex(/^\d+$/, "Use o AppID numérico da Shopee (ex.: 18191340007), não o e-mail."),
-  password: z.string().min(1, "Senha é obrigatória"),
+  refSecreta: z.string().min(1, "Senha é obrigatória"),
 });
 
 type FormData = z.infer<typeof schema>;
@@ -108,7 +114,7 @@ export const ShopeeIntegrationSettings = () => {
   const onSubmit = async (data: FormData) => {
     setIsSaving(true);
     try {
-      const updated = await saveShopeeCredentials(data.appId, data.password);
+      const updated = await saveShopeeCredentials(data.refPublica, data.refSecreta);
       setStatus(updated);
       setIsEditing(false);
       const wasPaused = Boolean(status?.sync_paused_at);
@@ -285,42 +291,68 @@ export const ShopeeIntegrationSettings = () => {
             autoComplete="off"
             className="space-y-4 overflow-hidden"
           >
+            {/* Isca de autofill — ver o comentário do schema. O Chrome preenche
+                o PRIMEIRO par usuário/senha do formulário; estes dois absorvem
+                o preenchimento e nunca são lidos no submit. */}
+            <input
+              type="text"
+              name="username"
+              autoComplete="username"
+              tabIndex={-1}
+              aria-hidden="true"
+              className="sr-only"
+            />
+            <input
+              type="password"
+              name="password"
+              autoComplete="current-password"
+              tabIndex={-1}
+              aria-hidden="true"
+              className="sr-only"
+            />
             <div className="space-y-2">
               {/* A ajuda mora ao lado do PRIMEIRO campo porque é onde a dúvida
                   aparece: a API da Shopee não vem ligada, precisa ser pedida e
                   pode demorar dias — sem isso a afiliada trava aqui sem saber
                   que não é erro do MarketDash. */}
               <div className="flex flex-wrap items-center justify-between gap-1">
-                <Label htmlFor="appId">AppID</Label>
+                <Label htmlFor="ref-publica-sync">AppID</Label>
                 <ShopeeApiHelpModal />
               </div>
               <Input
-                id="appId"
+                id="ref-publica-sync"
                 autoComplete="off"
+                inputMode="numeric"
+                data-lpignore="true"
+                data-1p-ignore
+                data-form-type="other"
                 placeholder="Ex: 18191340007"
                 defaultValue={
                   status?.app_id && /^\d+$/.test(status.app_id) ? status.app_id : ""
                 }
-                {...register("appId")}
+                {...register("refPublica")}
                 className="bg-background"
               />
               <p className="text-xs text-muted-foreground">
                 Só números — o AppID do painel de afiliados Shopee, não o e-mail da conta.
               </p>
-              {errors.appId && (
-                <p className="text-sm text-destructive">{errors.appId.message}</p>
+              {errors.refPublica && (
+                <p className="text-sm text-destructive">{errors.refPublica.message}</p>
               )}
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password">Senha / Secret</Label>
+              <Label htmlFor="ref-secreta-sync">Senha / Secret</Label>
               <div className="relative">
                 <Input
-                  id="password"
+                  id="ref-secreta-sync"
                   type={showPassword ? "text" : "password"}
                   autoComplete="new-password"
+                  data-lpignore="true"
+                  data-1p-ignore
+                  data-form-type="other"
                   placeholder="Senha da API Shopee"
-                  {...register("password")}
+                  {...register("refSecreta")}
                   className="bg-background pr-10"
                 />
                 <button
@@ -332,8 +364,8 @@ export const ShopeeIntegrationSettings = () => {
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
-              {errors.password && (
-                <p className="text-sm text-destructive">{errors.password.message}</p>
+              {errors.refSecreta && (
+                <p className="text-sm text-destructive">{errors.refSecreta.message}</p>
               )}
             </div>
 

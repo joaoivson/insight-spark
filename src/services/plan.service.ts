@@ -20,6 +20,13 @@ export type PlanContext = {
   menus: string[];
   pro_only_menus: string[];
   max_only_menus: string[];
+  /**
+   * Módulos em beta liberados PARA ESTA CONTA (§ Subida para produção).
+   * Vem do backend (`feature-flags.json` + env `MODULOS_BETA`) para poder
+   * liberar em beta sem redeploy — o gate por hostname era build-time.
+   * Ausente em resposta antiga do backend: quem lê trata como lista vazia.
+   */
+  modulos?: string[];
   // Sentinelas: -1 = ilimitado; 0 = plano não tem o recurso (exibir travessão).
   limites: {
     paginas_captura: number;

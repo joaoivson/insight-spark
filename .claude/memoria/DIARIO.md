@@ -11,6 +11,65 @@
 
 ---
 
+## 2026-09-04 — Configurações, rodada 2: Parâmetros ganha tela, o gate vira flag e a isca de autofill
+
+O que mudou: quinta seção **Operação › Parâmetros** (o `EnvioSection` saiu de
+dentro do WhatsApp); WhatsApp e `NumeroDetalhe` perderam as `Tabs` de uma aba
+só; `TabelaDeGrupos` paginada com filtro Ativos/Todos; `ConectarNumeroModal`
+com QR **ou** código de pareamento; `RequireModulo` + `moduloLiberado()` no
+lugar de `isProductionHost()`; `SecaoCard` reapertado e adotado pelo card de
+Marketplaces.
+
+**Por que Parâmetros saiu do WhatsApp.** Janela de envio não é configuração de
+canal — ela limita a operação inteira, inclusive campanha que ainda nem existe.
+Como aba de WhatsApp, ficava invisível justamente para quem entra pelo módulo
+de Campanhas e nunca abre a tela do chip. E a aba que sobrou ("Números",
+sozinha) era moldura sem quadro; sai também, aqui e na página do número.
+
+**Por que o gate deixou de ser hostname.** `isProductionHost()` é build-time:
+liberar o módulo para uma conta de teste em produção pedia rebuild + redeploy,
+e a spec pedia beta sem redeploy. A decisão foi para o backend, por conta, e a
+env `MODULOS_BETA` virou a alavanca de produção. Duas consequências que valem
+lembrar: o gate **fecha por padrão** (contexto carregando, backend antigo,
+chave ausente → invisível — o default oposto abriria o módulo para a base
+inteira por um typo no JSON), e as rotas do módulo **existem sempre**, porque
+`{cond && <Route/>}` fazia link direto cair em 404 por uma fração de segundo
+antes de a rota passar a existir. O preço aceito é o menu piscar uma vez por
+carregamento de página.
+
+**A isca de autofill.** A rodada de 03/09 achou que `autocomplete="off"` +
+ids neutros resolviam o Chrome preenchendo o App ID da Shopee com o e-mail de
+login. Não resolveram: o Chrome **ignora** `autocomplete="off"` quando decide
+que o formulário é de login, e preenche o primeiro par usuário/senha que acha.
+Só cedeu com nomes que não casam com heurística nenhuma
+(`ref_publica`/`ref_secreta`) **mais** um par `username`/`password` invisível
+abrindo o formulário para absorver o preenchimento.
+
+**Desambiguar grupo homônimo é pelo JID, não pela data.** `criado_em` é a data
+do primeiro sync — igual para grupos que entram juntos, que é exatamente o caso
+(dois `#130 SALESDASH + VENDE-C`). E o fragmento só entra na linha **onde o
+nome se repete**: em 493 grupos, sempre seria ruído.
+
+**Densidade medida, não estimada.** O critério ("os 7 dias cabem sem scroll")
+falhava por 57px em 1280×720. Foram quatro cortes somados — `py-1` na linha do
+dia, `space-y-1` entre elas, `mb-2.5` no header do card e padding único
+`p-3.5` (o `md:p-4` fazia mobile e desktop terem densidades diferentes). Fecha
+em 720/720 e 768/768.
+
+**O badge de sync atrasada achou a causa no mesmo dia.** Ele mostrou
+"Sincronização parada há 14 dias" e o número não fechava: no banco, 19 contas
+tinham `last_sync_at` cravado em 05/08 — os 24 jobs `shopee-sync-*` do pg_cron
+estavam `active = false` desde então, **29 dias**. As duas contas com data
+recente (entre elas a de teste) tinham rodado sync **manual**, e era isso que a
+tela media. Produção foi religada em 04/09.
+
+A lição é de leitura de tela, não de código: **`last_sync_at` da conta que você
+usa para testar mede o seu próprio clique em "Sincronizar agora", não a
+automação.** O badge continua valendo — ele foi o que fez alguém olhar — mas
+quem responde "o cron vive?" é `sync_runs.trigger`.
+
+---
+
 ## 2026-09-03 — Configurações: 4 seções, grupos com toggle e o upgrade de período que não abria
 
 O que mudou: `Configuracoes.tsx` reescrito (4 seções, sem "Dispositivos" nem

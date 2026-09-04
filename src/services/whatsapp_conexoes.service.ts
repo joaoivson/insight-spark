@@ -115,6 +115,35 @@ export async function qrDaInstancia(id: number): Promise<QrInstancia> {
   return json(res, "Não foi possível gerar o QR code.");
 }
 
+export type CodigoPareamento = {
+  /** "conectada" | "aguardando" | "erro: <motivo>" — mesmo contrato do QR. */
+  estado: string;
+  /** 8 caracteres para digitar no WhatsApp, ou null enquanto não sai. */
+  codigo: string | null;
+};
+
+/**
+ * Código de pareamento — alternativa ao QR.
+ *
+ * A afiliada abre o MarketDash NO CELULAR e o WhatsApp que ela vai conectar é
+ * o do mesmo aparelho: não há como escanear o QR da própria tela. Sem isso,
+ * parte do público simplesmente não conecta.
+ *
+ * 422 com mensagem pronta quando o número não é um celular válido.
+ */
+export async function codigoDePareamento(
+  id: number,
+  numero: string,
+): Promise<CodigoPareamento> {
+  const res = await fetchWithAuth(`${base()}/instancias/${id}/codigo-pareamento`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ numero }),
+  });
+  if (!res.ok) throw await falha(res, "Não foi possível gerar o código de pareamento.");
+  return res.json() as Promise<CodigoPareamento>;
+}
+
 export async function removerInstancia(id: number): Promise<void> {
   const res = await fetchWithAuth(`${base()}/instancias/${id}`, { method: "DELETE" });
   if (!res.ok) throw await erroDaResposta(res, "Não foi possível remover o número.");

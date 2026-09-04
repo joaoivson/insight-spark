@@ -73,7 +73,7 @@ import { PlatformBreakdownCard } from "@/features/dashboard/components/PlatformB
 import { isProductionHost } from "@/core/config/api.config";
 import { DemoDataBanner } from "@/features/dashboard/components/DemoDataBanner";
 import { useFacebookConnectionStore } from "@/stores/facebookConnectionStore";
-import { usePlanStore } from "@/stores/planStore";
+import { MODULO_GRUPOS_WHATSAPP, usePlanStore } from "@/stores/planStore";
 import type { FacebookConnectionState } from "@/features/dashboard/components/FacebookConnectionBanner";
 import {
   Tooltip,
@@ -189,12 +189,12 @@ const Campanhas = () => {
   const [lastSyncAt, setLastSyncAt] = useState<string | null>(null);
   const [lastSyncShopee, setLastSyncShopee] = useState<string | null>(null);
   const { connectionState, fetch: fetchFbConn } = useFacebookConnectionStore();
-  const { isDemo, fetch: fetchPlan, allowsMenu } = usePlanStore();
+  const { isDemo, fetch: fetchPlan, allowsMenu, moduloLiberado } = usePlanStore();
   const fbControlsEnabled = connectionState === "conectado" || isDemo;
-  // Duas portas: host (o módulo de grupos é hml-only) E plano (o endpoint é
-  // MAX-only). Sem a segunda, conta essencial/pro em homologação dispara uma
-  // request que dá 403 garantido e ainda vê chips que não filtram nada.
-  const gruposHabilitado = !isProductionHost() && allowsMenu("campanhas_grupos");
+  // Duas portas: módulo em beta liberado para a conta E plano (o endpoint é
+  // MAX-only). Sem a segunda, conta essencial/pro dispara uma request que dá
+  // 403 garantido e ainda vê chips que não filtram nada.
+  const gruposHabilitado = moduloLiberado(MODULO_GRUPOS_WHATSAPP) && allowsMenu("campanhas_grupos");
 
   const range = useMemo(() => {
     if (period === "custom" && customRange?.from && customRange?.to) {

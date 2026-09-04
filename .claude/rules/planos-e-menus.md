@@ -41,18 +41,56 @@ em `/dashboard/planos` (`PLAN_ORDER`), com card dourado (`#F0A94A`) e badge
 "Novo". A copy do Max **não promete o módulo de grupos de WhatsApp** enquanto
 ele não estiver em produção — vende Instagram + ilimitados.
 
-## Oculto em produção
+## A terceira porta: módulo em beta
 
-`isProductionHost()` (`core/config/api.config.ts`) esconde a **aba WhatsApp**
-em produção — fica disponível em homologação para validação.
+Além de assinatura e plano existe o **gate de módulo**, para o que já está no
+código mas ainda não foi liberado:
 
-A comparação é por **igualdade exata** do hostname. **Nunca troque por
-`.includes()`**: `hml.marketdash.com.br` contém `marketdash.com.br` como
-substring, e homologação passaria a se comportar como produção — escondendo
-justamente as features que só existem para serem testadas lá.
+```
+usePlanStore().moduloLiberado(MODULO_GRUPOS_WHATSAPP)
+```
+
+Ele governa, juntos: Integrações › **WhatsApp**, Operação › **Parâmetros**,
+e os menus **Campanhas** / **Ofertas** / **Templates** — tudo que só existe por
+causa do disparo em grupo.
+
+- Item de menu: `modulo: MODULO_GRUPOS_WHATSAPP` em `dashboard-menu.ts`;
+  `menuVisivel()` filtra.
+- Rota: `<RequireModulo modulo={...} element={...} />`. A rota **existe
+  sempre** — `{cond && <Route/>}` fazia link direto cair em 404 por uma fração
+  de segundo antes de a rota passar a existir.
+- **Fecha por padrão.** Contexto ainda carregando, backend antigo sem o campo,
+  módulo ausente do JSON → invisível. O default oposto abriria o módulo para a
+  base inteira por um erro de digitação.
+
+Quem decide é o **backend**, por conta, em `GET /subscription/plan` →
+`modulos`. Não é mais `isProductionHost()`: aquele gate era build-time e
+liberar um beta exigia rebuild + redeploy.
+
+`isProductionHost()` continua existindo para o que é mesmo de ambiente (ex.: o
+`PlatformBreakdownCard`, cujas fórmulas divergem dos KPIs). A comparação é por
+**igualdade exata** do hostname. **Nunca troque por `.includes()`**:
+`hml.marketdash.com.br` contém `marketdash.com.br` como substring, e
+homologação passaria a se comportar como produção.
 
 ## Feature flags
 
-`feature-flags.json` fica na **raiz do monorepo** e é lido pelos dois lados
-(alias `@feature-flags` aqui; `app/core/feature_flags.py` no backend). Flag
-nova entra lá — não em constante duplicada.
+`feature-flags.json` é lido pelos dois lados (alias `@feature-flags` aqui;
+`app/core/feature_flags.py` no backend). Flag nova entra lá — não em constante
+duplicada.
+
+⚠️ O alias do Vite aponta para `marketdash-frontend/feature-flags.json`, e o
+backend lê o da **raiz** do monorepo. Não são o mesmo arquivo: mantenha os dois
+em sincronia, ou melhor — coloque a decisão no backend, que é runtime.
+
+Módulo em beta mora em `modulos_beta`:
+
+```json
+"modulos_beta": {
+  "grupos_whatsapp": { "liberado": false, "planos": [], "emails": ["a@b.com"] }
+}
+```
+
+A env **`MODULOS_BETA`** (csv) manda sobre o arquivo — é a alavanca de
+produção: liberar ou recolher um beta é variável no Coolify + restart, sem
+rebuild. Definida e vazia fecha tudo; não definida cai no arquivo.

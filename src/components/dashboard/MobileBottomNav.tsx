@@ -56,10 +56,9 @@ const MobileBottomNav = () => {
     if (!isDemo) void fetchPlan();
   }, [fetchPlan, isDemo]);
 
-  // Mesma regra da sidebar: item hmlOnly some inteiro em produção (gate de
-  // ambiente); o cadeado é gating por plano, que é outra coisa.
-  // O gate de ambiente vale para as DUAS metades do nav — uma tab primária
-  // com hmlOnly não pode vazar em produção enquanto some da sidebar.
+  // Mesma regra da sidebar: item de módulo não liberado some inteiro; o
+  // cadeado é gating por plano, que é outra coisa. O gate vale para as DUAS
+  // metades do nav — uma tab primária não pode vazar enquanto some da sidebar.
   const visiblePrimaryItems = menuVisivel(primaryItems);
   const visibleMoreItems = menuVisivel(moreItems);
 

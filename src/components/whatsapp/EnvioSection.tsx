@@ -147,7 +147,7 @@ export function EnvioSection() {
   };
 
   return (
-    <div className="bg-card border border-border rounded-2xl p-4 md:p-5">
+    <>
       {carregando ? (
         <div className="space-y-3">
           <Skeleton className="h-10 w-full rounded-xl" />
@@ -162,22 +162,26 @@ export function EnvioSection() {
           </Button>
         </div>
       ) : (
-        <div className="space-y-3">
-          {/* A seção vive numa aba: o switch faz o papel de título. */}
+        <div className="space-y-2.5">
+          {/* O switch faz o papel de título da seção. A descrição muda com o
+              estado porque a consequência muda: desligado NÃO existe teto, e
+              dizer "os envios pausam" nesse caso seria mentira. */}
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
               <Label htmlFor="restringir-horario" className="text-sm font-semibold">
                 Restringir horário de envio
               </Label>
               <p className="mt-0.5 text-xs text-muted-foreground">
-                Fora da janela, os envios pausam e retomam sozinhos na próxima abertura.
+                {ativo
+                  ? "Fora da janela, os envios pausam e retomam sozinhos na próxima abertura."
+                  : "Sem restrição: cada campanha opera no ritmo próprio, a qualquer hora."}
               </p>
             </div>
             <Switch id="restringir-horario" checked={ativo} onCheckedChange={setAtivo} />
           </div>
 
-          <div className={cn("space-y-2", !ativo && "pointer-events-none opacity-50")}>
-            <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 rounded-xl border border-border px-3 py-2">
+          <div className={cn("space-y-1.5", !ativo && "pointer-events-none opacity-50")}>
+            <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 rounded-xl border border-border px-3 py-1.5">
               <span className="text-sm text-foreground tabular-nums">{resumo}</span>
               <div className="flex items-center gap-1">
                 {porDia && (
@@ -210,13 +214,13 @@ export function EnvioSection() {
             </div>
 
             {porDia && (
-              <div className="space-y-1.5">
+              <div className="space-y-1">
                 {dias.map((d, i) => {
                   const janelaInvalida = d.fim <= d.inicio;
                   return (
                     <div
                       key={i}
-                      className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-border px-2 py-1.5"
+                      className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-border px-2 py-1"
                     >
                       {/* w-[4.75rem]: o Switch come ~36px do rótulo e em w-16
                           "Sáb"/"Dom" saíam cortados ("Don") na validação. */}
@@ -261,11 +265,20 @@ export function EnvioSection() {
               </div>
             )}
 
-            {/* Regra de borda (§7.4) — no lugar onde ficava a pausa. */}
-            <p className="text-xs text-muted-foreground">
-              Execução que começa dentro da janela é concluída, mesmo que ultrapasse o
-              horário de fim.
-            </p>
+            {/* As duas regras que decidem quando o envio realmente sai —
+                ficam na tela porque são a diferença entre "não enviou" e
+                "quebrou". A de borda está no lugar onde ficava a pausa. */}
+            <div className="space-y-1 text-xs text-muted-foreground">
+              <p>
+                Execução que começa dentro da janela é concluída, mesmo que ultrapasse o
+                horário de fim.
+              </p>
+              <p>
+                É o <strong className="font-medium text-foreground">teto</strong> de todas as
+                campanhas: com a janela abrindo 09:00, uma campanha marcada para 08:00 espera
+                a abertura — não envia às 08:20.
+              </p>
+            </div>
           </div>
 
           <Button onClick={() => void salvar()} disabled={salvando}>
@@ -278,6 +291,6 @@ export function EnvioSection() {
           </Button>
         </div>
       )}
-    </div>
+    </>
   );
 }

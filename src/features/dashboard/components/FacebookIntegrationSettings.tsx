@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Loader2, Unplug, Facebook, CheckCircle2, Clock, RefreshCw, Search, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -24,6 +24,7 @@ import {
   getFacebookOAuthUrl,
   getFacebookStatus,
   listFacebookAdAccounts,
+  resolveFacebookAdAccountNames,
   selectFacebookAdAccounts,
   clearFacebookAdsData,
   triggerFacebookSync,
@@ -189,6 +190,30 @@ export const FacebookIntegrationSettings = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [planLoaded, isDemo]);
 
+  /**
+   * Conta selecionada aparecendo como "act_266908603365617" cru significa
+   * metadado ausente — a lista só ganhava nome no momento da seleção, então
+   * quem conectou antes da coluna (ou reconectou depois) ficava sem nome nem
+   * moeda até reabrir o modal e re-salvar. Resolve UMA vez, depois do primeiro
+   * paint: o `/status` continua sem tocar na Graph.
+   */
+  const resolvido = useRef(false);
+  useEffect(() => {
+    if (resolvido.current || !status || isDemo) return;
+    const faltaNome = (status.ad_accounts ?? []).some((c) => !c.name);
+    if (!faltaNome || (status.ad_account_ids ?? []).length === 0) return;
+    resolvido.current = true;
+    void (async () => {
+      try {
+        setStatus(await resolveFacebookAdAccountNames());
+      } catch {
+        // Silêncio proposital: o id cru já está na tela e continua utilizável.
+        // Falhar aqui não pode virar toast de erro num caminho que a afiliada
+        // não pediu e não sabe o que fazer a respeito.
+      }
+    })();
+  }, [status, isDemo]);
+
   const handleConnect = async () => {
     setBusy(true);
     try {
@@ -256,14 +281,15 @@ export const FacebookIntegrationSettings = () => {
       // compartilhada com o app): sem isso, aplicar substituiria o nome dela
       // por null e a conta passaria a aparecer como "act_123" cru.
       const porId = new Map(modalAccounts.map((a) => [fullAccountId(a), a]));
-      const nomeConhecido = new Map(
-        (status?.ad_accounts ?? []).map((a) => [a.id, a.name]),
+      const conhecido = new Map(
+        (status?.ad_accounts ?? []).map((a) => [a.id, a]),
       );
       const updated = await selectFacebookAdAccounts(
         ids,
         ids.map((id) => ({
           id,
-          name: porId.get(id)?.name ?? nomeConhecido.get(id) ?? null,
+          name: porId.get(id)?.name ?? conhecido.get(id)?.name ?? null,
+          currency: porId.get(id)?.currency ?? conhecido.get(id)?.currency ?? null,
         })),
       );
       setStatus(updated);
@@ -421,7 +447,12 @@ export const FacebookIntegrationSettings = () => {
   // Contas selecionadas vêm do status (nome persistido); fallback só com o id
   // cobre resposta antiga do backend sem `ad_accounts`.
   const contasSelecionadas =
-    status.ad_accounts ?? (status.ad_account_ids ?? []).map((id) => ({ id, name: null as string | null }));
+    status.ad_accounts ??
+    (status.ad_account_ids ?? []).map((id) => ({
+      id,
+      name: null as string | null,
+      currency: null as string | null,
+    }));
 
   const filtro = busca.trim().toLowerCase();
   const contasFiltradas = filtro
@@ -459,7 +490,10 @@ export const FacebookIntegrationSettings = () => {
               <li key={c.id} className="flex items-center justify-between gap-3 px-3 py-2">
                 <span className="min-w-0 truncate text-sm text-foreground">{c.name || c.id}</span>
                 {c.name && (
-                  <span className="flex-shrink-0 text-xs text-muted-foreground tabular-nums">{c.id}</span>
+                  <span className="flex-shrink-0 text-xs text-muted-foreground tabular-nums">
+                    {c.id.replace(/^act_/, "")}
+                    {c.currency ? ` · ${c.currency}` : ""}
+                  </span>
                 )}
               </li>
             ))}

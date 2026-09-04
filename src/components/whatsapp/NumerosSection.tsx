@@ -17,6 +17,7 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ResponsiveModal } from "@/components/shared/ResponsiveModal";
 import { SecaoCard } from "@/components/shared/SecaoCard";
+import { ConectarNumeroModal } from "@/components/whatsapp/ConectarNumeroModal";
 import { ConviteConexaoModal } from "@/components/whatsapp/ConviteConexaoModal";
 import { DispositivoCard } from "@/components/whatsapp/DispositivoCard";
 import { GerenciarDispositivoModal } from "@/components/whatsapp/GerenciarDispositivoModal";
@@ -24,17 +25,12 @@ import { TabelaDeGrupos } from "@/components/whatsapp/TabelaDeGrupos";
 import { useToast } from "@/hooks/use-toast";
 import { usePlanStore } from "@/stores/planStore";
 import { useWhatsappConexoesStore } from "@/stores/whatsappConexoesStore";
-import {
-  qrDaInstancia,
-  type GrupoWhatsapp,
-  type InstanciaConexao,
-  type QrInstancia,
+import type {
+  GrupoWhatsapp,
+  InstanciaConexao,
 } from "@/services/whatsapp_conexoes.service";
 import { mensagemAmigavel } from "@/services/http-error";
 import { isUnlimited, planLimit } from "@/shared/lib/plans";
-
-/** Pareamento é interativo — 5s mantém o QR vivo sem martelar a API. */
-const POLL_QR_MS = 5_000;
 
 export function NumerosSection() {
   const { toast } = useToast();
@@ -79,35 +75,8 @@ export function NumerosSection() {
   const [nome, setNome] = useState("");
   const [criando, setCriando] = useState(false);
 
-  // ── QR / pareamento ───────────────────────────────────────────────────────
+  // ── Conexão (QR ou código de pareamento) ─────────────────────────────────
   const [qrAlvo, setQrAlvo] = useState<InstanciaConexao | null>(null);
-  const [qr, setQr] = useState<QrInstancia | null>(null);
-
-  useEffect(() => {
-    if (!qrAlvo) return;
-    let ativo = true;
-    const consultar = async () => {
-      try {
-        const r = await qrDaInstancia(qrAlvo.id);
-        if (!ativo || !montado.current) return;
-        setQr(r);
-        if (r.estado === "conectada") {
-          toast({ title: "Número conectado" });
-          setQrAlvo(null);
-          void fetch({ force: true });
-        }
-      } catch {
-        if (ativo && montado.current) setQr({ estado: "erro: falha na consulta", qrcode: null });
-      }
-    };
-    setQr(null);
-    void consultar();
-    const id = setInterval(() => void consultar(), POLL_QR_MS);
-    return () => {
-      ativo = false;
-      clearInterval(id);
-    };
-  }, [qrAlvo, fetch, toast]);
 
   // ── Link de conexão externa (item 18) ─────────────────────────────────────
   const [conviteAlvo, setConviteAlvo] = useState<InstanciaConexao | null>(null);
@@ -230,7 +199,7 @@ export function NumerosSection() {
       icon={<Smartphone className="w-5 h-5 text-emerald-500" />}
       iconBoxClassName="bg-emerald-500/10"
       title="Números"
-      description="Conecte dispositivos por QR code e sincronize os grupos deles."
+      description="Conecte por QR code ou código de pareamento e sincronize os grupos."
     >
       {children}
     </SecaoCard>
@@ -361,46 +330,21 @@ export function NumerosSection() {
           </div>
           <Button className="w-full" onClick={() => void confirmarCriacao()} disabled={criando}>
             {criando && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            Gerar QR code
+            Conectar
           </Button>
         </div>
       </ResponsiveModal>
 
-      <ResponsiveModal
-        open={!!qrAlvo}
+      <ConectarNumeroModal
+        instancia={qrAlvo}
         onOpenChange={(o) => {
           if (!o) setQrAlvo(null);
         }}
-        title="Conectar número"
-        description="No celular: WhatsApp → Aparelhos conectados → Conectar aparelho."
-      >
-        <div className="space-y-4 pb-2">
-          <div className="flex justify-center">
-            {qr?.qrcode ? (
-              <img
-                src={qr.qrcode}
-                alt="QR code para conectar o WhatsApp"
-                className="h-64 w-64 rounded-lg bg-white p-2"
-              />
-            ) : qr && qr.estado.startsWith("erro") ? (
-              <p className="py-10 text-center text-sm text-destructive">
-                Não foi possível gerar o QR code agora. Aguarde — tentamos de novo sozinhos.
-              </p>
-            ) : (
-              <div className="flex h-64 w-64 items-center justify-center rounded-lg border border-dashed border-border">
-                <span className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Gerando o QR code…
-                </span>
-              </div>
-            )}
-          </div>
-          <p className="text-xs text-muted-foreground">
-            O envio é feito pelo seu número. Uso excessivo pode levar o WhatsApp a restringi-lo —
-            respeite os limites do painel.
-          </p>
-        </div>
-      </ResponsiveModal>
+        onConectou={() => {
+          setQrAlvo(null);
+          void fetch({ force: true });
+        }}
+      />
 
       <GerenciarDispositivoModal
         instancia={gerenciarAlvo}

@@ -4,9 +4,8 @@ import { ArrowRight, MessagesSquare } from "lucide-react";
 
 import { DataCard, type DataCardField } from "@/components/shared/DataCard";
 import { Skeleton } from "@/components/ui/skeleton";
-import { isProductionHost } from "@/core/config/api.config";
 import { obterResumoDeGrupos, type ResumoDeGrupos } from "@/services/campanhas_grupos.service";
-import { usePlanStore } from "@/stores/planStore";
+import { MODULO_GRUPOS_WHATSAPP, usePlanStore } from "@/stores/planStore";
 import { formatCurrency } from "@/shared/lib/chart-utils";
 import { cn } from "@/shared/lib/utils";
 
@@ -57,17 +56,17 @@ const Numero = ({
  * Bloco secundário do Dashboard: totais das campanhas de grupos no mesmo período
  * da tela.
  *
- * Some por completo em três casos — produção (o módulo é hml-only e o endpoint é
- * MAX-only, daria 403), nenhuma campanha ativa (dashboard de quem não usa grupos
- * não ganha bloco vazio) e erro. Silêncio é proposital: é um bloco secundário e
+ * Some por completo em três casos — módulo de grupos não liberado para a conta
+ * (o endpoint é MAX-only e daria 403), nenhuma campanha ativa (dashboard de quem
+ * não usa grupos não ganha bloco vazio) e erro. Silêncio é proposital: é um bloco secundário e
  * não pode derrubar a tela principal.
  */
 export const ResumoDeGruposCard = ({ inicio, fim }: { inicio?: string; fim?: string }) => {
-  // Duas portas diferentes: host (o módulo é hml-only) E plano (o endpoint é
-  // MAX-only). Sem a segunda, conta essencial/pro em homologação dispara uma
+  // Duas portas diferentes: módulo em beta liberado para a conta E plano (o
+  // endpoint é MAX-only). Sem a segunda, conta essencial/pro dispara uma
   // request que dá 403 garantido. Ver a regra `planos-e-menus.md`.
-  const { allowsMenu, fetch: fetchPlano } = usePlanStore();
-  const habilitado = !isProductionHost() && allowsMenu("campanhas_grupos");
+  const { allowsMenu, moduloLiberado, fetch: fetchPlano } = usePlanStore();
+  const habilitado = moduloLiberado(MODULO_GRUPOS_WHATSAPP) && allowsMenu("campanhas_grupos");
 
   const [resumo, setResumo] = useState<ResumoDeGrupos | null>(null);
   const [carregando, setCarregando] = useState(false);

@@ -7,8 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { CORES_DO_STATUS } from "@/components/whatsapp/DispositivoCard";
+import { CORES_DO_STATUS, legendaDoNumero } from "@/components/whatsapp/DispositivoCard";
 import { TabelaDeGrupos } from "@/components/whatsapp/TabelaDeGrupos";
 import { useToast } from "@/hooks/use-toast";
 import { mensagemAmigavel } from "@/services/http-error";
@@ -32,10 +31,16 @@ const LinkVoltar = () => (
 );
 
 /**
- * Página de um número de WhatsApp (spec §6.2): os grupos saíram do card da
- * aba Números e vivem aqui, com o toggle "Ativo" por grupo. Uma aba só por
- * enquanto — a estrutura de Tabs fica pronta para as próximas (histórico,
- * saúde do número).
+ * Página de um número de WhatsApp: os grupos saíram do card da aba Números e
+ * vivem aqui, com o toggle "Ativo" por grupo.
+ *
+ * Sem Tabs: uma aba solitária ("Grupos") não é navegação, é decoração — volta
+ * quando existir a segunda (histórico, saúde do número).
+ *
+ * O sync traz TODOS os grupos do WhatsApp da pessoa — 493 num teste real, com
+ * 1 de trabalho. Por isso a lista abre filtrada em **Ativos**: paginar sozinho
+ * não resolve, porque com 25 por página os ativos ficam espalhados por 20
+ * páginas.
  */
 const NumeroDetalhe = () => {
   const { id } = useParams<{ id: string }>();
@@ -60,16 +65,27 @@ const NumeroDetalhe = () => {
     [grupos, instanciaId],
   );
 
-  // ── Busca (client-side: a lista já está inteira em memória) ───────────────
+  // ── Filtro de estado + busca (client-side: a lista já está em memória) ────
+  // Abre em "Ativos": é a lista que a afiliada usa. "Todos" é o modo de
+  // GARIMPO — entra nele para ativar um grupo novo e volta.
+  const [estado, setEstado] = useState<"ativos" | "todos">("ativos");
   const [busca, setBusca] = useState("");
   const termo = busca.trim().toLowerCase();
-  const filtrados = termo
-    ? gruposDoNumero.filter((g) => rotuloDoGrupo(g.nome, g.id).toLowerCase().includes(termo))
-    : gruposDoNumero;
 
-  // ── Contador X/Y (spec §6.2) ──────────────────────────────────────────────
+  const gruposAtivados = useMemo(
+    () => gruposDoNumero.filter((g) => g.ativado),
+    [gruposDoNumero],
+  );
+
+  const filtrados = useMemo(() => {
+    const base = estado === "ativos" ? gruposAtivados : gruposDoNumero;
+    if (!termo) return base;
+    return base.filter((g) => rotuloDoGrupo(g.nome, g.id).toLowerCase().includes(termo));
+  }, [estado, gruposAtivados, gruposDoNumero, termo]);
+
+  // ── Contador X/Y ──────────────────────────────────────────────────────────
   // X = ativados DESTE número; Y = limite do plano (que é global, por conta).
-  const ativos = gruposDoNumero.filter((g) => g.ativado).length;
+  const ativos = gruposAtivados.length;
   const limiteGrupos = context?.limites?.whatsapp_grupos ?? planLimit(plan, "whatsapp_grupos");
   const plural = ativos === 1 ? "grupo ativo" : "grupos ativos";
   // Sentinelas: -1 nunca aparece na tela; 0 não vira "X/0".
@@ -156,7 +172,7 @@ const NumeroDetalhe = () => {
   return (
     <DashboardLayout
       title={nome}
-      subtitle={instancia.numero_mascarado || "Número ainda não pareado"}
+      subtitle={legendaDoNumero(instancia)}
       action={
         <span className="flex items-center gap-2">
           <span className={cn("h-2 w-2 rounded-full", cores.dot)} />
@@ -169,12 +185,8 @@ const NumeroDetalhe = () => {
       <div className="space-y-4">
         <LinkVoltar />
 
-        <Tabs defaultValue="grupos" className="space-y-4">
-          <TabsList>
-            <TabsTrigger value="grupos">Grupos</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="grupos" className="mt-0 space-y-4">
+        <div className="space-y-4">
+          <div>
             <div className="flex flex-wrap items-center justify-between gap-3">
               <p className="text-sm text-muted-foreground">
                 <span className="font-semibold text-foreground tabular-nums">
@@ -199,7 +211,7 @@ const NumeroDetalhe = () => {
             </div>
 
             {gruposDoNumero.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-border p-6 text-center">
+              <div className="mt-4 rounded-xl border border-dashed border-border p-6 text-center">
                 <p className="text-sm text-muted-foreground">
                   {conectada
                     ? "Nenhum grupo ainda. Use “Sincronizar grupos”."
@@ -207,28 +219,75 @@ const NumeroDetalhe = () => {
                 </p>
               </div>
             ) : (
-              <>
-                <Input
-                  value={busca}
-                  onChange={(e) => setBusca(e.target.value)}
-                  placeholder="Buscar grupo…"
-                  className="h-9 w-full sm:max-w-[280px]"
-                />
+              <div className="mt-3 space-y-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  {/* Chips, não dropdown: os dois estados e as duas contagens
+                      ficam visíveis sem abrir nada — em 493 grupos, saber que
+                      "Ativos" tem 1 é a informação. */}
+                  <div className="flex items-center gap-1 rounded-lg border border-border bg-muted/40 p-0.5">
+                    {(
+                      [
+                        { id: "ativos" as const, rotulo: "Ativos", total: gruposAtivados.length },
+                        { id: "todos" as const, rotulo: "Todos", total: gruposDoNumero.length },
+                      ]
+                    ).map((opcao) => (
+                      <button
+                        key={opcao.id}
+                        type="button"
+                        onClick={() => setEstado(opcao.id)}
+                        aria-pressed={estado === opcao.id}
+                        className={cn(
+                          "rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
+                          estado === opcao.id
+                            ? "bg-background text-foreground shadow-sm"
+                            : "text-muted-foreground hover:text-foreground",
+                        )}
+                      >
+                        {opcao.rotulo}{" "}
+                        <span className="tabular-nums">({opcao.total})</span>
+                      </button>
+                    ))}
+                  </div>
+
+                  <Input
+                    value={busca}
+                    onChange={(e) => setBusca(e.target.value)}
+                    placeholder="Buscar grupo…"
+                    className="h-8 w-full sm:max-w-[240px]"
+                  />
+                </div>
 
                 {filtrados.length === 0 ? (
-                  <p className="py-3 text-sm text-muted-foreground">
-                    Nenhum grupo com esse nome.
-                  </p>
+                  // Estado vazio da busca — antes a tela só sumia com a lista.
+                  // O caminho de saída importa: quem busca dentro de "Ativos"
+                  // quase sempre queria buscar em "Todos".
+                  <div className="rounded-xl border border-dashed border-border p-6 text-center">
+                    <p className="text-sm text-muted-foreground">
+                      {termo
+                        ? `Nenhum grupo com “${busca.trim()}”${estado === "ativos" ? " entre os ativos" : ""}.`
+                        : "Nenhum grupo ativo ainda. Ative um grupo em “Todos”."}
+                    </p>
+                    {estado === "ativos" && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="mt-3"
+                        onClick={() => setEstado("todos")}
+                      >
+                        Buscar em todos os grupos
+                      </Button>
+                    )}
+                  </div>
                 ) : (
                   <TabelaDeGrupos
                     grupos={filtrados}
                     onAlternarAtivado={(g, ativado) => void alternarAtivado(g, ativado)}
                   />
                 )}
-              </>
+              </div>
             )}
-          </TabsContent>
-        </Tabs>
+          </div>
+        </div>
       </div>
     </DashboardLayout>
   );

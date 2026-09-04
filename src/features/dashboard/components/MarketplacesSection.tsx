@@ -34,6 +34,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { MarcaMarketplace } from "@/components/shared/BrandIcons";
 import { ResponsiveModal } from "@/components/shared/ResponsiveModal";
+import { SecaoCard } from "@/components/shared/SecaoCard";
 import { ShopeeApiHelpModal } from "@/features/dashboard/components/ShopeeApiHelpModal";
 import { ShopeeIntegrationSettings } from "@/features/dashboard/components/ShopeeIntegrationSettings";
 import { useToast } from "@/hooks/use-toast";
@@ -58,7 +59,9 @@ const MARKETPLACES: { valor: string; rotulo: string; disponivel: boolean }[] = [
 const rotuloProvedor = (provedor: string) =>
   MARKETPLACES.find((m) => m.valor === provedor)?.rotulo ?? provedor;
 
-const UM_DIA_MS = 24 * 60 * 60 * 1000;
+const UMA_HORA_MS = 60 * 60 * 1000;
+/** A sync roda de hora em hora; 6h parada já é anomalia, não atraso normal. */
+const ATRASO_MS = 6 * UMA_HORA_MS;
 
 const formatarSync = (iso: string) =>
   new Intl.DateTimeFormat("pt-BR", {
@@ -68,18 +71,41 @@ const formatarSync = (iso: string) =>
     minute: "2-digit",
   }).format(new Date(iso));
 
+/**
+ * "há 14 dias" / "há 7 horas".
+ *
+ * O tamanho do atraso é a informação: uma conta parada há 14 dias tem outro
+ * problema (e outra urgência) que uma parada há 7 horas, e a data crua obriga
+ * a afiliada a fazer essa conta de cabeça.
+ */
+const descreverAtraso = (iso: string): string => {
+  const horas = Math.floor((Date.now() - new Date(iso).getTime()) / UMA_HORA_MS);
+  if (horas >= 48) return `há ${Math.floor(horas / 24)} dias`;
+  if (horas >= 2) return `há ${horas} horas`;
+  return "há mais de 1 hora";
+};
+
+/**
+ * Nomes de campo deliberadamente NEUTROS.
+ *
+ * Com `app_id` + `senha`, o Chrome lia o par como usuário/senha de login e
+ * preenchia sozinho: no teste o App ID veio com "relacionamento@marketdash.
+ * com.br". A afiliada salva sem perceber e a integração passa a falhar com
+ * `10020`. `ref_publica`/`ref_secreta` não casam com nenhuma heurística de
+ * login — o mapeamento para o payload (`app_id`/`senha`) é feito no submit.
+ */
 const schema = z.object({
   label: z
     .string()
     .trim()
     .max(64, "No máximo 64 caracteres")
     .optional(),
-  app_id: z
+  ref_publica: z
     .string()
     .trim()
     .min(1, "App ID é obrigatório")
     .regex(/^\d+$/, "Use o App ID numérico da Shopee (ex.: 18191340007), não o e-mail."),
-  senha: z.string().min(1, "Senha é obrigatória"),
+  ref_secreta: z.string().min(1, "Senha é obrigatória"),
 });
 
 type FormData = z.infer<typeof schema>;
@@ -186,8 +212,8 @@ export const MarketplacesSection = () => {
       const nova = await criarIntegracao({
         provedor,
         label,
-        app_id: data.app_id.trim(),
-        senha: data.senha,
+        app_id: data.ref_publica.trim(),
+        senha: data.ref_secreta,
       });
       setContas((atual) => {
         const semDuplicada = atual.filter((c) => c.id !== nova.id);
@@ -245,7 +271,33 @@ export const MarketplacesSection = () => {
   const conectados = new Set(contas.map((c) => c.provedor));
   const syncPausada = !!sync?.sync_paused_at;
   const syncAtrasada =
-    !!sync?.last_sync_at && !syncPausada && Date.now() - new Date(sync.last_sync_at).getTime() > UM_DIA_MS;
+    !!sync?.last_sync_at && !syncPausada && Date.now() - new Date(sync.last_sync_at).getTime() > ATRASO_MS;
+
+  /**
+   * Sync parada tem que ser VISÍVEL — a de uma aluna ficou 14 dias parada e o
+   * único sinal na tela era um "sync atrasada" cinza-âmbar de 12px ao lado da
+   * data. Vira o mesmo badge de "Reconexão necessária", com o tamanho do
+   * atraso escrito.
+   */
+  const avisoDeSync = (ultima: string | null | undefined) => {
+    if (syncPausada) {
+      return (
+        <Badge className="bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/25 gap-1">
+          <AlertTriangle className="w-3.5 h-3.5" />
+          Reconexão necessária
+        </Badge>
+      );
+    }
+    if (syncAtrasada && ultima) {
+      return (
+        <Badge className="bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/25 gap-1">
+          <AlertTriangle className="w-3.5 h-3.5" />
+          Sincronização parada {descreverAtraso(ultima)}
+        </Badge>
+      );
+    }
+    return null;
+  };
 
   /**
    * A engrenagem sai só na PRIMEIRA conta Shopee.
@@ -265,29 +317,27 @@ export const MarketplacesSection = () => {
 
   return (
     <>
-      <div className="bg-card border border-border rounded-2xl p-4 md:p-5">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between mb-5">
-          <div className="flex items-start gap-3 md:gap-4 min-w-0">
-            <div className="w-11 h-11 md:w-12 md:h-12 rounded-xl bg-orange-500/10 flex items-center justify-center flex-shrink-0">
-              <Store className="w-6 h-6 text-orange-500" />
-            </div>
-            <div className="min-w-0">
-              <h3 className="text-base font-bold text-foreground">Contas de marketplace</h3>
-              <p className="text-xs text-muted-foreground">
-                A busca de ofertas e a conversão de links assinam com a <strong>sua</strong>{" "}
-                credencial — é ela que garante a comissão na sua conta.
-              </p>
-            </div>
-          </div>
+      <SecaoCard
+        icon={<Store className="text-orange-500" />}
+        iconBoxClassName="bg-orange-500/10"
+        title="Contas de marketplace"
+        description={
+          <>
+            A busca de ofertas e a conversão de links assinam com a <strong>sua</strong>{" "}
+            credencial — é ela que garante a comissão na sua conta.
+          </>
+        }
+        action={
           <Button
-            className="min-h-10 w-full sm:w-auto flex-shrink-0"
+            size="sm"
+            className="w-full sm:w-auto"
             onClick={() => setPasso("escolher")}
           >
             <Plus className="w-4 h-4 mr-2" />
             Adicionar conta
           </Button>
-        </div>
-
+        }
+      >
         {carregando ? (
           <div className="space-y-3">
             {[0, 1].map((i) => (
@@ -324,13 +374,13 @@ export const MarketplacesSection = () => {
                 <MarcaMarketplace provedor="shopee" className="h-11 w-11" />
                 <div className="min-w-0 flex-1">
                   <p className="font-medium text-foreground">Shopee — sincronização</p>
-                  <p className="text-xs text-muted-foreground">
-                    {syncPausada
-                      ? "Reconexão necessária"
-                      : sync.last_sync_at
+                  {avisoDeSync(sync.last_sync_at) ?? (
+                    <p className="text-xs text-muted-foreground">
+                      {sync.last_sync_at
                         ? `Última sync: ${formatarSync(sync.last_sync_at)}`
                         : "Ainda não sincronizou"}
-                  </p>
+                    </p>
+                  )}
                 </div>
                 <Button
                   variant="ghost"
@@ -350,13 +400,13 @@ export const MarketplacesSection = () => {
                 <MarcaMarketplace provedor="shopee" className="h-11 w-11" />
                 <div className="min-w-0 flex-1">
                   <p className="font-medium text-foreground">Shopee — sincronização</p>
-                  <p className="text-xs text-muted-foreground">
-                    {syncPausada
-                      ? "Reconexão necessária"
-                      : sync?.last_sync_at
+                  {avisoDeSync(sync?.last_sync_at) ?? (
+                    <p className="text-xs text-muted-foreground">
+                      {sync?.last_sync_at
                         ? `Última sync: ${formatarSync(sync.last_sync_at)}`
                         : "Ainda não sincronizou"}
-                  </p>
+                    </p>
+                  )}
                 </div>
                 <Button
                   variant="ghost"
@@ -397,28 +447,15 @@ export const MarketplacesSection = () => {
                       nada. O ajuste fino mora na engrenagem. */}
                   {conta.id === idDaEngrenagem && sync && (
                     <div className="flex flex-wrap items-center gap-2 pt-1">
-                      {syncPausada ? (
-                        <Badge className="bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/25 gap-1">
-                          <AlertTriangle className="w-3.5 h-3.5" />
-                          Reconexão necessária
-                        </Badge>
-                      ) : sync.last_sync_at ? (
-                        <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
-                          <span
-                            className={`w-1.5 h-1.5 rounded-full ${
-                              syncAtrasada ? "bg-amber-500" : "bg-emerald-500"
-                            }`}
-                          />
-                          Última sync: {formatarSync(sync.last_sync_at)}
-                        </span>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">Ainda não sincronizou</span>
-                      )}
-                      {syncAtrasada && (
-                        <span className="text-xs text-amber-600 dark:text-amber-400">
-                          sync atrasada
-                        </span>
-                      )}
+                      {avisoDeSync(sync.last_sync_at) ??
+                        (sync.last_sync_at ? (
+                          <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                            Última sync: {formatarSync(sync.last_sync_at)}
+                          </span>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">Ainda não sincronizou</span>
+                        ))}
                     </div>
                   )}
                 </div>
@@ -463,7 +500,7 @@ export const MarketplacesSection = () => {
             ))}
           </ul>
         )}
-      </div>
+      </SecaoCard>
 
       {/* Engrenagem: sincronização de comissões.
           Era um segundo card do mesmo tamanho do de contas, para uma conta só —
@@ -528,6 +565,27 @@ export const MarketplacesSection = () => {
         description="As credenciais ficam cifradas e só são usadas para assinar suas próprias buscas e links."
       >
         <form onSubmit={handleSubmit(onSubmit)} autoComplete="off" className="space-y-4 pb-2">
+          {/* Isca de autofill. O Chrome ignora `autocomplete="off"` quando
+              acha que o formulário é de login e preenche o PRIMEIRO par
+              usuário/senha que encontra — que era o App ID + Secret. Estes
+              dois campos, invisíveis e fora da ordem de tabulação, absorvem o
+              preenchimento e nunca são lidos no submit. */}
+          <input
+            type="text"
+            name="username"
+            autoComplete="username"
+            tabIndex={-1}
+            aria-hidden="true"
+            className="sr-only"
+          />
+          <input
+            type="password"
+            name="password"
+            autoComplete="current-password"
+            tabIndex={-1}
+            aria-hidden="true"
+            className="sr-only"
+          />
           <button
             type="button"
             onClick={() => setPasso("escolher")}
@@ -552,27 +610,35 @@ export const MarketplacesSection = () => {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="shopee-open-api-id">App ID</Label>
+            <Label htmlFor="ref-publica">App ID</Label>
             <Input
-              id="shopee-open-api-id"
+              id="ref-publica"
               inputMode="numeric"
               autoComplete="off"
+              data-lpignore="true"
+              data-1p-ignore
+              data-form-type="other"
               placeholder="Ex.: 18191340007"
-              {...register("app_id")}
+              {...register("ref_publica")}
             />
-            {errors.app_id && <p className="text-sm text-destructive">{errors.app_id.message}</p>}
+            {errors.ref_publica && (
+              <p className="text-sm text-destructive">{errors.ref_publica.message}</p>
+            )}
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="shopee-open-api-key">Senha / Secret</Label>
+            <Label htmlFor="ref-secreta">Senha / Secret</Label>
             <div className="relative">
               <Input
-                id="shopee-open-api-key"
+                id="ref-secreta"
                 type={mostrarSenha ? "text" : "password"}
                 autoComplete="new-password"
+                data-lpignore="true"
+                data-1p-ignore
+                data-form-type="other"
                 placeholder="Senha da API"
                 className="pr-10"
-                {...register("senha")}
+                {...register("ref_secreta")}
               />
               <button
                 type="button"
@@ -583,7 +649,9 @@ export const MarketplacesSection = () => {
                 {mostrarSenha ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
             </div>
-            {errors.senha && <p className="text-sm text-destructive">{errors.senha.message}</p>}
+            {errors.ref_secreta && (
+              <p className="text-sm text-destructive">{errors.ref_secreta.message}</p>
+            )}
             {provedor === "shopee" && (
               <ShopeeApiHelpModal
                 trigger={

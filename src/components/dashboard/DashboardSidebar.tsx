@@ -26,8 +26,10 @@ const DashboardSidebar = () => {
   // Cadeado só depois do contexto real chegar (fallback do store = essencial);
   // a rota tem RequirePlan, então liberar o clique durante o fetch é seguro.
   const planReady = usePlanStore((s) => !!s.context);
-  // Gate de ambiente (hmlOnly): item some do menu inteiro em produção, não
-  // fica só com cadeado (o cadeado é gating por plano, que é outra coisa).
+  // Gate de MÓDULO EM BETA: item some do menu inteiro enquanto a conta não
+  // tem o módulo liberado, não fica só com cadeado (o cadeado é gating por
+  // plano, que é outra coisa). Depende de `planReady` acima para re-renderizar
+  // quando o contexto chega — `menuVisivel` lê o store fora do React.
   const visibleMenu = menuVisivel();
 
   useEffect(() => {

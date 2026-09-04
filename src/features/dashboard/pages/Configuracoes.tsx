@@ -8,6 +8,7 @@ import {
   CreditCard,
   ChevronLeft,
   ChevronRight,
+  SlidersHorizontal,
   Store,
 } from "lucide-react";
 import { WhatsAppLogo } from "@/components/shared/BrandIcons";
@@ -16,7 +17,6 @@ import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/shared/lib/utils";
 import { SecaoCard } from "@/components/shared/SecaoCard";
@@ -26,20 +26,26 @@ import { InstagramConnectionSettings } from "@/features/dashboard/components/Ins
 import { NumerosSection } from "@/components/whatsapp/NumerosSection";
 import { EnvioSection } from "@/components/whatsapp/EnvioSection";
 import { useTaxSettingsStore } from "@/stores/taxSettingsStore";
-import { usePlanStore } from "@/stores/planStore";
+import { MODULO_GRUPOS_WHATSAPP, usePlanStore } from "@/stores/planStore";
 import { isUnlimited } from "@/shared/lib/plans";
 import { useIsMobile } from "@/shared/hooks/use-mobile";
-import { isProductionHost } from "@/core/config/api.config";
 
-// Sub-navegação vertical agrupada (spec Correções de Configurações §0):
-// Conta · Integrações (Marketplaces/Facebook/Instagram/WhatsApp) · Cálculos.
-// "Dispositivos" e "Canais" não existem mais; Envio virou aba dentro de
-// WhatsApp; Bloqueios e Resumo diário foram removidos do produto.
+// Sub-navegação vertical agrupada:
+// Conta · Integrações (Marketplaces/Facebook/Instagram/WhatsApp) ·
+// Operação (Parâmetros) · Cálculos (Impostos).
+//
+// "Envio" saiu de dentro do WhatsApp e virou **Parâmetros**, em Operação:
+// janela de envio não é configuração de canal — vale para a operação inteira,
+// e como aba de WhatsApp ela ficava invisível para quem entra por Campanhas.
+// Com isso o WhatsApp fica só com Números, sem abas internas.
+// "Dispositivos" e "Canais" não existem mais; Bloqueios e Resumo diário foram
+// removidos do produto.
 type SecaoId =
   | "marketplaces"
   | "facebook"
   | "instagram"
   | "whatsapp"
+  | "parametros"
   | "impostos"
   | "assinatura";
 
@@ -47,7 +53,7 @@ type SecaoId =
 // continuam abrindo o lugar certo. A seção deriva da URL (não de useState):
 // navegação interna com ?tab=... ressincroniza sozinha e o Back do celular
 // volta à lista.
-const resolveSecao = (params: URLSearchParams): SecaoId | null => {
+const resolveSecao = (params: URLSearchParams, moduloGrupos: boolean): SecaoId | null => {
   const t = params.get("tab");
   // Retorno do OAuth do Facebook (?code/?error) cai na seção Facebook Ads —
   // mas só enquanto não houver `?tab=` explícito. O componente do Facebook
@@ -58,17 +64,21 @@ const resolveSecao = (params: URLSearchParams): SecaoId | null => {
   if (t === "shopee" || t === "marketplaces") return "marketplaces";
   if (t === "facebook" || t === "canais") return "facebook";
   if (t === "instagram") return "instagram";
-  // Abas antigas de Dispositivos apontam todas para WhatsApp (gate de
-  // ambiente preservado — em produção a seção não existe).
+  // "Envio" era aba do WhatsApp e virou a seção Parâmetros — o deep-link
+  // antigo tem que cair no lugar novo, não no WhatsApp sem abas.
+  if (t === "envio" || t === "parametros") {
+    return moduloGrupos ? "parametros" : null;
+  }
+  // Abas antigas de Dispositivos apontam todas para WhatsApp (gate do módulo
+  // preservado — sem ele liberado a seção não existe).
   if (
     t === "whatsapp" ||
     t === "numeros" ||
-    t === "envio" ||
     t === "bloqueios" ||
     t === "blacklist" ||
     t === "resumo"
   ) {
-    return isProductionHost() ? null : "whatsapp";
+    return moduloGrupos ? "whatsapp" : null;
   }
   if (t === "impostos") return "impostos";
   if (t === "assinatura") return "assinatura";
@@ -92,21 +102,31 @@ const GRUPOS: Grupo[] = [
       { id: "whatsapp", label: "WhatsApp", icon: WhatsAppLogo },
     ],
   },
+  {
+    label: "Operação",
+    secoes: [{ id: "parametros", label: "Parâmetros", icon: SlidersHorizontal }],
+  },
   { label: "Cálculos", secoes: [{ id: "impostos", label: "Impostos", icon: Receipt }] },
 ];
 
 const Configuracoes = () => {
   const isMobile = useIsMobile();
-  const showWhatsapp = !isProductionHost();
+  // Módulo de disparo em grupo: governa WhatsApp E Operação › Parâmetros
+  // (Parâmetros só existe por causa do envio em grupo). Flag do backend, não
+  // hostname — o gate por host era build-time e travava liberar em beta.
+  const { moduloLiberado, fetch: fetchPlan } = usePlanStore();
+  const showGrupos = moduloLiberado(MODULO_GRUPOS_WHATSAPP);
   // Instagram liberado em produção em 01/09/2026 (App Review aprovado +
-  // migrations 052-056 aplicadas). O gate de ambiente segue só no WhatsApp.
+  // migrations 052-056 aplicadas). O gate segue só no módulo de grupos.
   const showInstagram = true;
+
+  useEffect(() => {
+    void fetchPlan();
+  }, [fetchPlan]);
 
   // null = lista (mobile). No desktop, null vira "marketplaces".
   const [searchParams, setSearchParams] = useSearchParams();
-  const secao = resolveSecao(searchParams);
-  // ?tab=envio abre WhatsApp já na aba Envio (deep-link antigo).
-  const whatsappTab = searchParams.get("tab") === "envio" ? "envio" : "numeros";
+  const secao = resolveSecao(searchParams, showGrupos);
 
   // Push no mobile (Back volta pra lista); replace no desktop (Back sai da
   // página, como as Tabs antigas).
@@ -128,9 +148,15 @@ const Configuracoes = () => {
     setSearchParams(next);
   };
 
-  const grupos = showWhatsapp
+  // Grupo que fica sem seção nenhuma some inteiro — cabeçalho "OPERAÇÃO"
+  // sozinho, sem item embaixo, é ruído.
+  const grupos = (showGrupos
     ? GRUPOS
-    : GRUPOS.map((g) => ({ ...g, secoes: g.secoes.filter((s) => s.id !== "whatsapp") }));
+    : GRUPOS.map((g) => ({
+        ...g,
+        secoes: g.secoes.filter((s) => s.id !== "whatsapp" && s.id !== "parametros"),
+      }))
+  ).filter((g) => g.secoes.length > 0);
 
   const ativa: SecaoId = secao ?? "marketplaces";
 
@@ -139,9 +165,10 @@ const Configuracoes = () => {
       {ativa === "marketplaces" && <MarketplacesSection />}
       {ativa === "facebook" && <FacebookSecao />}
       {ativa === "instagram" && showInstagram && <InstagramSecao />}
-      {ativa === "whatsapp" && showWhatsapp && <WhatsappSecao tabInicial={whatsappTab} />}
+      {ativa === "whatsapp" && showGrupos && <WhatsappSecao />}
+      {ativa === "parametros" && showGrupos && <ParametrosSecao />}
       {ativa === "impostos" && <TaxSettingsCard />}
-      {ativa === "assinatura" && <AssinaturaCard showWhatsapp={showWhatsapp} />}
+      {ativa === "assinatura" && <AssinaturaCard />}
     </div>
   );
 
@@ -259,32 +286,33 @@ const InstagramSecao = () => (
   </SecaoCard>
 );
 
-// WhatsApp reúne Números e Envio (§6): conexão externa como as demais
-// integrações, com o macro de envio como aba irmã — estrutura pronta para
-// receber novas abas (histórico, saúde do número).
-const WhatsappSecao = ({ tabInicial }: { tabInicial: string }) => (
-  <Tabs defaultValue={tabInicial} className="min-w-0">
-    <TabsList className="mb-3">
-      <TabsTrigger value="numeros">Números</TabsTrigger>
-      <TabsTrigger value="envio">Envio</TabsTrigger>
-    </TabsList>
-    <TabsContent value="numeros" className="mt-0">
-      <NumerosSection />
-    </TabsContent>
-    <TabsContent value="envio" className="mt-0">
-      <EnvioSection />
-    </TabsContent>
-  </Tabs>
+// WhatsApp fica SÓ com Números: uma aba solitária ("Números") não é
+// navegação, é decoração. "Envio" virou Operação › Parâmetros.
+const WhatsappSecao = () => <NumerosSection />;
+
+// Operação › Parâmetros — nasce com um bloco só (Janela de envio). Bloco vazio
+// de "o que ainda vem" não entra: a tela ficaria prometendo o que não faz.
+const ParametrosSecao = () => (
+  <SecaoCard
+    icon={<SlidersHorizontal className="w-5 h-5 text-cyan-500" />}
+    iconBoxClassName="bg-cyan-500/10"
+    title="Janela de envio"
+    description="Vale para a operação inteira. Cada campanha pode ser mais restritiva, nunca mais ampla."
+  >
+    <EnvioSection />
+  </SecaoCard>
 );
 
-const USO_ROTULOS: { chave: string; rotulo: string; whatsapp?: boolean }[] = [
+// "Grupos ativos" NÃO entra: o Max vai ter teto, ele só não foi definido
+// ainda. Publicar "Ilimitado" agora vira promessa que a gente teria de tirar
+// depois — a linha volta junto com o número.
+const USO_ROTULOS: { chave: string; rotulo: string }[] = [
   { chave: "links", rotulo: "Links rastreáveis" },
   { chave: "paginas_captura", rotulo: "Páginas de captura" },
-  { chave: "whatsapp_numeros", rotulo: "Números", whatsapp: true },
-  { chave: "whatsapp_grupos", rotulo: "Grupos ativos", whatsapp: true },
+  { chave: "whatsapp_numeros", rotulo: "Números" },
 ];
 
-function AssinaturaCard({ showWhatsapp }: { showWhatsapp: boolean }) {
+function AssinaturaCard() {
   const { context, fetch, loading } = usePlanStore();
 
   useEffect(() => {
@@ -305,12 +333,8 @@ function AssinaturaCard({ showWhatsapp }: { showWhatsapp: boolean }) {
 
   const uso = context?.uso;
   const limites = context?.limites as Record<string, number> | undefined;
-  const usoChave = (chave: string): number | undefined => {
-    if (!uso) return undefined;
-    // O backend conta grupos ativados em "whatsapp_grupos_ativos".
-    if (chave === "whatsapp_grupos") return uso.whatsapp_grupos_ativos;
-    return (uso as Record<string, number | undefined>)[chave];
-  };
+  const usoChave = (chave: string): number | undefined =>
+    uso ? (uso as Record<string, number | undefined>)[chave] : undefined;
 
   return (
     <SecaoCard
@@ -342,17 +366,21 @@ function AssinaturaCard({ showWhatsapp }: { showWhatsapp: boolean }) {
           <div>
             <p className="text-xs font-medium text-muted-foreground mb-1.5">Uso do plano</p>
             <dl className="divide-y divide-border rounded-lg border border-border">
-              {USO_ROTULOS.filter((r) => !r.whatsapp || showWhatsapp).map((r) => {
+              {USO_ROTULOS.map((r) => {
                 const limite = limites[r.chave];
                 const consumo = usoChave(r.chave);
                 if (limite === undefined) return null;
                 // Sentinelas: -1 = ilimitado; 0 = o plano não tem o recurso
                 // (mostra "—", nunca "0/0").
+                //
+                // Ilimitado exibe SÓ "Ilimitado": o "1 · Ilimitado" de antes
+                // juntava consumo e teto num par que não significa nada — sem
+                // teto, o consumo não mede coisa nenhuma.
                 const valor =
                   limite === 0
                     ? "—"
                     : isUnlimited(limite)
-                      ? `${consumo ?? 0} · Ilimitado`
+                      ? "Ilimitado"
                       : `${consumo ?? 0}/${limite}`;
                 return (
                   <div key={r.chave} className="flex items-center justify-between px-3 py-1.5 text-sm">

@@ -89,10 +89,11 @@ export interface SubIdOptionsResponse {
   options: SubIdOption[];
 }
 
-/** Conta selecionada como o status devolve: id "act_..." + nome persistido (null se desconhecido). */
+/** Conta selecionada como o status devolve: id "act_..." + nome e moeda persistidos (null se desconhecidos). */
 export interface FacebookSelectedAdAccount {
   id: string;
   name: string | null;
+  currency?: string | null;
 }
 
 export interface FacebookIntegrationStatus {

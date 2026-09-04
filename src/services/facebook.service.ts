@@ -63,9 +63,22 @@ export const selectFacebookAdAccount = async (
   return (await res.json()) as FacebookIntegrationStatus;
 };
 
+/**
+ * Preenche nome e moeda das contas JÁ selecionadas, consultando a Graph no
+ * backend. Auto-cura da lista que voltou a exibir "act_266908603365617" cru
+ * (o metadado só nascia no momento da seleção). Fica fora do `/status` de
+ * propósito: a tela chama isto depois do primeiro paint e só quando falta nome.
+ */
+export const resolveFacebookAdAccountNames = async (): Promise<FacebookIntegrationStatus> => {
+  const url = getApiUrl("/api/v1/facebook/ad-accounts/resolver-nomes");
+  const res = await fetchWithAuth(url, { method: "POST" });
+  if (!res.ok) throw await erroDaResposta(res, "Erro ao resolver nomes das contas");
+  return (await res.json()) as FacebookIntegrationStatus;
+};
+
 export const selectFacebookAdAccounts = async (
   accountIds: string[],
-  accounts?: { id: string; name: string | null }[],
+  accounts?: { id: string; name: string | null; currency?: string | null }[],
 ): Promise<FacebookIntegrationStatus> => {
   const url = getApiUrl("/api/v1/facebook/ad-accounts");
   const res = await fetchWithAuth(url, {

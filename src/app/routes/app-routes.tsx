@@ -60,7 +60,8 @@ import { AdminLayout } from "@/features/admin/components/AdminLayout";
 import PlanosPage from "@/features/dashboard/pages/PlanosPage";
 import { RequirePlan } from "@/app/routes/RequirePlan";
 import { RequireAdmin } from "@/app/routes/RequireAdmin";
-import { isProductionHost } from "@/core/config/api.config";
+import { RequireModulo } from "@/app/routes/RequireModulo";
+import { MODULO_GRUPOS_WHATSAPP } from "@/stores/planStore";
 
 // Loading fallback component
 const LoadingFallback = () => (
@@ -221,42 +222,39 @@ export const AppRoutes = () => {
           path="/dashboard/automacoes/:id"
           element={<ProtectedRoute element={<RequirePlan menuKey="automacoes" element={<AutomacaoEditor />} />} />}
         />
-        {!isProductionHost() && (
-          <>
-            {/* Campanhas de grupos de WhatsApp (F2) — hml-only: o backend do
-                módulo ainda não está em produção. */}
-            <Route
-              path="/dashboard/grupos"
-              element={<ProtectedRoute element={<RequirePlan menuKey="campanhas_grupos" element={<CampanhasGrupos />} />} />}
-            />
-            <Route
-              path="/dashboard/grupos/:id"
-              element={<ProtectedRoute element={<RequirePlan menuKey="campanhas_grupos" element={<CampanhaGrupoDetalhe />} />} />}
-            />
-            {/* Editor de roteiro (F4): a sequência de passos de uma campanha. */}
-            <Route
-              path="/dashboard/grupos/:campanhaId/roteiros/:roteiroId"
-              element={<ProtectedRoute element={<RequirePlan menuKey="campanhas_grupos" element={<RoteiroEditor />} />} />}
-            />
-            {/* Busca de ofertas (F5) — mesmo gate de ambiente do módulo de grupos. */}
-            <Route
-              path="/dashboard/ofertas"
-              element={<ProtectedRoute element={<RequirePlan menuKey="ofertas" element={<Ofertas />} />} />}
-            />
-            {/* Templates de mensagem (F4) — mesmo gate de ambiente do módulo de grupos. */}
-            <Route
-              path="/dashboard/templates"
-              element={<ProtectedRoute element={<RequirePlan menuKey="templates" element={<Templates />} />} />}
-            />
-            {/* Página de um número de WhatsApp (spec §6.2) — grupos e toggle
-                "Ativo". Sem RequirePlan: Configurações é de todos os planos e
-                o backend já exige MAX; mesmo gate de ambiente do módulo. */}
-            <Route
-              path="/dashboard/configuracoes/numeros/:id"
-              element={<ProtectedRoute element={<NumeroDetalhe />} />}
-            />
-          </>
-        )}
+        {/* Módulo de disparo em grupo — a rota EXISTE sempre e o
+            `RequireModulo` decide, esperando o contexto de plano. O gate por
+            hostname saiu: era build-time e liberar um beta exigia redeploy. */}
+        <Route
+          path="/dashboard/grupos"
+          element={<ProtectedRoute element={<RequireModulo modulo={MODULO_GRUPOS_WHATSAPP} element={<RequirePlan menuKey="campanhas_grupos" element={<CampanhasGrupos />} />} />} />}
+        />
+        <Route
+          path="/dashboard/grupos/:id"
+          element={<ProtectedRoute element={<RequireModulo modulo={MODULO_GRUPOS_WHATSAPP} element={<RequirePlan menuKey="campanhas_grupos" element={<CampanhaGrupoDetalhe />} />} />} />}
+        />
+        {/* Editor de roteiro (F4): a sequência de passos de uma campanha. */}
+        <Route
+          path="/dashboard/grupos/:campanhaId/roteiros/:roteiroId"
+          element={<ProtectedRoute element={<RequireModulo modulo={MODULO_GRUPOS_WHATSAPP} element={<RequirePlan menuKey="campanhas_grupos" element={<RoteiroEditor />} />} />} />}
+        />
+        {/* Busca de ofertas (F5) — mesmo módulo das campanhas de grupos. */}
+        <Route
+          path="/dashboard/ofertas"
+          element={<ProtectedRoute element={<RequireModulo modulo={MODULO_GRUPOS_WHATSAPP} element={<RequirePlan menuKey="ofertas" element={<Ofertas />} />} />} />}
+        />
+        {/* Templates de mensagem (F4) — mesmo módulo das campanhas de grupos. */}
+        <Route
+          path="/dashboard/templates"
+          element={<ProtectedRoute element={<RequireModulo modulo={MODULO_GRUPOS_WHATSAPP} element={<RequirePlan menuKey="templates" element={<Templates />} />} />} />}
+        />
+        {/* Página de um número de WhatsApp — grupos e toggle "Ativo". Sem
+            RequirePlan: Configurações é de todos os planos e o backend já
+            exige MAX; o gate aqui é o do módulo. */}
+        <Route
+          path="/dashboard/configuracoes/numeros/:id"
+          element={<ProtectedRoute element={<RequireModulo modulo={MODULO_GRUPOS_WHATSAPP} element={<NumeroDetalhe />} />} />}
+        />
         <Route path="/dashboard/configuracoes" element={<ProtectedRoute element={<Configuracoes />} />} />
         <Route path="/dashboard/planos" element={<ProtectedRoute element={<PlanosPage />} />} />
         <Route path="/dashboard/indique" element={<ProtectedRoute element={<IndiquePage />} />} />

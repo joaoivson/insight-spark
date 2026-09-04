@@ -1,7 +1,7 @@
 # Contexto — MarketDash Frontend
 
 > **Estado atual do repositório.** Sobrescreva as seções ao mudarem — o
-> histórico vive em `DIARIO.md`. Última atualização: **2026-08-27**.
+> histórico vive em `DIARIO.md`. Última atualização: **2026-09-04**.
 >
 > Esta primeira versão foi montada por inspeção do código, do `CHANGELOG.md`
 > da raiz e do `git log` de `develop`. Onde ela divergir do código, **o
@@ -39,13 +39,17 @@ Componente **nunca** chama API direto.
   `SecaoCard` (a régua de densidade de TODAS as abas de Configurações — mexer
   aqui muda em todas de uma vez, que é o ponto)
 - `src/components/whatsapp/` — Configurações › Integrações › **WhatsApp**
-  (desde 03/09/2026; era a aba "Dispositivos"), com abas Números e Envio.
+  (desde 03/09/2026; era a aba "Dispositivos"). Desde 04/09 **sem abas
+  internas**: a seção é só Números, e "Envio" virou Operação › **Parâmetros**
+  (mesmo `EnvioSection`, agora dentro de um `SecaoCard`).
   `NumerosSection` orquestra o grid; `DispositivoCard` é o card compacto e
   clicável (sem grupos dentro — abre `/dashboard/configuracoes/numeros/:id`,
-  a página `NumeroDetalhe`), `TabelaDeGrupos` é a tabela→DataCard de 3 colunas
-  (Ativo/Nome/Participantes) e `GerenciarDispositivoModal` renomeia/remove.
+  a página `NumeroDetalhe`, também sem abas), `ConectarNumeroModal` oferece
+  **QR ou código de pareamento**, `TabelaDeGrupos` é a tabela→DataCard de 3
+  colunas (Ativo/Nome/Participantes) **paginada** (25/50/100) e
+  `GerenciarDispositivoModal` renomeia/remove.
   `GruposDoDispositivo`, `BlacklistSection` e `WhatsappResumoSettings` foram
-  removidos nessa mesma rodada
+  removidos em 03/09
 - `src/shared/lib/` — `date.ts` (helpers `*BR`), `kpi.ts`, `plans.ts`,
   `tax.ts`, `chart-utils.ts`, `storage.ts`, `supabase.ts`
 
