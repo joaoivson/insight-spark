@@ -159,6 +159,12 @@ const Dashboard = () => {
               setCategoryFilter("");
               setSubIdFilter("");
               setDateRange({});
+              // Sem período = histórico inteiro, e agora é a API que corta por
+              // data: sem rebuscar, a tela diria "sem filtro" mostrando só a
+              // fatia que já estava carregada.
+              fetchRows({});
+              fetchAdSpends({});
+              fetchClicks({});
             }}
             hasActive={!!dateRange.from || !!dateRange.to || !!statusFilter || !!categoryFilter || !!subIdFilter}
             loading={loading}

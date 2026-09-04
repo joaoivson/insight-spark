@@ -14,6 +14,7 @@ type DatasetState = {
   hydrated: boolean;
   lastUpdated: number | null;
   loadedUserId: string | null; // ID do usuário que carregou os dados em memória
+  loadedRangeKey: string | null; // Período que os dados em memória cobrem
   fetchRows: (opts?: { range?: DateRange; force?: boolean; limit?: number; offset?: number }) => Promise<DatasetRow[]>;
   invalidate: () => void;
   persist: (rows: DatasetRow[]) => void;
@@ -21,78 +22,130 @@ type DatasetState = {
 
 const CACHE_KEY_BASE = "dataset-cache";
 
-const rangeToParams = (range?: DateRange) => {
-  const startDate = range?.from ? new Date(range.from as any).toISOString().slice(0, 10) : undefined;
-  const endDate = range?.to ? new Date(range.to as any).toISOString().slice(0, 10) : undefined;
-  return { startDate, endDate };
+// Acima disto o `JSON.stringify` trava a thread e o `setItem` estoura a cota do
+// localStorage (5–10 MB por origem, compartilhada com cliques e investimentos).
+// A gravação falhava em silêncio justamente na conta grande — a que mais
+// precisava de cache: ~470 bytes/linha, então 67 mil linhas são ~30 MB.
+const MAX_CACHE_ROWS = 8000;
+
+// Data pelos componentes LOCAIS, não por `toISOString()`: o range vem do picker
+// como meia-noite local, e converter para UTC mandava para a API um dia diferente
+// do que a usuária escolheu (o filtro do cliente, esse, sempre comparou local).
+// Em UTC-3 o efeito não aparece — mas é o mesmo helper para qualquer fuso.
+const toDateParam = (value: Date | string) => {
+  const d = new Date(value as any);
+  if (isNaN(d.getTime())) return undefined;
+  const mes = String(d.getMonth() + 1).padStart(2, "0");
+  const dia = String(d.getDate()).padStart(2, "0");
+  return `${d.getFullYear()}-${mes}-${dia}`;
 };
 
-const getInitialState = () => {
-  const userId = getUserId();
-  const cacheKey = getScopedKey(CACHE_KEY_BASE);
-  const cached = safeGetJSON<{ rows: DatasetRow[]; lastUpdated?: number }>(cacheKey);
-  if (cached && Array.isArray(cached.rows)) {
-    return {
-      rows: cached.rows,
-      fullRows: cached.rows,
-      hydrated: true,
-      lastUpdated: cached.lastUpdated ?? Date.now(),
-      loadedUserId: userId,
-    };
+const rangeToParams = (range?: DateRange) => ({
+  startDate: range?.from ? toDateParam(range.from) : undefined,
+  endDate: range?.to ? toDateParam(range.to) : undefined,
+});
+
+// O cache é por PERÍODO, não por usuário só: sem isso o cache de "7 dias" era
+// devolvido para quem pedia "mês atual" (e vice-versa), e a tela mostrava o
+// período errado até a revalidação em background terminar.
+const rangeKey = (range?: DateRange) => {
+  const { startDate, endDate } = rangeToParams(range);
+  return `${startDate ?? "all"}_${endDate ?? "all"}`;
+};
+
+const cacheKeyFor = (range?: DateRange) => getScopedKey(`${CACHE_KEY_BASE}:${rangeKey(range)}`);
+
+const readCache = (cacheKey: string) =>
+  safeGetJSON<{ rows: DatasetRow[]; lastUpdated?: number }>(cacheKey);
+
+const writeCache = (cacheKey: string, rows: DatasetRow[], lastUpdated: number) => {
+  if (rows.length > MAX_CACHE_ROWS) {
+    safeRemove(cacheKey);
+    return;
   }
-  return { rows: [], fullRows: [], hydrated: false, lastUpdated: null, loadedUserId: userId };
+  safeSetJSON(cacheKey, { rows, lastUpdated });
+};
+
+// Limpa TODAS as fatias de período do usuário (o cache deixou de ser uma chave só).
+const clearAllRangeCaches = () => {
+  try {
+    const prefix = `${CACHE_KEY_BASE}:`;
+    const suffix = `:${getUserId() ?? "anon"}`;
+    const alvos: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && k.startsWith(prefix) && k.endsWith(suffix)) alvos.push(k);
+    }
+    alvos.forEach(safeRemove);
+    // Chave do formato antigo (sem período), de versões anteriores do app.
+    safeRemove(getScopedKey(CACHE_KEY_BASE));
+  } catch {
+    /* localStorage indisponível */
+  }
 };
 
 export const useDatasetStore = create<DatasetState>((set, get) => {
-  const initial = getInitialState();
   // Evita revalidações concorrentes em background (stale-while-revalidate).
   let revalidating = false;
   return {
-    rows: initial.rows,
-    fullRows: initial.fullRows,
+    rows: [],
+    fullRows: [],
     loading: false,
     error: null,
-    hydrated: initial.hydrated,
-    lastUpdated: initial.lastUpdated,
-    loadedUserId: initial.loadedUserId,
+    hydrated: false,
+    lastUpdated: null,
+    loadedUserId: getUserId(),
+    loadedRangeKey: null,
 
     invalidate: () => {
-      safeRemove(getScopedKey(CACHE_KEY_BASE));
-      set({ rows: [], fullRows: [], hydrated: false, lastUpdated: null, loadedUserId: getUserId() });
+      clearAllRangeCaches();
+      set({
+        rows: [],
+        fullRows: [],
+        hydrated: false,
+        lastUpdated: null,
+        loadedUserId: getUserId(),
+        loadedRangeKey: null,
+      });
     },
 
     persist: (newRows: DatasetRow[]) => {
-      const userId = getUserId();
-      const cacheKey = getScopedKey(CACHE_KEY_BASE);
       const now = Date.now();
-      set({ rows: newRows, fullRows: newRows, hydrated: true, lastUpdated: now, loadedUserId: userId });
-      safeSetJSON(cacheKey, { rows: newRows, lastUpdated: now });
+      const key = get().loadedRangeKey;
+      set({ rows: newRows, fullRows: newRows, hydrated: true, lastUpdated: now, loadedUserId: getUserId() });
+      if (key !== null) writeCache(getScopedKey(`${CACHE_KEY_BASE}:${key}`), newRows, now);
     },
 
     fetchRows: async (opts = {}) => {
       const userId = getUserId();
-      const cacheKey = getScopedKey(CACHE_KEY_BASE);
+      const key = rangeKey(opts.range);
+      const cacheKey = cacheKeyFor(opts.range);
 
-      // Busca tudo da API e atualiza estado + localStorage. Quando `background=true`
-      // NÃO mexe em `loading` (não pisca o skeleton do dashboard durante a revalidação).
+      // Busca na API **só o período pedido** e atualiza estado + localStorage.
+      // Pedir a base inteira e filtrar no cliente era o custo real do dashboard:
+      // na conta maior são 67 mil linhas (~30 MB) para exibir as ~3,9 mil dos
+      // últimos 7 dias — 2s só de banco, contra 15ms com o filtro de data.
+      // Quando `background=true` NÃO mexe em `loading` (não pisca o skeleton).
       const fetchFromApi = async (background: boolean): Promise<DatasetRow[]> => {
         try {
-          const apiRows = await fetchDatasetRows({});
+          const { startDate, endDate } = rangeToParams(opts.range);
+          const apiRows = await fetchDatasetRows({
+            startDate,
+            endDate,
+            limit: opts.limit,
+            offset: opts.offset,
+          });
 
           const now = Date.now();
-          // GARANTIA: Seta no estado e NO localStorage IMEDIATAMENTE após o retorno
           set({
             rows: apiRows,
             fullRows: apiRows,
             hydrated: true,
             lastUpdated: now,
             loadedUserId: getUserId(),
+            loadedRangeKey: key,
           });
-
-          localStorage.setItem(cacheKey, JSON.stringify({
-            rows: apiRows,
-            lastUpdated: now,
-          }));
+          writeCache(cacheKey, apiRows, now);
 
           return apiRows;
         } catch (error: any) {
@@ -108,37 +161,43 @@ export const useDatasetStore = create<DatasetState>((set, get) => {
         void fetchFromApi(true).finally(() => { revalidating = false; });
       };
 
-      // Garantia: Se o usuário logado mudou, recarrega do cache dele ou limpa a memória
-      if (userId !== get().loadedUserId) {
-        const cached = safeGetJSON<{ rows: DatasetRow[]; lastUpdated?: number }>(cacheKey);
-        if (cached && Array.isArray(cached.rows)) {
-          const now = cached.lastUpdated ?? Date.now();
-          set({ rows: cached.rows, fullRows: cached.rows, hydrated: true, lastUpdated: now, loadedUserId: userId });
-          if (!opts.force) {
-            revalidateInBackground();
-            return cached.rows;
-          }
-        } else {
-          set({ rows: [], fullRows: [], hydrated: false, lastUpdated: null, loadedUserId: userId });
-        }
-      }
+      const { fullRows, hydrated, loading, loadedUserId, loadedRangeKey } = get();
+      const memoriaServe = hydrated && loadedUserId === userId && loadedRangeKey === key;
 
-      const { fullRows, hydrated, loading } = get();
-
-      // 1. Cache quente: retorna imediato E revalida em background (stale-while-revalidate).
-      //    Sem isso, dados novos gravados no servidor (sync Shopee/Meta, CSV processado em
-      //    outro device, etc.) nunca chegavam a um device com cache local já populado — o
-      //    cache localStorage ficava preso indefinidamente, causando divergência de valores
-      //    entre celular e PC na mesma conta.
-      if (hydrated && fullRows.length > 0 && !opts.force) {
+      // 1. Cache quente em memória: retorna imediato E revalida em background
+      //    (stale-while-revalidate). Sem isso, dados novos gravados no servidor
+      //    (sync Shopee/Meta, CSV processado em outro device) nunca chegavam a um
+      //    device com cache local já populado — o cache ficava preso
+      //    indefinidamente, causando divergência de valores entre celular e PC.
+      if (memoriaServe && fullRows.length > 0 && !opts.force) {
         set({ rows: fullRows });
         revalidateInBackground();
         return fullRows;
       }
 
-      // 2. Sem cache (ou force): busca bloqueante (com skeleton).
+      // 2. Cache do localStorage para ESTE usuário e ESTE período: pinta na hora
+      //    e revalida atrás. Leitura síncrona de propósito — é o que evita o
+      //    skeleton em quem já abriu a tela hoje.
+      if (!opts.force) {
+        const cached = readCache(cacheKey);
+        if (cached && Array.isArray(cached.rows) && cached.rows.length > 0) {
+          const now = cached.lastUpdated ?? Date.now();
+          set({
+            rows: cached.rows,
+            fullRows: cached.rows,
+            hydrated: true,
+            lastUpdated: now,
+            loadedUserId: userId,
+            loadedRangeKey: key,
+          });
+          revalidateInBackground();
+          return cached.rows;
+        }
+      }
+
+      // 3. Sem cache (ou force): busca bloqueante (com skeleton).
       if (loading) return get().rows;
-      set({ loading: true, error: null });
+      set({ loading: true, error: null, loadedUserId: userId });
       try {
         return await fetchFromApi(false);
       } finally {
