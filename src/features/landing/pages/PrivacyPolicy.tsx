@@ -3,7 +3,7 @@ import LegalLayout from "./LegalLayout";
 const CONTACT = "relacionamento@marketdash.com.br";
 
 const PrivacyPolicy = () => (
-  <LegalLayout title="Política de Privacidade" updatedAt="agosto de 2026">
+  <LegalLayout title="Política de Privacidade" updatedAt="setembro de 2026">
     <p>
       Esta Política de Privacidade descreve como a <strong>ORQUESTRA IA - TRANSFORMANDO SOLUÇÕES LTDA</strong>{" "}
       (CNPJ 66.641.347/0001-21), operadora da plataforma <strong>MarketDash</strong>, coleta, utiliza, armazena e
@@ -120,11 +120,39 @@ const PrivacyPolicy = () => (
           do grupo e os direitos de quem escreve nele.
         </li>
         <li>
-          <strong>De quem entra ou sai dos seus grupos</strong>, registramos
-          somente a data, o grupo, a origem (link ou entrada espontânea) e um{" "}
-          <em>código irreversível</em> derivado do número da pessoa. Esse
-          código serve apenas para saber quantas pessoas permaneceram no grupo
-          — o número de telefone de terceiros não é armazenado.
+          <strong>De quem entra ou sai dos seus grupos</strong>, registramos a
+          data, o grupo, a origem (link ou entrada espontânea) e o{" "}
+          <strong>identificador da pessoa no WhatsApp</strong> — o número de
+          telefone quando o WhatsApp o informa, ou um identificador interno dele
+          quando a pessoa opta por não expor o número. Guardamos também um{" "}
+          <em>código irreversível</em> derivado desse identificador, que é o que
+          nos permite saber quantas pessoas permaneceram no grupo.
+        </li>
+        <li>
+          <strong>Para que serve esse contato.</strong> Ele existe para que{" "}
+          <em>você</em> possa exportar, em CSV, a lista de quem entrou nos seus
+          próprios grupos — e falar com essas pessoas. O MarketDash não usa esses
+          contatos para nenhuma finalidade própria, não os envia a terceiros e
+          não os cruza entre contas de clientes diferentes: cada afiliada só
+          enxerga quem entrou nos grupos dela.
+        </li>
+        <li>
+          <strong>Você é o controlador desses dados.</strong> Quem entra no seu
+          grupo estabelece uma relação com <em>você</em>, não com o MarketDash —
+          nós tratamos os dados por sua conta e ordem. Cabe a você informar as
+          pessoas sobre como vai usar o contato e atender aos pedidos delas de
+          acesso, correção ou exclusão. Pedidos enviados diretamente a nós são
+          encaminhados a você e atendidos junto com você.
+        </li>
+        <li>
+          <strong>Por quanto tempo, e como apagar.</strong> Os registros de
+          entrada e saída ficam enquanto a sua conta existir — arquivar uma
+          campanha ou tirar um grupo dela não os apaga, porque eles são o
+          histórico que sustenta os seus números. <strong>Excluir a conta apaga
+          todos eles.</strong> Para apagar o contato de uma pessoa específica
+          antes disso, fale com a gente pelo suporte: fazemos a remoção
+          manualmente, e é assim que atendemos também um pedido que a própria
+          pessoa nos envie.
         </li>
         <li>
           <strong>O envio é feito pelo seu número</strong>, por sua conta e

@@ -8,7 +8,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 npm run dev          # Dev server on :8080, proxies /api → localhost:8081
 npm run build        # Production build
 npm run lint         # ESLint
-npx tsc --noEmit     # Type check without emitting
+npx tsc -p tsconfig.app.json --noEmit   # Type check REAL do src/ (ver aviso abaixo)
 ```
 
 ## Branches e deploy
@@ -103,13 +103,22 @@ src/
 ## Testes e Verificação
 
 ```bash
-npm run lint                # ESLint
-npx tsc --noEmit            # Type check
-npm run build               # Build completo (valida tudo)
+npm run lint                            # ESLint
+npx tsc -p tsconfig.app.json --noEmit   # Type check REAL
+npm run build                           # Build completo
 ```
 
+⚠️ **`npx tsc --noEmit` na raiz NÃO valida nada.** O `tsconfig.json` tem
+`"files": []` e só referencia os projetos: o comando sai 0 mesmo com erro de
+tipo em `src/`. Só o `-p tsconfig.app.json` (ou `npx tsc -b`) olha o código.
+
+⚠️ **Existem erros pré-existentes** — 25 em 04/09/2026, a maioria de
+tipagem do `recharts` e de páginas antigas. O critério de uma mudança é
+**"não aumentou o número"**, não "zero erros"; comparar contra a baseline
+evita tanto o falso alarme quanto o erro novo passando despercebido.
+
 Padrões:
-- Type check antes de PR: `npx tsc --noEmit`
+- Type check antes de PR: `npx tsc -p tsconfig.app.json --noEmit`
 - Lint deve passar sem erros (warnings de `any` são tolerados)
 - Testar responsividade em mobile e desktop
 
@@ -119,6 +128,7 @@ Padrões:
 |----------|---------------|---------|
 | `VITE_API_URL` undefined | `.env` não configurado | Criar `.env` com `VITE_API_URL=http://localhost:8081` |
 | Proxy error 502 | Backend não rodando | Iniciar uvicorn na porta 8081 |
+| **401 em TODAS as rotas, com login funcionando** | O `.env` do front aponta para um projeto Supabase e o backend valida contra outro (front em produção `iprdyorx…`, backend local em hml `ytjpdvj…`) | Alinhar os dois: `VITE_SUPABASE_URL`/`ANON_KEY` do **mesmo** projeto que o backend usa. Não é token expirado — o token é válido, só que no projeto errado |
 | Import `@/` não resolve | Alias não configurado | Verificar `tsconfig.app.json` paths |
 | shadcn component missing | Não instalado | `npx shadcn-ui@latest add [nome]` |
 | Zustand state stale | Cache localStorage | Limpar as chaves `dataset-cache:*` no DevTools (uma por período) |

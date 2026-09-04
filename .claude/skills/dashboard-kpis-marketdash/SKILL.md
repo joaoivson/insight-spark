@@ -46,8 +46,9 @@ Helpers em `src/shared/lib/kpi.ts`; formatação de gráfico em
 
 ## Período — corta em Brasília, não em UTC
 
-Os atalhos (**Ontem**, 7d, 14d, mês) cortam no **fim do dia anterior em
-Brasília**. Os helpers estão em `src/shared/lib/date.ts`:
+Os atalhos (**Ontem**, 7d, 14d, **30d**, mês) cortam no **fim do dia anterior
+em Brasília** — `30d` entrou em 04/09/2026 para o gráfico de entradas × saídas
+das campanhas de grupos. Os helpers estão em `src/shared/lib/date.ts`:
 
 - `todayKeyBR()`, `yesterdayKeyBR()`, `addDaysKey()`
 - `presetRangeKeys(kind)` / `presetRangeDates(kind)` — use estes, sempre
@@ -59,6 +60,16 @@ e intermitente — o pior tipo de achar.
 
 O backend segue a mesma convenção: bucketing por dia civil é em **BRT**.
 Divergir aqui faz os dois lados mostrarem números diferentes da mesma base.
+
+### A única exceção deliberada: exportar leads
+
+O corte em "ontem" existe porque comparar um dia pela metade com dias inteiros
+distorce a métrica. **Lead não é métrica comparável, é contato** — então
+`ExportarLeadsModal` usa `todayKeyBR()` e **inclui o dia corrente**. Cortar em
+ontem escondia justamente quem entrou hoje de manhã, que é quem a afiliada quer
+chamar agora.
+
+Regra prática: **medir** corta em ontem; **agir sobre uma pessoa** inclui hoje.
 
 ## Filtros
 

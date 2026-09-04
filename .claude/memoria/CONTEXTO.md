@@ -37,7 +37,11 @@ Componente **nunca** chama API direto.
 - `src/components/ui/` — shadcn, **não modificar**; estender via wrapper
 - `src/components/shared/` — `DataCard`, `ResponsiveModal`, `EmojiPicker`,
   `SecaoCard` (a régua de densidade de TODAS as abas de Configurações — mexer
-  aqui muda em todas de uma vez, que é o ponto)
+  aqui muda em todas de uma vez, que é o ponto), `Paginacao` (helpers
+  `paginar`/`totalDePaginas` + o componente com seletor 25/50/100; vieram de
+  `features/admin/components/AdminTableFooter.tsx` em 04/09, que agora só
+  reexporta — a aba Anúncios das campanhas de grupos precisava dos mesmos e
+  importar de `features/admin` cruzava fronteira de feature)
 - `src/components/whatsapp/` — Configurações › Integrações › **WhatsApp**
   (desde 03/09/2026; era a aba "Dispositivos"). Desde 04/09 **sem abas
   internas**: a seção é só Números, e "Envio" virou Operação › **Parâmetros**
@@ -52,6 +56,33 @@ Componente **nunca** chama API direto.
   removidos em 03/09
 - `src/shared/lib/` — `date.ts` (helpers `*BR`), `kpi.ts`, `plans.ts`,
   `tax.ts`, `chart-utils.ts`, `storage.ts`, `supabase.ts`
+
+## Campanha de grupos (`/dashboard/grupos/:id`)
+
+Nove abas, controladas por `?tab=` (`CampanhaGrupoDetalhe.tsx`), nesta ordem
+desde 04/09/2026:
+
+**Visão geral · Números · Grupos · Roteiros · Link de entrada · Anúncios ·
+Resultados · Atividade · Monitoramento**
+
+O que muda com relação ao que existia antes:
+
+- **Visão geral é LEITURA** (`VisaoGeralDaCampanha.tsx`): link de entrada
+  copiável, KPIs operacionais, gráfico de entradas × saídas (7/14/30) e estado
+  dos grupos. Era um formulário — a edição foi para o botão **Configurações** no
+  topo (`ConfiguracoesDaCampanha.tsx`, um `ResponsiveModal`), que também tem o
+  limite de participantes. Descrição saiu da UI.
+- **Números** (`NumerosDaCampanha.tsx`) é a aba que define quais números a
+  campanha usa — e a aba **Grupos** só oferece grupos deles. Sem número
+  escolhido, Grupos mostra um estado que aponta para Números, não uma lista
+  vazia.
+- **Grupos**: coluna de ocupação (`944/900`), menu de três pontinhos com
+  confirmação no lugar do `×`, e `ExportarLeadsModal.tsx`. **"Enviar oferta"
+  não está aqui** — mudou para Roteiros, porque envio rápido é roteiro de um
+  passo.
+- Métrica financeira só em **Resultados**. A Visão geral não mostra comissão,
+  lucro nem ROAS, e `null` vira "—" (nunca "0%", que afirmaria que ninguém
+  converteu).
 
 ## Shell do dashboard (mobile)
 
@@ -148,6 +179,11 @@ Não há suíte de teste automatizada. **A verificação é visual, via Playwrig
 
 ## Em voo / pendente
 
+- **Campanhas de grupos: rodada de correções (04/09) em homologação**, validada
+  contra `hml.marketdash.com.br`. 🔴 A promoção para produção está **bloqueada
+  pela política de privacidade** (o backend passou a guardar o número real de
+  quem entra no grupo) — ver `CONTEXTO.md` do backend e
+  `docs/PROMOCAO_PARA_PRODUCAO.md` §3.8.
 - Badge de desconto do plano Pro na página de vendas.
 - Botão "Atualizar" do header é **dead code** desde a migração para SWR.
 - **Automação Instagram: EM PRODUÇÃO desde 02/09** (App Review aprovado em

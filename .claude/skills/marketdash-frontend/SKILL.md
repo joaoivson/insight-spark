@@ -13,13 +13,36 @@ está no lucro. Consulta muito pelo **celular**.
 
 | Feature | Telas principais |
 |---|---|
-| `dashboard` | `Dashboard`, `AdSpends`, `Campanhas`, `UploadCSV`, `CustomLinks`, `CapturaSite`, `Automacoes`, `Afiliados`, `Reports`, `Integrations`, `Configuracoes`, `PlanosPage`, `ImpostosMeta`, `IndiquePage` |
+| `dashboard` | `Dashboard`, `AdSpends`, `Campanhas` (=Anúncios), `UploadCSV`, `CustomLinks`, `CapturaSite`, `Automacoes`, `Afiliados`, `Reports`, `Integrations`, `Configuracoes`, `PlanosPage`, `ImpostosMeta`, `IndiquePage`, **`CampanhasGrupos` + `CampanhaGrupoDetalhe`** (campanhas de WhatsApp), `RoteiroEditor`, `NumeroDetalhe`, `Ofertas`, `Templates` |
 | `admin` | `AdminDashboard`, `AdminClients`, `AdminClientDetail`, `AdminDre`, `AdminExpenses`, `AdminSyncStatus`, `AfiliadosPendentes` |
 | `auth` | login, cadastro, definir/recuperar senha |
 | `subscription` | planos, checkout, estado da assinatura |
 | `landing` | landing pública + `sales` (11 seções, links Kiwify por plano/período) |
 
 Rotas em `src/app/routes/app-routes.tsx`, com `RequireAdmin` e `RequirePlan`.
+
+
+### ⚠️ "Campanhas" são DUAS coisas diferentes
+
+| No menu | Rota | O que é | Código |
+|---|---|---|---|
+| **Anúncios** | `/dashboard/campanhas` | tráfego pago do Meta | `pages/Campanhas.tsx`, `campaigns.service.ts` |
+| **Campanhas** | `/dashboard/grupos` | grupos de WhatsApp (MAX) | `pages/CampanhasGrupos.tsx` + `CampanhaGrupoDetalhe.tsx`, `campanhas_grupos.service.ts` |
+
+O detalhe da campanha de grupos tem **nove abas**, controladas por `?tab=` (o
+array `ABAS` é a fonte da verdade; `Tabs` é controlado pela URL, não
+`defaultValue` — com `defaultValue`, link de outra tela não trocava de aba):
+
+**Visão geral · Números · Grupos · Roteiros · Link de entrada · Anúncios ·
+Resultados · Atividade · Monitoramento**
+
+- **Visão geral é só leitura** (`VisaoGeralDaCampanha.tsx`) — a edição vive no
+  botão **Configurações** (`ConfiguracoesDaCampanha.tsx`).
+- **Números** define quais números a campanha usa, e a aba **Grupos** só
+  oferece grupos deles.
+- **"Enviar oferta" fica em Roteiros**, não em Grupos: envio rápido é roteiro
+  de um passo.
+- Métrica financeira só em **Resultados**.
 
 ## Autenticação
 

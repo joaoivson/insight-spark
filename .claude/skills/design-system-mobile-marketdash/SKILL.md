@@ -46,6 +46,12 @@ Texto (produto, canal, categoria, SubID) e data ficam à esquerda.
 
 - **`-1` = ilimitado** (plano MAX). "-1" na tela é bug.
 - **Limite `0` = o plano não tem o recurso** → mostrar **"—"**, não "0/0".
+- **`null` = a métrica NÃO EXISTE** → mostrar **"—"**, nunca `0`. Taxa de
+  entrada sem clique, evasão sem entrada, CPL sem pixel, lucro por pessoa sem
+  participante: `0` afirmaria "ninguém converteu", que é outra coisa. Quando
+  couber, a nota embaixo diz *por quê* ("sem cliques no período").
+  ⚠️ As três sentinelas têm significados **opostos** — `-1` ilimitado, `0` o
+  plano não tem, `null` não existe/herda o padrão. Nunca renderize nenhuma crua.
   "0/0" não distingue "não usa" (problema de adoção, no Pro) de "não tem"
   (limitação, no Essencial).
 
@@ -58,7 +64,24 @@ introdutório empurra o conteúdo para baixo da dobra no celular e ninguém lê.
 Ordem no mobile: **(1)** o número que responde a pergunta principal, **(2)**
 o filtro de período, **(3)** o resto.
 
-## Filtros
+## Ocupação, não contagem
+
+Quando existe um teto, mostre **`951/900`**, não `951`. O número solto não diz
+quanto falta para o limite — e o limite é o que decide se o grupo ainda recebe
+gente. Destaque quando alcança (âmbar).
+
+⚠️ **O teto exibido tem que ser o mesmo que o backend usa para decidir.** Na
+campanha de grupos é `min(capacidade, limite_participantes)` — mostrar só a
+capacidade fazia a tela dizer "há vaga" num grupo que o roteador já não
+escolhia.
+
+## Ação destrutiva: menu + confirmação
+
+Ícone `×` solto na linha **remove sem perguntar**. O padrão é `DropdownMenu`
+de três pontinhos → item destrutivo → `AlertDialog` que diz **o que sobrevive**
+("o grupo continua ativo e nas outras campanhas"), não só "tem certeza?".
+
+## Filtros## Filtros
 
 Chips: **visíveis, nomeados, removíveis um a um**. Botão "Limpar tudo"
 genérico faz a usuária refazer o que queria manter — e ela não vê quais

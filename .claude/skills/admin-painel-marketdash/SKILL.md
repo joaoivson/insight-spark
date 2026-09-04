@@ -69,8 +69,14 @@ Use `planLimit(plan, recurso)` de `shared/lib/plans.ts` para decidir.
 
 ## Lista de Clientes
 
-- Paginação 20/página, com "Mostrando X–Y de N" (`Paginacao` /
-  `AdminTableFooter`, reaproveitados de `AdminSyncStatus`).
+- Paginação 20/página, com "Mostrando X–Y de N". Desde 04/09/2026 os helpers
+  (`paginar`, `totalDePaginas`, `<Paginacao>`) moram em
+  **`src/components/shared/Paginacao.tsx`** — o `AdminTableFooter` só
+  reexporta, para não quebrar quem já importava dele. **Tabela nova importa de
+  `components/shared`**, não de `features/admin`: fora do admin isso cruzaria
+  fronteira de feature. O componente aceita `onPorPaginaChange` para mostrar o
+  seletor 25/50/100 (a lista de Clientes não usa; a aba Anúncios das campanhas
+  de grupos, sim).
 - A busca varre a base inteira (client-side sobre o array já filtrado);
   trocar ordenação ou filtro volta para a página 1.
 - Ordenação de uma coluna usa **o mesmo campo que a célula mostra** — já

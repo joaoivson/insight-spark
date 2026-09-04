@@ -72,8 +72,14 @@ os 4 passos abaixo, a tarefa está pela metade.
 
 1. **Verificar** — rode e mostre a saída, não afirme sem evidência:
    ```bash
-   npx tsc --noEmit && npm run lint && npm run build
+   npx tsc -p tsconfig.app.json --noEmit && npm run lint && npm run build
    ```
+   ⚠️ **`npx tsc --noEmit` na raiz não valida NADA** — o `tsconfig.json` tem
+   `"files": []` e só referencia os projetos: ele sai 0 com erro de tipo em
+   `src/`. Usar o comando errado aqui é pior do que não verificar, porque
+   produz evidência falsa exatamente no passo que autoriza dizer "verificado".
+   O repo tem **erros pré-existentes** nesse comando (25 em 04/09/2026): o
+   critério é **"não aumentou"**, não "zero".
    E, se a mudança é visível, **valide na tela** com Playwright — mobile e
    desktop, em **todos** os pontos afetados (`/validar-tela`). Build verde
    não diz nada sobre layout, e este repo não tem suíte automatizada.
