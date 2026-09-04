@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 
-import { ResponsiveModal } from "@/components/shared/ResponsiveModal";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -18,6 +18,8 @@ import { cn } from "@/shared/lib/utils";
 import { mensagemAmigavel } from "@/services/http-error";
 import {
   atualizarCampanha,
+  atualizarLinkDaCampanha,
+  obterLinkDaCampanha,
   type CampanhaGrupos,
   type EstrategiaEntrada,
   type StatusCampanha,
@@ -64,7 +66,6 @@ const Opcao = ({
 );
 
 type Form = {
-  nome: string;
   status: StatusCampanha;
   estrategia_entrada: EstrategiaEntrada;
   abertura_automatica: boolean;
@@ -74,7 +75,6 @@ type Form = {
 };
 
 const doDetalhe = (c: CampanhaGrupos): Form => ({
-  nome: c.nome,
   status: c.status,
   estrategia_entrada: c.estrategia_entrada,
   abertura_automatica: c.abertura_automatica,
@@ -83,31 +83,47 @@ const doDetalhe = (c: CampanhaGrupos): Form => ({
 });
 
 /**
- * Configurações da campanha (spec §1.2).
+ * Configurações da campanha — ABA, não mais botão solto no topo.
  *
- * Recebeu o formulário que saía da Visão geral — que virou painel de leitura —
- * mais o limite de participantes (§3.4). Sem Descrição: ela saiu da UI (§1.1).
+ * Era o único elemento de navegação da campanha fora da barra de abas. Aqui
+ * fica só o que muda COMPORTAMENTO: status, estratégia de entrada, limite de
+ * participantes, aberturas e o link ativo. Nome, duplicar e excluir são ações
+ * sobre a campanha e foram para a listagem; Descrição saiu da UI (§1.1).
  */
 export const ConfiguracoesDaCampanha = ({
-  open,
-  onOpenChange,
   campanha,
   onSalvo,
 }: {
-  open: boolean;
-  onOpenChange: (o: boolean) => void;
   campanha: CampanhaGrupos;
   onSalvo: (atualizada: CampanhaGrupos) => void;
 }) => {
   const { toast } = useToast();
   const [form, setForm] = useState<Form>(() => doDetalhe(campanha));
   const [salvando, setSalvando] = useState(false);
+  // "Link ativo" mora em `campanha_links`, não em `campanhas`: veio da aba
+  // Link de entrada, onde era a única configuração de comportamento no meio de
+  // campos de conteúdo. `null` enquanto carrega — o switch não pode piscar
+  // "desligado" antes de saber o valor real.
+  const [linkAtivo, setLinkAtivo] = useState<boolean | null>(null);
 
-  // Reabrir depois de salvar noutro lugar (ou trocar de campanha) não pode
-  // mostrar o estado velho do formulário.
+  // Como aba, o componente fica montado e o formulário precisa acompanhar a
+  // campanha (antes ele ressincronizava só quando o modal abria).
   useEffect(() => {
-    if (open) setForm(doDetalhe(campanha));
-  }, [open, campanha]);
+    setForm(doDetalhe(campanha));
+  }, [campanha]);
+
+  useEffect(() => {
+    let ativo = true;
+    obterLinkDaCampanha(campanha.id)
+      .then((link) => ativo && setLinkAtivo(link.ativo))
+      .catch(() => {
+        // Falha aqui não pode derrubar a aba inteira: o resto das
+        // configurações continua editável, e o switch fica escondido.
+      });
+    return () => {
+      ativo = false;
+    };
+  }, [campanha.id]);
 
   const limiteNum = Number(form.limite_participantes);
   const limiteInvalido =
@@ -115,11 +131,16 @@ export const ConfiguracoesDaCampanha = ({
     (!Number.isInteger(limiteNum) || limiteNum < 1 || limiteNum > CAPACIDADE_WHATSAPP);
 
   const salvar = async () => {
-    if (!form.nome.trim() || limiteInvalido) return;
+    if (limiteInvalido) return;
     setSalvando(true);
     try {
+      // O link PRIMEIRO: são dois PATCHes num botão só, e se o segundo falhar
+      // é melhor que a campanha ainda não tenha sido salva — assim "Salvar"
+      // continua significando "nada foi gravado".
+      if (linkAtivo !== null) {
+        await atualizarLinkDaCampanha(campanha.id, { ativo: linkAtivo });
+      }
       const atualizada = await atualizarCampanha(campanha.id, {
-        nome: form.nome.trim(),
         status: form.status,
         estrategia_entrada: form.estrategia_entrada,
         abertura_automatica: form.abertura_automatica,
@@ -128,7 +149,6 @@ export const ConfiguracoesDaCampanha = ({
         limite_participantes: form.limite_participantes === "" ? null : limiteNum,
       });
       onSalvo(atualizada);
-      onOpenChange(false);
       toast({ title: "Configurações salvas" });
     } catch (e) {
       toast({
@@ -142,18 +162,8 @@ export const ConfiguracoesDaCampanha = ({
   };
 
   return (
-    <ResponsiveModal open={open} onOpenChange={onOpenChange} title="Configurações">
-      <div className="space-y-5 pb-2">
-        <div className="space-y-2">
-          <Label htmlFor="cfg-nome">Nome</Label>
-          <Input
-            id="cfg-nome"
-            value={form.nome}
-            onChange={(e) => setForm({ ...form, nome: e.target.value })}
-            maxLength={120}
-          />
-        </div>
-
+    <Card>
+      <CardContent className="space-y-5 p-5">
         <div className="space-y-2">
           <Label>Status</Label>
           <Select
@@ -219,34 +229,69 @@ export const ConfiguracoesDaCampanha = ({
           )}
         </div>
 
-        <div className="space-y-3">
-          <div className="flex items-center justify-between gap-3">
-            <Label htmlFor="cfg-abertura">Abertura automática</Label>
+        {/* Os dois rótulos sozinhos não explicavam nada — e aqui há
+            consequência real: são regras de ROTEAMENTO de entrada. A descrição
+            é escrita pelo que o backend FAZ, não pelo nome do campo: "reabrir"
+            sugere reabrir grupo fechado, e o que acontece é o grupo voltar à
+            rotação quando a lotação cai. */}
+        <div className="space-y-4">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0 space-y-1">
+              <Label htmlFor="cfg-abertura">Abertura automática</Label>
+              <p className="text-xs text-muted-foreground">
+                Quando o grupo atual lota, o próximo da lista entra na rotação sozinho.
+              </p>
+            </div>
             <Switch
               id="cfg-abertura"
+              className="mt-0.5 flex-shrink-0"
               checked={form.abertura_automatica}
               onCheckedChange={(v) => setForm({ ...form, abertura_automatica: v })}
             />
           </div>
-          <div className="flex items-center justify-between gap-3">
-            <Label htmlFor="cfg-reabertura">Reabertura automática</Label>
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0 space-y-1">
+              <Label htmlFor="cfg-reabertura">Reabertura automática</Label>
+              <p className="text-xs text-muted-foreground">
+                Grupo que estava cheio e perdeu gente volta a receber entradas.
+              </p>
+            </div>
             <Switch
               id="cfg-reabertura"
+              className="mt-0.5 flex-shrink-0"
               checked={form.reabertura_automatica}
               onCheckedChange={(v) => setForm({ ...form, reabertura_automatica: v })}
             />
           </div>
+
+          {linkAtivo !== null && (
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0 space-y-1">
+                <Label htmlFor="cfg-link-ativo">Link de entrada ativo</Label>
+                <p className="text-xs text-muted-foreground">
+                  Desligado, quem clicar no link vê que ele não está disponível — o
+                  anúncio continua veiculando.
+                </p>
+              </div>
+              <Switch
+                id="cfg-link-ativo"
+                className="mt-0.5 flex-shrink-0"
+                checked={linkAtivo}
+                onCheckedChange={setLinkAtivo}
+              />
+            </div>
+          )}
         </div>
 
         <Button
           className="w-full"
           onClick={() => void salvar()}
-          disabled={salvando || !form.nome.trim() || limiteInvalido}
+          disabled={salvando || limiteInvalido}
         >
           {salvando && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           Salvar
         </Button>
-      </div>
-    </ResponsiveModal>
+      </CardContent>
+    </Card>
   );
 };

@@ -5,7 +5,7 @@ import { Loader2, Smartphone } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
+import { CheckboxQuadrado } from "@/components/shared/CheckboxQuadrado";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/shared/lib/utils";
@@ -120,6 +120,11 @@ export const NumerosDaCampanha = ({
         description: mensagemAmigavel(e, ERRO_SALVAR),
         variant: "destructive",
       });
+      // Volta ao que o SERVIDOR tem. Sem isto a tela ficava num estado que não
+      // existe em lugar nenhum: checkbox desmarcado, "Alterações não salvas"
+      // aceso e "1 grupo nesta campanha" logo abaixo — que se lê como "o
+      // bloqueio não funcionou", quando ele funcionou e recusou a mudança.
+      setSelecionados(new Set(numeros.filter((n) => n.selecionado).map((n) => n.id)));
     } finally {
       setSalvando(false);
     }
@@ -148,7 +153,11 @@ export const NumerosDaCampanha = ({
     );
   }
 
-  if (numeros.length === 0) {
+  // "Nenhum número CADASTRADO" e "cadastrado mas nenhum conectado" são estados
+  // diferentes e pedem ações diferentes. Tratá-los como um só mandava a
+  // afiliada conectar um chip que ela já tinha — e escondia o que resolvia.
+  if (numeros.length === 0 || numeros.every((n) => n.status !== "conectada")) {
+    const nenhumCadastrado = numeros.length === 0;
     return (
       <Card>
         <CardContent className="flex flex-col items-center gap-3 py-12 text-center">
@@ -156,11 +165,14 @@ export const NumerosDaCampanha = ({
             <Smartphone className="h-6 w-6 text-accent" aria-hidden />
           </span>
           <p className="max-w-md text-sm text-muted-foreground">
-            Nenhum número conectado ainda. Conecte um número para esta campanha poder
-            enviar mensagens e receber entradas.
+            {nenhumCadastrado
+              ? "Nenhum número conectado ainda. Conecte um número para esta campanha poder enviar mensagens e receber entradas."
+              : "Seus números estão desconectados — os envios desta campanha estão pausados. Os grupos continuam recebendo gente pelo link de entrada."}
           </p>
           <Button asChild variant="outline">
-            <Link to="/dashboard/configuracoes?tab=numeros">Conectar número</Link>
+            <Link to="/dashboard/configuracoes?tab=whatsapp">
+              {nenhumCadastrado ? "Conectar número" : "Reconectar número"}
+            </Link>
           </Button>
         </CardContent>
       </Card>
@@ -189,7 +201,7 @@ export const NumerosDaCampanha = ({
             key={n.id}
             className="flex min-h-[56px] cursor-pointer items-center gap-3 px-4 py-3 transition-colors hover:bg-accent/40"
           >
-            <Checkbox
+            <CheckboxQuadrado
               checked={selecionados.has(n.id)}
               onCheckedChange={() => alternar(n.id)}
               disabled={salvando}
@@ -201,11 +213,27 @@ export const NumerosDaCampanha = ({
               </span>
               <span className="block truncate text-[11px] text-muted-foreground">
                 {n.numero ?? "sem número"}
-                {n.grupos_na_campanha > 0 && (
+                {/* Só para número MARCADO: o contador vem do servidor e não muda
+                    ao desmarcar, então mostrá-lo na linha desmarcada dava
+                    "número desmarcado + 1 grupo nesta campanha" — a leitura de
+                    que o desmarcar não pegou. */}
+                {selecionados.has(n.id) && n.grupos_na_campanha > 0 && (
                   <>
                     {" · "}
                     <span className="tabular-nums">{n.grupos_na_campanha}</span>{" "}
                     {n.grupos_na_campanha === 1 ? "grupo" : "grupos"} nesta campanha
+                  </>
+                )}
+                {/* Desmarcar um número que serve grupos é bloqueado no salvar
+                    (409). Avisar aqui, na hora, evita a ida e volta. */}
+                {!selecionados.has(n.id) && n.selecionado && n.grupos_na_campanha > 0 && (
+                  <>
+                    {" · "}
+                    <span className="text-amber-500">
+                      {n.grupos_na_campanha === 1
+                        ? "1 grupo depende dele"
+                        : `${n.grupos_na_campanha} grupos dependem dele`}
+                    </span>
                   </>
                 )}
               </span>

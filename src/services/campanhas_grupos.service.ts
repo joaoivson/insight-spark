@@ -28,7 +28,18 @@ export type CampanhaGrupos = {
 export type GrupoDaCampanha = {
   grupo_id: number;
   posicao: number;
+  /** Decisão da usuária: participa da rotação de entrada? */
   aberto: boolean;
+  /**
+   * Estado EFETIVO de lotação, calculado no backend com a MESMA regra que
+   * decide a rotação. Nunca recalcule aqui: uma segunda cópia da regra é como
+   * a tela passou a dizer "Aberto" para um grupo que o roteador já ignorava.
+   */
+  cheio: boolean;
+  /** `null` = sem override, o valor de `cheio` veio da ocupação. */
+  cheio_override: boolean | null;
+  /** Teto efetivo (o menor entre capacidade e limite da campanha). */
+  teto: number;
   nome: string | null;
   participantes: number;
   /** Capacidade do WhatsApp. A ocupação exibida usa o MENOR entre ela e o limite da campanha. */
@@ -65,6 +76,8 @@ export type VinculoGrupo = {
   grupo_id: number;
   posicao: number;
   aberto: boolean;
+  /** `null` volta ao automático (a ocupação decide). */
+  cheio_override: boolean | null;
 };
 
 const json = async <T>(res: Response, fallback: string): Promise<T> => {
@@ -85,6 +98,77 @@ export async function criarCampanha(nome: string): Promise<CampanhaGrupos> {
     body: JSON.stringify({ nome }),
   });
   return json(res, "Não foi possível criar a campanha.");
+}
+
+/**
+ * Cópia da campanha SEM os grupos — é como a próxima nasce já configurada.
+ *
+ * Vínculo de anúncio e Sub ID não são copiados: os dois são invariantes de
+ * dinheiro (o esquema tem UNIQUE global em `campanha_anuncios.campaign_id`), e
+ * duplicá-los contaria o mesmo gasto em duas campanhas.
+ */
+export async function duplicarCampanha(id: number): Promise<CampanhaGrupos> {
+  const res = await fetchWithAuth(`${base()}/${id}/duplicar`, { method: "POST" });
+  return json(res, "Não foi possível duplicar a campanha.");
+}
+
+/**
+ * Encerra a campanha. Soft-delete: o `/g/{slug}` dela passa a responder
+ * "campanha encerrada" com 200 — o anúncio já veiculando continua mandando
+ * tráfego, e um 404 faria o Meta tratar o destino como quebrado.
+ */
+export async function excluirCampanha(id: number): Promise<void> {
+  const res = await fetchWithAuth(`${base()}/${id}`, { method: "DELETE" });
+  if (!res.ok) throw await erroDaResposta(res, "Não foi possível excluir a campanha.");
+}
+
+// ── Sub IDs da campanha (080) ────────────────────────────────────────────────
+
+/** Uma opção da lista de "Vincular Sub ID" da campanha de grupos. */
+export type SubIdVinculavel = {
+  sub_id: string;
+  pedidos: number;
+  comissao_liquida: number;
+  vinculado: boolean;
+  /**
+   * Preenchido quando o Sub ID NÃO pode ser vinculado, com o motivo pronto
+   * ("já entra pelo grupo X", "vinculado ao anúncio Y"). A opção continua na
+   * lista de propósito: escondê-la faz a afiliada procurar o Sub ID que ela
+   * sabe que existe e concluir que a tela está quebrada.
+   */
+  bloqueado_por: string | null;
+};
+
+export async function listarSubIdsDaCampanha(
+  id: number,
+  periodo?: { inicio: string; fim: string },
+): Promise<SubIdVinculavel[]> {
+  const query = periodo ? `?${new URLSearchParams(periodo)}` : "";
+  const res = await fetchWithAuth(`${base()}/${id}/sub-ids${query}`);
+  const corpo = await json<{ sub_ids: SubIdVinculavel[] }>(
+    res,
+    "Não foi possível carregar os Sub IDs.",
+  );
+  return corpo.sub_ids ?? [];
+}
+
+/** Substitui o conjunto inteiro — mesmo contrato do PUT de anúncios. */
+export async function definirSubIdsDaCampanha(
+  id: number,
+  subIds: string[],
+  periodo?: { inicio: string; fim: string },
+): Promise<SubIdVinculavel[]> {
+  const query = periodo ? `?${new URLSearchParams(periodo)}` : "";
+  const res = await fetchWithAuth(`${base()}/${id}/sub-ids${query}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(subIds),
+  });
+  const corpo = await json<{ sub_ids: SubIdVinculavel[] }>(
+    res,
+    "Não foi possível salvar os Sub IDs.",
+  );
+  return corpo.sub_ids ?? [];
 }
 
 export async function obterCampanha(id: number): Promise<CampanhaGruposDetalhe> {
@@ -140,13 +224,18 @@ export type CampanhaLink = {
   ativo: boolean;
 };
 
-/** Campos editáveis do link — qualquer subconjunto. */
+/**
+ * Campos editáveis do link — qualquer subconjunto.
+ *
+ * Sem `pixel_eventos`: PageView e Lead disparam SEMPRE desde 04/09. Quem
+ * configurou um pixel quer os dois, e desligar o Lead quebra o CPL — a métrica
+ * principal de campanha de grupo — sem nenhum aviso. O backend ignora o campo.
+ */
 export type CampanhaLinkPatch = Partial<{
   titulo_previa: string | null;
   descricao_previa: string | null;
   banner_previa_url: string | null;
   pixel_facebook_id: string | null;
-  pixel_eventos: PixelEventos;
   ativo: boolean;
 }>;
 
@@ -229,16 +318,29 @@ export type LinhaResultado = {
   mensagens: number;
   cliques: number;
   pedidos: number;
+  /** Real: vem do Sub ID do grupo (`wg…`), rastreada. */
   comissao_liquida: number;
-  gasto_atribuido: number;
-  lucro: number;
-  /** `null` quando não há participante: a métrica não existe. 0,00 diria
-   *  "cada pessoa rende zero", que é outra afirmação. */
-  lucro_por_pessoa: number | null;
 };
 
-/** Rodapé de totais — as mesmas grandezas, sem os identificadores do grupo. */
-export type TotaisResultado = Omit<LinhaResultado, "grupo_id" | "grupo" | "sub_id" | "evasao_pct">;
+/**
+ * Rodapé de totais — e o ÚNICO nível em que gasto, lucro e ROAS existem.
+ *
+ * A linha por grupo perdeu os três em 04/09: eles dependiam de ratear o gasto
+ * da campanha entre os grupos, e não há informação para essa divisão. O rateio
+ * dividia IGUALMENTE sempre que ninguém entrava no período — foi assim que
+ * R$1.223,05 virou R$611,52 em dois grupos de tamanhos diferentes.
+ */
+export type TotaisResultado = Omit<
+  LinhaResultado,
+  "grupo_id" | "grupo" | "sub_id" | "evasao_pct"
+> & {
+  /** Investimento INTEIRO da campanha, uma vez — não a soma de um rateio. */
+  gasto_atribuido: number;
+  lucro: number;
+  /** `null` sem investimento: 0.00x diria que cada real gasto voltou zero. */
+  roas: number | null;
+  lucro_por_pessoa: number | null;
+};
 
 /**
  * Bloco de investimento do topo.
@@ -324,21 +426,28 @@ const nomeDoAnexo = (header: string | null): string | null => {
  *
  * Devolve o dado; quem dispara o download é a tela. Service não mexe em DOM.
  */
+/**
+ * CSV de quem está NOS GRUPOS AGORA — sem filtro de período.
+ *
+ * Mudou de conceito em 04/09: antes exportava as entradas dos últimos 30 dias,
+ * e por isso um grupo com 946 pessoas acumuladas em meses exportava 8 linhas.
+ * A lista de participantes é um retrato, não uma janela.
+ */
 export async function exportarLeads(
   id: number,
-  periodo: { inicio: string; fim: string },
   grupoIds?: number[],
 ): Promise<{ blob: Blob; nome: string }> {
-  const query = new URLSearchParams({ inicio: periodo.inicio, fim: periodo.fim });
+  const query = new URLSearchParams();
   // Ausente = todos os grupos da campanha. Lista vazia seria "nenhum grupo",
   // que o backend recusa — a tela nunca deve chegar aqui sem seleção.
   if (grupoIds?.length) query.set("grupos", grupoIds.join(","));
-  const res = await fetchWithAuth(`${base()}/${id}/leads/export?${query}`);
-  if (!res.ok) throw await erroDaResposta(res, "Não foi possível exportar as entradas.");
+  const sufixo = query.toString() ? `?${query}` : "";
+  const res = await fetchWithAuth(`${base()}/${id}/leads/export${sufixo}`);
+  if (!res.ok) throw await erroDaResposta(res, "Não foi possível exportar os leads.");
 
   return {
     blob: await res.blob(),
-    nome: nomeDoAnexo(res.headers.get("Content-Disposition")) ?? "entradas.csv",
+    nome: nomeDoAnexo(res.headers.get("Content-Disposition")) ?? "participantes.csv",
   };
 }
 
@@ -454,6 +563,15 @@ export type PontoDaSerie = {
   data: string;
   entradas: number;
   saidas: number;
+  /**
+   * O dia corrente, que ainda não fechou.
+   *
+   * A janela terminava em ONTEM justamente para não ter um ponto pela metade
+   * na ponta. O preço era pior: campanha que começou hoje aparecia inteira em
+   * zero enquanto o movimento acontecia. Agora hoje entra, marcado — a tela
+   * desenha esse ponto diferente para não ser lido como queda.
+   */
+  parcial: boolean;
 };
 
 export type EstadoDosGrupos = {

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import {
-  ArrowDown, ArrowUp, Download, Loader2, MoreVertical, Plus, Settings2, Trash2,
+  AlertTriangle, ArrowDown, ArrowUp, Download, Loader2, MoreVertical, Plus, Trash2,
 } from "lucide-react";
 
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
@@ -19,7 +19,7 @@ import { RoteirosDaCampanha } from "@/features/dashboard/components/RoteirosDaCa
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
+import { CheckboxQuadrado } from "@/components/shared/CheckboxQuadrado";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -31,6 +31,9 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { StatusCampanhaBadge } from "@/features/dashboard/pages/CampanhasGrupos";
@@ -45,18 +48,26 @@ import { mensagemAmigavel } from "@/services/http-error";
 import { useWhatsappConexoesStore } from "@/stores/whatsappConexoesStore";
 import { rotuloDoGrupo } from "@/shared/lib/grupo";
 
-const BadgeEnvioOk = () => (
-  <Badge className="border-emerald-500/25 bg-emerald-500/10 text-emerald-500">Envio ok</Badge>
-);
-
-/** Linha da aba Grupos, mantida localmente até o "Salvar ordem". */
+/**
+ * Linha da aba Grupos, mantida localmente até o "Salvar ordem".
+ *
+ * `cheio` e `aberto` são DOIS eixos, não um. `aberto` é a decisão da afiliada;
+ * `cheio` vem da ocupação e ela pode sobrescrever. O grupo entra na rotação
+ * quando está aberto E não cheio. Antes disso os dois estavam confundidos num
+ * toggle só, e o grupo com 946/900 aparecia "Aberto" para sempre.
+ */
 type VinculoLocal = {
   grupo_id: number;
   aberto: boolean;
+  /** Estado efetivo, como o backend resolveu (override ou ocupação). */
+  cheio: boolean;
+  /** `null` = automático. É o que o PUT persiste. */
+  cheio_override: boolean | null;
+  /** Teto efetivo, já calculado no backend com a regra da rotação. */
+  teto: number;
   nome: string;
   participantes: number;
   capacidade: number;
-  permite_envio: boolean;
   instancia_ids: number[];
 };
 
@@ -66,16 +77,32 @@ const paraVinculos = (detalhe: CampanhaGruposDetalhe): VinculoLocal[] =>
     .map((g) => ({
       grupo_id: g.grupo_id,
       aberto: g.aberto,
+      cheio: g.cheio,
+      cheio_override: g.cheio_override,
+      teto: g.teto,
       nome: g.nome ?? "(grupo sem nome)",
       participantes: g.participantes,
       capacidade: g.capacidade,
-      permite_envio: g.permite_envio,
       instancia_ids: g.instancia_ids ?? [],
     }));
 
-/** Assinatura de ordem+aberto — é o que o PUT persiste, então é o que define "sujo". */
+/**
+ * Assinatura de ordem + aberto + cheio — é o que o PUT persiste, então é o que
+ * define "sujo". Campo novo esquecido aqui vira alteração que não acende o
+ * botão e some sem aviso.
+ */
 const assinatura = (vinculos: VinculoLocal[]) =>
-  vinculos.map((v) => `${v.grupo_id}:${v.aberto ? 1 : 0}`).join(",");
+  vinculos
+    .map((v) => `${v.grupo_id}:${v.aberto ? 1 : 0}:${v.cheio_override ?? "a"}`)
+    .join(",");
+
+/** Filtro da aba Grupos — a lista pode ficar longa numa campanha madura. */
+type FiltroGrupos = "todos" | "cheios" | "nao-cheios";
+const FILTROS_GRUPOS: { valor: FiltroGrupos; rotulo: string }[] = [
+  { valor: "todos", rotulo: "Todos" },
+  { valor: "cheios", rotulo: "Cheios" },
+  { valor: "nao-cheios", rotulo: "Não cheios" },
+];
 
 /** Abas válidas em ?tab= — voltar do editor de roteiro cai direto na aba certa. */
 const ABAS = [
@@ -86,19 +113,10 @@ const ABAS = [
   "link",
   "anuncios",
   "resultados",
+  "configuracoes",
   "atividade",
   "monitoramento",
 ] as const;
-
-/**
- * Ocupação do grupo: quanto falta para ele sair da rotação de entrada.
- *
- * O teto é o MENOR entre a capacidade do WhatsApp e o limite da campanha — a
- * mesma regra que o backend usa para escolher o grupo. Mostrar só a capacidade
- * diria "há vaga" num grupo que o roteador já não escolhe.
- */
-const tetoDoGrupo = (capacidade: number, limite: number | null) =>
-  limite ? Math.min(capacidade, limite) : capacidade;
 
 const CampanhaGrupoDetalhe = () => {
   const { id } = useParams<{ id: string }>();
@@ -121,14 +139,21 @@ const CampanhaGrupoDetalhe = () => {
     [searchParams, setSearchParams],
   );
   const { toast } = useToast();
-  const { grupos: gruposSincronizados, fetch: fetchConexoes } = useWhatsappConexoesStore();
+  const {
+    grupos: gruposSincronizados,
+    instancias,
+    fetch: fetchConexoes,
+  } = useWhatsappConexoesStore();
 
   const [detalhe, setDetalhe] = useState<CampanhaGruposDetalhe | null>(null);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
 
-  const [modalConfig, setModalConfig] = useState(false);
   const [modalExport, setModalExport] = useState(false);
+  const [filtroGrupos, setFiltroGrupos] = useState<FiltroGrupos>("todos");
+  /** Linhas marcadas para a ação em lote. NÃO entra na assinatura: seleção não
+   *  é dado persistido. */
+  const [marcados, setMarcados] = useState<Set<number>>(new Set());
   /** Grupo pendente de confirmação de remoção (spec §3.2). */
   const [removendo, setRemovendo] = useState<VinculoLocal | null>(null);
 
@@ -200,10 +225,41 @@ const CampanhaGrupoDetalhe = () => {
     });
   };
 
-  const alternarAberto = (indice: number) => {
+  const alternarAberto = (grupoId: number) => {
     setVinculos((atual) =>
-      atual.map((v, i) => (i === indice ? { ...v, aberto: !v.aberto } : v)),
+      atual.map((v) => (v.grupo_id === grupoId ? { ...v, aberto: !v.aberto } : v)),
     );
+  };
+
+  /**
+   * Marca/desmarca "cheio" à mão.
+   *
+   * Escolher o MESMO valor que o automático limpa o override (volta a `null`).
+   * Sem isso o override é pegajoso: gente sai do grupo, a ocupação cai abaixo
+   * do teto e o grupo nunca mais volta à rotação porque o TRUE continua lá.
+   */
+  const definirCheio = (grupoIds: Set<number> | number, valor: boolean) => {
+    const alvos = typeof grupoIds === "number" ? new Set([grupoIds]) : grupoIds;
+    setVinculos((atual) =>
+      atual.map((v) => {
+        if (!alvos.has(v.grupo_id)) return v;
+        const automatico = v.participantes >= v.teto;
+        return {
+          ...v,
+          cheio: valor,
+          cheio_override: valor === automatico ? null : valor,
+        };
+      }),
+    );
+  };
+
+  const alternarMarcado = (grupoId: number) => {
+    setMarcados((atual) => {
+      const proximo = new Set(atual);
+      if (proximo.has(grupoId)) proximo.delete(grupoId);
+      else proximo.add(grupoId);
+      return proximo;
+    });
   };
 
   /**
@@ -215,6 +271,11 @@ const CampanhaGrupoDetalhe = () => {
    */
   const removerVinculo = (grupoId: number) => {
     setVinculos((atual) => atual.filter((v) => v.grupo_id !== grupoId));
+    setMarcados((atual) => {
+      const proximo = new Set(atual);
+      proximo.delete(grupoId);
+      return proximo;
+    });
     setRemovendo(null);
   };
 
@@ -223,7 +284,15 @@ const CampanhaGrupoDetalhe = () => {
     try {
       const atualizado = await definirGruposDaCampanha(
         campanhaId,
-        vinculos.map((v, i) => ({ grupo_id: v.grupo_id, posicao: i, aberto: v.aberto })),
+        // A lista COMPLETA e na ordem do array — nunca a filtrada: o PUT
+        // substitui o conjunto inteiro, e mandar a lista filtrada apagaria da
+        // campanha todos os grupos escondidos pelo filtro.
+        vinculos.map((v, i) => ({
+          grupo_id: v.grupo_id,
+          posicao: i,
+          aberto: v.aberto,
+          cheio_override: v.cheio_override,
+        })),
       );
       setDetalhe((atual) =>
         atual ? { ...atual, grupos: atualizado.grupos, total_grupos: atualizado.total_grupos } : atualizado,
@@ -264,6 +333,47 @@ const CampanhaGrupoDetalhe = () => {
     );
   }, [gruposSincronizados, vinculos, numerosDaCampanha]);
 
+  /**
+   * A lista exibida, carregando o índice REAL de cada linha.
+   *
+   * O índice importa: é ele que vira `posicao` no PUT e o que as setas movem.
+   * Filtrar sem preservá-lo faria "mover para cima" trocar a linha com um
+   * vizinho que a afiliada não está vendo.
+   */
+  const visiveis = useMemo(
+    () =>
+      vinculos
+        .map((v, i) => ({ v, i }))
+        .filter(({ v }) =>
+          filtroGrupos === "todos"
+            ? true
+            : filtroGrupos === "cheios"
+              ? v.cheio
+              : !v.cheio,
+        ),
+    [vinculos, filtroGrupos],
+  );
+
+  /**
+   * Nenhum número da campanha consegue enviar agora.
+   *
+   * Escopado pela CAMPANHA, não pela conta: uma conta com 3 chips, 2
+   * conectados, mas a campanha usando só o desconectado, precisa ver o aviso.
+   * E inclui `envio_pausado` porque o motor pula o chip pausado mesmo
+   * conectado — um banner que olhe só `status` mente.
+   *
+   * Os grupos NÃO somem por causa disso, de propósito: sumindo, ela perderia
+   * ordem de preenchimento, seleção e toggles, e teria que remontar tudo ao
+   * reconectar. O grupo continua recebendo entrada pelo link; o que parou foi
+   * o envio de mensagem.
+   */
+  const enviosPausados = useMemo(() => {
+    if (numerosDaCampanha.size === 0) return false;
+    return !instancias.some(
+      (i) => numerosDaCampanha.has(i.id) && i.status === "conectada" && !i.envio_pausado,
+    );
+  }, [instancias, numerosDaCampanha]);
+
   const temGrupoAtivado = useMemo(
     () => gruposSincronizados.some((g) => g.ativado),
     [gruposSincronizados],
@@ -287,15 +397,25 @@ const CampanhaGrupoDetalhe = () => {
   const adicionarSelecionados = () => {
     const novos = gruposDisponiveis
       .filter((g) => selecionados.has(g.id))
-      .map((g) => ({
-        grupo_id: g.id,
-        aberto: true,
-        nome: rotuloDoGrupo(g.nome, g.id),
-        participantes: g.participantes,
-        capacidade: g.capacidade,
-        permite_envio: g.permite_envio,
-        instancia_ids: g.instancia_ids ?? [],
-      }));
+      .map((g) => {
+        // Teto do grupo novo: o backend só o devolve depois do salvar, então a
+        // linha usa a MESMA regra dele (o menor entre capacidade e limite da
+        // campanha) até a próxima carga.
+        const teto = detalhe?.limite_participantes
+          ? Math.min(g.capacidade, detalhe.limite_participantes)
+          : g.capacidade;
+        return {
+          grupo_id: g.id,
+          aberto: true,
+          cheio: g.participantes >= teto,
+          cheio_override: null,
+          teto,
+          nome: rotuloDoGrupo(g.nome, g.id),
+          participantes: g.participantes,
+          capacidade: g.capacidade,
+          instancia_ids: g.instancia_ids ?? [],
+        };
+      });
     setVinculos((atual) => [...atual, ...novos]);
     setModalAdicionar(false);
     setBusca("");
@@ -339,16 +459,24 @@ const CampanhaGrupoDetalhe = () => {
   return (
     <DashboardLayout
       title={detalhe.nome}
-      action={
-        <div className="flex items-center gap-2">
-          <StatusCampanhaBadge status={detalhe.status} />
-          <Button variant="outline" size="sm" onClick={() => setModalConfig(true)}>
-            <Settings2 className="mr-2 h-4 w-4" />
-            Configurações
-          </Button>
-        </div>
-      }
+      // Configurações virou ABA. Era o único elemento de navegação da campanha
+      // fora da barra de abas — e o nome, que morava lá dentro, foi para a
+      // listagem junto com duplicar e excluir.
+      action={<StatusCampanhaBadge status={detalhe.status} />}
     >
+      {enviosPausados && (
+        <div className="mb-4 flex items-start gap-3 rounded-xl border border-amber-500/25 bg-amber-500/10 p-3">
+          <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-500" aria-hidden />
+          <p className="min-w-0 flex-1 text-sm text-amber-600 dark:text-amber-400">
+            Nenhum número conectado — os envios estão pausados. Os grupos continuam
+            recebendo gente pelo link de entrada.{" "}
+            <Link to="/dashboard/configuracoes?tab=whatsapp" className="underline">
+              Reconectar número
+            </Link>
+          </p>
+        </div>
+      )}
+
       <Tabs value={abaAtiva} onValueChange={trocarAba} className="space-y-5">
         {/* O scroll das abas fica no container, nunca na página. */}
         <div ref={abasRef} className="-mx-1 overflow-x-auto px-1 pb-1">
@@ -363,6 +491,7 @@ const CampanhaGrupoDetalhe = () => {
             <TabsTrigger value="link">Link de entrada</TabsTrigger>
             <TabsTrigger value="anuncios">Anúncios</TabsTrigger>
             <TabsTrigger value="resultados">Resultados</TabsTrigger>
+            <TabsTrigger value="configuracoes">Configurações</TabsTrigger>
             <TabsTrigger value="atividade">Atividade</TabsTrigger>
             <TabsTrigger value="monitoramento">Monitoramento</TabsTrigger>
           </TabsList>
@@ -416,6 +545,54 @@ const CampanhaGrupoDetalhe = () => {
             </div>
           </div>
 
+          {vinculos.length > 0 && (
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex flex-wrap gap-1">
+                {FILTROS_GRUPOS.map((f) => (
+                  <Button
+                    key={f.valor}
+                    size="sm"
+                    variant={filtroGrupos === f.valor ? "default" : "outline"}
+                    onClick={() => setFiltroGrupos(f.valor)}
+                  >
+                    {f.rotulo}
+                  </Button>
+                ))}
+              </div>
+              {/* Ação em lote só altera o rascunho — a persistência continua
+                  sendo o mesmo "Salvar ordem". Duas semânticas de salvamento na
+                  mesma tela é o pior desfecho: ela perde a noção do que já foi
+                  gravado. */}
+              {marcados.size > 0 && (
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-xs text-muted-foreground">
+                    {marcados.size} selecionado{marcados.size > 1 ? "s" : ""}
+                  </span>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      definirCheio(marcados, true);
+                      setMarcados(new Set());
+                    }}
+                  >
+                    Marcar como cheio
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      definirCheio(marcados, false);
+                      setMarcados(new Set());
+                    }}
+                  >
+                    Marcar como não cheio
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
+
           {vinculos.length === 0 ? (
             <Card>
               <CardContent className="flex flex-col items-center gap-3 py-12 text-center">
@@ -447,18 +624,26 @@ const CampanhaGrupoDetalhe = () => {
               {/* Desktop: linhas tabulares */}
               <div className="hidden overflow-hidden rounded-xl border border-border md:block">
                 <div className="flex items-center gap-3 border-b border-border bg-muted/40 px-4 py-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                  <span className="w-5" aria-hidden />
                   <span className="w-6" aria-hidden />
                   <span className="min-w-0 flex-1">Grupo</span>
                   <span className="w-28 text-right">Ocupação</span>
-                  <span className="w-20 text-center">Envio</span>
+                  <span className="w-24 text-center">Cheio</span>
                   <span className="w-11 text-center">Aberto</span>
                   <span className="w-[120px]" aria-hidden />
                 </div>
-                {vinculos.map((v, i) => (
+                {visiveis.map(({ v, i }, ordem) => (
                   <div
                     key={v.grupo_id}
-                    className={cn("flex items-center gap-3 px-4 py-2", i > 0 && "border-t border-border")}
+                    className={cn("flex items-center gap-3 px-4 py-2", ordem > 0 && "border-t border-border")}
                   >
+                    <span className="flex w-5 flex-shrink-0 justify-center">
+                      <CheckboxQuadrado
+                        checked={marcados.has(v.grupo_id)}
+                        onCheckedChange={() => alternarMarcado(v.grupo_id)}
+                        aria-label={`Selecionar ${v.nome}`}
+                      />
+                    </span>
                     <span className="w-6 flex-shrink-0 text-right text-xs tabular-nums text-muted-foreground">
                       {i + 1}
                     </span>
@@ -468,33 +653,48 @@ const CampanhaGrupoDetalhe = () => {
                     <span
                       className={cn(
                         "w-28 flex-shrink-0 text-right text-sm tabular-nums",
-                        v.participantes >= tetoDoGrupo(v.capacidade, detalhe.limite_participantes)
-                          ? "font-semibold text-amber-500"
-                          : "text-foreground",
+                        v.cheio ? "font-semibold text-amber-500" : "text-foreground",
                       )}
                     >
-                      {v.participantes}/{tetoDoGrupo(v.capacidade, detalhe.limite_participantes)}
+                      {v.participantes}/{v.teto}
                     </span>
-                    <span className="flex w-20 flex-shrink-0 justify-center">
-                      {v.permite_envio ? (
-                        <BadgeEnvioOk />
-                      ) : (
-                        <span className="text-sm text-muted-foreground">—</span>
-                      )}
+                    {/* "Cheio" é Select, não toggle: o sistema preenche pela
+                        ocupação e ela pode sobrescrever. Escolher o mesmo valor
+                        do automático limpa o override. */}
+                    <span className="flex w-24 flex-shrink-0 justify-center">
+                      <Select
+                        value={v.cheio ? "sim" : "nao"}
+                        disabled={salvandoGrupos}
+                        onValueChange={(valor) => definirCheio(v.grupo_id, valor === "sim")}
+                      >
+                        <SelectTrigger
+                          className="h-8 w-20"
+                          aria-label={`Grupo ${v.nome} cheio`}
+                        >
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="sim">Sim</SelectItem>
+                          <SelectItem value="nao">Não</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </span>
                     <span className="flex w-11 flex-shrink-0 justify-center">
                       <Switch
                         checked={v.aberto}
                         disabled={salvandoGrupos}
-                        onCheckedChange={() => alternarAberto(i)}
+                        onCheckedChange={() => alternarAberto(v.grupo_id)}
                         aria-label={`Grupo ${v.nome} aberto`}
                       />
                     </span>
                     <span className="flex w-[120px] flex-shrink-0 items-center justify-end">
+                      {/* Reordenar com filtro ligado moveria a linha para uma
+                          posição que ela não vê. As setas trabalham no índice
+                          REAL e ficam desligadas fora do "Todos". */}
                       <Button
                         variant="ghost"
                         size="icon"
-                        disabled={i === 0 || salvandoGrupos}
+                        disabled={i === 0 || salvandoGrupos || filtroGrupos !== "todos"}
                         onClick={() => mover(i, -1)}
                         aria-label={`Mover ${v.nome} para cima`}
                       >
@@ -503,7 +703,10 @@ const CampanhaGrupoDetalhe = () => {
                       <Button
                         variant="ghost"
                         size="icon"
-                        disabled={i === vinculos.length - 1 || salvandoGrupos}
+                        disabled={
+                          i === vinculos.length - 1 || salvandoGrupos ||
+                          filtroGrupos !== "todos"
+                        }
                         onClick={() => mover(i, 1)}
                         aria-label={`Mover ${v.nome} para baixo`}
                       >
@@ -537,43 +740,59 @@ const CampanhaGrupoDetalhe = () => {
 
               {/* Mobile: cards empilhados, alvos de toque de 40px */}
               <div className="space-y-3 md:hidden">
-                {vinculos.map((v, i) => (
+                {visiveis.map(({ v, i }) => (
                   <div key={v.grupo_id} className="rounded-xl border border-border bg-card p-4">
                     <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0 flex-1">
-                        <p className="flex items-center gap-2 text-sm font-semibold text-foreground">
-                          <span className="flex-shrink-0 text-xs tabular-nums text-muted-foreground">
-                            {i + 1}.
-                          </span>
-                          <span className="truncate">{v.nome}</span>
-                        </p>
-                        <p className="mt-0.5 text-xs text-muted-foreground">
-                          <span
-                            className={cn(
-                              "tabular-nums",
-                              v.participantes >=
-                                tetoDoGrupo(v.capacidade, detalhe.limite_participantes) &&
-                                "font-semibold text-amber-500",
-                            )}
-                          >
-                            {v.participantes}/
-                            {tetoDoGrupo(v.capacidade, detalhe.limite_participantes)}
-                          </span>{" "}
-                          participantes
-                        </p>
+                      <div className="flex min-w-0 flex-1 items-start gap-3">
+                        <CheckboxQuadrado
+                          className="mt-1 flex-shrink-0"
+                          checked={marcados.has(v.grupo_id)}
+                          onCheckedChange={() => alternarMarcado(v.grupo_id)}
+                          aria-label={`Selecionar ${v.nome}`}
+                        />
+                        <div className="min-w-0 flex-1">
+                          <p className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                            <span className="flex-shrink-0 text-xs tabular-nums text-muted-foreground">
+                              {i + 1}.
+                            </span>
+                            <span className="truncate">{v.nome}</span>
+                          </p>
+                          <p className="mt-0.5 text-xs text-muted-foreground">
+                            <span
+                              className={cn(
+                                "tabular-nums",
+                                v.cheio && "font-semibold text-amber-500",
+                              )}
+                            >
+                              {v.participantes}/{v.teto}
+                            </span>{" "}
+                            participantes
+                          </p>
+                        </div>
                       </div>
-                      {v.permite_envio ? (
-                        <BadgeEnvioOk />
-                      ) : (
-                        <span className="text-sm text-muted-foreground">—</span>
-                      )}
+                      <Select
+                        value={v.cheio ? "sim" : "nao"}
+                        disabled={salvandoGrupos}
+                        onValueChange={(valor) => definirCheio(v.grupo_id, valor === "sim")}
+                      >
+                        <SelectTrigger
+                          className="h-9 w-[124px] flex-shrink-0"
+                          aria-label={`Grupo ${v.nome} cheio`}
+                        >
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="sim">Cheio</SelectItem>
+                          <SelectItem value="nao">Com vaga</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                     <div className="mt-3 flex items-center justify-between gap-2">
                       <label className="flex items-center gap-2 text-sm text-foreground">
                         <Switch
                           checked={v.aberto}
                           disabled={salvandoGrupos}
-                          onCheckedChange={() => alternarAberto(i)}
+                          onCheckedChange={() => alternarAberto(v.grupo_id)}
                           aria-label={`Grupo ${v.nome} aberto`}
                         />
                         {v.aberto ? "Aberto" : "Fechado"}
@@ -582,7 +801,7 @@ const CampanhaGrupoDetalhe = () => {
                         <Button
                           variant="outline"
                           size="icon"
-                          disabled={i === 0 || salvandoGrupos}
+                          disabled={i === 0 || salvandoGrupos || filtroGrupos !== "todos"}
                           onClick={() => mover(i, -1)}
                           aria-label={`Mover ${v.nome} para cima`}
                         >
@@ -591,7 +810,10 @@ const CampanhaGrupoDetalhe = () => {
                         <Button
                           variant="outline"
                           size="icon"
-                          disabled={i === vinculos.length - 1 || salvandoGrupos}
+                          disabled={
+                            i === vinculos.length - 1 || salvandoGrupos ||
+                            filtroGrupos !== "todos"
+                          }
                           onClick={() => mover(i, 1)}
                           aria-label={`Mover ${v.nome} para baixo`}
                         >
@@ -636,6 +858,17 @@ const CampanhaGrupoDetalhe = () => {
 
         <TabsContent value="link" forceMount className="data-[state=inactive]:hidden">
           <LinkDeEntradaDaCampanha campanhaId={campanhaId} />
+        </TabsContent>
+
+        <TabsContent value="configuracoes">
+          {/* `key` para o formulário ressincronizar ao trocar de campanha: como
+              aba, o componente fica montado e não tem mais o `open` que fazia
+              esse papel. */}
+          <ConfiguracoesDaCampanha
+            key={detalhe.id}
+            campanha={detalhe}
+            onSalvo={aoSalvarConfig}
+          />
         </TabsContent>
 
         <TabsContent value="atividade">
@@ -708,7 +941,7 @@ const CampanhaGrupoDetalhe = () => {
                       key={g.id}
                       className="flex min-h-[44px] cursor-pointer items-center gap-3 rounded-lg px-2 py-2.5 transition-colors hover:bg-accent/40"
                     >
-                      <Checkbox
+                      <CheckboxQuadrado
                         checked={selecionados.has(g.id)}
                         onCheckedChange={() => alternarSelecionado(g.id)}
                         aria-label={`Selecionar ${rotuloDoGrupo(g.nome, g.id)}`}
@@ -734,13 +967,6 @@ const CampanhaGrupoDetalhe = () => {
           )}
         </div>
       </ResponsiveModal>
-
-      <ConfiguracoesDaCampanha
-        open={modalConfig}
-        onOpenChange={setModalConfig}
-        campanha={detalhe}
-        onSalvo={aoSalvarConfig}
-      />
 
       <ExportarLeadsModal
         open={modalExport}

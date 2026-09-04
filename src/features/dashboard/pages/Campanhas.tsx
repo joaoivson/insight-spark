@@ -97,6 +97,11 @@ const HEALTH_STRIPE: Record<CampaignHealth, string> = {
   unlinked: "bg-warning",
 };
 
+/** Grid do dia a dia de campanha de grupo — 8 colunas.
+ *  Constante para o cabeçalho e a linha nunca desalinharem: são duas strings
+ *  idênticas repetidas, e mudar uma esquecendo a outra não quebra build. */
+const GRID_DIA_GRUPO = "grid grid-cols-[minmax(56px,0.8fr)_repeat(7,1fr)]";
+
 const HEALTH_BORDER: Record<CampaignHealth, string> = {
   healthy: "border-border",
   warning: "border-warning/30",
@@ -308,8 +313,20 @@ const Campanhas = () => {
     let list = campaigns;
     if (vinculoFilter === "com-grupo") list = list.filter((c) => vinculosGrupo[String(c.id)]);
     else if (vinculoFilter === "sem-grupo") list = list.filter((c) => !vinculosGrupo[String(c.id)]);
-    if (healthFilter === "unlinked") list = list.filter((c) => !c.linked);
-    else if (healthFilter === "loss") list = list.filter((c) => c.linked && c.metrics.roas < 1 && c.metrics.spend > 0);
+    // Campanha de grupo NUNCA entra nos dois alertas: ela não tem Sub ID por
+    // desenho (o rastreio é o link de entrada), então "sem vínculo" e "ROAS
+    // abaixo de 1" descrevem um problema que não existe — e o subtítulo
+    // "gastos sem vendas atribuídas" é justamente a leitura errada que esta
+    // rodada existe para eliminar.
+    if (healthFilter === "unlinked") {
+      list = list.filter((c) => !c.linked && !vinculosGrupo[String(c.id)]);
+    } else if (healthFilter === "loss") {
+      list = list.filter(
+        (c) =>
+          c.linked && !vinculosGrupo[String(c.id)] &&
+          c.metrics.roas < 1 && c.metrics.spend > 0,
+      );
+    }
     if (search.trim()) {
       const t = search.trim().toLowerCase();
       list = list.filter((c) => c.name.toLowerCase().includes(t));
@@ -318,9 +335,16 @@ const Campanhas = () => {
     return [...list].sort((a, b) => getVal(b) - getVal(a));
   }, [campaigns, healthFilter, search, sortKey, vinculoFilter, vinculosGrupo]);
 
-  const unlinkedCount = campaigns.filter((c) => !c.linked).length;
-  const unlinkedSpend = campaigns.filter((c) => !c.linked).reduce((acc, c) => acc + c.metrics.spend, 0);
-  const lossCount = campaigns.filter((c) => c.linked && c.metrics.roas < 1 && c.metrics.spend > 0).length;
+  // Contagem e filtro precisam do MESMO predicado: divergir faz o banner dizer
+  // "3 campanhas" e a lista filtrada mostrar 5.
+  const semVinculo = campaigns.filter((c) => !c.linked && !vinculosGrupo[String(c.id)]);
+  const unlinkedCount = semVinculo.length;
+  const unlinkedSpend = semVinculo.reduce((acc, c) => acc + c.metrics.spend, 0);
+  const lossCount = campaigns.filter(
+    (c) =>
+      c.linked && !vinculosGrupo[String(c.id)] &&
+      c.metrics.roas < 1 && c.metrics.spend > 0,
+  ).length;
 
   // A3: se o banner que ativa o filtro deixa de existir (condição zerou — ex.: vinculou
   // todas as sem-vínculo), volta sozinho pra "Todas" em vez de prender numa tela vazia.
@@ -538,15 +562,14 @@ const Campanhas = () => {
 
         {error && <p className="text-sm text-destructive">{error}</p>}
 
-        {/* Veiculação por plataforma (Instagram vs Facebook) — ainda não é pra
-            produção: o card mede ROAS como faturamento/gasto (a fórmula que o KPI
-            "ROAS Real" desta mesma tela abandonou de propósito por inflar o número)
-            e ignora os dois impostos, então briga com os KPIs logo acima. Foi parar
-            em main num merge de branch inteiro; fica só em homologação até as
-            fórmulas baterem. */}
-        {!isProductionHost() && !showEmptyState && !initialLoading && (
-          <PlatformBreakdownCard startDate={range.startDate} endDate={range.endDate} />
-        )}
+        {/* "Onde seu anúncio está rodando" foi REMOVIDO em 04/09.
+            Não era problema de ambiente: o card media ROAS como
+            faturamento/gasto — a fórmula que o KPI "ROAS Real" desta mesma tela
+            abandonou de propósito por inflar o número — e ignorava os dois
+            impostos. Resultado: 9,25x no Instagram ao lado de 0,41x no topo,
+            dois números incompatíveis na mesma tela. Esconder atrás de
+            `isProductionHost()` só adiava; já tinha subido para produção uma
+            vez. O componente volta quando as fórmulas baterem. */}
 
         {/* Lista */}
         {showEmptyState ? (
@@ -817,7 +840,10 @@ const CampaignCard = ({
                   >
                     <Link2 className="h-3 w-3" /> {campaign.sub_id}
                   </button>
-                ) : (
+                ) : grupoVinculado ? null : (
+                  // Campanha de grupo NÃO precisa de Sub ID: o rastreio é o
+                  // link de entrada. O aviso ficava colado no chip da campanha
+                  // de grupo, um contradizendo o outro na mesma linha.
                   <span className="text-[11px] text-warning">não vinculada</span>
                 )}
                 {grupoVinculado && (
@@ -875,9 +901,13 @@ const CampaignCard = ({
           </span>
         </div>
 
-        {/* Métricas principais (5): Gasto · Comissão · Lucro · ROAS Real · CPC.
-            Mobile: 2 colunas (Gasto|Comissão, Lucro|ROAS, CPC full-width).
-            Desktop: 1 coluna Resumo + 5 métricas alinhadas com dia a dia. */}
+        {/* Métricas principais (5).
+            Campanha de grupo tem conjunto PRÓPRIO: Gasto · Leads · CPL · CPC ·
+            CTR. Comissão, Lucro e ROAS não existem nela — o rastreio é o link
+            de entrada, não o Sub ID, e mostrar "Lucro −R$185,21" e "ROAS 0.00x"
+            em vermelho é prejuízo falso.
+            Mobile: 2 colunas. Desktop: 1 coluna Resumo + 5 métricas alinhadas
+            com a tabela do dia a dia. */}
         <div className="mt-4 grid gap-3 sm:grid-cols-[minmax(56px,0.8fr)_repeat(5,1fr)]">
           <div className="hidden text-left text-[11px] text-muted-foreground sm:flex sm:items-end">Resumo</div>
           <div className="grid grid-cols-2 gap-3 sm:contents">
@@ -886,29 +916,58 @@ const CampaignCard = ({
               value={formatCurrency(hasTax ? m.spend_with_tax : m.spend)}
               sub={hasTax ? `sem imposto: ${formatCurrency(m.spend)}` : undefined}
             />
-            <Metric
-              label="Comissão"
-              value={campaign.linked ? formatCurrency(hasTax ? m.commission_net : m.commission) : "—"}
-              sub={campaign.linked && hasTax ? `bruto: ${formatCurrency(m.commission)}` : undefined}
-            />
-            <Metric
-              label="Lucro"
-              value={campaign.linked ? `${m.profit >= 0 ? "+" : ""}${formatCurrency(m.profit)}` : "—"}
-              valueClass={campaign.linked ? profitClass(m.profit) : undefined}
-            />
-            <Metric
-              label="ROAS Real"
-              value={campaign.linked && m.spend > 0 ? fmtRoas(m.roas) : "—"}
-              valueClass={campaign.linked && m.spend > 0 ? roasClass(m.roas) : undefined}
-            />
-            <div className="col-span-2 sm:col-span-1">
-              <Metric label="CPC FB" value={m.cpc == null ? "—" : formatCurrency(m.cpc)} />
-            </div>
+            {grupoVinculado ? (
+              <>
+                <Metric
+                  label="Leads"
+                  value={m.leads == null ? "—" : m.leads.toLocaleString("pt-BR")}
+                  sub={m.leads == null ? "configure o pixel no link de entrada" : undefined}
+                />
+                <Metric
+                  label="CPL"
+                  value={m.cpl == null ? "—" : formatCurrency(m.cpl)}
+                  sub={
+                    m.leads == null
+                      ? "configure o pixel no link de entrada"
+                      : m.leads === 0
+                        ? "nenhum lead no período"
+                        : undefined
+                  }
+                />
+                <Metric label="CPC FB" value={m.cpc == null ? "—" : formatCurrency(m.cpc)} />
+                <div className="col-span-2 sm:col-span-1">
+                  <Metric label="CTR" value={fmtPct(m.ctr)} />
+                </div>
+              </>
+            ) : (
+              <>
+                <Metric
+                  label="Comissão"
+                  value={campaign.linked ? formatCurrency(hasTax ? m.commission_net : m.commission) : "—"}
+                  sub={campaign.linked && hasTax ? `bruto: ${formatCurrency(m.commission)}` : undefined}
+                />
+                <Metric
+                  label="Lucro"
+                  value={campaign.linked ? `${m.profit >= 0 ? "+" : ""}${formatCurrency(m.profit)}` : "—"}
+                  valueClass={campaign.linked ? profitClass(m.profit) : undefined}
+                />
+                <Metric
+                  label="ROAS Real"
+                  value={campaign.linked && m.spend > 0 ? fmtRoas(m.roas) : "—"}
+                  valueClass={campaign.linked && m.spend > 0 ? roasClass(m.roas) : undefined}
+                />
+                <div className="col-span-2 sm:col-span-1">
+                  <Metric label="CPC FB" value={m.cpc == null ? "—" : formatCurrency(m.cpc)} />
+                </div>
+              </>
+            )}
           </div>
         </div>
 
-        {/* Não vinculada → CTA */}
-        {!campaign.linked && (
+        {/* Não vinculada → CTA. Nunca para campanha de grupo: o vínculo dela é
+            o link de entrada, e oferecer "Vincular ao Sub ID" sugere que falta
+            configuração onde não falta. */}
+        {!campaign.linked && !grupoVinculado && (
           <Button
             variant="outline"
             className="mt-4 w-full border-warning/40 text-warning hover:bg-warning/10 hover:text-warning"
@@ -921,32 +980,97 @@ const CampaignCard = ({
         {/* Expandido */}
         {expanded && (
           <div className="mt-4 border-t border-border pt-4">
-            {/* Métricas secundárias (5): Impressões · Cliques · CTR · Pedidos · Diretos.
-                Mobile: 2 linhas / 3 colunas (Impressões|Cliques|CTR, Pedidos|Diretos).
-                Desktop: 5 colunas. */}
-            <div className="grid gap-3 sm:grid-cols-5">
-              <div className="grid grid-cols-3 gap-3 sm:contents">
+            {/* Métricas secundárias.
+                Na campanha de grupo, CTR já está no resumo e Pedidos/Diretos não
+                existem (vêm do Sub ID) — repeti-los aqui só encheria a linha de
+                "—". Sobram Impressões, Cliques e Alcance. */}
+            {grupoVinculado ? (
+              <div className="grid grid-cols-3 gap-3">
                 <Metric label="Impressões" value={m.impressions > 0 ? m.impressions.toLocaleString("pt-BR") : "—"} />
                 <Metric label="Cliques" value={m.clicks > 0 ? m.clicks.toLocaleString("pt-BR") : "—"} />
-                <Metric label="CTR" value={fmtPct(m.ctr)} />
-                <Metric label="Pedidos" value={campaign.linked ? String(m.orders) : "—"} />
-                <Metric
-                  label="Diretos"
-                  value={campaign.linked && m.orders > 0 ? `${m.direct_orders} · ${Math.round((m.direct_orders / m.orders) * 100)}%` : "—"}
-                />
+                <Metric label="Alcance" value={m.reach > 0 ? m.reach.toLocaleString("pt-BR") : "—"} />
               </div>
-            </div>
+            ) : (
+              /* Métricas secundárias (5): Impressões · Cliques · CTR · Pedidos · Diretos.
+                 Mobile: 2 linhas / 3 colunas (Impressões|Cliques|CTR, Pedidos|Diretos).
+                 Desktop: 5 colunas. */
+              <div className="grid gap-3 sm:grid-cols-5">
+                <div className="grid grid-cols-3 gap-3 sm:contents">
+                  <Metric label="Impressões" value={m.impressions > 0 ? m.impressions.toLocaleString("pt-BR") : "—"} />
+                  <Metric label="Cliques" value={m.clicks > 0 ? m.clicks.toLocaleString("pt-BR") : "—"} />
+                  <Metric label="CTR" value={fmtPct(m.ctr)} />
+                  <Metric label="Pedidos" value={campaign.linked ? String(m.orders) : "—"} />
+                  <Metric
+                    label="Diretos"
+                    value={campaign.linked && m.orders > 0 ? `${m.direct_orders} · ${Math.round((m.direct_orders / m.orders) * 100)}%` : "—"}
+                  />
+                </div>
+              </div>
+            )}
 
             <p className="mb-2 mt-5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Desempenho dia a dia</p>
             {loadingDaily ? (
               <Skeleton className="h-20 w-full" />
             ) : daily && daily.length > 0 ? (
               <div className="overflow-x-auto lg:overflow-visible">
-                {/* Data + 5 métricas (Pedidos·Gasto·Comissão·Lucro·ROAS) + bloco "Anúncios ×
+                {grupoVinculado ? (
+                  /* Campanha de grupo: 8 colunas próprias.
+                     Saem Pedidos, Comissão, Lucro e ROAS — não existem sem Sub
+                     ID — e sai o bloco "Anúncios × Shopee" inteiro, pelo mesmo
+                     motivo (Cliques Shopee e CPC Shopee vêm do sub_id). */
+                  <div className="min-w-[640px] text-xs tabular-nums lg:min-w-0">
+                    <div className={cn(GRID_DIA_GRUPO, "gap-x-3 pb-2 text-right text-muted-foreground")}>
+                      <span className="text-left font-normal">Data</span>
+                      <span className="font-normal">Gasto</span>
+                      <span className="font-normal">Impressões</span>
+                      <span className="font-normal">Cliques</span>
+                      <span className="font-normal">CTR</span>
+                      <span className="font-normal">CPC</span>
+                      <span className="font-normal">Leads</span>
+                      <span className="font-normal">CPL</span>
+                    </div>
+                    {daily.map((d) => (
+                      <div
+                        key={d.date}
+                        className={cn(GRID_DIA_GRUPO, "gap-x-3 border-t border-border py-2 text-right")}
+                      >
+                        <span className="text-left text-muted-foreground">
+                          {d.date.slice(8, 10)}/{d.date.slice(5, 7)}
+                        </span>
+                        <span>{d.spend_with_tax.toFixed(2)}</span>
+                        <span>{d.impressions > 0 ? d.impressions.toLocaleString("pt-BR") : "—"}</span>
+                        <span>{d.clicks > 0 ? d.clicks.toLocaleString("pt-BR") : "—"}</span>
+                        <span>{fmtPct(d.ctr)}</span>
+                        <span>{d.cpc == null ? "—" : d.cpc.toFixed(2)}</span>
+                        {/* Sem pixel, "—" e nunca 0: zero afirmaria que
+                            ninguém virou lead. */}
+                        <span className={d.leads == null ? "text-muted-foreground" : undefined}>
+                          {d.leads == null ? "—" : d.leads.toLocaleString("pt-BR")}
+                        </span>
+                        <span className={d.cpl == null ? "text-muted-foreground" : undefined}>
+                          {d.cpl == null ? "—" : d.cpl.toFixed(2)}
+                        </span>
+                      </div>
+                    ))}
+                    {daily.every((d) => d.leads == null) && (
+                      <p className="mt-2 text-[11px] text-muted-foreground">
+                        Leads e CPL precisam do pixel do Facebook —{" "}
+                        <RouterLink
+                          to={`/dashboard/grupos/${grupoVinculado.id}?tab=link`}
+                          className="underline"
+                        >
+                          configure no link de entrada
+                        </RouterLink>
+                        .
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                /* Data + 5 métricas (Pedidos·Gasto·Comissão·Lucro·ROAS) + bloco "Anúncios ×
                     Shopee" (Cliques FB·Cliques Shopee·CPC FB·CPC Shopee), com fundo azulado.
                     O CPC (renomeado CPC FB) mora dentro do grupo — não existe mais solto.
                     Desktop (lg+): sem scroll, grid ocupa a largura cheia. Mobile: mantém o
-                    scroll horizontal existente. */}
+                    scroll horizontal existente. */
                 <div className="min-w-[760px] text-xs tabular-nums lg:min-w-0">
                   <div className="grid grid-cols-[minmax(56px,0.8fr)_repeat(5,1fr)_repeat(4,1fr)] gap-x-3 pb-1 text-right text-muted-foreground">
                     <span />
@@ -999,6 +1123,7 @@ const CampaignCard = ({
                     </div>
                   ))}
                 </div>
+                )}
               </div>
             ) : (
               <p className="text-xs text-muted-foreground">Sem dados no período.</p>

@@ -5,6 +5,7 @@ import {
   ChevronDown,
   ChevronUp,
   Download,
+  Link2,
   Loader2,
   MessagesSquare,
   Users,
@@ -25,6 +26,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { DataCard, type DataCardField } from "@/components/shared/DataCard";
+import { VincularSubIdsModal } from "@/features/dashboard/components/VincularSubIdsModal";
 import { useToast } from "@/hooks/use-toast";
 import {
   exportarLeads,
@@ -59,53 +61,72 @@ const curto = (d: Date) =>
 const num = (v?: number | null) => (v ?? 0).toLocaleString("pt-BR");
 const pct = (v?: number | null) => `${(v ?? 0).toFixed(1)}%`;
 
-/** Lucro por pessoa é a métrica que decide o investimento — ganha cor e peso. */
+/** Lucro é a métrica que decide o investimento — ganha cor. */
 const lucroClass = (v?: number | null) =>
   (v ?? 0) > 0 ? "text-success" : (v ?? 0) < 0 ? "text-destructive" : "text-foreground";
 
+const fmtRoas = (v?: number | null) => (v == null ? "—" : `${v.toFixed(2)}x`);
+
+/**
+ * Card de KPI. São OITO agora (eram cinco), então o tamanho encolheu: com o
+ * corpo antigo eles quebravam em quatro linhas no desktop.
+ */
 const KpiResultado = ({
   rotulo,
   valor,
   nota,
   destaque,
+  valorClass,
 }: {
   rotulo: string;
   valor: string;
   /** Só aparece quando o número não existe — explica o "—" em vez de mostrar 0. */
   nota?: string;
   destaque?: boolean;
+  valorClass?: string;
 }) => (
   <Card>
-    <CardContent className="p-4">
-      <p className="text-xs font-medium text-muted-foreground">{rotulo}</p>
+    <CardContent className="p-3">
+      <p className="text-[11px] font-medium text-muted-foreground">{rotulo}</p>
       <p
         className={cn(
-          "mt-1 text-lg font-semibold tracking-tight tabular-nums md:text-xl",
+          "mt-0.5 text-base font-semibold tracking-tight tabular-nums lg:text-lg",
           destaque && "text-primary",
+          valorClass,
         )}
       >
         {valor}
       </p>
-      {nota && <p className="mt-0.5 text-[11px] leading-snug text-muted-foreground">{nota}</p>}
+      {nota && <p className="mt-0.5 text-[10px] leading-snug text-muted-foreground">{nota}</p>}
     </CardContent>
   </Card>
 );
 
-/** Métricas secundárias — só aparecem no "ver detalhes" de cada grupo. */
+/**
+ * Métricas por grupo que ficam no card do mobile.
+ *
+ * No desktop viraram COLUNAS: Saídas, Evasão, Pedidos e Cliques subiram do
+ * "ver detalhes" quando Gasto atribuído, Lucro e Lucro por pessoa saíram — os
+ * três dependiam de um rateio que não existe. "Mensagens" continua aqui: não
+ * está na lista de colunas pedida, mas o dado continua vindo e some da tela se
+ * não tiver onde aparecer.
+ */
 const DETALHES: { rotulo: string; valor: (l: LinhaResultado) => string }[] = [
   { rotulo: "Saídas", valor: (l) => num(l.saidas) },
   { rotulo: "Evasão", valor: (l) => pct(l.evasao_pct) },
   { rotulo: "Mensagens", valor: (l) => num(l.mensagens) },
   { rotulo: "Cliques", valor: (l) => num(l.cliques) },
   { rotulo: "Pedidos", valor: (l) => num(l.pedidos) },
-  { rotulo: "Gasto atribuído", valor: (l) => formatCurrency(l.gasto_atribuido) },
 ];
 
+// O texto anterior ("Não exportamos números de telefone — não coletamos os
+// números de quem entra") saiu: era FALSO desde a 079, e contradizia a própria
+// política de privacidade, que já foi reescrita dizendo o contrário.
 const NOTA_EXPORT =
-  "Data, grupo e origem de cada entrada do período selecionado. Não exportamos números de telefone — não coletamos os números de quem entra.";
+  "Exporta quem está nos grupos agora, com telefone e data de entrada quando ela é conhecida.";
 
 const ERRO_CARGA = "Não foi possível carregar os resultados. Tente novamente.";
-const ERRO_EXPORT = "Não foi possível exportar as entradas. Tente novamente.";
+const ERRO_EXPORT = "Não foi possível exportar os leads. Tente novamente.";
 
 /** Aba "Resultados": desempenho por grupo no período, com o investimento em anúncios. */
 export const ResultadosDaCampanha = ({
@@ -117,6 +138,7 @@ export const ResultadosDaCampanha = ({
   onIrParaAba?: (aba: "grupos" | "anuncios") => void;
 }) => {
   const { toast } = useToast();
+  const [modalSubIds, setModalSubIds] = useState(false);
   const [periodo, setPeriodo] = useState<PeriodoKey>("7d");
   const [rangePersonalizado, setRangePersonalizado] = useState<DateRange | undefined>();
   const [dados, setDados] = useState<Resultados | null>(null);
@@ -180,8 +202,8 @@ export const ResultadosDaCampanha = ({
   const exportar = async () => {
     setExportando(true);
     try {
-      // Mesmo período da tela — o CSV acompanha o filtro, não exporta desde sempre.
-      const { blob, nome } = await exportarLeads(campanhaId, intervalo);
+      // Sem período: o CSV é a lista de quem está nos grupos AGORA.
+      const { blob, nome } = await exportarLeads(campanhaId);
       const href = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = href;
@@ -289,13 +311,13 @@ export const ResultadosDaCampanha = ({
 
       {/* Investimento e custos — o bloco que responde "vale a pena?" */}
       {carregando ? (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-          {[0, 1, 2, 3, 4].map((i) => (
-            <Skeleton key={i} className="h-[86px] w-full rounded-xl" />
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-8">
+          {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => (
+            <Skeleton key={i} className="h-[72px] w-full rounded-xl" />
           ))}
         </div>
       ) : anuncios ? (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-8">
           <KpiResultado
             rotulo="Investimento"
             valor={formatCurrency(anuncios.investimento_com_imposto)}
@@ -306,7 +328,32 @@ export const ResultadosDaCampanha = ({
                     anuncios.campanhas_vinculadas === 1 ? "anúncio" : "anúncios"
                   }`
             }
+          />
+          {/* Comissão, Lucro e ROAS são REAIS aqui: vêm dos Sub IDs vinculados
+              (dos grupos + os manuais), não de estimativa. E vivem só no nível
+              da CAMPANHA — nenhum desce para grupo, porque o rateio que fazia
+              isso era inventado. */}
+          <KpiResultado
+            rotulo="Comissão"
+            valor={formatCurrency(totais?.comissao_liquida ?? 0)}
+          />
+          <KpiResultado
+            rotulo="Lucro"
+            valor={formatCurrency(totais?.lucro ?? 0)}
+            valorClass={lucroClass(totais?.lucro)}
             destaque
+          />
+          <KpiResultado
+            rotulo="ROAS Real"
+            valor={fmtRoas(totais?.roas)}
+            nota={totais?.roas == null ? "sem investimento no período" : undefined}
+            valorClass={
+              totais?.roas == null
+                ? undefined
+                : totais.roas >= 1
+                  ? "text-success"
+                  : "text-destructive"
+            }
           />
           <KpiResultado
             rotulo="Leads"
@@ -391,10 +438,17 @@ export const ResultadosDaCampanha = ({
         <>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
             <p className="max-w-xl text-xs text-muted-foreground">{NOTA_EXPORT}</p>
+            <div className="flex flex-shrink-0 flex-wrap gap-2 self-start">
             <Button
               variant="outline"
               size="sm"
-              className="flex-shrink-0 self-start"
+              onClick={() => setModalSubIds(true)}
+            >
+              <Link2 className="mr-2 h-4 w-4" /> Vincular Sub ID
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
               onClick={() => void exportar()}
               disabled={exportando}
             >
@@ -403,85 +457,63 @@ export const ResultadosDaCampanha = ({
               ) : (
                 <Download className="mr-2 h-4 w-4" />
               )}
-              Exportar entradas (CSV)
+              Exportar leads (CSV)
             </Button>
+            </div>
           </div>
 
-          {/* Desktop: 6 colunas visíveis. O resto vive no "ver detalhes" de cada linha. */}
-          <div className="hidden overflow-hidden rounded-xl border border-border md:block">
+          {/*
+            Desktop: 9 colunas, todas visíveis.
+
+            Saídas, Evasão, Pedidos e Cliques subiram do "ver detalhes" quando
+            Gasto atribuído, Lucro e Lucro por pessoa saíram — os três
+            dependiam de ratear o gasto da campanha entre os grupos, e não há
+            informação para essa divisão. Sem eles o expandable perdeu razão de
+            existir aqui, e o Sub ID virou coluna em vez de texto solto.
+
+            A comissão por grupo continua REAL: vem do Sub ID do grupo (`wg…`).
+          */}
+          <div className="hidden overflow-x-auto rounded-xl border border-border md:block">
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Grupo</TableHead>
                   <TableHead className="text-right">Participantes</TableHead>
                   <TableHead className="text-right">Entradas</TableHead>
+                  <TableHead className="text-right">Saídas</TableHead>
+                  <TableHead className="text-right">Evasão</TableHead>
                   <TableHead className="text-right">Comissão líquida</TableHead>
-                  <TableHead className="text-right">Lucro</TableHead>
-                  <TableHead className="text-right">Lucro por pessoa</TableHead>
+                  <TableHead className="text-right">Pedidos</TableHead>
+                  <TableHead className="text-right">Cliques</TableHead>
+                  <TableHead>Sub ID</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {linhas.map((l) => {
-                  const aberto = abertos.has(l.grupo_id);
-                  return [
-                    <TableRow key={l.grupo_id}>
-                      <TableCell className="max-w-[280px]">
-                        <button
-                          type="button"
-                          onClick={() => alternarDetalhes(l.grupo_id)}
-                          aria-expanded={aberto}
-                          className="flex min-w-0 items-center gap-2 text-left text-sm font-medium text-foreground transition-colors hover:text-primary"
-                        >
-                          {aberto ? (
-                            <ChevronUp className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
-                          ) : (
-                            <ChevronDown className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
-                          )}
-                          <span className="truncate">{l.grupo ?? "(grupo sem nome)"}</span>
-                        </button>
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums">
-                        {num(l.participantes)}
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums">{num(l.entradas)}</TableCell>
-                      <TableCell className="text-right tabular-nums">
-                        {formatCurrency(l.comissao_liquida)}
-                      </TableCell>
-                      <TableCell className={cn("text-right tabular-nums", lucroClass(l.lucro))}>
-                        {formatCurrency(l.lucro)}
-                      </TableCell>
-                      <TableCell
-                        className={cn(
-                          "text-right font-semibold tabular-nums",
-                          lucroClass(l.lucro_por_pessoa),
-                        )}
-                      >
-                        {l.lucro_por_pessoa == null ? "—" : formatCurrency(l.lucro_por_pessoa)}
-                      </TableCell>
-                    </TableRow>,
-                    aberto ? (
-                      <TableRow key={`${l.grupo_id}-detalhes`} className="hover:bg-transparent">
-                        <TableCell colSpan={6} className="bg-muted/30">
-                          <dl className="grid grid-cols-3 gap-3 lg:grid-cols-6">
-                            {DETALHES.map((d) => (
-                              <div key={d.rotulo} className="min-w-0">
-                                <dt className="text-[11px] text-muted-foreground">{d.rotulo}</dt>
-                                <dd className="mt-0.5 text-sm tabular-nums text-foreground">
-                                  {d.valor(l)}
-                                </dd>
-                              </div>
-                            ))}
-                          </dl>
-                          {l.sub_id && (
-                            <p className="mt-3 text-[11px] text-muted-foreground">
-                              Sub ID {l.sub_id}
-                            </p>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    ) : null,
-                  ];
-                })}
+                {linhas.map((l) => (
+                  <TableRow key={l.grupo_id}>
+                    <TableCell className="max-w-[220px]">
+                      <span className="block truncate text-sm font-medium text-foreground">
+                        {l.grupo ?? "(grupo sem nome)"}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {num(l.participantes)}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">{num(l.entradas)}</TableCell>
+                    <TableCell className="text-right tabular-nums">{num(l.saidas)}</TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {pct(l.evasao_pct)}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {formatCurrency(l.comissao_liquida)}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">{num(l.pedidos)}</TableCell>
+                    <TableCell className="text-right tabular-nums">{num(l.cliques)}</TableCell>
+                    <TableCell className="font-mono text-xs text-muted-foreground">
+                      {l.sub_id ?? "—"}
+                    </TableCell>
+                  </TableRow>
+                ))}
               </TableBody>
               {totais && (
                 <TableFooter>
@@ -494,26 +526,33 @@ export const ResultadosDaCampanha = ({
                       {num(totais.entradas)}
                     </TableCell>
                     <TableCell className="text-right tabular-nums">
+                      {num(totais.saidas)}
+                    </TableCell>
+                    {/* Evasão do total não é a média das evasões — é
+                        saídas ÷ entradas do conjunto. */}
+                    <TableCell className="text-right tabular-nums">
+                      {totais.entradas
+                        ? pct((totais.saidas / totais.entradas) * 100)
+                        : "—"}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
                       {formatCurrency(totais.comissao_liquida)}
                     </TableCell>
-                    <TableCell className={cn("text-right tabular-nums", lucroClass(totais.lucro))}>
-                      {formatCurrency(totais.lucro)}
+                    <TableCell className="text-right tabular-nums">
+                      {num(totais.pedidos)}
                     </TableCell>
-                    <TableCell
-                      className={cn(
-                        "text-right font-semibold tabular-nums",
-                        lucroClass(totais.lucro_por_pessoa),
-                      )}
-                    >
-                      {totais.lucro_por_pessoa == null ? "—" : formatCurrency(totais.lucro_por_pessoa)}
+                    <TableCell className="text-right tabular-nums">
+                      {num(totais.cliques)}
                     </TableCell>
+                    <TableCell />
                   </TableRow>
                 </TableFooter>
               )}
             </Table>
           </div>
 
-          {/* Mobile: um card por grupo, com o lucro por pessoa em destaque. */}
+          {/* Mobile: um card por grupo, com a comissão em destaque — lucro e
+              lucro por pessoa saíram junto com o rateio que os produzia. */}
           <div className="space-y-3 md:hidden">
             {linhas.map((l) => {
               const aberto = abertos.has(l.grupo_id);
@@ -522,22 +561,14 @@ export const ResultadosDaCampanha = ({
                 { label: "Entradas", value: <span className="tabular-nums">{num(l.entradas)}</span> },
                 {
                   label: "Comissão líq.",
+                  emphasis: true,
                   value: <span className="tabular-nums">{formatCurrency(l.comissao_liquida)}</span>,
                 },
                 {
-                  label: "Lucro",
+                  label: "Sub ID",
                   value: (
-                    <span className={cn("tabular-nums", lucroClass(l.lucro))}>
-                      {formatCurrency(l.lucro)}
-                    </span>
-                  ),
-                },
-                {
-                  label: "Lucro por pessoa",
-                  emphasis: true,
-                  value: (
-                    <span className={cn("tabular-nums", lucroClass(l.lucro_por_pessoa))}>
-                      {l.lucro_por_pessoa == null ? "—" : formatCurrency(l.lucro_por_pessoa)}
+                    <span className="font-mono text-xs text-muted-foreground">
+                      {l.sub_id ?? "—"}
                     </span>
                   ),
                 },
@@ -578,33 +609,38 @@ export const ResultadosDaCampanha = ({
                 fields={[
                   { label: "Participantes", value: <span className="tabular-nums">{num(totais.participantes)}</span> },
                   { label: "Entradas", value: <span className="tabular-nums">{num(totais.entradas)}</span> },
+                  { label: "Saídas", value: <span className="tabular-nums">{num(totais.saidas)}</span> },
+                  {
+                    // Evasão do total é saídas ÷ entradas do conjunto, não a
+                    // média das evasões por grupo.
+                    label: "Evasão",
+                    value: (
+                      <span className="tabular-nums">
+                        {totais.entradas ? pct((totais.saidas / totais.entradas) * 100) : "—"}
+                      </span>
+                    ),
+                  },
                   {
                     label: "Comissão líq.",
+                    emphasis: true,
                     value: <span className="tabular-nums">{formatCurrency(totais.comissao_liquida)}</span>,
                   },
-                  {
-                    label: "Lucro",
-                    value: (
-                      <span className={cn("tabular-nums", lucroClass(totais.lucro))}>
-                        {formatCurrency(totais.lucro)}
-                      </span>
-                    ),
-                  },
-                  {
-                    label: "Lucro por pessoa",
-                    emphasis: true,
-                    value: (
-                      <span className={cn("tabular-nums", lucroClass(totais.lucro_por_pessoa))}>
-                        {totais.lucro_por_pessoa == null ? "—" : formatCurrency(totais.lucro_por_pessoa)}
-                      </span>
-                    ),
-                  },
+                  { label: "Pedidos", value: <span className="tabular-nums">{num(totais.pedidos)}</span> },
+                  { label: "Cliques", value: <span className="tabular-nums">{num(totais.cliques)}</span> },
                 ]}
               />
             )}
           </div>
         </>
       )}
+
+      <VincularSubIdsModal
+        open={modalSubIds}
+        onOpenChange={setModalSubIds}
+        campanhaId={campanhaId}
+        periodo={intervalo}
+        onSalvo={() => setTentativa((n) => n + 1)}
+      />
     </div>
   );
 };

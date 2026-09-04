@@ -15,6 +15,15 @@ export interface CampaignMetrics {
   direct_orders: number;
   profit: number;           // lucro líquido = commission_net - spend_with_tax
   roas: number;             // ROAS Real = commission_net / spend_with_tax
+  /**
+   * Leads do pixel (evento `Lead` na página do link de entrada).
+   *
+   * `null` = nenhum dia do período reportou lead (sem pixel configurado);
+   * `0` = houve relatório e ninguém virou lead. São afirmações diferentes, e
+   * colapsá-las em 0 diz "ninguém converteu" para quem nem instalou o pixel.
+   */
+  leads: number | null;
+  cpl: number | null;
 }
 
 export interface Campaign {
@@ -66,6 +75,8 @@ export interface CampaignDailyPoint {
   roas: number;
   clicks_shopee: number | null;
   cpc_shopee: number | null;
+  leads: number | null;
+  cpl: number | null;
 }
 
 export interface CampaignDetailResponse {

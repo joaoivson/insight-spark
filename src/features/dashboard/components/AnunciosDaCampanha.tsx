@@ -5,7 +5,7 @@ import { Loader2, Megaphone, Search } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
+import { CheckboxQuadrado } from "@/components/shared/CheckboxQuadrado";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Paginacao, paginar } from "@/components/shared/Paginacao";
@@ -336,7 +336,7 @@ export const AnunciosDaCampanha = ({ campanhaId }: { campanhaId: number }) => {
                   dona ? "cursor-not-allowed opacity-60" : "cursor-pointer hover:bg-accent/40",
                 )}
               >
-                <Checkbox
+                <CheckboxQuadrado
                   checked={selecionados.has(a.id)}
                   onCheckedChange={() => alternar(a.id, !!dona)}
                   disabled={salvando || !!dona}

@@ -129,12 +129,21 @@ const PrivacyPolicy = () => (
           nos permite saber quantas pessoas permaneceram no grupo.
         </li>
         <li>
+          <strong>De quem está nos grupos que você ativou</strong>, mantemos a
+          lista atual de participantes — o mesmo identificador e, quando o
+          WhatsApp o informa, o número de telefone. É a lista que sustenta a
+          exportação de contatos do grupo. Ela vale <em>apenas</em> para os
+          grupos que você ativou no MarketDash; nos demais, continuamos
+          guardando só a contagem de participantes. A lista é substituída a cada
+          sincronização: quem sai do grupo sai dela.
+        </li>
+        <li>
           <strong>Para que serve esse contato.</strong> Ele existe para que{" "}
-          <em>você</em> possa exportar, em CSV, a lista de quem entrou nos seus
+          <em>você</em> possa exportar, em CSV, a lista de quem está nos seus
           próprios grupos — e falar com essas pessoas. O MarketDash não usa esses
           contatos para nenhuma finalidade própria, não os envia a terceiros e
           não os cruza entre contas de clientes diferentes: cada afiliada só
-          enxerga quem entrou nos grupos dela.
+          enxerga quem está nos grupos dela.
         </li>
         <li>
           <strong>Você é o controlador desses dados.</strong> Quem entra no seu

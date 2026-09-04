@@ -147,7 +147,15 @@ export const VisaoGeralDaCampanha = ({ campanhaId }: { campanhaId: number }) => 
   );
 
   const serie = useMemo(
-    () => (dados?.serie ?? []).map((p) => ({ ...p, rotulo: diaCurto(p.data) })),
+    () =>
+      (dados?.serie ?? []).map((p) => ({
+        ...p,
+        // "05/09 · hoje" no eixo: o último ponto é um dia EM CURSO, e sem a
+        // marca ele é lido como queda ao lado de dias inteiros. A janela
+        // passou a incluir hoje porque terminá-la em ontem fazia campanha
+        // recém-criada aparecer inteira em zero com movimento acontecendo.
+        rotulo: p.parcial ? `${diaCurto(p.data)} · hoje` : diaCurto(p.data),
+      })),
     [dados],
   );
 
@@ -235,6 +243,7 @@ export const VisaoGeralDaCampanha = ({ campanhaId }: { campanhaId: number }) => 
               <p className="text-xs text-muted-foreground">
                 {dados.periodo.inicio.split("-").reverse().join("/")} a{" "}
                 {dados.periodo.fim.split("-").reverse().join("/")}
+                {serie.some((p) => p.parcial) && " · hoje ainda em curso"}
               </p>
             </div>
             <div className="flex gap-1">
