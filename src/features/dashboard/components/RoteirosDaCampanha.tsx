@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { CalendarClock, Copy, ListOrdered, Loader2, Pencil, Plus } from "lucide-react";
+import {
+  CalendarClock, Copy, ListOrdered, Loader2, Pencil, Plus, Send,
+} from "lucide-react";
 
 import { ResponsiveModal } from "@/components/shared/ResponsiveModal";
 import { Badge } from "@/components/ui/badge";
@@ -9,6 +11,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import { EnvioRapidoModal } from "@/components/whatsapp/EnvioRapidoModal";
 import { useToast } from "@/hooks/use-toast";
 import {
   criarRoteiro,
@@ -27,7 +30,14 @@ const StatusRoteiroBadge = ({ status }: { status: string }) =>
   );
 
 /** Aba "Roteiros" da campanha: sequência de passos que a campanha dispara. */
-export const RoteirosDaCampanha = ({ campanhaId }: { campanhaId: number }) => {
+export const RoteirosDaCampanha = ({
+  campanhaId,
+  gruposAbertos = [],
+}: {
+  campanhaId: number;
+  /** Pré-seleção do envio rápido: os grupos abertos da campanha. */
+  gruposAbertos?: number[];
+}) => {
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -37,6 +47,7 @@ export const RoteirosDaCampanha = ({ campanhaId }: { campanhaId: number }) => {
   const [ocupado, setOcupado] = useState(false);
 
   const [modalNovo, setModalNovo] = useState(false);
+  const [modalEnvio, setModalEnvio] = useState(false);
   const [nome, setNome] = useState("");
   const [criando, setCriando] = useState(false);
 
@@ -98,13 +109,21 @@ export const RoteirosDaCampanha = ({ campanhaId }: { campanhaId: number }) => {
 
   return (
     <div className="space-y-4">
-      {(carregando || roteiros.length > 0) && (
-        <div className="flex items-center justify-end">
-          <Button onClick={() => setModalNovo(true)} disabled={carregando}>
-            <Plus className="mr-2 h-4 w-4" /> Novo roteiro
-          </Button>
-        </div>
-      )}
+      {/*
+        A barra aparece SEMPRE — inclusive sem nenhum roteiro. "Enviar oferta"
+        veio da aba Grupos (§3.1) e é justamente o caminho de quem ainda não
+        montou roteiro nenhum: escondê-lo no estado vazio tiraria a ação do
+        lugar onde ela mais serve. "Novo roteiro" continua no estado vazio
+        também, no card explicativo.
+      */}
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        <Button variant="outline" onClick={() => setModalEnvio(true)}>
+          <Send className="mr-2 h-4 w-4" /> Enviar oferta
+        </Button>
+        <Button onClick={() => setModalNovo(true)} disabled={carregando}>
+          <Plus className="mr-2 h-4 w-4" /> Novo roteiro
+        </Button>
+      </div>
 
       {carregando ? (
         <div className="space-y-3">
@@ -224,6 +243,13 @@ export const RoteirosDaCampanha = ({ campanhaId }: { campanhaId: number }) => {
           </Button>
         </div>
       </ResponsiveModal>
+
+      <EnvioRapidoModal
+        open={modalEnvio}
+        onOpenChange={setModalEnvio}
+        campanhaId={campanhaId}
+        gruposPreSelecionados={gruposAbertos}
+      />
     </div>
   );
 };

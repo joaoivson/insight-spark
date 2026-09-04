@@ -1,11 +1,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
-import { ArrowDown, ArrowUp, Loader2, Plus, Send, X } from "lucide-react";
+import {
+  ArrowDown, ArrowUp, Download, Loader2, MoreVertical, Plus, Settings2, Trash2,
+} from "lucide-react";
 
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { ResponsiveModal } from "@/components/shared/ResponsiveModal";
-import { EnvioRapidoModal } from "@/components/whatsapp/EnvioRapidoModal";
 import { AnunciosDaCampanha } from "@/features/dashboard/components/AnunciosDaCampanha";
+import { ConfiguracoesDaCampanha } from "@/features/dashboard/components/ConfiguracoesDaCampanha";
+import { ExportarLeadsModal } from "@/features/dashboard/components/ExportarLeadsModal";
+import { NumerosDaCampanha } from "@/features/dashboard/components/NumerosDaCampanha";
+import { VisaoGeralDaCampanha } from "@/features/dashboard/components/VisaoGeralDaCampanha";
 import { AtividadeDaCampanha } from "@/features/dashboard/components/AtividadeDaCampanha";
 import { LinkDeEntradaDaCampanha } from "@/features/dashboard/components/LinkDeEntradaDaCampanha";
 import { ResultadosDaCampanha } from "@/features/dashboard/components/ResultadosDaCampanha";
@@ -18,79 +23,31 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { StatusCampanhaBadge } from "@/features/dashboard/pages/CampanhasGrupos";
 import {
-  atualizarCampanha,
   definirGruposDaCampanha,
   obterCampanha,
+  type CampanhaGrupos,
   type CampanhaGruposDetalhe,
-  type EstrategiaEntrada,
-  type StatusCampanha,
 } from "@/services/campanhas_grupos.service";
 import { cn } from "@/shared/lib/utils";
+import { mensagemAmigavel } from "@/services/http-error";
 import { useWhatsappConexoesStore } from "@/stores/whatsappConexoesStore";
 import { rotuloDoGrupo } from "@/shared/lib/grupo";
-
-/** Opção de rádio como cartão clicável — mesmo padrão do AutomacaoEditor. */
-const Opcao = ({
-  titulo,
-  descricao,
-  ativo,
-  onClick,
-}: {
-  titulo: string;
-  descricao: string;
-  ativo: boolean;
-  onClick: () => void;
-}) => (
-  <button
-    type="button"
-    onClick={onClick}
-    role="radio"
-    aria-checked={ativo}
-    className={cn(
-      "flex w-full items-start gap-3 rounded-xl border p-3 text-left transition-colors",
-      ativo ? "border-primary bg-primary/5" : "border-border hover:bg-accent/40",
-    )}
-  >
-    <span
-      className={cn(
-        "mt-0.5 flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full border-2",
-        ativo ? "border-primary" : "border-muted-foreground/40",
-      )}
-    >
-      {ativo && <span className="h-2 w-2 rounded-full bg-primary" />}
-    </span>
-    <span className="min-w-0">
-      <span className="block text-sm font-medium text-foreground">{titulo}</span>
-      <span className="block text-xs text-muted-foreground">{descricao}</span>
-    </span>
-  </button>
-);
 
 const BadgeEnvioOk = () => (
   <Badge className="border-emerald-500/25 bg-emerald-500/10 text-emerald-500">Envio ok</Badge>
 );
-
-type FormCampanha = {
-  nome: string;
-  descricao: string;
-  status: StatusCampanha;
-  estrategia_entrada: EstrategiaEntrada;
-  abertura_automatica: boolean;
-  reabertura_automatica: boolean;
-};
 
 /** Linha da aba Grupos, mantida localmente até o "Salvar ordem". */
 type VinculoLocal = {
@@ -98,7 +55,9 @@ type VinculoLocal = {
   aberto: boolean;
   nome: string;
   participantes: number;
+  capacidade: number;
   permite_envio: boolean;
+  instancia_ids: number[];
 };
 
 const paraVinculos = (detalhe: CampanhaGruposDetalhe): VinculoLocal[] =>
@@ -109,7 +68,9 @@ const paraVinculos = (detalhe: CampanhaGruposDetalhe): VinculoLocal[] =>
       aberto: g.aberto,
       nome: g.nome ?? "(grupo sem nome)",
       participantes: g.participantes,
+      capacidade: g.capacidade,
       permite_envio: g.permite_envio,
+      instancia_ids: g.instancia_ids ?? [],
     }));
 
 /** Assinatura de ordem+aberto — é o que o PUT persiste, então é o que define "sujo". */
@@ -119,14 +80,25 @@ const assinatura = (vinculos: VinculoLocal[]) =>
 /** Abas válidas em ?tab= — voltar do editor de roteiro cai direto na aba certa. */
 const ABAS = [
   "visao-geral",
+  "numeros",
   "grupos",
   "roteiros",
   "link",
-  "atividade",
   "anuncios",
   "resultados",
+  "atividade",
   "monitoramento",
 ] as const;
+
+/**
+ * Ocupação do grupo: quanto falta para ele sair da rotação de entrada.
+ *
+ * O teto é o MENOR entre a capacidade do WhatsApp e o limite da campanha — a
+ * mesma regra que o backend usa para escolher o grupo. Mostrar só a capacidade
+ * diria "há vaga" num grupo que o roteador já não escolhe.
+ */
+const tetoDoGrupo = (capacidade: number, limite: number | null) =>
+  limite ? Math.min(capacidade, limite) : capacidade;
 
 const CampanhaGrupoDetalhe = () => {
   const { id } = useParams<{ id: string }>();
@@ -155,23 +127,18 @@ const CampanhaGrupoDetalhe = () => {
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
 
-  const [form, setForm] = useState<FormCampanha | null>(null);
-  const [salvandoForm, setSalvandoForm] = useState(false);
+  const [modalConfig, setModalConfig] = useState(false);
+  const [modalExport, setModalExport] = useState(false);
+  /** Grupo pendente de confirmação de remoção (spec §3.2). */
+  const [removendo, setRemovendo] = useState<VinculoLocal | null>(null);
 
   const [vinculos, setVinculos] = useState<VinculoLocal[]>([]);
   const [baseline, setBaseline] = useState("");
   const [salvandoGrupos, setSalvandoGrupos] = useState(false);
 
   const [modalAdicionar, setModalAdicionar] = useState(false);
-  const [modalEnvio, setModalEnvio] = useState(false);
   const [busca, setBusca] = useState("");
   const [selecionados, setSelecionados] = useState<Set<number>>(new Set());
-
-  // Pré-seleção do envio rápido: os grupos abertos da campanha.
-  const gruposAbertos = useMemo(
-    () => vinculos.filter((v) => v.aberto).map((v) => v.grupo_id),
-    [vinculos],
-  );
 
   const aplicarGrupos = useCallback((d: CampanhaGruposDetalhe) => {
     const lista = paraVinculos(d);
@@ -190,17 +157,11 @@ const CampanhaGrupoDetalhe = () => {
     try {
       const d = await obterCampanha(campanhaId);
       setDetalhe(d);
-      setForm({
-        nome: d.nome,
-        descricao: d.descricao ?? "",
-        status: d.status,
-        estrategia_entrada: d.estrategia_entrada,
-        abertura_automatica: d.abertura_automatica,
-        reabertura_automatica: d.reabertura_automatica,
-      });
       aplicarGrupos(d);
     } catch (e) {
-      setErro((e as Error).message);
+      // `mensagemAmigavel` e não `.message`: com o backend reiniciando, o
+      // proxy devolve HTML e a tela exibiria o HTML cru como estado de erro.
+      setErro(mensagemAmigavel(e, "Não foi possível carregar a campanha."));
     } finally {
       setCarregando(false);
     }
@@ -221,30 +182,9 @@ const CampanhaGrupoDetalhe = () => {
       ?.scrollIntoView({ block: "nearest", inline: "center" });
   }, [carregando, abaAtiva]);
 
-  // ── Visão geral ───────────────────────────────────────────────────────────
-  const salvarForm = async () => {
-    if (!form || !form.nome.trim()) return;
-    setSalvandoForm(true);
-    try {
-      const atualizada = await atualizarCampanha(campanhaId, {
-        nome: form.nome.trim(),
-        descricao: form.descricao.trim() || null,
-        status: form.status,
-        estrategia_entrada: form.estrategia_entrada,
-        abertura_automatica: form.abertura_automatica,
-        reabertura_automatica: form.reabertura_automatica,
-      });
-      setDetalhe((atual) => (atual ? { ...atual, ...atualizada, grupos: atual.grupos } : atual));
-      toast({ title: "Campanha salva" });
-    } catch (e) {
-      toast({
-        title: "Não foi possível salvar",
-        description: (e as Error).message,
-        variant: "destructive",
-      });
-    } finally {
-      setSalvandoForm(false);
-    }
+  // ── Configurações ─────────────────────────────────────────────────────────
+  const aoSalvarConfig = (atualizada: CampanhaGrupos) => {
+    setDetalhe((atual) => (atual ? { ...atual, ...atualizada } : atual));
   };
 
   // ── Grupos ────────────────────────────────────────────────────────────────
@@ -266,8 +206,16 @@ const CampanhaGrupoDetalhe = () => {
     );
   };
 
-  const removerVinculo = (indice: number) => {
-    setVinculos((atual) => atual.filter((_, i) => i !== indice));
+  /**
+   * Só tira da lista local — o "Salvar ordem" é que persiste.
+   *
+   * O grupo continua ativo em Configurações › WhatsApp › Números e nas outras
+   * campanhas: um grupo pode estar em várias, e sair de uma nunca afeta as
+   * demais (spec §3.2).
+   */
+  const removerVinculo = (grupoId: number) => {
+    setVinculos((atual) => atual.filter((v) => v.grupo_id !== grupoId));
+    setRemovendo(null);
   };
 
   const salvarGrupos = async () => {
@@ -285,7 +233,7 @@ const CampanhaGrupoDetalhe = () => {
     } catch (e) {
       toast({
         title: "Não foi possível salvar os grupos",
-        description: (e as Error).message,
+        description: mensagemAmigavel(e, "Tente novamente."),
         variant: "destructive",
       });
     } finally {
@@ -293,12 +241,28 @@ const CampanhaGrupoDetalhe = () => {
     }
   };
 
+  /** Números que esta campanha usa. Vazio = ainda não configurou a aba Números. */
+  const numerosDaCampanha = useMemo(
+    () => new Set(detalhe?.instancia_ids ?? []),
+    [detalhe],
+  );
+
   // §6.3: a campanha só oferece grupos ATIVADOS pela usuária. Grupos já
   // vinculados continuam visíveis na lista da campanha — só saem da oferta.
+  //
+  // §2.3: e só grupos dos NÚMEROS da campanha. Sem isso a lista oferecia grupos
+  // de qualquer número conectado, e um grupo do número A numa campanha que
+  // dispara pelo B faz o envio falhar em silêncio.
   const gruposDisponiveis = useMemo(() => {
     const vinculados = new Set(vinculos.map((v) => v.grupo_id));
-    return gruposSincronizados.filter((g) => g.ativado && !vinculados.has(g.id));
-  }, [gruposSincronizados, vinculos]);
+    return gruposSincronizados.filter(
+      (g) =>
+        g.ativado &&
+        !vinculados.has(g.id) &&
+        (numerosDaCampanha.size === 0 ||
+          (g.instancia_ids ?? []).some((id) => numerosDaCampanha.has(id))),
+    );
+  }, [gruposSincronizados, vinculos, numerosDaCampanha]);
 
   const temGrupoAtivado = useMemo(
     () => gruposSincronizados.some((g) => g.ativado),
@@ -326,9 +290,11 @@ const CampanhaGrupoDetalhe = () => {
       .map((g) => ({
         grupo_id: g.id,
         aberto: true,
-        nome: g.nome,
+        nome: rotuloDoGrupo(g.nome, g.id),
         participantes: g.participantes,
+        capacidade: g.capacidade,
         permite_envio: g.permite_envio,
+        instancia_ids: g.instancia_ids ?? [],
       }));
     setVinculos((atual) => [...atual, ...novos]);
     setModalAdicionar(false);
@@ -348,7 +314,7 @@ const CampanhaGrupoDetalhe = () => {
     );
   }
 
-  if (erro || !detalhe || !form) {
+  if (erro || !detalhe) {
     return (
       <DashboardLayout title="Campanha">
         <Card>
@@ -371,122 +337,69 @@ const CampanhaGrupoDetalhe = () => {
   }
 
   return (
-    <DashboardLayout title={detalhe.nome} action={<StatusCampanhaBadge status={detalhe.status} />}>
+    <DashboardLayout
+      title={detalhe.nome}
+      action={
+        <div className="flex items-center gap-2">
+          <StatusCampanhaBadge status={detalhe.status} />
+          <Button variant="outline" size="sm" onClick={() => setModalConfig(true)}>
+            <Settings2 className="mr-2 h-4 w-4" />
+            Configurações
+          </Button>
+        </div>
+      }
+    >
       <Tabs value={abaAtiva} onValueChange={trocarAba} className="space-y-5">
         {/* O scroll das abas fica no container, nunca na página. */}
         <div ref={abasRef} className="-mx-1 overflow-x-auto px-1 pb-1">
           <TabsList>
             <TabsTrigger value="visao-geral">Visão geral</TabsTrigger>
+            <TabsTrigger value="numeros">Números</TabsTrigger>
             <TabsTrigger value="grupos">
               Grupos
               <span className="ml-1.5 tabular-nums text-muted-foreground">{vinculos.length}</span>
             </TabsTrigger>
             <TabsTrigger value="roteiros">Roteiros</TabsTrigger>
             <TabsTrigger value="link">Link de entrada</TabsTrigger>
-            <TabsTrigger value="atividade">Atividade</TabsTrigger>
             <TabsTrigger value="anuncios">Anúncios</TabsTrigger>
             <TabsTrigger value="resultados">Resultados</TabsTrigger>
+            <TabsTrigger value="atividade">Atividade</TabsTrigger>
             <TabsTrigger value="monitoramento">Monitoramento</TabsTrigger>
           </TabsList>
         </div>
 
         <TabsContent value="visao-geral">
-          <Card>
-            <CardContent className="space-y-5 p-5">
-              <div className="space-y-2">
-                <Label htmlFor="campanha-nome">Nome</Label>
-                <Input
-                  id="campanha-nome"
-                  value={form.nome}
-                  onChange={(e) => setForm({ ...form, nome: e.target.value })}
-                  maxLength={120}
-                />
-              </div>
+          <VisaoGeralDaCampanha campanhaId={campanhaId} />
+        </TabsContent>
 
-              <div className="space-y-2">
-                <Label htmlFor="campanha-descricao">Descrição</Label>
-                <Textarea
-                  id="campanha-descricao"
-                  value={form.descricao}
-                  onChange={(e) => setForm({ ...form, descricao: e.target.value })}
-                  maxLength={2000}
-                  rows={3}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Status</Label>
-                <Select
-                  value={form.status}
-                  onValueChange={(v) => setForm({ ...form, status: v as StatusCampanha })}
-                >
-                  <SelectTrigger className="w-full sm:w-56">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="ativa">Ativa</SelectItem>
-                    <SelectItem value="pausada">Pausada</SelectItem>
-                    <SelectItem value="arquivada">Arquivada</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2" role="radiogroup" aria-label="Estratégia de entrada">
-                <Label>Estratégia de entrada</Label>
-                <div className="grid gap-2 sm:grid-cols-2">
-                  <Opcao
-                    titulo="Sequencial"
-                    descricao="Enche o grupo 1; ao lotar, passa ao 2"
-                    ativo={form.estrategia_entrada === "sequencial"}
-                    onClick={() => setForm({ ...form, estrategia_entrada: "sequencial" })}
-                  />
-                  <Opcao
-                    titulo="Aleatória"
-                    descricao="Distribui entre os grupos abertos — compara conversão"
-                    ativo={form.estrategia_entrada === "aleatoria"}
-                    onClick={() => setForm({ ...form, estrategia_entrada: "aleatoria" })}
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-3">
-                <div className="flex items-center justify-between gap-3">
-                  <Label htmlFor="abertura-automatica">Abertura automática</Label>
-                  <Switch
-                    id="abertura-automatica"
-                    checked={form.abertura_automatica}
-                    onCheckedChange={(v) => setForm({ ...form, abertura_automatica: v })}
-                  />
-                </div>
-                <div className="flex items-center justify-between gap-3">
-                  <Label htmlFor="reabertura-automatica">Reabertura automática</Label>
-                  <Switch
-                    id="reabertura-automatica"
-                    checked={form.reabertura_automatica}
-                    onCheckedChange={(v) => setForm({ ...form, reabertura_automatica: v })}
-                  />
-                </div>
-              </div>
-
-              <Button
-                onClick={() => void salvarForm()}
-                disabled={salvandoForm || !form.nome.trim()}
-              >
-                {salvandoForm && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Salvar
-              </Button>
-            </CardContent>
-          </Card>
+        <TabsContent value="numeros">
+          {/*
+            Recarregar só quando a aba Grupos NÃO tem rascunho: `carregar()`
+            reescreve `vinculos` a partir do banco, e a afiliada que reordenou
+            (badge "Alterações não salvas" aceso) perdia a ordem sem aviso ao
+            salvar os números. Com rascunho aberto, a lista de grupos continua
+            como está — o escopo novo passa a valer no próximo carregamento.
+          */}
+          <NumerosDaCampanha
+            campanhaId={campanhaId}
+            onSalvo={() => {
+              if (!gruposDirty) void carregar();
+            }}
+          />
         </TabsContent>
 
         <TabsContent value="grupos" className="space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex flex-wrap items-center gap-2">
-              <Button onClick={() => setModalEnvio(true)}>
-                <Send className="mr-2 h-4 w-4" /> Enviar oferta
-              </Button>
               <Button variant="outline" onClick={() => setModalAdicionar(true)}>
                 <Plus className="mr-2 h-4 w-4" /> Adicionar grupos
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => setModalExport(true)}
+                disabled={vinculos.length === 0}
+              >
+                <Download className="mr-2 h-4 w-4" /> Exportar leads
               </Button>
             </div>
             <div className="flex items-center gap-3">
@@ -506,10 +419,27 @@ const CampanhaGrupoDetalhe = () => {
           {vinculos.length === 0 ? (
             <Card>
               <CardContent className="flex flex-col items-center gap-3 py-12 text-center">
-                <p className="text-sm text-muted-foreground">Nenhum grupo na campanha ainda.</p>
-                <Button variant="outline" onClick={() => setModalAdicionar(true)}>
-                  <Plus className="mr-2 h-4 w-4" /> Adicionar grupos
-                </Button>
+                {numerosDaCampanha.size === 0 ? (
+                  <>
+                    {/* Lista vazia sem motivo é lida como bug. Diz o que falta. */}
+                    <p className="max-w-md text-sm text-muted-foreground">
+                      Escolha primeiro por quais números esta campanha envia — os grupos
+                      disponíveis vêm deles.
+                    </p>
+                    <Button variant="outline" onClick={() => trocarAba("numeros")}>
+                      Ir para Números
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-sm text-muted-foreground">
+                      Nenhum grupo na campanha ainda.
+                    </p>
+                    <Button variant="outline" onClick={() => setModalAdicionar(true)}>
+                      <Plus className="mr-2 h-4 w-4" /> Adicionar grupos
+                    </Button>
+                  </>
+                )}
               </CardContent>
             </Card>
           ) : (
@@ -519,7 +449,7 @@ const CampanhaGrupoDetalhe = () => {
                 <div className="flex items-center gap-3 border-b border-border bg-muted/40 px-4 py-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
                   <span className="w-6" aria-hidden />
                   <span className="min-w-0 flex-1">Grupo</span>
-                  <span className="w-24 text-right">Participantes</span>
+                  <span className="w-28 text-right">Ocupação</span>
                   <span className="w-20 text-center">Envio</span>
                   <span className="w-11 text-center">Aberto</span>
                   <span className="w-[120px]" aria-hidden />
@@ -535,8 +465,15 @@ const CampanhaGrupoDetalhe = () => {
                     <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
                       {v.nome}
                     </span>
-                    <span className="w-24 flex-shrink-0 text-right text-sm tabular-nums text-foreground">
-                      {v.participantes}
+                    <span
+                      className={cn(
+                        "w-28 flex-shrink-0 text-right text-sm tabular-nums",
+                        v.participantes >= tetoDoGrupo(v.capacidade, detalhe.limite_participantes)
+                          ? "font-semibold text-amber-500"
+                          : "text-foreground",
+                      )}
+                    >
+                      {v.participantes}/{tetoDoGrupo(v.capacidade, detalhe.limite_participantes)}
                     </span>
                     <span className="flex w-20 flex-shrink-0 justify-center">
                       {v.permite_envio ? (
@@ -572,15 +509,27 @@ const CampanhaGrupoDetalhe = () => {
                       >
                         <ArrowDown className="h-4 w-4" />
                       </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        disabled={salvandoGrupos}
-                        onClick={() => removerVinculo(i)}
-                        aria-label={`Remover ${v.nome} da campanha`}
-                      >
-                        <X className="h-4 w-4 text-muted-foreground" />
-                      </Button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            disabled={salvandoGrupos}
+                            aria-label={`Ações do grupo ${v.nome}`}
+                          >
+                            <MoreVertical className="h-4 w-4 text-muted-foreground" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem
+                            className="text-destructive focus:text-destructive"
+                            onClick={() => setRemovendo(v)}
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Remover da campanha
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </span>
                   </div>
                 ))}
@@ -599,7 +548,18 @@ const CampanhaGrupoDetalhe = () => {
                           <span className="truncate">{v.nome}</span>
                         </p>
                         <p className="mt-0.5 text-xs text-muted-foreground">
-                          <span className="tabular-nums">{v.participantes}</span> participantes
+                          <span
+                            className={cn(
+                              "tabular-nums",
+                              v.participantes >=
+                                tetoDoGrupo(v.capacidade, detalhe.limite_participantes) &&
+                                "font-semibold text-amber-500",
+                            )}
+                          >
+                            {v.participantes}/
+                            {tetoDoGrupo(v.capacidade, detalhe.limite_participantes)}
+                          </span>{" "}
+                          participantes
                         </p>
                       </div>
                       {v.permite_envio ? (
@@ -637,15 +597,27 @@ const CampanhaGrupoDetalhe = () => {
                         >
                           <ArrowDown className="h-4 w-4" />
                         </Button>
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          disabled={salvandoGrupos}
-                          onClick={() => removerVinculo(i)}
-                          aria-label={`Remover ${v.nome} da campanha`}
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              disabled={salvandoGrupos}
+                              aria-label={`Ações do grupo ${v.nome}`}
+                            >
+                              <MoreVertical className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem
+                              className="text-destructive focus:text-destructive"
+                              onClick={() => setRemovendo(v)}
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Remover da campanha
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </div>
                     </div>
                   </div>
@@ -656,7 +628,10 @@ const CampanhaGrupoDetalhe = () => {
         </TabsContent>
 
         <TabsContent value="roteiros">
-          <RoteirosDaCampanha campanhaId={campanhaId} />
+          <RoteirosDaCampanha
+            campanhaId={campanhaId}
+            gruposAbertos={vinculos.filter((v) => v.aberto).map((v) => v.grupo_id)}
+          />
         </TabsContent>
 
         <TabsContent value="link" forceMount className="data-[state=inactive]:hidden">
@@ -697,9 +672,11 @@ const CampanhaGrupoDetalhe = () => {
               <p className="text-sm text-muted-foreground">
                 {gruposSincronizados.length === 0
                   ? "Nenhum grupo sincronizado ainda. Conecte um número e sincronize seus grupos."
-                  : temGrupoAtivado
-                    ? "Todos os grupos ativados já estão na campanha."
-                    : "Nenhum grupo ativado ainda. Ative os grupos que vão entrar nas campanhas."}
+                  : numerosDaCampanha.size === 0
+                    ? "Escolha na aba Números por quais números esta campanha envia."
+                    : temGrupoAtivado
+                      ? "Todos os grupos ativados destes números já estão na campanha."
+                      : "Nenhum grupo ativado ainda. Ative os grupos que vão entrar nas campanhas."}
               </p>
               {gruposSincronizados.length === 0 ? (
                 <Button asChild variant="outline">
@@ -758,12 +735,51 @@ const CampanhaGrupoDetalhe = () => {
         </div>
       </ResponsiveModal>
 
-      <EnvioRapidoModal
-        open={modalEnvio}
-        onOpenChange={setModalEnvio}
-        campanhaId={campanhaId}
-        gruposPreSelecionados={gruposAbertos}
+      <ConfiguracoesDaCampanha
+        open={modalConfig}
+        onOpenChange={setModalConfig}
+        campanha={detalhe}
+        onSalvo={aoSalvarConfig}
       />
+
+      <ExportarLeadsModal
+        open={modalExport}
+        onOpenChange={setModalExport}
+        campanhaId={campanhaId}
+        /*
+          `detalhe.grupos` (o que está SALVO), não `vinculos` (o rascunho da
+          aba). Grupo adicionado e ainda não salvo não existe para o backend:
+          mandá-lo no filtro do CSV devolvia 422 dizendo que ele "não pertence
+          a esta campanha" — verdade do ponto de vista do banco, incompreensível
+          do ponto de vista de quem acabou de vê-lo na lista.
+        */
+        grupos={detalhe.grupos.map((g) => ({
+          grupo_id: g.grupo_id,
+          nome: g.nome ?? `Grupo ${g.grupo_id}`,
+        }))}
+      />
+
+      {/* §3.2: remover passa por confirmação. O `×` removia direto da lista. */}
+      <AlertDialog open={!!removendo} onOpenChange={(o) => !o && setRemovendo(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remover da campanha?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {removendo?.nome} sai desta campanha. O grupo continua ativo e nas outras
+              campanhas em que estiver.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => removendo && removerVinculo(removendo.grupo_id)}
+            >
+              Remover
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
     </DashboardLayout>
   );
 };

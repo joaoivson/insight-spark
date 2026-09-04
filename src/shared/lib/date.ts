@@ -121,7 +121,7 @@ export const addDaysKey = (key: string, n: number): string => {
 /** Ontem (último dia FECHADO) em Brasília — limite superior dos atalhos de período. */
 export const yesterdayKeyBR = (): string => addDaysKey(todayKeyBR(), -1);
 
-export type PresetKind = "yesterday" | "7d" | "14d" | "month";
+export type PresetKind = "yesterday" | "7d" | "14d" | "30d" | "month";
 
 /** Intervalo de um atalho de período (string keys), cortando no fim do dia anterior fechado (BRT). */
 export const presetRangeKeys = (kind: PresetKind): { startDate: string; endDate: string } => {
@@ -131,7 +131,7 @@ export const presetRangeKeys = (kind: PresetKind): { startDate: string; endDate:
     const start = `${todayKeyBR().slice(0, 8)}01`; // 1º dia do mês atual (BRT)
     return { startDate: start, endDate: end < start ? start : end };
   }
-  const days = kind === "7d" ? 7 : 14;
+  const days = kind === "7d" ? 7 : kind === "14d" ? 14 : 30;
   return { startDate: addDaysKey(end, -(days - 1)), endDate: end };
 };
 

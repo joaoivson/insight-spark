@@ -19,6 +19,8 @@ export type CampanhaGrupos = {
   prefixo: string | null;
   sufixo: string | null;
   modo_imagem: ModoImagem;
+  /** Teto por campanha. `null` = sem limite próprio (vale a capacidade do grupo). */
+  limite_participantes: number | null;
   total_grupos: number;
   criado_em: string;
 };
@@ -29,12 +31,20 @@ export type GrupoDaCampanha = {
   aberto: boolean;
   nome: string | null;
   participantes: number;
+  /** Capacidade do WhatsApp. A ocupação exibida usa o MENOR entre ela e o limite da campanha. */
+  capacidade: number;
   permite_envio: boolean;
   ativo: boolean;
   sub_id: string | null;
+  /** Por quais números este grupo é alcançável — a aba Grupos escopa por isso. */
+  instancia_ids: number[];
 };
 
-export type CampanhaGruposDetalhe = CampanhaGrupos & { grupos: GrupoDaCampanha[] };
+export type CampanhaGruposDetalhe = CampanhaGrupos & {
+  grupos: GrupoDaCampanha[];
+  /** Números que a campanha usa. Vazio = ainda não configurou a aba Números. */
+  instancia_ids: number[];
+};
 
 /** Campos editáveis via PATCH — qualquer subconjunto. */
 export type CampanhaGruposPatch = Partial<{
@@ -47,6 +57,7 @@ export type CampanhaGruposPatch = Partial<{
   prefixo: string | null;
   sufixo: string | null;
   modo_imagem: ModoImagem;
+  limite_participantes: number | null;
 }>;
 
 /** Item do PUT de grupos — a tela manda a lista COMPLETA na ordem final. */
@@ -66,11 +77,12 @@ export async function listarCampanhas(): Promise<CampanhaGrupos[]> {
   return json(res, "Não foi possível carregar as campanhas.");
 }
 
-export async function criarCampanha(nome: string, descricao?: string): Promise<CampanhaGrupos> {
+/** Só o nome: Descrição saiu da criação (spec §1.1) — o nome já identifica a campanha. */
+export async function criarCampanha(nome: string): Promise<CampanhaGrupos> {
   const res = await fetchWithAuth(base(), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(descricao ? { nome, descricao } : { nome }),
+    body: JSON.stringify({ nome }),
   });
   return json(res, "Não foi possível criar a campanha.");
 }
@@ -188,6 +200,13 @@ export type AnuncioVinculavel = {
   nome: string | null;
   status: string | null;
   sub_id: string | null;
+  /** Gasto no período consultado — é o que distingue campanhas de nome idêntico. */
+  gasto: number;
+  /**
+   * Veiculação REAL, não `effective_status`: campanha com orçamento vitalício
+   * esgotado fica ACTIVE para sempre na Meta sem entregar nada.
+   */
+  veiculando: boolean;
   vinculada: boolean;
   /**
    * Nome da OUTRA campanha de grupos que já reivindica este anúncio (`null` se
@@ -249,8 +268,12 @@ export type ResultadosDaCampanha = {
 export type VinculoDeAnuncio = { id: number; nome: string };
 
 /** Todas as campanhas de anúncio da usuária + quais estão nesta campanha. */
-export async function listarAnunciosDaCampanha(id: number): Promise<AnuncioVinculavel[]> {
-  const res = await fetchWithAuth(`${base()}/${id}/anuncios`);
+export async function listarAnunciosDaCampanha(
+  id: number,
+  periodo?: { inicio: string; fim: string },
+): Promise<AnuncioVinculavel[]> {
+  const query = periodo ? `?${new URLSearchParams(periodo)}` : "";
+  const res = await fetchWithAuth(`${base()}/${id}/anuncios${query}`);
   const corpo = await json<{ anuncios: AnuncioVinculavel[] }>(
     res,
     "Não foi possível carregar os anúncios.",
@@ -262,8 +285,10 @@ export async function listarAnunciosDaCampanha(id: number): Promise<AnuncioVincu
 export async function definirAnunciosDaCampanha(
   id: number,
   ids: number[],
+  periodo?: { inicio: string; fim: string },
 ): Promise<AnuncioVinculavel[]> {
-  const res = await fetchWithAuth(`${base()}/${id}/anuncios`, {
+  const query = periodo ? `?${new URLSearchParams(periodo)}` : "";
+  const res = await fetchWithAuth(`${base()}/${id}/anuncios${query}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(ids),
@@ -302,8 +327,12 @@ const nomeDoAnexo = (header: string | null): string | null => {
 export async function exportarLeads(
   id: number,
   periodo: { inicio: string; fim: string },
+  grupoIds?: number[],
 ): Promise<{ blob: Blob; nome: string }> {
   const query = new URLSearchParams({ inicio: periodo.inicio, fim: periodo.fim });
+  // Ausente = todos os grupos da campanha. Lista vazia seria "nenhum grupo",
+  // que o backend recusa — a tela nunca deve chegar aqui sem seleção.
+  if (grupoIds?.length) query.set("grupos", grupoIds.join(","));
   const res = await fetchWithAuth(`${base()}/${id}/leads/export?${query}`);
   if (!res.ok) throw await erroDaResposta(res, "Não foi possível exportar as entradas.");
 
@@ -372,4 +401,95 @@ export async function obterResumoDeGrupos(periodo?: {
   const sufixo = query.toString() ? `?${query}` : "";
   const res = await fetchWithAuth(`${base()}/resumo${sufixo}`);
   return json(res, "Não foi possível carregar o resumo das campanhas de grupos.");
+}
+
+// ── Números da campanha (spec §2) ────────────────────────────────────────────
+
+export type NumeroDaCampanha = {
+  id: number;
+  nome_exibicao: string | null;
+  /** Já mascarado pelo backend (•••• 1234). */
+  numero: string | null;
+  status: string;
+  selecionado: boolean;
+  /** Quantos grupos desta campanha chegam por este número — trava a remoção. */
+  grupos_na_campanha: number;
+};
+
+export async function listarNumerosDaCampanha(id: number): Promise<NumeroDaCampanha[]> {
+  const res = await fetchWithAuth(`${base()}/${id}/numeros`);
+  const corpo = await json<{ numeros: NumeroDaCampanha[] }>(
+    res,
+    "Não foi possível carregar os números.",
+  );
+  return corpo.numeros ?? [];
+}
+
+/**
+ * Substitui o conjunto de números da campanha.
+ *
+ * Desmarcar número que ainda tem grupos devolve 409 com a lista dos grupos que
+ * travam — a tela mostra a mensagem do backend, que já diz o que fazer.
+ */
+export async function definirNumerosDaCampanha(
+  id: number,
+  ids: number[],
+): Promise<NumeroDaCampanha[]> {
+  const res = await fetchWithAuth(`${base()}/${id}/numeros`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(ids),
+  });
+  const corpo = await json<{ numeros: NumeroDaCampanha[] }>(
+    res,
+    "Não foi possível salvar os números.",
+  );
+  return corpo.numeros ?? [];
+}
+
+// ── Visão geral (spec §1.3) ──────────────────────────────────────────────────
+
+export type PontoDaSerie = {
+  /** AAAA-MM-DD, dia civil em Brasília. */
+  data: string;
+  entradas: number;
+  saidas: number;
+};
+
+export type EstadoDosGrupos = {
+  total: number;
+  abertos: number;
+  cheios: number;
+  /** Aberto E com vaga: os que podem receber entrada agora. */
+  disponiveis: number;
+};
+
+/**
+ * KPIs operacionais + ritmo. Sem comissão, lucro ou ROAS — isso é Resultados.
+ *
+ * `taxa_entrada` e `evasao` vêm `null` quando o denominador não existe; a tela
+ * mostra "—", nunca 0 (que afirmaria "ninguém converteu").
+ */
+export type VisaoGeralDaCampanha = {
+  periodo: { inicio: string; fim: string; dias: number };
+  cliques: number;
+  entradas: number;
+  /** Só as que vieram do link — é o numerador da taxa de entrada. */
+  entradas_do_link: number;
+  taxa_entrada: number | null;
+  saidas: number;
+  evasao: number | null;
+  participantes: number;
+  grupos: EstadoDosGrupos;
+  serie: PontoDaSerie[];
+};
+
+export type DiasDaVisaoGeral = 7 | 14 | 30;
+
+export async function obterVisaoGeral(
+  id: number,
+  dias: DiasDaVisaoGeral = 7,
+): Promise<VisaoGeralDaCampanha> {
+  const res = await fetchWithAuth(`${base()}/${id}/visao-geral?dias=${dias}`);
+  return json(res, "Não foi possível carregar a visão geral.");
 }

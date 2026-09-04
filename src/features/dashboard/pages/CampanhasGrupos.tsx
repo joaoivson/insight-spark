@@ -11,7 +11,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import type { StatusCampanha } from "@/services/campanhas_grupos.service";
 import { useCampanhasGruposStore } from "@/stores/campanhasGruposStore";
@@ -48,7 +47,6 @@ const CampanhasGrupos = () => {
   const [modalNova, setModalNova] = useState(false);
   const [modalEnvio, setModalEnvio] = useState(false);
   const [nome, setNome] = useState("");
-  const [descricao, setDescricao] = useState("");
   const [criando, setCriando] = useState(false);
 
   useEffect(() => {
@@ -61,7 +59,7 @@ const CampanhasGrupos = () => {
     if (!nomeLimpo) return;
     setCriando(true);
     try {
-      const campanha = await criar(nomeLimpo, descricao.trim() || undefined);
+      const campanha = await criar(nomeLimpo);
       setModalNova(false);
       navigate(`/dashboard/grupos/${campanha.id}`);
     } catch (e) {
@@ -179,9 +177,6 @@ const CampanhasGrupos = () => {
                         </span>
                         <StatusCampanhaBadge status={c.status} />
                       </div>
-                      {c.descricao && (
-                        <p className="truncate text-xs text-muted-foreground">{c.descricao}</p>
-                      )}
                     </div>
                     <div className="flex flex-shrink-0 flex-col items-end">
                       <span className="text-sm font-semibold tabular-nums text-foreground">
@@ -203,10 +198,7 @@ const CampanhasGrupos = () => {
         open={modalNova}
         onOpenChange={(o) => {
           setModalNova(o);
-          if (!o) {
-            setNome("");
-            setDescricao("");
-          }
+          if (!o) setNome("");
         }}
         title="Nova campanha"
       >
@@ -220,16 +212,6 @@ const CampanhasGrupos = () => {
               placeholder="Ex.: Achadinhos"
               maxLength={120}
               autoFocus
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="descricao-campanha">Descrição (opcional)</Label>
-            <Textarea
-              id="descricao-campanha"
-              value={descricao}
-              onChange={(e) => setDescricao(e.target.value)}
-              maxLength={2000}
-              rows={3}
             />
           </div>
           <Button

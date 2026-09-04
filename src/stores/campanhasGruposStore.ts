@@ -16,7 +16,7 @@ type CampanhasGruposState = {
   error: string | null;
   fetch: (opts?: { force?: boolean }) => Promise<void>;
   /** Cria e recarrega a lista; devolve a criada para navegar ao detalhe. */
-  criar: (nome: string, descricao?: string) => Promise<CampanhaGrupos>;
+  criar: (nome: string) => Promise<CampanhaGrupos>;
 };
 
 export const useCampanhasGruposStore = create<CampanhasGruposState>((set, get) => ({
@@ -42,8 +42,8 @@ export const useCampanhasGruposStore = create<CampanhasGruposState>((set, get) =
     }
   },
 
-  criar: async (nome, descricao) => {
-    const campanha = await criarCampanha(nome, descricao);
+  criar: async (nome) => {
+    const campanha = await criarCampanha(nome);
     await get().fetch({ force: true });
     return campanha;
   },

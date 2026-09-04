@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { Loader2, Megaphone, Search } from "lucide-react";
 
@@ -8,8 +8,10 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Paginacao, paginar } from "@/components/shared/Paginacao";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/shared/lib/utils";
+import { presetRangeKeys, type PresetKind } from "@/shared/lib/date";
 import { mensagemAmigavel } from "@/services/http-error";
 import {
   definirAnunciosDaCampanha,
@@ -36,6 +38,31 @@ const ERRO_SALVAR = "Não foi possível salvar os vínculos. Tente novamente.";
 /** Assinatura do conjunto selecionado — é o que o PUT persiste, então define "sujo". */
 const assinatura = (ids: Set<number>) => [...ids].sort((a, b) => a - b).join(",");
 
+/**
+ * Filtro de status (spec §4.2). Abre em "Ativas": no teste real eram 30+ linhas
+ * quase todas pausadas, e as ativas ficavam perdidas no meio.
+ *
+ * "Ativa" aqui é VEICULAÇÃO REAL (`veiculando`), não `effective_status` — que
+ * permanece ACTIVE indefinidamente em campanha com orçamento vitalício esgotado.
+ */
+type FiltroStatus = "ativas" | "pausadas" | "todas";
+
+const FILTROS: { key: FiltroStatus; label: string }[] = [
+  { key: "ativas", label: "Ativas" },
+  { key: "pausadas", label: "Pausadas" },
+  { key: "todas", label: "Todas" },
+];
+
+const PERIODOS: { key: PresetKind; label: string }[] = [
+  { key: "7d", label: "7 dias" },
+  { key: "14d", label: "14 dias" },
+  { key: "30d", label: "30 dias" },
+  { key: "month", label: "Mês atual" },
+];
+
+const brl = (v: number) =>
+  v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
 /** Aba "Anúncios": escolhe quais campanhas de anúncio do Meta levam a estes grupos. */
 export const AnunciosDaCampanha = ({ campanhaId }: { campanhaId: number }) => {
   const { toast } = useToast();
@@ -43,27 +70,47 @@ export const AnunciosDaCampanha = ({ campanhaId }: { campanhaId: number }) => {
   const [selecionados, setSelecionados] = useState<Set<number>>(new Set());
   const [baseline, setBaseline] = useState("");
   const [busca, setBusca] = useState("");
+  const [filtro, setFiltro] = useState<FiltroStatus>("ativas");
+  const [periodo, setPeriodo] = useState<PresetKind>("30d");
+  const [pagina, setPagina] = useState(1);
+  const [porPagina, setPorPagina] = useState(25);
   const [carregando, setCarregando] = useState(true);
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   /** Incrementado pelo "Tentar novamente" — refaz o effect sem duplicar a lógica. */
   const [tentativa, setTentativa] = useState(0);
 
-  const aplicar = useCallback((lista: AnuncioVinculavel[]) => {
-    setAnuncios(lista);
-    const marcados = new Set(lista.filter((a) => a.vinculada).map((a) => a.id));
-    setSelecionados(marcados);
-    setBaseline(assinatura(marcados));
-  }, []);
+  // Corte no fim do dia anterior em Brasília, igual ao resto do produto.
+  const intervalo = useMemo(() => {
+    const { startDate, endDate } = presetRangeKeys(periodo);
+    return { inicio: startDate, fim: endDate };
+  }, [periodo]);
+
+  /**
+   * `preservarSelecao` mantém o que a afiliada marcou e ainda não salvou.
+   *
+   * Trocar o período refaz o fetch, e reescrever a seleção com o que está no
+   * banco jogava fora os checkboxes dela sem aviso — justamente quando ela
+   * troca de janela para conferir o gasto ANTES de salvar.
+   */
+  const aplicar = useCallback(
+    (lista: AnuncioVinculavel[], preservarSelecao = false) => {
+      setAnuncios(lista);
+      const doBanco = new Set(lista.filter((a) => a.vinculada).map((a) => a.id));
+      setBaseline(assinatura(doBanco));
+      if (!preservarSelecao) setSelecionados(doBanco);
+    },
+    [],
+  );
 
   /** Recarrega a lista sem piscar a tela — usada depois de um 409. */
   const recarregarSilencioso = useCallback(async () => {
     try {
-      aplicar(await listarAnunciosDaCampanha(campanhaId));
+      aplicar(await listarAnunciosDaCampanha(campanhaId, intervalo));
     } catch {
       /* a lista na tela continua válida; o toast do 409 já explicou o que houve */
     }
-  }, [campanhaId, aplicar]);
+  }, [campanhaId, aplicar, intervalo]);
 
   // Mesma guarda da aba Resultados: a resposta de uma campanha antiga não pode
   // cair em cima da tela de outra, nem setar estado depois do unmount.
@@ -71,10 +118,12 @@ export const AnunciosDaCampanha = ({ campanhaId }: { campanhaId: number }) => {
     let ativo = true;
     setCarregando(true);
     setErro(null);
-    listarAnunciosDaCampanha(campanhaId)
+    listarAnunciosDaCampanha(campanhaId, intervalo)
       .then((lista) => {
         if (!ativo) return;
-        aplicar(lista);
+        // `sujoRef` e não `sujo`: o effect não depende do estado de seleção
+        // (dependeria e refaria o fetch a cada clique de checkbox).
+        aplicar(lista, sujoRef.current);
         setErro(null);
       })
       .catch((e) => ativo && setErro(mensagemAmigavel(e, ERRO_CARGA)))
@@ -84,16 +133,36 @@ export const AnunciosDaCampanha = ({ campanhaId }: { campanhaId: number }) => {
     return () => {
       ativo = false;
     };
-  }, [campanhaId, aplicar, tentativa]);
+  }, [campanhaId, aplicar, tentativa, intervalo]);
 
   const filtrados = useMemo(() => {
     const q = busca.trim().toLowerCase();
-    if (!q) return anuncios;
-    return anuncios.filter(
-      (a) =>
-        (a.nome ?? "").toLowerCase().includes(q) || (a.sub_id ?? "").toLowerCase().includes(q),
-    );
-  }, [anuncios, busca]);
+    return anuncios.filter((a) => {
+      // Anúncio JÁ VINCULADO nunca some por causa do filtro: sem ele na lista a
+      // afiliada perde a única forma de desvincular, e o gasto continua
+      // entrando no lucro sem ela poder ver por quê.
+      const passaStatus =
+        a.vinculada ||
+        filtro === "todas" ||
+        (filtro === "ativas" ? a.veiculando : !a.veiculando);
+      if (!passaStatus) return false;
+      if (!q) return true;
+      return (
+        (a.nome ?? "").toLowerCase().includes(q) ||
+        (a.sub_id ?? "").toLowerCase().includes(q)
+      );
+    });
+  }, [anuncios, busca, filtro]);
+
+  // Filtrar/buscar na página 7 deixaria a lista vazia sem motivo aparente.
+  useEffect(() => {
+    setPagina(1);
+  }, [busca, filtro, periodo]);
+
+  const daPagina = useMemo(
+    () => paginar(filtrados, pagina, porPagina),
+    [filtrados, pagina, porPagina],
+  );
 
   const alternar = (id: number, bloqueado: boolean) => {
     if (bloqueado) return;
@@ -106,11 +175,18 @@ export const AnunciosDaCampanha = ({ campanhaId }: { campanhaId: number }) => {
   };
 
   const sujo = assinatura(selecionados) !== baseline;
+  // Espelho do `sujo` para o effect de carga ler sem depender dele.
+  const sujoRef = useRef(sujo);
+  useEffect(() => {
+    sujoRef.current = sujo;
+  }, [sujo]);
 
   const salvar = async () => {
     setSalvando(true);
     try {
-      aplicar(await definirAnunciosDaCampanha(campanhaId, [...selecionados]));
+      // O período vai junto: sem ele a resposta trazia o gasto de 30 dias
+      // com o chip da tela ainda marcando "7 dias".
+      aplicar(await definirAnunciosDaCampanha(campanhaId, [...selecionados], intervalo));
       toast({ title: "Vínculos salvos" });
     } catch (e) {
       // O 409 já vem com o texto pronto ("Já vinculado a outra campanha de grupos:
@@ -129,7 +205,10 @@ export const AnunciosDaCampanha = ({ campanhaId }: { campanhaId: number }) => {
     }
   };
 
-  if (carregando) {
+  // Só a PRIMEIRA carga mostra esqueleto de tela inteira. Trocar o período
+  // desmontava busca e chips junto com a lista: a barra de filtros sumia por
+  // ~1s a cada clique, e comparar 7d × 14d virava um piscar de layout.
+  if (carregando && anuncios.length === 0) {
     return (
       <div className="space-y-3">
         <Skeleton className="h-9 w-full rounded-lg" />
@@ -201,13 +280,53 @@ export const AnunciosDaCampanha = ({ campanhaId }: { campanhaId: number }) => {
         />
       </div>
 
-      {filtrados.length === 0 ? (
+      {/* Filtros em chips: visíveis e nomeados, como no resto do produto. */}
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap gap-1">
+          {FILTROS.map((f) => (
+            <Button
+              key={f.key}
+              size="sm"
+              variant={filtro === f.key ? "default" : "outline"}
+              onClick={() => setFiltro(f.key)}
+            >
+              {f.label}
+            </Button>
+          ))}
+        </div>
+        <span className="hidden h-5 w-px bg-border sm:block" aria-hidden />
+        <div className="flex flex-wrap gap-1">
+          {PERIODOS.map((p) => (
+            <Button
+              key={p.key}
+              size="sm"
+              variant={periodo === p.key ? "default" : "outline"}
+              onClick={() => setPeriodo(p.key)}
+              disabled={carregando}
+            >
+              {p.label}
+            </Button>
+          ))}
+        </div>
+      </div>
+
+      {carregando ? (
+        <div className="space-y-2">
+          {[0, 1, 2].map((i) => (
+            <Skeleton key={i} className="h-[52px] w-full rounded-xl" />
+          ))}
+        </div>
+      ) : filtrados.length === 0 ? (
         <p className="py-10 text-center text-sm text-muted-foreground">
-          Nenhum anúncio com esse nome.
+          {busca.trim()
+            ? "Nenhum anúncio com esse nome."
+            : filtro === "ativas"
+              ? "Nenhum anúncio veiculando no período. Veja em Pausadas ou Todas."
+              : "Nenhum anúncio neste filtro."}
         </p>
       ) : (
         <div className="divide-y divide-border overflow-hidden rounded-xl border border-border">
-          {filtrados.map((a) => {
+          {daPagina.map((a) => {
             const dona = a.vinculada_em_outra;
             return (
               <label
@@ -242,15 +361,35 @@ export const AnunciosDaCampanha = ({ campanhaId }: { campanhaId: number }) => {
                     )
                   )}
                 </span>
-                {rotuloStatus(a.status) && (
-                  <Badge variant="outline" className="flex-shrink-0 text-[11px] font-normal">
-                    {rotuloStatus(a.status)}
-                  </Badge>
-                )}
+                <Badge
+                  variant="outline"
+                  className={cn(
+                    "flex-shrink-0 text-[11px] font-normal",
+                    a.veiculando && "border-emerald-500/25 bg-emerald-500/10 text-emerald-500",
+                  )}
+                >
+                  {a.veiculando ? "Veiculando" : (rotuloStatus(a.status) ?? "Parada")}
+                </Badge>
+                {/* Números à direita com tabular-nums: a afiliada compara as
+                    colunas, e sem isso os dígitos não empilham. */}
+                <span className="w-24 flex-shrink-0 text-right text-sm tabular-nums text-foreground">
+                  {brl(a.gasto)}
+                </span>
               </label>
             );
           })}
         </div>
+      )}
+
+      {filtrados.length > 0 && (
+        <Paginacao
+          pagina={pagina}
+          total={filtrados.length}
+          onChange={setPagina}
+          porPagina={porPagina}
+          onPorPaginaChange={setPorPagina}
+          formato="intervalo"
+        />
       )}
     </div>
   );
