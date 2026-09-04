@@ -76,8 +76,8 @@ const reconnectInstructions = (reason: string | null | undefined) => {
 
 export const ShopeeIntegrationSettings = () => {
   const { toast } = useToast();
-  const fetchRows = useDatasetStore((s) => s.fetchRows);
-  const fetchClicks = useClicksStore((s) => s.fetchClicks);
+  const invalidateRows = useDatasetStore((s) => s.invalidate);
+  const invalidateClicks = useClicksStore((s) => s.invalidate);
   const { isDemo, fetch: fetchPlan } = usePlanStore();
   const [status, setStatus] = useState<ShopeeStatus | null>(null);
   const [loadingStatus, setLoadingStatus] = useState(true);
@@ -173,7 +173,11 @@ export const ShopeeIntegrationSettings = () => {
       }
 
       setSyncStep("refreshing");
-      await Promise.all([fetchRows({ force: true }), fetchClicks({ force: true })]);
+      // Invalida em vez de rebuscar: o cache agora é por PERÍODO e esta tela não
+      // sabe qual período o dashboard está mostrando. Puxar tudo aqui traria a
+      // base inteira (30 MB na conta maior) para uma tela que nem usa as linhas.
+      invalidateRows();
+      invalidateClicks();
       setSyncStep("done");
       setStatus(updated);
       await new Promise((r) => setTimeout(r, 800));

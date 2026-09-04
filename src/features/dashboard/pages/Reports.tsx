@@ -431,6 +431,10 @@ const ReportsPage = () => {
             setSubIdFilter("");
             setSearchTerm("");
             setDateRange({});
+            // Sem período = histórico inteiro; a API é quem corta por data.
+            fetchRows({});
+            fetchAdSpends({});
+            fetchClicks({});
           }}
           hasActive={!!dateRange.from || !!dateRange.to || !!statusFilter || !!categoryFilter || !!subIdFilter || !!searchTerm}
           loading={isLoading}
