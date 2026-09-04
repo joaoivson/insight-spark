@@ -11,6 +11,28 @@
 
 ---
 
+## 2026-09-04 — O trigger do Coolify falhou de novo (3ª vez registrada)
+
+O `deploy-homologation` do frontend buildou (`Test build` e `Check build
+artifacts` verdes) e morreu em **`Trigger Coolify deployment`** com
+`curl: (28) Connection timed out` — três tentativas de 60s seguidas, do runner
+do GitHub para `31.97.22.173:8000`.
+
+**O modo de falha é silencioso do jeito ruim:** o build passa, o artefato existe,
+e hml continua servindo o bundle ANTIGO. Quem só olha "o CI ficou vermelho?"
+pode concluir que foi problema de build e mexer no código — não foi.
+
+**Correção:** `gh run rerun <id> --failed` resolveu na primeira. Não precisa de
+token do Coolify nem de commit vazio; a intermitência é de rede runner→VPS e
+passa sozinha (a memória do Coolify já registrava "2-4 reruns em 03/08").
+
+**E o CI verde continua não provando deploy.** Depois do rerun, a confirmação é
+por marcador do código novo servido pela URL real — no backend, um endpoint que
+só existe agora no `/openapi.json`; no frontend, uma string do bundle. O status
+do job só diz que o webhook foi aceito.
+
+---
+
 ## 2026-09-04 — Campanha de grupos: Visão geral vira painel, e nasce a aba Números
 
 O que mudou: `VisaoGeralDaCampanha`, `NumerosDaCampanha`,
