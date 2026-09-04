@@ -11,6 +11,19 @@ npm run lint         # ESLint
 npx tsc --noEmit     # Type check without emitting
 ```
 
+## Branches e deploy
+
+`develop` → homologação, `main` → produção; o push dispara o CI de cada uma
+(`paths-ignore: '**.md'` — commit só de doc não deploya). **Correção isolada vai
+para produção por cherry-pick em `main`, não por merge da develop** — a develop
+acumula módulos não promovidos. Procedimento completo no `CLAUDE.md` da raiz do
+monorepo, seção "Branches e deploy", e em
+`marketdash-backend/docs/PROMOCAO_PARA_PRODUCAO.md` §9.
+
+⚠️ `npx tsc --noEmit` na raiz do projeto **não valida nada** (`tsconfig.json`
+tem `"files": []` e só referencia os subprojetos). Use
+`npx tsc -p tsconfig.app.json --noEmit`.
+
 ## Architecture
 
 Feature-based organization with Zustand for state management.

@@ -52,6 +52,29 @@ tomava 401 no login local. Para validar via Playwright é preciso alinhar os doi
 
 ---
 
+## 2026-09-04 — A correção do dashboard em produção, medida lá
+
+Nada de código: registro do resultado. O `8e4092f` entrou em `main` por
+cherry-pick (sem merge da develop — ver o `CLAUDE.md` da raiz, "Branches e
+deploy"), e a medição em produção, na conta com 67.139 linhas:
+
+| | antes | depois |
+|---|---|---|
+| request de vendas | ~30 MB, sem filtro de data | **1,84 MB** com `start_date`/`end_date` |
+| KPIs na tela | "coisa de minuto" (relato) | **3,7 s** |
+| cache do período | nunca gravava (cota estourada) | **1.782 KB gravados** |
+
+O cache gravando é o que muda a **segunda** visita — pinta na hora e revalida
+atrás. Era a intenção do desenho original do `adSpendsStore` e nunca funcionou
+nas contas grandes, porque o payload não cabia.
+
+Conferido contra o banco: R$ 8.840,60 de comissão e 3.306 pedidos em 28/08–
+03/09, igual ao SQL com as regras do KPI (fora UNPAID e cancelados).
+
+Pendente: o merge futuro da develop reconflita em `datasetStore.ts`,
+`clicksStore.ts`, `Dashboard.tsx`, `Reports.tsx` e
+`ShopeeIntegrationSettings.tsx` — manter o lado da develop.
+
 ## 2026-09-04 — O dashboard baixava a base inteira para mostrar 7 dias
 
 O que mudou: `datasetStore` passou a mandar `start_date`/`end_date` para a API
