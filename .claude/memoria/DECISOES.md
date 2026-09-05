@@ -9,6 +9,8 @@
 
 | Data | Decisão | Por quê |
 |---|---|---|
+| 2026-09-05 | **Número que muda de ESCOPO precisa dizer o escopo na tela** | A busca de Sub ID passou de "desde sempre" para 30 dias por desempenho. Sem o rótulo, a afiliada vê a comissão do sub_id cair e conclui que perdeu venda — mudança silenciosa de significado vira chamado |
+| 2026-09-05 | **Link que a tela só EXIBE não se depura na tela** | "A página do grupo não funciona" era `FRONTEND_URL` do backend apontando para produção em homologação. A URL vem montada da API; o primeiro olhar é no valor que chegou, não no componente que o renderiza |
 | 2026-09-04b | **A tela NÃO recalcula lotação — `cheio` e `teto` vêm prontos do backend** | Havia uma cópia em JS de `LEAST(capacidade, COALESCE(limite, capacidade))`. Estava certa, mas era a terceira cópia da mesma regra, e "linha amarela com o grupo ainda aberto" é exatamente o sintoma de a tela e o roteador divergirem |
 | 2026-09-04b | **Filtro na aba Grupos não pode tocar o payload do PUT** | O `PUT /grupos` substitui o conjunto INTEIRO: mandar a lista filtrada apagaria da campanha todos os grupos escondidos pelo filtro. A lista visível carrega o índice real e as setas ficam desabilitadas fora do "Todos" |
 | 2026-09-04b | **Ação em lote é rascunho, como as setas — nunca grava na hora** | Duas semânticas de salvamento na mesma tela é o pior desfecho: a afiliada perde a noção do que já foi persistido. E `cheio_override` teve que entrar na `assinatura()`, senão a mudança não acende o botão e some sem aviso |

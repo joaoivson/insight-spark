@@ -11,6 +11,28 @@
 
 ---
 
+## 2026-09-05 — O link errado na tela não era da tela
+
+O que mudou aqui: uma linha de escopo no modal de Sub ID. O resto do dia foi
+backend, mas o sintoma chegou pela tela e vale registrar de que lado ele estava.
+
+**"A página do grupo continua não funcionando".** O print veio com 404 no
+celular, e a tela de homologação mostrando o link de entrada como
+`https://marketdash.com.br/g/8496c6c7` — domínio de **produção**. Nada disso é
+do frontend: a URL vem montada do backend (`GET /campanhas-grupos/{id}/link`), e
+lá o `FRONTEND_URL` estava apontando para produção em homologação.
+
+Fica o hábito: link que a tela só **exibe** não se depura na tela. O primeiro
+olhar é no valor que chegou da API, não no componente que o renderiza.
+
+**A busca de Sub ID passou a ser de 30 dias**, e o modal diz isso agora. A
+mudança é de desempenho (a query varria o histórico inteiro a cada abertura),
+mas ela muda um número que a afiliada lê — sem o rótulo, ela vê a comissão do
+sub_id cair e conclui que perdeu venda. Número que muda de escopo sem avisar
+vira chamado.
+
+---
+
 ## 2026-09-04b — Cinco "bugs" da tela que eram outra coisa
 
 O que mudou: Configurações vira aba, Cheio×Aberto na aba Grupos, modal de

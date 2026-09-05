@@ -187,6 +187,10 @@ Não há suíte de teste automatizada. **A verificação é visual, via Playwrig
   `PrivacyPolicy.tsx` já descreve as duas coisas; ela precisa estar publicada
   **antes** das migrations. Ver `CONTEXTO.md` do backend e
   `docs/PROMOCAO_PARA_PRODUCAO.md` §3.8.
+  ⚠️ **O link de entrada só ficou certo em hml em 05/09**: o `FRONTEND_URL` do
+  backend apontava para produção, e a tela exibia `marketdash.com.br/g/{slug}`.
+  Corrigido no backend e nas envs do Coolify — nada a fazer aqui.
+
   ⚠️ **O checkbox redondo é global**: `--radius: 0.75rem` + `rounded-sm` numa
   caixa de 16px. O `CheckboxQuadrado` foi aplicado só ao módulo de grupos; os
   outros 9 usos do app continuam redondos.
