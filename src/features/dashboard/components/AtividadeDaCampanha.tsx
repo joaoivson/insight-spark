@@ -44,7 +44,6 @@ const quandoExato = (iso: string | null) => {
   return Number.isNaN(data.getTime()) ? undefined : data.toLocaleString("pt-BR");
 };
 
-/** Só a data, em BRT — para a frase "registradas desde…". */
 /**
  * Encurta pelo MEIO, preservando o fim.
  *
@@ -58,10 +57,24 @@ const encurtarMeio = (nome: string, maximo = 22) => {
   return `${nome.slice(0, maximo - fim - 1)}…${nome.slice(-fim)}`;
 };
 
-const soData = (iso: string | null) => {
+/**
+ * A data de início do registro, em BRT — ou `null` quando ela não vale mais a
+ * pena ser dita.
+ *
+ * A frase "registradas desde 26/08" existe para explicar por que o feed começa
+ * onde começa: quem olha uma campanha de duas semanas precisa saber que o
+ * silêncio antes daquela data é falta de registro, não falta de movimento.
+ * Passados 30 dias essa dúvida não existe mais, e a linha vira ruído fixo no
+ * topo de uma tela que a afiliada abre todo dia.
+ */
+const DIAS_PARA_ESCONDER_O_DESDE = 30;
+
+const dataDeInicio = (iso: string | null) => {
   if (!iso) return null;
   const data = new Date(iso);
   if (Number.isNaN(data.getTime())) return null;
+  const dias = (Date.now() - data.getTime()) / 86_400_000;
+  if (dias > DIAS_PARA_ESCONDER_O_DESDE) return null;
   return data.toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" });
 };
 
@@ -215,7 +228,7 @@ export const AtividadeDaCampanha = ({
     void carregar();
   }, [carregar]);
 
-  const dataInicial = soData(desde);
+  const dataInicial = dataDeInicio(desde);
 
   return (
     <div className="space-y-4">
@@ -224,7 +237,10 @@ export const AtividadeDaCampanha = ({
             desde que o primeiro grupo começou a ser acompanhado. A data sai do
             evento mais antigo, não de quando o grupo entrou na campanha: o
             feed não corta por data, e um grupo pode estar gravando eventos
-            desde antes de entrar aqui. */}
+            desde antes de entrar aqui.
+
+            E some depois de 30 dias (ver `dataDeInicio`) — passado esse tempo
+            a frase não responde mais pergunta nenhuma. */}
         {dataInicial ? (
           <p className="max-w-xl text-xs text-muted-foreground">
             Entradas e saídas registradas desde {dataInicial}.
