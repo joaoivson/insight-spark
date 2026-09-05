@@ -103,11 +103,21 @@ export const ConfiguracoesDaCampanha = ({
   const [linkAtivo, setLinkAtivo] = useState<boolean | null>(null);
   const [baseline, setBaseline] = useState<string | null>(null);
 
-  // Como aba, o componente fica montado e o formulário precisa acompanhar a
-  // campanha (antes ele ressincronizava só quando o modal abria).
+  /**
+   * Ressincroniza o formulário — por CAMPANHA, não por identidade do objeto.
+   *
+   * A dependência tem que ser `campanha.id`. Com `[campanha]`, qualquer
+   * re-render que produza um objeto novo reescreve o formulário por baixo: o
+   * `StatusDaCampanhaToggle` do cabeçalho (novo nesta rodada) faz exatamente
+   * isso — pausar a campanha com esta aba aberta chamava `setDetalhe({...})`,
+   * o efeito disparava e as edições ainda não salvas desapareciam junto com o
+   * aviso "Alterações não salvas". Antes desta rodada não existia controle
+   * FORA da aba capaz de trocar a campanha com o formulário preenchido.
+   */
   useEffect(() => {
     setForm(doDetalhe(campanha));
-  }, [campanha]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [campanha.id]);
 
   useEffect(() => {
     let ativo = true;
@@ -121,13 +131,23 @@ export const ConfiguracoesDaCampanha = ({
         setBaseline(assinatura(doDetalhe(campanha), link.ativo));
       })
       .catch(() => {
-        // Falha aqui não pode derrubar a aba inteira: o resto das
-        // configurações continua editável, e o switch fica escondido.
+        // Falha aqui não pode derrubar a aba inteira — mas TAMBÉM não pode
+        // deixar a baseline em `null`: `sujo` exige baseline, e sem ela o
+        // "Salvar" nunca acende. A aba ficaria editável e não salvável, em
+        // silêncio, e a afiliada sairia daqui achando que gravou.
+        //
+        // A baseline é gravada SEM o link (`null`), que é o mesmo valor que
+        // `salvar()` já usa para pular o PATCH do link. As configurações da
+        // campanha continuam salvando; só o switch do link fica de fora.
+        if (!ativo) return;
+        setBaseline(assinatura(doDetalhe(campanha), null));
       });
     return () => {
       ativo = false;
     };
-  }, [campanha]);
+    // Só por campanha, pelo mesmo motivo do efeito acima.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [campanha.id]);
 
   // Salvar só acende quando algo mudou. Era o elemento mais pesado da tela,
   // azul de ponta a ponta e sempre aceso — sem dizer se havia o que salvar.

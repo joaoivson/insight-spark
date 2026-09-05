@@ -959,10 +959,21 @@ const CampanhaGrupoDetalhe = () => {
 
         <TabsContent value="atividade">
           {/* Nomes dos grupos vêm daqui: evita uma segunda request só para
-              montar os chips de filtro. */}
+              montar os chips de filtro.
+
+              `detalhe.grupos` (SALVO), não `vinculos` (rascunho da aba) — a
+              mesma regra do ExportarLeadsModal abaixo, e eu tinha escrito o
+              inverso aqui. O chip de um grupo adicionado e ainda não salvo
+              manda um `grupo_id` que o backend não reconhece: 404, e a aba
+              inteira troca a lista pelo card de erro, com o "Tentar novamente"
+              repetindo a mesma request. A saída seria clicar em "Todos os
+              grupos" — que ninguém adivinha. */}
           <AtividadeDaCampanha
             campanhaId={campanhaId}
-            grupos={vinculos.map((v) => ({ id: v.grupo_id, nome: v.nome }))}
+            grupos={detalhe.grupos.map((g) => ({
+              id: g.grupo_id,
+              nome: g.nome ?? `Grupo ${g.grupo_id}`,
+            }))}
           />
         </TabsContent>
 

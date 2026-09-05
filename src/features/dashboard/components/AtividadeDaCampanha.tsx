@@ -181,6 +181,13 @@ export const AtividadeDaCampanha = ({
 
   const carregarMais = async () => {
     if (!cursor || carregandoMais) return;
+    // LÊ o contador sem incrementar: "carregar mais" não invalida nada, mas
+    // precisa ser invalidado por qualquer troca de filtro. Sem isto, clicar
+    // "Carregar mais" e trocar o chip logo em seguida anexava a página do
+    // recorte ANTIGO na lista já filtrada — e pior, gravava o cursor dela.
+    // O cursor do backend é só `"<iso>|<id>"`, sem o filtro dentro, então as
+    // páginas seguintes continuariam paginando a partir do outro recorte.
+    const meu = requisicao.current;
     setCarregandoMais(true);
     try {
       const pagina = await listarAtividade(campanhaId, {
@@ -189,9 +196,11 @@ export const AtividadeDaCampanha = ({
         tipo,
         grupoId,
       });
+      if (meu !== requisicao.current) return;
       setEventos((atual) => [...atual, ...pagina.eventos]);
       setCursor(pagina.proximo_cursor);
     } catch (e) {
+      if (meu !== requisicao.current) return;
       toast({
         title: "Não foi possível carregar mais",
         description: mensagemAmigavel(e, ERRO_CARGA),
