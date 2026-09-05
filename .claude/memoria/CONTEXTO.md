@@ -179,11 +179,17 @@ Não há suíte de teste automatizada. **A verificação é visual, via Playwrig
 
 ## Em voo / pendente
 
-- **Campanhas de grupos: rodada de correções (04/09) em homologação**, validada
-  contra `hml.marketdash.com.br`. 🔴 A promoção para produção está **bloqueada
-  pela política de privacidade** (o backend passou a guardar o número real de
-  quem entra no grupo) — ver `CONTEXTO.md` do backend e
+- **Campanhas de grupos: duas rodadas de correções (04/09 e 04/09b) em
+  homologação**, validadas contra `hml.marketdash.com.br` e por screenshot em
+  390px e 1440px. 🔴 A promoção para produção está **bloqueada pela política de
+  privacidade** — o backend passou a guardar o número real de quem entra no
+  grupo (079) e, desde a 080, a **lista de membros** dos grupos ativados. A
+  `PrivacyPolicy.tsx` já descreve as duas coisas; ela precisa estar publicada
+  **antes** das migrations. Ver `CONTEXTO.md` do backend e
   `docs/PROMOCAO_PARA_PRODUCAO.md` §3.8.
+  ⚠️ **O checkbox redondo é global**: `--radius: 0.75rem` + `rounded-sm` numa
+  caixa de 16px. O `CheckboxQuadrado` foi aplicado só ao módulo de grupos; os
+  outros 9 usos do app continuam redondos.
 - Badge de desconto do plano Pro na página de vendas.
 - Botão "Atualizar" do header é **dead code** desde a migração para SWR.
 - **Automação Instagram: EM PRODUÇÃO desde 02/09** (App Review aprovado em

@@ -11,6 +11,78 @@
 
 ---
 
+## 2026-09-04b — Cinco "bugs" da tela que eram outra coisa
+
+O que mudou: Configurações vira aba, Cheio×Aberto na aba Grupos, modal de
+vincular Sub ID à campanha, Link de entrada em três blocos, e a tela de Anúncios
+com variante para campanha vinculada a grupo. Acompanha a migration 080.
+
+**Metade do documento não era bug — e valeu descobrir antes de mexer.** Cinco
+itens reportados a partir de um teste real da tela não se confirmaram no código:
+
+- **"Contador de grupos errado"** — as duas fontes do backend concordam. O "0
+  grupos" vinha do `campanhasGruposStore`: `if (loaded && !force) return`, com o
+  store sendo módulo-global do Zustand. `loaded` ficava `true` por toda a sessão
+  do SPA, e a página de detalhe nunca escrevia de volta nele. É o mesmo defeito
+  já catalogado em "cache stale entre devices", e a correção é a mesma — SWR,
+  como o `adSpendsStore`.
+- **"Modal com radio"** — já era `<Checkbox>` multi-select. O círculo é
+  aritmética de token: `rounded-sm` resolve para `calc(var(--radius) - 4px)`, e
+  com `--radius: 0.75rem` isso dá 8px numa caixa de **16px** — raio igual a
+  metade do lado. O controle sempre funcionou; a borda é que mentia. E mente em
+  todos os 15 usos de Checkbox do app, não só ali.
+- **"Prévia é card verde flutuante"** — já era bolha de WhatsApp, com o papel de
+  parede certo e o `rounded-br-sm` do rabinho. O que a fazia parecer um card era
+  o contêiner: um `Card` do shadcn sozinho numa coluna sticky de 320px. Mover
+  para dentro do bloco de Prévia resolveu; o desenho não mudou (só ganhou hora e
+  os dois checks, que é o que faz o olho ler "mensagem").
+- **"Bloqueio de remoção de número não implementado"** — implementado no backend
+  desde a 079, com teste. O que faltava era o `catch` do `salvar()` reverter a
+  seleção: depois do 409 a tela ficava com o checkbox desmarcado, "Alterações não
+  salvas" aceso e "1 grupo nesta campanha" logo abaixo. Um estado que não existe
+  em lugar nenhum, e que se lê exatamente como "o bloqueio não funcionou".
+- **"`/g/{slug}` dá 404"** — funciona em homologação. Produção não tem o módulo,
+  e o que ela devolve é HTTP **200** servindo o `index.html`: o nginx cai no SPA
+  fallback e quem renderiza a tela de 404 é o catch-all do React. Importa para
+  quem for verificar: `curl -I` mostra 200 e engana.
+
+Duas dessas "correções" teriam introduzido regressão — reescrever o modal de
+adicionar grupos mexeria no `Set` de seleção e nas duas regras de escopo já
+resolvidas ali (§6.3 e §2.3), sem benefício nenhum.
+
+**Por que a regra de "cheio" vem pronta do backend.** A tela tinha `tetoDoGrupo`,
+uma cópia em JavaScript de `LEAST(capacidade, COALESCE(limite, capacidade))`. Ela
+até estava certa, mas era a terceira cópia da mesma regra — e o defeito reportado
+("linha amarela, grupo continua aberto") é exatamente o sintoma de a tela e o
+roteador divergirem. `cheio` e `teto` passaram a vir calculados; o front não
+recalcula lotação.
+
+**O filtro não pode tocar o payload do PUT.** A aba Grupos ganhou
+Todos/Cheios/Não cheios, e o `PUT /grupos` **substitui o conjunto inteiro**:
+mandar a lista filtrada apagaria da campanha todos os grupos escondidos pelo
+filtro. A lista visível carrega o índice real (`{v, i}`) e as setas de reordenar
+ficam desabilitadas fora do "Todos" — mover uma linha para uma posição que ela
+não está vendo é pior que não poder mover.
+
+**Ação em lote é rascunho, não gravação.** Se ela gravasse na hora e as setas
+continuassem sendo rascunho, a afiliada perderia a noção do que já foi salvo.
+Tudo continua atrás do mesmo "Salvar ordem" — e `cheio_override` entrou na
+`assinatura()`, senão a mudança não acende o botão e some sem aviso.
+
+**Os toggles do pixel tinham que sair dos DOIS lados.** Só apagar da tela deixaria
+linha antiga com `pixel_eventos.lead = false` continuando a apagar o evento em
+silêncio — o oposto do pedido. O backend passou a ignorar a coluna.
+
+**Um byte NUL literal** dentro de `assinatura()` (`].join("\0")`) fazia o `grep`
+tratar `LinkDeEntradaDaCampanha.tsx` como binário e suprimir a saída sem erro
+nenhum: quem investigasse o componente por grep o veria vazio. Trocado por
+`\u0001`.
+
+Pendente: o `CheckboxQuadrado` foi aplicado só ao módulo de grupos — os outros
+usos de Checkbox do app continuam redondos.
+
+---
+
 ## 2026-09-04 — O trigger do Coolify falhou de novo (3ª vez registrada)
 
 O `deploy-homologation` do frontend buildou (`Test build` e `Check build
