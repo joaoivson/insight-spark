@@ -49,6 +49,14 @@ export type GrupoDaCampanha = {
   sub_id: string | null;
   /** Por quais números este grupo é alcançável — a aba Grupos escopa por isso. */
   instancia_ids: number[];
+  /**
+   * Quando a LISTA de participantes deste grupo foi confirmada pela última vez.
+   *
+   * O contador (`participantes`) anda a cada evento do webhook; a lista só anda
+   * no sync — e é dela que sai a exportação. Sem esta data, a tela diz 773 e o
+   * CSV traz 679 sem ninguém entender por quê. `null` = nunca sincronizada.
+   */
+  participantes_sincronizados_em: string | null;
 };
 
 export type CampanhaGruposDetalhe = CampanhaGrupos & {
@@ -244,12 +252,29 @@ export type OrigemEventoGrupo = "link" | "organica" | "desconhecida";
 
 /** Entrada ou saída de um grupo da campanha — sem nenhum dado pessoal. */
 export type EventoDeGrupo = {
+  /** PK do evento. É metade do cursor de paginação e a key estável da lista. */
+  id: number;
   tipo: TipoEventoGrupo;
-  origem: OrigemEventoGrupo;
+  /**
+   * De onde a pessoa veio ao ENTRAR.
+   *
+   * `null` em SAÍDA, sempre: saída não tem origem. Antes vinha
+   * `"desconhecida"` e a tela escrevia "Saída · origem desconhecida", que se
+   * lê como "o sistema perdeu informação" — informação que nunca existiu.
+   */
+  origem: OrigemEventoGrupo | null;
   grupo_id: number;
   grupo: string | null;
   /** ISO 8601. Vem nulo quando o banco ainda não carimbou a data. */
   quando: string | null;
+};
+
+export type PaginaDeAtividade = {
+  eventos: EventoDeGrupo[];
+  /** `null` quando acabou. Formato opaco — não interprete no cliente. */
+  proximo_cursor: string | null;
+  /** Data do evento mais antigo dos grupos da campanha, ISO. */
+  registrando_desde: string | null;
 };
 
 /** O link é criado na primeira visita — a tela não precisa "gerar" nada. */
@@ -270,14 +295,36 @@ export async function atualizarLinkDaCampanha(
   return json(res, "Não foi possível salvar o link de entrada.");
 }
 
-/** Feed de entradas e saídas, do mais recente para o mais antigo. */
-export async function listarAtividade(id: number, limite = 50): Promise<EventoDeGrupo[]> {
-  const res = await fetchWithAuth(`${base()}/${id}/atividade?limite=${limite}`);
-  const corpo = await json<{ eventos: EventoDeGrupo[] }>(
+/**
+ * Uma PÁGINA do feed, do mais recente para o mais antigo.
+ *
+ * Paginação por cursor, não por página: `criado_em` empata em lote (uma
+ * entrada de 30 pessoas grava 30 eventos no mesmo instante) e OFFSET sobre
+ * ordem ambígua repete e pula linhas.
+ */
+export async function listarAtividade(
+  id: number,
+  opts: {
+    limite?: number;
+    cursor?: string | null;
+    tipo?: TipoEventoGrupo | null;
+    grupoId?: number | null;
+  } = {},
+): Promise<PaginaDeAtividade> {
+  const query = new URLSearchParams({ limite: String(opts.limite ?? 50) });
+  if (opts.cursor) query.set("cursor", opts.cursor);
+  if (opts.tipo) query.set("tipo", opts.tipo);
+  if (opts.grupoId) query.set("grupo_id", String(opts.grupoId));
+  const res = await fetchWithAuth(`${base()}/${id}/atividade?${query}`);
+  const corpo = await json<PaginaDeAtividade>(
     res,
     "Não foi possível carregar a atividade.",
   );
-  return corpo.eventos ?? [];
+  return {
+    eventos: corpo.eventos ?? [],
+    proximo_cursor: corpo.proximo_cursor ?? null,
+    registrando_desde: corpo.registrando_desde ?? null,
+  };
 }
 
 // ── Anúncios vinculados e resultados (F7) ────────────────────────────────────
@@ -314,7 +361,8 @@ export type LinhaResultado = {
   entradas: number;
   saidas: number;
   ficaram: number;
-  evasao_pct: number;
+  /** `null` quando não há ninguém exposto (nem participante, nem saída). */
+  evasao_pct: number | null;
   mensagens: number;
   cliques: number;
   pedidos: number;
@@ -334,6 +382,15 @@ export type TotaisResultado = Omit<
   LinhaResultado,
   "grupo_id" | "grupo" | "sub_id" | "evasao_pct"
 > & {
+  /** Evasão do conjunto — não a média das evasões por grupo. */
+  evasao_pct: number | null;
+  /**
+   * Quantos Sub IDs rastreiam venda para esta campanha.
+   *
+   * `0` = não há medição. Comissão zero aí NÃO é prejuízo — é ninguém
+   * olhando — e a tela mostra "—" em vez de "R$ 0,00" e "0.00x".
+   */
+  sub_ids_vinculados: number;
   /** Investimento INTEIRO da campanha, uma vez — não a soma de um rateio. */
   gasto_atribuido: number;
   lucro: number;

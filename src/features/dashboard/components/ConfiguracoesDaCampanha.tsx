@@ -5,13 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/shared/lib/utils";
@@ -22,7 +15,6 @@ import {
   obterLinkDaCampanha,
   type CampanhaGrupos,
   type EstrategiaEntrada,
-  type StatusCampanha,
 } from "@/services/campanhas_grupos.service";
 
 /** Capacidade máxima de um grupo de WhatsApp — teto absoluto do campo. */
@@ -66,7 +58,6 @@ const Opcao = ({
 );
 
 type Form = {
-  status: StatusCampanha;
   estrategia_entrada: EstrategiaEntrada;
   abertura_automatica: boolean;
   reabertura_automatica: boolean;
@@ -74,8 +65,13 @@ type Form = {
   limite_participantes: string;
 };
 
+/** É o que o PATCH persiste — então é o que define "tem alteração não salva". */
+const assinatura = (f: Form, linkAtivo: boolean | null) =>
+  [f.estrategia_entrada, f.abertura_automatica ? 1 : 0,
+   f.reabertura_automatica ? 1 : 0, f.limite_participantes.trim(),
+   linkAtivo === null ? "?" : linkAtivo ? 1 : 0].join("|");
+
 const doDetalhe = (c: CampanhaGrupos): Form => ({
-  status: c.status,
   estrategia_entrada: c.estrategia_entrada,
   abertura_automatica: c.abertura_automatica,
   reabertura_automatica: c.reabertura_automatica,
@@ -105,6 +101,7 @@ export const ConfiguracoesDaCampanha = ({
   // campos de conteúdo. `null` enquanto carrega — o switch não pode piscar
   // "desligado" antes de saber o valor real.
   const [linkAtivo, setLinkAtivo] = useState<boolean | null>(null);
+  const [baseline, setBaseline] = useState<string | null>(null);
 
   // Como aba, o componente fica montado e o formulário precisa acompanhar a
   // campanha (antes ele ressincronizava só quando o modal abria).
@@ -115,7 +112,14 @@ export const ConfiguracoesDaCampanha = ({
   useEffect(() => {
     let ativo = true;
     obterLinkDaCampanha(campanha.id)
-      .then((link) => ativo && setLinkAtivo(link.ativo))
+      .then((link) => {
+        if (!ativo) return;
+        setLinkAtivo(link.ativo);
+        // A baseline só existe DEPOIS do link: antes dele `linkAtivo` é `null`
+        // e a assinatura mudaria sozinha quando ele chegasse, acendendo o
+        // "Salvar" sem ninguém ter mexido em nada.
+        setBaseline(assinatura(doDetalhe(campanha), link.ativo));
+      })
       .catch(() => {
         // Falha aqui não pode derrubar a aba inteira: o resto das
         // configurações continua editável, e o switch fica escondido.
@@ -123,7 +127,11 @@ export const ConfiguracoesDaCampanha = ({
     return () => {
       ativo = false;
     };
-  }, [campanha.id]);
+  }, [campanha]);
+
+  // Salvar só acende quando algo mudou. Era o elemento mais pesado da tela,
+  // azul de ponta a ponta e sempre aceso — sem dizer se havia o que salvar.
+  const sujo = baseline !== null && assinatura(form, linkAtivo) !== baseline;
 
   const limiteNum = Number(form.limite_participantes);
   const limiteInvalido =
@@ -141,7 +149,6 @@ export const ConfiguracoesDaCampanha = ({
         await atualizarLinkDaCampanha(campanha.id, { ativo: linkAtivo });
       }
       const atualizada = await atualizarCampanha(campanha.id, {
-        status: form.status,
         estrategia_entrada: form.estrategia_entrada,
         abertura_automatica: form.abertura_automatica,
         reabertura_automatica: form.reabertura_automatica,
@@ -149,6 +156,7 @@ export const ConfiguracoesDaCampanha = ({
         limite_participantes: form.limite_participantes === "" ? null : limiteNum,
       });
       onSalvo(atualizada);
+      setBaseline(assinatura(form, linkAtivo));
       toast({ title: "Configurações salvas" });
     } catch (e) {
       toast({
@@ -162,24 +170,16 @@ export const ConfiguracoesDaCampanha = ({
   };
 
   return (
-    <Card>
-      <CardContent className="space-y-5 p-5">
-        <div className="space-y-2">
-          <Label>Status</Label>
-          <Select
-            value={form.status}
-            onValueChange={(v) => setForm({ ...form, status: v as StatusCampanha })}
-          >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="ativa">Ativa</SelectItem>
-              <SelectItem value="pausada">Pausada</SelectItem>
-              <SelectItem value="arquivada">Arquivada</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+    // Dois blocos com título: era uma pilha de controles soltos onde "Link de
+    // entrada ativo" tinha o mesmo peso visual de "Reabertura automática" — e
+    // eles não são equivalentes: o primeiro liga e desliga a captação.
+    //
+    // Status saiu daqui (05/09): virou toggle no cabeçalho, ao lado do nome,
+    // porque é a decisão mais frequente e estava enterrada numa aba.
+    <div className="space-y-4">
+      <Card>
+        <CardContent className="space-y-5 p-5">
+          <p className="text-sm font-medium text-foreground">Distribuição de entrada</p>
 
         <div className="space-y-2" role="radiogroup" aria-label="Estratégia de entrada">
           <Label>Estratégia de entrada</Label>
@@ -192,7 +192,7 @@ export const ConfiguracoesDaCampanha = ({
             />
             <Opcao
               titulo="Aleatória"
-              descricao="Distribui entre os grupos abertos — compara conversão"
+              descricao="Distribui entre os grupos abertos, em ordem aleatória"
               ativo={form.estrategia_entrada === "aleatoria"}
               onClick={() => setForm({ ...form, estrategia_entrada: "aleatoria" })}
             />
@@ -213,7 +213,7 @@ export const ConfiguracoesDaCampanha = ({
                 setForm({ ...form, limite_participantes: e.target.value })
               }
               placeholder={String(CAPACIDADE_WHATSAPP)}
-              className="w-32 tabular-nums"
+              className="w-24 tabular-nums"
             />
             <span className="text-sm text-muted-foreground">participantes</span>
           </div>
@@ -264,10 +264,17 @@ export const ConfiguracoesDaCampanha = ({
             />
           </div>
 
-          {linkAtivo !== null && (
+        </div>
+        </CardContent>
+      </Card>
+
+      {linkAtivo !== null && (
+        <Card>
+          <CardContent className="space-y-4 p-5">
+            <p className="text-sm font-medium text-foreground">Link de entrada</p>
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0 space-y-1">
-                <Label htmlFor="cfg-link-ativo">Link de entrada ativo</Label>
+                <Label htmlFor="cfg-link-ativo">Link ativo</Label>
                 <p className="text-xs text-muted-foreground">
                   Desligado, quem clicar no link vê que ele não está disponível — o
                   anúncio continua veiculando.
@@ -280,18 +287,25 @@ export const ConfiguracoesDaCampanha = ({
                 onCheckedChange={setLinkAtivo}
               />
             </div>
-          )}
-        </div>
+          </CardContent>
+        </Card>
+      )}
 
-        <Button
-          className="w-full"
-          onClick={() => void salvar()}
-          disabled={salvando || limiteInvalido}
-        >
-          {salvando && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          Salvar
-        </Button>
-      </CardContent>
-    </Card>
+      <Card>
+        <CardContent className="p-5">
+
+        <div className="flex flex-wrap items-center justify-end gap-3">
+          {sujo && <span className="text-xs text-amber-500">Alterações não salvas</span>}
+          <Button
+            onClick={() => void salvar()}
+            disabled={salvando || limiteInvalido || !sujo}
+          >
+            {salvando && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Salvar
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
   );
 };

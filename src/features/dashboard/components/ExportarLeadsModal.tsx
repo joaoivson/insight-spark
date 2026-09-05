@@ -10,7 +10,28 @@ import { exportarLeads } from "@/services/campanhas_grupos.service";
 
 const ERRO_EXPORT = "Não foi possível exportar. Tente novamente.";
 
-export type GrupoExportavel = { grupo_id: number; nome: string };
+export type GrupoExportavel = {
+  grupo_id: number;
+  nome: string;
+  /** ISO, ou `null` se a lista deste grupo nunca foi sincronizada. */
+  sincronizado_em: string | null;
+};
+
+/**
+ * A lista mais DESATUALIZADA entre os grupos selecionados, e quantos nunca
+ * foram sincronizados.
+ *
+ * A mais antiga é que manda: dizer a mais recente esconderia o grupo que está
+ * para trás. E "nunca sincronizado" é caso à parte — esse grupo sai VAZIO do
+ * CSV, e é justamente nele que a mensagem mais importa.
+ */
+const estadoDaLista = (grupos: GrupoExportavel[]) => {
+  const datas = grupos.map((g) => g.sincronizado_em).filter(Boolean) as string[];
+  return {
+    maisAntiga: datas.length ? datas.reduce((a, b) => (a < b ? a : b)) : null,
+    nuncaSincronizados: grupos.length - datas.length,
+  };
+};
 
 /**
  * Exportar leads com seleção de grupos (spec §3.6).
@@ -59,6 +80,16 @@ export const ExportarLeadsModal = ({
   }, [open]);
 
   const todos = selecionados.size === grupos.length && grupos.length > 0;
+
+  const { maisAntiga: iso, nuncaSincronizados } = estadoDaLista(
+    grupos.filter((g) => selecionados.has(g.grupo_id)),
+  );
+  const dataDaLista = iso
+    ? new Date(iso).toLocaleString("pt-BR", {
+        timeZone: "America/Sao_Paulo",
+        day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit",
+      })
+    : null;
 
   const alternar = (id: number) => {
     setSelecionados((atual) => {
@@ -133,10 +164,25 @@ export const ExportarLeadsModal = ({
           ))}
         </div>
 
-        <p className="text-xs text-muted-foreground">
-          Exporta quem está no grupo agora, com telefone e data de entrada quando ela é
-          conhecida. Quem entrou com o número oculto no WhatsApp sai sem telefone.
-        </p>
+        {/* Três fatos, uma linha cada — a tela é direta, mas os três têm
+            consequência: sem eles a afiliada acha que o CSV está quebrado. */}
+        <div className="space-y-1 text-xs text-muted-foreground">
+          {dataDaLista && (
+            <p>
+              Lista de {dataDaLista} — quem entrou depois aparece na próxima
+              sincronização.
+            </p>
+          )}
+          {nuncaSincronizados > 0 && (
+            <p className="text-amber-500">
+              {nuncaSincronizados === 1
+                ? "1 grupo selecionado nunca foi sincronizado e sai vazio."
+                : `${nuncaSincronizados} grupos selecionados nunca foram sincronizados e saem vazios.`}
+            </p>
+          )}
+          <p>Sem data de entrada = já estava no grupo antes de você começar a acompanhá-lo.</p>
+          <p>Sem telefone = entrou com o número oculto no WhatsApp.</p>
+        </div>
 
         <Button
           className="w-full"

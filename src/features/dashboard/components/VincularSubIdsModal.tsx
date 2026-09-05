@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
-import { Loader2 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Loader2, Search } from "lucide-react";
 
 import { ResponsiveModal } from "@/components/shared/ResponsiveModal";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { CheckboxQuadrado } from "@/components/shared/CheckboxQuadrado";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
@@ -56,6 +57,8 @@ export const VincularSubIdsModal = ({
   const [carregando, setCarregando] = useState(true);
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
+  const [tentativa, setTentativa] = useState(0);
+  const [busca, setBusca] = useState("");
 
   const aplicar = (lista: SubIdVinculavel[]) => {
     setOpcoes(lista);
@@ -68,6 +71,7 @@ export const VincularSubIdsModal = ({
   // resposta antiga cair em cima da nova.
   useEffect(() => {
     if (!open) return;
+    setBusca("");
     let ativo = true;
     setCarregando(true);
     setErro(null);
@@ -83,9 +87,16 @@ export const VincularSubIdsModal = ({
     return () => {
       ativo = false;
     };
-  }, [open, campanhaId, periodo.inicio, periodo.fim]);
+  }, [open, campanhaId, periodo.inicio, periodo.fim, tentativa]);
 
   const sujo = assinatura(selecionados) !== baseline;
+
+  // A ordem vem do backend (vinculados primeiro, depois por comissão) — o
+  // filtro só esconde, nunca reordena.
+  const visiveis = useMemo(() => {
+    const termo = busca.trim().toLowerCase();
+    return termo ? opcoes.filter((o) => o.sub_id.includes(termo)) : opcoes;
+  }, [opcoes, busca]);
 
   const alternar = (subId: string) => {
     setSelecionados((atual) => {
@@ -125,7 +136,23 @@ export const VincularSubIdsModal = ({
       <div className="space-y-3 pb-2">
         <p className="text-xs text-muted-foreground">
           A comissão destes Sub IDs entra no total da campanha, somada à dos grupos.
+          Ordenados pelo que mais vendeu no período.
         </p>
+
+        {/* Busca: a lista tem dezenas de itens e rolar procurando na mão é o
+            que ela fazia. O filtro é só de exibição — `selecionados` é um Set
+            independente, então filtrar não desmarca nada. */}
+        {!carregando && !erro && opcoes.length > 0 && (
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Buscar Sub ID"
+              value={busca}
+              onChange={(e) => setBusca(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+        )}
 
         {carregando ? (
           <div className="space-y-2">
@@ -134,14 +161,26 @@ export const VincularSubIdsModal = ({
             ))}
           </div>
         ) : erro ? (
-          <p className="py-6 text-center text-sm text-muted-foreground">{erro}</p>
+          // Antes o erro era estado TERMINAL: sem botão, sem ação, e a única
+          // saída era fechar e reabrir. A falha observada foi transitória — a
+          // tela tratava lentidão como erro definitivo.
+          <div className="flex flex-col items-center gap-3 py-6 text-center">
+            <p className="text-sm text-muted-foreground">{erro}</p>
+            <Button variant="outline" size="sm" onClick={() => setTentativa((n) => n + 1)}>
+              Tentar novamente
+            </Button>
+          </div>
         ) : opcoes.length === 0 ? (
           <p className="py-6 text-center text-sm text-muted-foreground">
             Nenhum Sub ID com venda no período.
           </p>
+        ) : visiveis.length === 0 ? (
+          <p className="py-6 text-center text-sm text-muted-foreground">
+            Nenhum Sub ID encontrado.
+          </p>
         ) : (
           <div className="max-h-[45vh] space-y-1 overflow-y-auto">
-            {opcoes.map((o) => {
+            {visiveis.map((o) => {
               const bloqueado = !!o.bloqueado_por;
               return (
                 <label

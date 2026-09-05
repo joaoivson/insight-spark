@@ -10,6 +10,7 @@ import { AnunciosDaCampanha } from "@/features/dashboard/components/AnunciosDaCa
 import { ConfiguracoesDaCampanha } from "@/features/dashboard/components/ConfiguracoesDaCampanha";
 import { ExportarLeadsModal } from "@/features/dashboard/components/ExportarLeadsModal";
 import { NumerosDaCampanha } from "@/features/dashboard/components/NumerosDaCampanha";
+import { StatusDaCampanhaToggle } from "@/features/dashboard/components/StatusDaCampanhaToggle";
 import { VisaoGeralDaCampanha } from "@/features/dashboard/components/VisaoGeralDaCampanha";
 import { AtividadeDaCampanha } from "@/features/dashboard/components/AtividadeDaCampanha";
 import { LinkDeEntradaDaCampanha } from "@/features/dashboard/components/LinkDeEntradaDaCampanha";
@@ -95,6 +96,30 @@ const assinatura = (vinculos: VinculoLocal[]) =>
   vinculos
     .map((v) => `${v.grupo_id}:${v.aberto ? 1 : 0}:${v.cheio_override ?? "a"}`)
     .join(",");
+
+/**
+ * A regra automática de lotação, num lugar só.
+ *
+ * O backend manda `cheio` e `teto` prontos (mesma regra da rotação); isto aqui
+ * existe só para o estado LOCAL — a linha que ainda não foi salva e o rótulo
+ * "Automático" do Select, que precisa dizer o que o automático diz hoje.
+ */
+const estaCheioPelaOcupacao = (v: { participantes: number; teto: number }) =>
+  v.teto > 0 && v.participantes >= v.teto;
+
+/** Acima disto a ocupação vira alerta — antes o laranja seguia `cheio`, e um
+ *  grupo com 767/900 (85%) já aparecia alaranjado sem estar enchendo. */
+const LIMIAR_ATENCAO = 0.9;
+
+/** O Select mostra a INTENÇÃO: `null` é "Automático", não o valor efetivo. */
+const valorDoCheio = (v: { cheio_override: boolean | null }) =>
+  v.cheio_override === null ? "auto" : v.cheio_override ? "sim" : "nao";
+
+const ocupacaoClass = (v: { participantes: number; teto: number; cheio: boolean }) => {
+  if (v.cheio) return "font-semibold text-amber-500";
+  if (v.teto > 0 && v.participantes / v.teto >= LIMIAR_ATENCAO) return "text-amber-500";
+  return "text-foreground";
+};
 
 /** Filtro da aba Grupos — a lista pode ficar longa numa campanha madura. */
 type FiltroGrupos = "todos" | "cheios" | "nao-cheios";
@@ -232,24 +257,31 @@ const CampanhaGrupoDetalhe = () => {
   };
 
   /**
-   * Marca/desmarca "cheio" à mão.
+   * Define "cheio": `true`, `false` ou `null` (volta ao automático).
    *
-   * Escolher o MESMO valor que o automático limpa o override (volta a `null`).
-   * Sem isso o override é pegajoso: gente sai do grupo, a ocupação cai abaixo
-   * do teto e o grupo nunca mais volta à rotação porque o TRUE continua lá.
+   * **Grava SEMPRE o valor escolhido.** A versão anterior limpava o override
+   * quando ele coincidia com o automático, e isso produzia o pior defeito
+   * possível: marcar "Sim" num grupo que já estava cheio pela ocupação gravava
+   * `null` — ou seja, NADA era persistido. A tela mostrava "Sim", a assinatura
+   * não mudava, "Salvar ordem" nem acendia, e no sync seguinte a contagem caía
+   * e o grupo voltava para "Não" sozinho.
+   *
+   * Uma vez marcado à mão, o valor é dela até ela mesma mudar — e o caminho de
+   * volta ao automático é a terceira opção do Select, explícita.
    */
-  const definirCheio = (grupoIds: Set<number> | number, valor: boolean) => {
+  const definirCheio = (grupoIds: Set<number> | number, valor: boolean | null) => {
     const alvos = typeof grupoIds === "number" ? new Set([grupoIds]) : grupoIds;
     setVinculos((atual) =>
-      atual.map((v) => {
-        if (!alvos.has(v.grupo_id)) return v;
-        const automatico = v.participantes >= v.teto;
-        return {
-          ...v,
-          cheio: valor,
-          cheio_override: valor === automatico ? null : valor,
-        };
-      }),
+      atual.map((v) =>
+        alvos.has(v.grupo_id)
+          ? {
+              ...v,
+              cheio_override: valor,
+              // O efetivo acompanha: `null` volta a seguir a ocupação.
+              cheio: valor === null ? estaCheioPelaOcupacao(v) : valor,
+            }
+          : v,
+      ),
     );
   };
 
@@ -407,7 +439,7 @@ const CampanhaGrupoDetalhe = () => {
         return {
           grupo_id: g.id,
           aberto: true,
-          cheio: g.participantes >= teto,
+          cheio: estaCheioPelaOcupacao({ participantes: g.participantes, teto }),
           cheio_override: null,
           teto,
           nome: rotuloDoGrupo(g.nome, g.id),
@@ -459,10 +491,9 @@ const CampanhaGrupoDetalhe = () => {
   return (
     <DashboardLayout
       title={detalhe.nome}
-      // Configurações virou ABA. Era o único elemento de navegação da campanha
-      // fora da barra de abas — e o nome, que morava lá dentro, foi para a
-      // listagem junto com duplicar e excluir.
-      action={<StatusCampanhaBadge status={detalhe.status} />}
+      // O chip de status era enfeite: o controle real estava enterrado numa
+      // aba. Virou toggle aqui, que é onde a decisão acontece.
+      action={<StatusDaCampanhaToggle campanha={detalhe} onSalvo={aoSalvarConfig} />}
     >
       {enviosPausados && (
         <div className="mb-4 flex items-start gap-3 rounded-xl border border-amber-500/25 bg-amber-500/10 p-3">
@@ -588,6 +619,16 @@ const CampanhaGrupoDetalhe = () => {
                   >
                     Marcar como não cheio
                   </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => {
+                      definirCheio(marcados, null);
+                      setMarcados(new Set());
+                    }}
+                  >
+                    Voltar ao automático
+                  </Button>
                 </div>
               )}
             </div>
@@ -653,27 +694,34 @@ const CampanhaGrupoDetalhe = () => {
                     <span
                       className={cn(
                         "w-28 flex-shrink-0 text-right text-sm tabular-nums",
-                        v.cheio ? "font-semibold text-amber-500" : "text-foreground",
+                        ocupacaoClass(v),
                       )}
                     >
                       {v.participantes}/{v.teto}
                     </span>
-                    {/* "Cheio" é Select, não toggle: o sistema preenche pela
-                        ocupação e ela pode sobrescrever. Escolher o mesmo valor
-                        do automático limpa o override. */}
-                    <span className="flex w-24 flex-shrink-0 justify-center">
+                    {/* Três estados, e o Select exibe a INTENÇÃO (dela ou do
+                        sistema), não o resultado — o resultado continua visível
+                        na coluna Ocupação. "Automático" é o caminho de volta:
+                        sem ele, cada marcação manual vira permanente e a opção
+                        "Reabertura automática" passa a mentir. */}
+                    <span className="flex w-32 flex-shrink-0 justify-center">
                       <Select
-                        value={v.cheio ? "sim" : "nao"}
+                        value={valorDoCheio(v)}
                         disabled={salvandoGrupos}
-                        onValueChange={(valor) => definirCheio(v.grupo_id, valor === "sim")}
+                        onValueChange={(valor) =>
+                          definirCheio(v.grupo_id, valor === "auto" ? null : valor === "sim")
+                        }
                       >
                         <SelectTrigger
-                          className="h-8 w-20"
+                          className="h-8 w-full"
                           aria-label={`Grupo ${v.nome} cheio`}
                         >
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
+                          <SelectItem value="auto">
+                            Automático{estaCheioPelaOcupacao(v) ? " (cheio)" : ""}
+                          </SelectItem>
                           <SelectItem value="sim">Sim</SelectItem>
                           <SelectItem value="nao">Não</SelectItem>
                         </SelectContent>
@@ -758,12 +806,7 @@ const CampanhaGrupoDetalhe = () => {
                             <span className="truncate">{v.nome}</span>
                           </p>
                           <p className="mt-0.5 text-xs text-muted-foreground">
-                            <span
-                              className={cn(
-                                "tabular-nums",
-                                v.cheio && "font-semibold text-amber-500",
-                              )}
-                            >
+                            <span className={cn("tabular-nums", ocupacaoClass(v))}>
                               {v.participantes}/{v.teto}
                             </span>{" "}
                             participantes
@@ -771,17 +814,22 @@ const CampanhaGrupoDetalhe = () => {
                         </div>
                       </div>
                       <Select
-                        value={v.cheio ? "sim" : "nao"}
+                        value={valorDoCheio(v)}
                         disabled={salvandoGrupos}
-                        onValueChange={(valor) => definirCheio(v.grupo_id, valor === "sim")}
+                        onValueChange={(valor) =>
+                          definirCheio(v.grupo_id, valor === "auto" ? null : valor === "sim")
+                        }
                       >
                         <SelectTrigger
-                          className="h-9 w-[124px] flex-shrink-0"
+                          className="h-9 w-[132px] flex-shrink-0"
                           aria-label={`Grupo ${v.nome} cheio`}
                         >
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
+                          <SelectItem value="auto">
+                            Automático{estaCheioPelaOcupacao(v) ? " (cheio)" : ""}
+                          </SelectItem>
                           <SelectItem value="sim">Cheio</SelectItem>
                           <SelectItem value="nao">Com vaga</SelectItem>
                         </SelectContent>
@@ -872,7 +920,12 @@ const CampanhaGrupoDetalhe = () => {
         </TabsContent>
 
         <TabsContent value="atividade">
-          <AtividadeDaCampanha campanhaId={campanhaId} />
+          {/* Nomes dos grupos vêm daqui: evita uma segunda request só para
+              montar os chips de filtro. */}
+          <AtividadeDaCampanha
+            campanhaId={campanhaId}
+            grupos={vinculos.map((v) => ({ id: v.grupo_id, nome: v.nome }))}
+          />
         </TabsContent>
 
         <TabsContent value="anuncios">
@@ -982,6 +1035,7 @@ const CampanhaGrupoDetalhe = () => {
         grupos={detalhe.grupos.map((g) => ({
           grupo_id: g.grupo_id,
           nome: g.nome ?? `Grupo ${g.grupo_id}`,
+          sincronizado_em: g.participantes_sincronizados_em,
         }))}
       />
 

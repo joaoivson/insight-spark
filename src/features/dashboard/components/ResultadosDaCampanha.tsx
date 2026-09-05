@@ -4,9 +4,7 @@ import {
   CalendarRange,
   ChevronDown,
   ChevronUp,
-  Download,
   Link2,
-  Loader2,
   MessagesSquare,
   Users,
 } from "lucide-react";
@@ -27,9 +25,7 @@ import {
 } from "@/components/ui/table";
 import { DataCard, type DataCardField } from "@/components/shared/DataCard";
 import { VincularSubIdsModal } from "@/features/dashboard/components/VincularSubIdsModal";
-import { useToast } from "@/hooks/use-toast";
 import {
-  exportarLeads,
   obterResultados,
   type LinhaResultado,
   type ResultadosDaCampanha as Resultados,
@@ -59,7 +55,7 @@ const curto = (d: Date) =>
 // Tolerantes a chave ausente, como o formatCurrency já é: não existe
 // ErrorBoundary no projeto, então um throw aqui levaria a página inteira.
 const num = (v?: number | null) => (v ?? 0).toLocaleString("pt-BR");
-const pct = (v?: number | null) => `${(v ?? 0).toFixed(1)}%`;
+const pct = (v?: number | null) => (v == null ? "—" : `${v.toFixed(1)}%`);
 
 /** Lucro é a métrica que decide o investimento — ganha cor. */
 const lucroClass = (v?: number | null) =>
@@ -113,6 +109,7 @@ const KpiResultado = ({
  */
 const DETALHES: { rotulo: string; valor: (l: LinhaResultado) => string }[] = [
   { rotulo: "Saídas", valor: (l) => num(l.saidas) },
+  { rotulo: "Ficaram", valor: (l) => num(l.ficaram) },
   { rotulo: "Evasão", valor: (l) => pct(l.evasao_pct) },
   { rotulo: "Mensagens", valor: (l) => num(l.mensagens) },
   { rotulo: "Cliques", valor: (l) => num(l.cliques) },
@@ -122,11 +119,9 @@ const DETALHES: { rotulo: string; valor: (l: LinhaResultado) => string }[] = [
 // O texto anterior ("Não exportamos números de telefone — não coletamos os
 // números de quem entra") saiu: era FALSO desde a 079, e contradizia a própria
 // política de privacidade, que já foi reescrita dizendo o contrário.
-const NOTA_EXPORT =
-  "Exporta quem está nos grupos agora, com telefone e data de entrada quando ela é conhecida.";
+const NOTA_SEM_SUBID = "nenhuma venda rastreada — vincule um Sub ID";
 
 const ERRO_CARGA = "Não foi possível carregar os resultados. Tente novamente.";
-const ERRO_EXPORT = "Não foi possível exportar os leads. Tente novamente.";
 
 /** Aba "Resultados": desempenho por grupo no período, com o investimento em anúncios. */
 export const ResultadosDaCampanha = ({
@@ -137,14 +132,12 @@ export const ResultadosDaCampanha = ({
   /** Troca de aba dentro da própria página — o estado vazio precisa oferecer a ação. */
   onIrParaAba?: (aba: "grupos" | "anuncios") => void;
 }) => {
-  const { toast } = useToast();
   const [modalSubIds, setModalSubIds] = useState(false);
   const [periodo, setPeriodo] = useState<PeriodoKey>("7d");
   const [rangePersonalizado, setRangePersonalizado] = useState<DateRange | undefined>();
   const [dados, setDados] = useState<Resultados | null>(null);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
-  const [exportando, setExportando] = useState(false);
   const [abertos, setAbertos] = useState<Set<number>>(new Set());
   /** Incrementado pelo "Tentar novamente" — refaz o effect sem duplicar a lógica. */
   const [tentativa, setTentativa] = useState(0);
@@ -199,32 +192,6 @@ export const ResultadosDaCampanha = ({
     });
   };
 
-  const exportar = async () => {
-    setExportando(true);
-    try {
-      // Sem período: o CSV é a lista de quem está nos grupos AGORA.
-      const { blob, nome } = await exportarLeads(campanhaId);
-      const href = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = href;
-      link.download = nome;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      // Revogar no mesmo tick aborta o download no Safari do iOS — que é o
-      // aparelho principal deste produto. Solta a URL depois que o navegador
-      // já pegou os bytes.
-      window.setTimeout(() => URL.revokeObjectURL(href), 60_000);
-    } catch (e) {
-      toast({
-        title: "Não foi possível exportar",
-        description: mensagemAmigavel(e, ERRO_EXPORT),
-        variant: "destructive",
-      });
-    } finally {
-      setExportando(false);
-    }
-  };
 
   const linhas = dados?.linhas ?? [];
   const totais: TotaisResultado | null = dados?.totais ?? null;
@@ -245,16 +212,34 @@ export const ResultadosDaCampanha = ({
     return "nenhum lead no período";
   };
 
+  // Com valor, a nota mostra o DENOMINADOR. "Custo por permanência R$32,64"
+  // vinha de 1.305,73 ÷ 40, e o 40 não aparecia em lugar nenhum da tabela
+  // (53 entradas, 45 saídas) — número sem como ser conferido é número em que
+  // ela não confia.
   const notaCustoEntrada = (): string | undefined => {
-    if (anuncios?.custo_por_entrada != null) return undefined;
+    if (anuncios?.custo_por_entrada != null) return `${num(entradas)} entradas`;
     return entradas === 0 ? "sem entradas registradas no período" : "sem investimento no período";
   };
 
   const notaCustoPermanencia = (): string | undefined => {
-    if (anuncios?.custo_por_permanencia != null) return undefined;
+    if (anuncios?.custo_por_permanencia != null) return `${num(ficaram)} ficaram no grupo`;
     if (entradas === 0) return "sem entradas registradas no período";
     return ficaram === 0 ? "ninguém permaneceu no período" : "sem investimento no período";
   };
+
+  /**
+   * Nenhuma venda rastreada para esta campanha.
+   *
+   * O backend só conta como medição o vínculo MANUAL de Sub ID ou um sub_id de
+   * grupo que trouxe pedido de verdade — a mera existência do sub_id do grupo
+   * não basta: ele nasce na ativação e só captura se as ofertas usarem os
+   * links do MarketDash.
+   *
+   * Sem isso, comissão zero produzia "Lucro −R$1.305,73" e "ROAS 0.00x" em
+   * vermelho — um prejuízo que ninguém mediu. É o mesmo erro já corrigido na
+   * tela de Anúncios para campanha de grupo.
+   */
+  const semMedicao = (totais?.sub_ids_vinculados ?? 0) === 0;
 
   return (
     <div className="space-y-4">
@@ -332,36 +317,55 @@ export const ResultadosDaCampanha = ({
           {/* Comissão, Lucro e ROAS são REAIS aqui: vêm dos Sub IDs vinculados
               (dos grupos + os manuais), não de estimativa. E vivem só no nível
               da CAMPANHA — nenhum desce para grupo, porque o rateio que fazia
-              isso era inventado. */}
+              isso era inventado.
+
+              SEM nenhum Sub ID rastreando, os três viram "—". Comissão zero aí
+              não é prejuízo: é ausência de medição. "Lucro −R$1.305,73" e
+              "ROAS 0.00x" em vermelho afirmavam um prejuízo que ninguém mediu
+              — o mesmo erro já corrigido na tela de Anúncios. */}
           <KpiResultado
             rotulo="Comissão"
-            valor={formatCurrency(totais?.comissao_liquida ?? 0)}
+            valor={semMedicao ? "—" : formatCurrency(totais?.comissao_liquida ?? 0)}
+            nota={semMedicao ? NOTA_SEM_SUBID : undefined}
           />
           <KpiResultado
             rotulo="Lucro"
-            valor={formatCurrency(totais?.lucro ?? 0)}
-            valorClass={lucroClass(totais?.lucro)}
-            destaque
+            valor={semMedicao ? "—" : formatCurrency(totais?.lucro ?? 0)}
+            nota={semMedicao ? NOTA_SEM_SUBID : undefined}
+            valorClass={semMedicao ? undefined : lucroClass(totais?.lucro)}
+            destaque={!semMedicao}
           />
           <KpiResultado
             rotulo="ROAS Real"
-            valor={fmtRoas(totais?.roas)}
-            nota={totais?.roas == null ? "sem investimento no período" : undefined}
+            valor={semMedicao ? "—" : fmtRoas(totais?.roas)}
+            nota={
+              semMedicao
+                ? NOTA_SEM_SUBID
+                : totais?.roas == null
+                  ? "sem investimento no período"
+                  : undefined
+            }
             valorClass={
-              totais?.roas == null
+              semMedicao || totais?.roas == null
                 ? undefined
                 : totais.roas >= 1
                   ? "text-success"
                   : "text-destructive"
             }
           />
+          {/* "Leads" do Meta é CLIQUE no link, não entrada confirmada: o pixel
+              dispara no carregamento da página do /g/, antes do redirect para
+              o convite. Por isso 1.348 conviviam com 53 entradas, e o CPL de
+              R$0,97 ficava lado a lado com R$24,64 de custo por entrada — dois
+              nomes que pareciam a mesma coisa. O rótulo passa a dizer o que o
+              número é. */}
           <KpiResultado
-            rotulo="Leads"
+            rotulo="Cliques no link"
             valor={anuncios.leads == null ? "—" : num(anuncios.leads)}
             nota={notaLeads()}
           />
           <KpiResultado
-            rotulo="CPL"
+            rotulo="Custo por clique"
             valor={anuncios.cpl == null ? "—" : formatCurrency(anuncios.cpl)}
             nota={notaCpl()}
           />
@@ -436,30 +440,13 @@ export const ResultadosDaCampanha = ({
         </Card>
       ) : (
         <>
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-            <p className="max-w-xl text-xs text-muted-foreground">{NOTA_EXPORT}</p>
-            <div className="flex flex-shrink-0 flex-wrap gap-2 self-start">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setModalSubIds(true)}
-            >
+          {/* "Exportar leads" saiu daqui (05/09): Resultados é leitura de
+              desempenho, e a ação de exportar pertence à aba Grupos, onde ela
+              escolhe quais grupos entram. */}
+          <div className="flex justify-end">
+            <Button variant="outline" size="sm" onClick={() => setModalSubIds(true)}>
               <Link2 className="mr-2 h-4 w-4" /> Vincular Sub ID
             </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => void exportar()}
-              disabled={exportando}
-            >
-              {exportando ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Download className="mr-2 h-4 w-4" />
-              )}
-              Exportar leads (CSV)
-            </Button>
-            </div>
           </div>
 
           {/*
@@ -481,6 +468,7 @@ export const ResultadosDaCampanha = ({
                   <TableHead className="text-right">Participantes</TableHead>
                   <TableHead className="text-right">Entradas</TableHead>
                   <TableHead className="text-right">Saídas</TableHead>
+                  <TableHead className="text-right">Ficaram</TableHead>
                   <TableHead className="text-right">Evasão</TableHead>
                   <TableHead className="text-right">Comissão líquida</TableHead>
                   <TableHead className="text-right">Pedidos</TableHead>
@@ -501,6 +489,10 @@ export const ResultadosDaCampanha = ({
                     </TableCell>
                     <TableCell className="text-right tabular-nums">{num(l.entradas)}</TableCell>
                     <TableCell className="text-right tabular-nums">{num(l.saidas)}</TableCell>
+                    {/* `ficaram` é o denominador do "custo por permanência" — sem
+                        a coluna, aquele card era um número que não dava para
+                        conferir contra nada da tabela. */}
+                    <TableCell className="text-right tabular-nums">{num(l.ficaram)}</TableCell>
                     <TableCell className="text-right tabular-nums">
                       {pct(l.evasao_pct)}
                     </TableCell>
@@ -528,12 +520,15 @@ export const ResultadosDaCampanha = ({
                     <TableCell className="text-right tabular-nums">
                       {num(totais.saidas)}
                     </TableCell>
-                    {/* Evasão do total não é a média das evasões — é
-                        saídas ÷ entradas do conjunto. */}
                     <TableCell className="text-right tabular-nums">
-                      {totais.entradas
-                        ? pct((totais.saidas / totais.entradas) * 100)
-                        : "—"}
+                      {num(totais.ficaram)}
+                    </TableCell>
+                    {/* Vem do backend: é o conjunto inteiro, não a média das
+                        evasões por grupo — e usa a MESMA base da linha
+                        (participantes + saídas), senão a coluna e o rodapé
+                        discordariam. */}
+                    <TableCell className="text-right tabular-nums">
+                      {pct(totais.evasao_pct)}
                     </TableCell>
                     <TableCell className="text-right tabular-nums">
                       {formatCurrency(totais.comissao_liquida)}
