@@ -11,6 +11,82 @@
 
 ---
 
+## 2026-09-05b — Medição de grupos: um bug meu de ontem, com cara de bug do sync
+
+Frontend do terceiro documento delta. Backend: `97f7f5d`.
+
+### O relato apontava para o sync; a culpa era de um `if` desta tela
+
+Luiz marcou dois grupos como "Cheio = Sim" e, depois de uma sincronização, eles
+voltaram para "Não". Diagnóstico natural: o sync sobrescreve o override.
+
+Não sobrescreve — ele nunca tocou em `cheio_override`. **Quem apagava era o
+clique.** `definirCheio` limpava o override quando o valor escolhido coincidia
+com o automático (uma decisão que eu mesmo tomei ontem, para o campo não ficar
+pegajoso). Marcar "Sim" num grupo **já cheio pela ocupação** gravava `null`: a
+assinatura não mudava, "Salvar ordem" nem acendia, nenhum PUT saía. Depois o
+sync baixava a contagem e o grupo aparecia "Não".
+
+Da tela é indistinguível de "o sync apagou" — e é por isso que o relato veio
+assim. A correção não é desfazer a de ontem (o problema dela era real: grupo que
+esvazia e nunca volta à rotação), é o **terceiro estado explícito**:
+Automático / Sim / Não. Nada mais limpa o override sozinho, e "Automático" é a
+porta de volta. O Select passa a mostrar a **intenção**; o resultado continua na
+coluna Ocupação, que é onde ele sempre esteve.
+
+Junto: ocupação em laranja só a partir de 90%. Antes a cor seguia `cheio`, então
+767/900 já aparecia alaranjado — alerta em situação normal.
+
+### Dois nomes para a mesma coisa, e ela ia acreditar no menor
+
+"Leads 1.348 · CPL R$0,97" ao lado de "Entradas 53 · Custo por entrada R$24,64",
+sem nada dizendo que não eram a mesma métrica. O pixel dispara no carregamento
+da página do `/g/`, **antes** do redirect: é clique qualificado, não entrada.
+Renomeados para "Cliques no link" e "Custo por clique".
+
+Mesmo tipo de problema em "Custo por permanência R$32,64": vinha de 1.305,73 ÷
+40, e o 40 não aparecia em lugar nenhum. Entrou a coluna **Ficaram** e o
+denominador na nota dos dois cards de custo.
+
+### O critério de "sem medição" que eu errei primeiro
+
+Comecei por "o grupo tem `sub_id`?" — e todo grupo tem, ele nasce na ativação.
+Com esse critério a tela mostrava R$0,00 onde devia mostrar "—". Só conta como
+medição vínculo manual de Sub ID ou sub_id de grupo que **trouxe pedido de
+verdade**.
+
+### Atividade
+
+Reescrita. Paginação de 50 com "Carregar mais" — rolagem infinita não serve
+porque ela vai querer chegar num dia específico. Filtros de tipo e grupo **no
+servidor**: sobre uma página de 50, filtrar no cliente daria "3 saídas" numa
+campanha com 300.
+
+"Saída · origem desconhecida" saiu: origem é de onde a pessoa veio ao entrar, e
+o texto fazia parecer que perdemos informação que nunca existiu. E o topo diz a
+data real em vez de "a partir de agora".
+
+Um detalhe de layout que custou tempo: os chips de grupo se sobrepunham com nome
+comprido mesmo com `truncate`. O `Button` do shadcn é flex — `truncate` nele não
+corta o filho. Vai num `<span>` interno.
+
+### Status: efeito antes de destaque
+
+O documento pedia para promover o status a toggle no cabeçalho. Fiz o backend
+primeiro: `pausada` era um select que não desligava nada. Promover a interruptor
+de destaque um controle sem efeito seria pior que o select escondido. Duas
+posições, não três — "arquivada" é destino, não estado de operação, e não pode
+ficar a um clique de distância no cabeçalho.
+
+### Pendências
+
+- Migration 081 pendente em produção (junto com 074–080)
+- O telefone na exportação depende de número conectado + sync em hml
+- `CheckboxQuadrado` segue aplicado só ao módulo de grupos — 9 outros usos de
+  Checkbox continuam redondos
+
+---
+
 ## 2026-09-05 — O link errado na tela não era da tela
 
 O que mudou aqui: uma linha de escopo no modal de Sub ID. O resto do dia foi

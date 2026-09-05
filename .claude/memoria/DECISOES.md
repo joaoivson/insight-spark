@@ -9,6 +9,16 @@
 
 | Data | Decisão | Por quê |
 |---|---|---|
+| 2026-09-05b | **Select de "cheio" com TRÊS estados — nada limpa o override sozinho** | Revoga o comportamento de 04/09b, que causou o bug relatado como "o sync apaga minha marcação": marcar "Sim" num grupo já cheio pela ocupação gravava `null`, a assinatura não mudava, o botão não acendia e nenhum PUT saía. Da tela é indistinguível de sobrescrita pelo sync. "Automático" passa a ser a porta de volta explícita |
+| 2026-09-05b | **O Select mostra a INTENÇÃO; o resultado fica na coluna Ocupação** | São duas perguntas diferentes ("o que eu mandei" x "como está agora") e juntá-las no mesmo controle foi o que tornou o override invisível |
+| 2026-09-05b | **Laranja de ocupação a partir de 90%, não a partir de `cheio`** | 767/900 (85%) já aparecia alaranjado: cor de alerta em situação normal treina a usuária a ignorar a cor |
+| 2026-09-05b | **Card de métrica só pode ter nome que diga a unidade real** | "Leads" era clique no `/g/` (o pixel dispara antes do redirect) e convivia com "Entradas" na mesma linha — R$0,97 ao lado de R$24,64, e ela acreditaria no menor. Viraram "Cliques no link"/"Custo por clique" |
+| 2026-09-05b | **Todo custo derivado mostra o denominador na nota** | "R$32,64 por permanência" vinha de 1.305,73 ÷ 40, e o 40 não existia em lugar nenhum da tela. Entrou a coluna "Ficaram" e o denominador nas notas |
+| 2026-09-05b | **"—" com o motivo, nunca R$0,00, quando não há venda rastreada** | E o critério NÃO é o grupo ter `sub_id` — ele nasce na ativação, sempre. Conta vínculo manual ou sub_id que trouxe pedido de verdade |
+| 2026-09-05b | **Filtro de lista paginada filtra no SERVIDOR** | Sobre uma página de 50, filtrar no cliente daria "3 saídas" numa campanha com 300 — e o número pareceria um dado, não um artefato da paginação |
+| 2026-09-05b | **Saída não exibe origem** | Origem é de onde a pessoa veio ao ENTRAR. "Saída · origem desconhecida" fazia parecer que o sistema perdeu informação que nunca existiu |
+| 2026-09-05b | **Toggle de status tem DUAS posições — "arquivada" não entra** | Arquivar some da listagem e mata o link público: é destino, não estado de operação, e não pode ficar a um clique no cabeçalho. Fica na listagem, com confirmação |
+| 2026-09-05b | **`truncate` no `Button` do shadcn não corta o filho** | O botão é um container flex; a classe precisa ir num `<span>` interno. Sem isso os chips de grupo com nome comprido vazavam e se sobrepunham |
 | 2026-09-05 | **Número que muda de ESCOPO precisa dizer o escopo na tela** | A busca de Sub ID passou de "desde sempre" para 30 dias por desempenho. Sem o rótulo, a afiliada vê a comissão do sub_id cair e conclui que perdeu venda — mudança silenciosa de significado vira chamado |
 | 2026-09-05 | **Link que a tela só EXIBE não se depura na tela** | "A página do grupo não funciona" era `FRONTEND_URL` do backend apontando para produção em homologação. A URL vem montada da API; o primeiro olhar é no valor que chegou, não no componente que o renderiza |
 | 2026-09-04b | **A tela NÃO recalcula lotação — `cheio` e `teto` vêm prontos do backend** | Havia uma cópia em JS de `LEAST(capacidade, COALESCE(limite, capacidade))`. Estava certa, mas era a terceira cópia da mesma regra, e "linha amarela com o grupo ainda aberto" é exatamente o sintoma de a tela e o roteador divergirem |
