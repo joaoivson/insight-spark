@@ -80,6 +80,13 @@ export const LinkSubIdModal = ({
           />
         </div>
 
+        {/* O escopo precisa estar na tela: o número mudou de "desde sempre"
+            para 30 dias, e sem dizer isso a afiliada vê a comissão cair e
+            acha que perdeu venda. */}
+        <p className="text-[11px] text-muted-foreground">
+          Pedidos e comissão dos últimos 30 dias.
+        </p>
+
         <div className="max-h-[48vh] space-y-1.5 overflow-y-auto pr-1">
           {loading ? (
             [0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-14 w-full rounded-lg" />)
@@ -122,7 +129,7 @@ export const LinkSubIdModal = ({
                       ) : o.orders > 0 ? (
                         `${o.orders} ${o.orders === 1 ? "pedido" : "pedidos"} · ${formatCurrency(o.commission)}`
                       ) : (
-                        "0 pedidos · R$ 0,00 · sem vendas"
+                        "0 pedidos · R$ 0,00 · sem venda nos últimos 30 dias"
                       )}
                     </span>
                   </span>
