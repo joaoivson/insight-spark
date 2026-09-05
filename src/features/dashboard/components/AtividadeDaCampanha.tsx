@@ -45,6 +45,19 @@ const quandoExato = (iso: string | null) => {
 };
 
 /** Só a data, em BRT — para a frase "registradas desde…". */
+/**
+ * Encurta pelo MEIO, preservando o fim.
+ *
+ * Truncar no fim deixava os dois chips como "Promos da Beatriz …" —
+ * indistinguíveis, porque o que separa os grupos ("#1"/"#2") é exatamente o
+ * sufixo. Um filtro em que ela não sabe o que está escolhendo não é filtro.
+ */
+const encurtarMeio = (nome: string, maximo = 22) => {
+  if (nome.length <= maximo) return nome;
+  const fim = 8;
+  return `${nome.slice(0, maximo - fim - 1)}…${nome.slice(-fim)}`;
+};
+
 const soData = (iso: string | null) => {
   if (!iso) return null;
   const data = new Date(iso);
@@ -256,12 +269,9 @@ export const AtividadeDaCampanha = ({
                 size="sm"
                 variant={grupoId === g.id ? "default" : "outline"}
                 onClick={() => setGrupoId(g.id)}
-                // O truncate precisa estar no SPAN, não no Button: o botão do
-                // shadcn é flex, e `truncate` nele não corta o filho — os chips
-                // vazavam e se sobrepunham com nome de grupo comprido.
-                className="max-w-[180px]"
+                title={g.nome}
               >
-                <span className="truncate">{g.nome}</span>
+                {encurtarMeio(g.nome)}
               </Button>
             ))}
           </div>

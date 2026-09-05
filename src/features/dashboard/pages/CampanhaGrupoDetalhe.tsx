@@ -250,10 +250,48 @@ const CampanhaGrupoDetalhe = () => {
     });
   };
 
+  /**
+   * Quem a rotação normal ainda pode escolher: aberto E não cheio.
+   *
+   * São os DOIS eixos juntos — `aberto` é a decisão dela, `cheio` é o teto. A
+   * rotação exige os dois, então olhar só um daria "ainda tem grupo" com a
+   * campanha já sem destino.
+   */
+  const disponiveisApos = (lista: VinculoLocal[]) =>
+    lista.filter((v) => v.aberto && !v.cheio).length;
+
+  /**
+   * A ação que esvazia a rotação AVISA — e deixa continuar.
+   *
+   * Bloquear seria pior: fechar o último grupo é uma decisão legítima (parar
+   * de receber), e o produto não pode impedi-la. Mas a consequência não é
+   * óbvia da tela: desde 05/09 o link não mostra mais "vagas esgotadas", ele
+   * manda para o primeiro da ordem — que já está no limite. Sem o aviso, ela
+   * fecharia tudo achando que parou a entrada, e continuaria recebendo gente.
+   *
+   * Guarda a ação pendente inteira: o texto é o mesmo nos dois caminhos
+   * (marcar cheio, fechar), e duplicar o diálogo por origem só multiplicaria
+   * o lugar onde a frase envelhece.
+   */
+  const [avisoRotacao, setAvisoRotacao] = useState<(() => void) | null>(null);
+
+  const comAvisoSeEsvaziar = (proxima: VinculoLocal[], aplicar: () => void) => {
+    if (disponiveisApos(vinculos) > 0 && disponiveisApos(proxima) === 0) {
+      setAvisoRotacao(() => aplicar);
+      return;
+    }
+    aplicar();
+  };
+
   const alternarAberto = (grupoId: number) => {
-    setVinculos((atual) =>
-      atual.map((v) => (v.grupo_id === grupoId ? { ...v, aberto: !v.aberto } : v)),
+    const aplicar = () =>
+      setVinculos((atual) =>
+        atual.map((v) => (v.grupo_id === grupoId ? { ...v, aberto: !v.aberto } : v)),
+      );
+    const proxima = vinculos.map((v) =>
+      v.grupo_id === grupoId ? { ...v, aberto: !v.aberto } : v,
     );
+    comAvisoSeEsvaziar(proxima, aplicar);
   };
 
   /**
@@ -271,8 +309,8 @@ const CampanhaGrupoDetalhe = () => {
    */
   const definirCheio = (grupoIds: Set<number> | number, valor: boolean | null) => {
     const alvos = typeof grupoIds === "number" ? new Set([grupoIds]) : grupoIds;
-    setVinculos((atual) =>
-      atual.map((v) =>
+    const aplicarEm = (lista: VinculoLocal[]) =>
+      lista.map((v) =>
         alvos.has(v.grupo_id)
           ? {
               ...v,
@@ -281,8 +319,8 @@ const CampanhaGrupoDetalhe = () => {
               cheio: valor === null ? estaCheioPelaOcupacao(v) : valor,
             }
           : v,
-      ),
-    );
+      );
+    comAvisoSeEsvaziar(aplicarEm(vinculos), () => setVinculos(aplicarEm));
   };
 
   const alternarMarcado = (grupoId: number) => {
@@ -1040,6 +1078,32 @@ const CampanhaGrupoDetalhe = () => {
       />
 
       {/* §3.2: remover passa por confirmação. O `×` removia direto da lista. */}
+      <AlertDialog
+        open={!!avisoRotacao}
+        onOpenChange={(o) => !o && setAvisoRotacao(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Nenhum grupo sobra na rotação</AlertDialogTitle>
+            <AlertDialogDescription>
+              Quem clicar no link de entrada vai para o primeiro grupo da ordem,
+              que já está no limite. O anúncio continua veiculando.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                avisoRotacao?.();
+                setAvisoRotacao(null);
+              }}
+            >
+              Continuar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <AlertDialog open={!!removendo} onOpenChange={(o) => !o && setRemovendo(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
