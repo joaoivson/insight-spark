@@ -64,7 +64,17 @@ export function ResponsiveModal({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
-      <DialogContent className={cn("sm:max-w-lg", contentClassName)}>
+      {/*
+        `max-h` + `overflow-y-auto`: o `DialogContent` do shadcn é
+        `position: fixed` com `top-50% translate-y-[-50%]` e SEM teto de altura.
+        Conteúdo mais alto que a janela transbordava pelas duas pontas (o Radix
+        ainda trava `overflow: hidden` no body, então não havia nem a rolagem da
+        página como escape) e o último filho — quase sempre o botão de concluir
+        — ficava inalcançável. Só no desktop: o caminho mobile é Drawer, que já
+        tem `max-h-[90vh]` e área rolável.
+      */}
+      <DialogContent className={cn("sm:max-w-lg max-h-[85vh] overflow-y-auto",
+                                   contentClassName)}>
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           {description && <DialogDescription>{description}</DialogDescription>}

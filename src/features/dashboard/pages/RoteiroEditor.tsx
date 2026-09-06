@@ -1,27 +1,26 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
+import { useCallback, useEffect, useState } from "react";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
   AlertTriangle,
   ArrowDown,
   ArrowUp,
-  CalendarIcon,
+  CalendarClock,
+  Check,
+  ChevronDown,
   Clock,
   FileText,
-  Image as ImageIcon,
   Loader2,
+  Lock,
   Plus,
+  RotateCcw,
   Settings2,
   ShoppingBag,
   Timer,
-  Trash2,
-  Upload,
   X,
 } from "lucide-react";
 
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
-import { ResponsiveModal } from "@/components/shared/ResponsiveModal";
+import { CheckboxQuadrado } from "@/components/shared/CheckboxQuadrado";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -32,71 +31,65 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
 import { Card, CardContent } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Switch } from "@/components/ui/switch";
-import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { uploadImage } from "@/services/capture_site.service";
 import { obterCampanha, type GrupoDaCampanha } from "@/services/campanhas_grupos.service";
 import {
+  ACOES_DO_GRUPO,
+  ErroDeRoteiro,
+  UNIDADES,
   agendarRoteiro,
+  ajustarDatas,
   definirPassos,
   obterRoteiro,
   previewRoteiro,
-  type AcaoGrupo,
+  reenviarPasso,
   type PassoIn,
+  type PassoOut,
   type PreviewRoteiro,
   type RoteiroDetalhe,
-  type TipoConteudo,
+  type StatusDoPasso,
 } from "@/services/roteiros.service";
 import { listarTemplates, type Template } from "@/services/templates.service";
 import { cn } from "@/shared/lib/utils";
-import { todayKeyBR } from "@/shared/lib/date";
+
+import { AjusteDeDatas } from "../components/roteiro/AjusteDeDatas";
+import { PassoEditor, proximaDataBR } from "../components/roteiro/PassoEditor";
 
 /** Chave estável por passo — o índice muda ao reordenar e o React perderia o foco. */
 let sequencia = 0;
 const novaChave = () => `passo-${++sequencia}`;
 
-type PassoLocal = PassoIn & { chave: string };
+type PassoLocal = PassoIn & {
+  chave: string;
+  /** Só existe depois de ter rodado; vem do backend, nunca é inventado aqui. */
+  status?: StatusDoPasso | null;
+  travado?: boolean;
+  no_passado?: boolean;
+  quando?: string | null;
+};
 
-const ATALHOS_OFFSET = [10, 30, 60];
+const ICONES = {
+  mensagem: FileText,
+  oferta: ShoppingBag,
+  acao_grupo: Settings2,
+} as const;
 
-const CONTEUDOS: { valor: TipoConteudo; rotulo: string; Icone: typeof FileText }[] = [
-  { valor: "texto", rotulo: "Texto", Icone: FileText },
-  { valor: "midia", rotulo: "Imagem", Icone: ImageIcon },
-  { valor: "oferta", rotulo: "Oferta", Icone: ShoppingBag },
-  { valor: "acao_grupo", rotulo: "Ação no grupo", Icone: Settings2 },
-];
-
-const ACOES: { valor: AcaoGrupo; rotulo: string }[] = [
-  { valor: "renomear_grupo", rotulo: "Renomear o grupo" },
-  { valor: "abrir_entrada", rotulo: "Abrir entrada" },
-  { valor: "fechar_entrada", rotulo: "Fechar entrada" },
-];
-
-const novoPasso = (): PassoLocal => ({
+const novoPasso = (primeiro: boolean): PassoLocal => ({
   chave: novaChave(),
+  id: null,
   ordem: 0,
-  tipo_tempo: "ancora",
-  hora_fixa: "08:00",
-  data_fixa: null,
-  offset_minutos: null,
-  tipo_conteudo: "texto",
-  texto: "",
+  tipo_tempo: primeiro ? "ancora" : "relativo",
+  hora_fixa: primeiro ? "08:00" : null,
+  data_fixa: primeiro ? proximaDataBR() : null,
+  offset_valor: primeiro ? null : 10,
+  offset_unidade: primeiro ? null : "minutos",
+  tipo_conteudo: "mensagem",
+  blocos: [{ tipo: "texto", conteudo: "" }],
+  texto: null,
   midia_url: null,
   oferta_url: null,
   template_id: null,
@@ -107,17 +100,13 @@ const novoPasso = (): PassoLocal => ({
   marcar_todos: "nunca",
 });
 
-const formatarOffset = (minutos: number) => {
-  if (minutos < 60) return `+${minutos} min`;
-  const h = Math.floor(minutos / 60);
-  const m = minutos % 60;
-  return m === 0 ? `+${h}h` : `+${h}h${String(m).padStart(2, "0")}`;
+const formatarOffset = (valor: number | null | undefined, unidade?: string | null) => {
+  const curto = UNIDADES.find((u) => u.valor === (unidade ?? "minutos"))?.curto ?? "min";
+  return `+${valor ?? 0} ${curto}`;
 };
 
-const formatarDuracao = (segundos: number) => {
-  if (segundos < 60) return "menos de 1 min";
-  return `~${Math.ceil(segundos / 60)} min`;
-};
+const formatarDuracao = (segundos: number) =>
+  segundos < 60 ? "menos de 1 min" : `~${Math.ceil(segundos / 60)} min`;
 
 /** O backend devolve o horário já em Brasília — formatar no fuso do navegador
  *  mostraria outra hora para quem acessa de fora. */
@@ -130,112 +119,145 @@ const formatarMomentoBR = (iso: string) =>
     minute: "2-digit",
   }).format(new Date(iso));
 
+/**
+ * Quando o passo acontece.
+ *
+ * Passo relativo mostra o offset E o horário resolvido. Só `+5 min` faz ela
+ * ancorar um passo num passo de ONTEM sem ver que caiu no passado — e a coluna
+ * da direita, que resolvia isso, some quando o roteiro já está agendado.
+ */
 const quandoDoPasso = (p: PassoLocal) => {
-  if (p.tipo_tempo === "relativo") return formatarOffset(p.offset_minutos ?? 0);
+  const resolvido = p.quando ? formatarMomentoBR(p.quando) : null;
+  if (p.tipo_tempo === "relativo") {
+    const off = formatarOffset(p.offset_valor, p.offset_unidade);
+    return resolvido ? `${resolvido} · ${off}` : off;
+  }
+  if (resolvido) return resolvido;
   const hora = p.hora_fixa || "--:--";
-  if (!p.data_fixa) return `${hora} (âncora)`;
+  if (!p.data_fixa) return `${hora} · sem data`;
   const [, mes, dia] = p.data_fixa.split("-");
-  return `${hora} · ${dia}/${mes}`;
+  return `${dia}/${mes}, ${hora}`;
 };
 
 const resumoDoPasso = (p: PassoLocal, templates: Template[]) => {
-  if (p.tipo_conteudo === "texto") return p.texto?.trim() || "Sem texto";
-  if (p.tipo_conteudo === "midia") return p.midia_url ? p.texto?.trim() || "Imagem" : "Sem imagem";
+  if (p.tipo_conteudo === "acao_grupo") {
+    const acao = ACOES_DO_GRUPO.find((a) => a.valor === p.acao)?.rotulo ?? "Ação removida";
+    return p.acao_parametro ? `${acao}: ${p.acao_parametro}` : acao;
+  }
   if (p.tipo_conteudo === "oferta") {
     const t = templates.find((x) => x.id === p.template_id);
     const link = p.oferta_url?.trim() || "Sem link";
     return t ? `${link} · ${t.nome}` : link;
   }
-  const acao = ACOES.find((a) => a.valor === p.acao)?.rotulo ?? "Ação não escolhida";
-  return p.acao === "renomear_grupo" && p.acao_parametro
-    ? `${acao}: ${p.acao_parametro}`
-    : acao;
+  const primeiro = p.blocos[0];
+  if (!primeiro) return "Sem mensagem";
+  const corpo =
+    primeiro.tipo === "imagem"
+      ? primeiro.legenda?.trim() || "Imagem"
+      : primeiro.conteudo?.trim() || "Sem texto";
+  return p.blocos.length > 1 ? `${corpo} · +${p.blocos.length - 1}` : corpo;
 };
 
 const paraLocal = (r: RoteiroDetalhe): PassoLocal[] =>
-  r.passos.map((p) => ({ ...p, chave: novaChave() }));
+  r.passos.map((p: PassoOut) => ({
+    ...p,
+    chave: novaChave(),
+    blocos: p.blocos.map(({ tipo, conteudo, legenda, template_id }) => ({
+      tipo,
+      conteudo,
+      legenda,
+      template_id,
+    })),
+  }));
 
-/** Assinatura do que o PUT persiste — é o que define "tem alteração não salva". */
-const assinatura = (passos: PassoLocal[]) =>
-  JSON.stringify(passos.map(({ chave: _chave, ordem: _ordem, ...resto }, i) => ({ ...resto, i })));
+const paraEnvio = (passos: PassoLocal[]): PassoIn[] =>
+  passos.map((p, i) => ({
+    id: p.id ?? null,
+    ordem: i + 1,
+    tipo_tempo: p.tipo_tempo,
+    hora_fixa: p.hora_fixa,
+    data_fixa: p.data_fixa,
+    offset_valor: p.offset_valor,
+    offset_unidade: p.offset_unidade,
+    tipo_conteudo: p.tipo_conteudo,
+    blocos: p.blocos,
+    texto: p.texto,
+    midia_url: p.midia_url,
+    oferta_url: p.oferta_url,
+    template_id: p.template_id,
+    acao: p.acao,
+    acao_parametro: p.acao_parametro,
+    grupos_alvo: p.grupos_alvo,
+    grupos_alvo_ids: p.grupos_alvo_ids,
+    marcar_todos: p.marcar_todos,
+  }));
 
-/** Botão de rádio compacto — não há radio-group no design system. */
-const Radio = ({
-  rotulo,
-  ativo,
-  onClick,
-  disabled,
-}: {
-  rotulo: string;
-  ativo: boolean;
-  onClick: () => void;
-  disabled?: boolean;
-}) => (
-  <button
-    type="button"
-    role="radio"
-    aria-checked={ativo}
-    disabled={disabled}
-    onClick={onClick}
-    className={cn(
-      "min-h-[40px] rounded-lg border px-3 py-2 text-sm font-medium transition-colors",
-      ativo
-        ? "border-primary bg-primary/5 text-foreground"
-        : "border-border text-muted-foreground hover:bg-accent/40",
-      disabled && "cursor-not-allowed opacity-40 hover:bg-transparent",
-    )}
-  >
-    {rotulo}
-  </button>
-);
+/**
+ * O `hover:bg-*` de cada cor NÃO é decoração: o `Badge` do shadcn traz
+ * `hover:bg-primary/80` na variante default, e sem um `hover:bg-*` aqui o
+ * tailwind-merge não tem o que substituir — passar o mouse pintava o chip de
+ * AZUL por cima da cor do estado, em todos os três.
+ */
+const CORES_DO_STATUS = {
+  concluido:
+    "border-emerald-500/25 bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20",
+  concluido_com_falhas:
+    "border-orange-500/25 bg-orange-500/10 text-orange-500 hover:bg-orange-500/20",
+  falhou:
+    "border-destructive/25 bg-destructive/10 text-destructive hover:bg-destructive/20",
+} as const;
 
-const Bloco = ({ titulo, children }: { titulo: string; children: React.ReactNode }) => (
-  <div className="space-y-2">
-    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-      {titulo}
-    </p>
-    {children}
-  </div>
-);
+const ROTULO_DO_STATUS = {
+  concluido: "Concluído",
+  concluido_com_falhas: "Concluído com falhas",
+  falhou: "Falhou",
+} as const;
 
 const RoteiroEditor = () => {
   const { campanhaId: campanhaParam, roteiroId: roteiroParam } = useParams();
   const campanhaId = Number(campanhaParam);
   const roteiroId = Number(roteiroParam);
   const navigate = useNavigate();
+  const [parametros, setParametros] = useSearchParams();
   const { toast } = useToast();
 
   const [roteiro, setRoteiro] = useState<RoteiroDetalhe | null>(null);
   const [passos, setPassos] = useState<PassoLocal[]>([]);
-  const [baseline, setBaseline] = useState("");
   const [grupos, setGrupos] = useState<GrupoDaCampanha[]>([]);
+  //  Prefixo/sufixo da campanha: a prévia precisa mostrar o que SAI.
+  const [assinatura, setAssinatura] = useState<{ prefixo: string | null; sufixo: string | null }>(
+    { prefixo: null, sufixo: null },
+  );
   const [templates, setTemplates] = useState<Template[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
   const [salvando, setSalvando] = useState(false);
 
   const [editando, setEditando] = useState<number | null>(null);
-  const [uploadLoading, setUploadLoading] = useState(false);
-  const inputImagemRef = useRef<HTMLInputElement>(null);
+  //  `?datas=1` vem de "Duplicar": a cópia nasce com as datas do lançamento
+  //  passado, e o ajuste em bloco é o passo seguinte obrigatório.
+  const [ajustandoDatas, setAjustandoDatas] = useState(
+    () => parametros.get("datas") === "1",
+  );
+  const [expandido, setExpandido] = useState<number | null>(null);
+  const [reenviando, setReenviando] = useState<number | null>(null);
+  const [gruposParaReenvio, setGruposParaReenvio] = useState<Set<number>>(new Set());
 
-  const [dataAncora, setDataAncora] = useState<Date | undefined>(() => {
-    const [a, m, d] = todayKeyBR().split("-").map(Number);
-    return new Date(a, m - 1, d);
-  });
   const [preview, setPreview] = useState<PreviewRoteiro | null>(null);
-  const [previewCarregando, setPreviewCarregando] = useState(false);
-  const [previewErro, setPreviewErro] = useState<string | null>(null);
   const [agendando, setAgendando] = useState(false);
   const [avisosParaConfirmar, setAvisosParaConfirmar] = useState<string[] | null>(null);
 
   const voltar = `/dashboard/grupos/${campanhaId}?tab=roteiros`;
-  const chaveData = dataAncora ? format(dataAncora, "yyyy-MM-dd") : null;
-  const sujo = assinatura(passos) !== baseline;
+  const execucao = roteiro?.execucao_ativa ?? null;
+  //  O reenvio acontece justamente DEPOIS que a execução terminou — é quando
+  //  ela vê o que falhou. `execucao_ativa` já é null aí; a última é a que
+  //  carrega as linhas com falha (o backend reabre a execução no reenvio).
+  const execucaoDoStatus = roteiro?.execucao_ativa ?? roteiro?.ultima_execucao ?? null;
+  const noPassado = new Set(roteiro?.passos_no_passado ?? []);
 
   const aplicar = useCallback((r: RoteiroDetalhe) => {
-    const lista = paraLocal(r);
-    setPassos(lista);
-    setBaseline(assinatura(lista));
+    setRoteiro(r);
+    setPassos(paraLocal(r));
   }, []);
 
   const carregar = useCallback(async () => {
@@ -253,9 +275,9 @@ const RoteiroEditor = () => {
           ? obterCampanha(campanhaId)
           : Promise.resolve(null),
       ]);
-      setRoteiro(r);
       aplicar(r);
       setGrupos(campanha ? [...campanha.grupos].sort((a, b) => a.posicao - b.posicao) : []);
+      setAssinatura({ prefixo: campanha?.prefixo ?? null, sufixo: campanha?.sufixo ?? null });
     } catch (e) {
       setErro((e as Error).message);
     } finally {
@@ -274,104 +296,92 @@ const RoteiroEditor = () => {
       .catch(() => setTemplates([]));
   }, []);
 
-  // A prévia vem do que está SALVO no backend: com alteração pendente ela
-  // mentiria sobre o que vai ser agendado.
   const totalPassos = passos.length;
   useEffect(() => {
-    if (!chaveData || sujo || totalPassos === 0) {
+    if (totalPassos === 0) {
       setPreview(null);
-      setPreviewErro(null);
       return;
     }
     let cancelado = false;
-    setPreviewCarregando(true);
-    setPreviewErro(null);
-    previewRoteiro(roteiroId, chaveData)
-      .then((p) => {
-        if (!cancelado) setPreview(p);
-      })
-      .catch((e: Error) => {
-        if (!cancelado) {
-          setPreview(null);
-          setPreviewErro(e.message);
-        }
-      })
-      .finally(() => {
-        if (!cancelado) setPreviewCarregando(false);
-      });
+    previewRoteiro(roteiroId)
+      .then((p) => !cancelado && setPreview(p))
+      .catch(() => !cancelado && setPreview(null));
     return () => {
       cancelado = true;
     };
-  }, [roteiroId, chaveData, sujo, totalPassos]);
+  }, [roteiroId, totalPassos, roteiro]);
 
-  // ── Passos ────────────────────────────────────────────────────────────────
-  const alterarPasso = (indice: number, patch: Partial<PassoLocal>) =>
-    setPassos((atual) => atual.map((p, i) => (i === indice ? { ...p, ...patch } : p)));
+  /**
+   * Persiste a lista atual. **Salvar é implícito**: acontece ao concluir o
+   * passo, ao mover e ao remover. Antes eram duas ações separadas com um aviso
+   * laranja no meio ("Salve os passos para a prévia refletir o que vai ser
+   * agendado") — e o caminho natural era clicar em Agendar antes de salvar.
+   */
+  const persistir = useCallback(
+    async (lista: PassoLocal[]) => {
+      setSalvando(true);
+      try {
+        aplicar(await definirPassos(roteiroId, paraEnvio(lista)));
+        return true;
+      } catch (e) {
+        if (e instanceof ErroDeRoteiro) {
+          toast({
+            title:
+              e.codigo === "passo_ja_enviado"
+                ? "Esse passo já saiu"
+                : "Ajuste as datas",
+            description: e.message,
+            variant: "destructive",
+          });
+        } else {
+          toast({
+            title: "Não foi possível salvar",
+            description: (e as Error).message,
+            variant: "destructive",
+          });
+        }
+        await carregar();   // a tela volta ao que o banco tem, não ao meio-termo
+        return false;
+      } finally {
+        setSalvando(false);
+      }
+    },
+    [roteiroId, aplicar, toast, carregar],
+  );
 
-  const mover = (indice: number, delta: -1 | 1) =>
-    setPassos((atual) => {
-      const destino = indice + delta;
-      if (destino < 0 || destino >= atual.length) return atual;
-      const copia = [...atual];
-      [copia[indice], copia[destino]] = [copia[destino], copia[indice]];
-      return copia;
-    });
+  const mover = async (indice: number, delta: -1 | 1) => {
+    const destino = indice + delta;
+    if (destino < 0 || destino >= passos.length) return;
+    const copia = [...passos];
+    [copia[indice], copia[destino]] = [copia[destino], copia[indice]];
+    setPassos(copia);
+    await persistir(copia);
+  };
 
-  const remover = (indice: number) =>
-    setPassos((atual) => atual.filter((_, i) => i !== indice));
+  const remover = async (indice: number) => {
+    const copia = passos.filter((_, i) => i !== indice);
+    setPassos(copia);
+    await persistir(copia);
+  };
 
   const adicionar = () => {
-    setPassos((atual) => [...atual, novoPasso()]);
+    setPassos((atual) => [...atual, novoPasso(atual.length === 0)]);
     setEditando(passos.length);
   };
 
-  const salvar = async () => {
-    setSalvando(true);
-    try {
-      const payload: PassoIn[] = passos.map(({ chave: _chave, ...p }, i) => ({
-        ...p,
-        ordem: i + 1,
-      }));
-      const atualizado = await definirPassos(roteiroId, payload);
-      setRoteiro(atualizado);
-      aplicar(atualizado);
-      toast({ title: "Passos salvos" });
-    } catch (e) {
-      toast({
-        title: "Não foi possível salvar os passos",
-        description: (e as Error).message,
-        variant: "destructive",
-      });
-    } finally {
-      setSalvando(false);
-    }
+  const concluirPasso = async () => {
+    if (editando == null) return;
+    // Fecha SÓ depois de o PUT passar. Fechando antes, o `carregar()` do
+    // caminho de erro devolvia a lista do banco e o passo novo (id null)
+    // desaparecia com tudo que ela tinha digitado — sem nada na tela ligando
+    // uma coisa à outra.
+    if (await persistir(passos)) setEditando(null);
   };
 
-  const aoEscolherImagem = async (e: React.ChangeEvent<HTMLInputElement>, indice: number) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setUploadLoading(true);
-    try {
-      const { url } = await uploadImage(file);
-      alterarPasso(indice, { midia_url: url });
-    } catch (err) {
-      toast({
-        title: "Não foi possível enviar a imagem",
-        description: (err as Error).message,
-        variant: "destructive",
-      });
-    } finally {
-      setUploadLoading(false);
-      if (e.target) e.target.value = "";
-    }
-  };
-
-  // ── Agendar ───────────────────────────────────────────────────────────────
   const executarAgendamento = async (ignorarAvisos: boolean) => {
-    if (!chaveData) return;
     setAgendando(true);
     try {
-      const resultado = await agendarRoteiro(roteiroId, chaveData, ignorarAvisos);
+      const resultado = await agendarRoteiro(roteiroId, ignorarAvisos);
       if (resultado.agendada === false) {
         setAvisosParaConfirmar(resultado.avisos);
         return;
@@ -383,21 +393,51 @@ const RoteiroEditor = () => {
       });
       navigate(voltar);
     } catch (e) {
-      toast({
-        title: "Não foi possível agendar",
-        description: (e as Error).message,
-        variant: "destructive",
-      });
+      if (e instanceof ErroDeRoteiro && e.codigo === "passos_no_passado") {
+        toast({
+          title: "Ajuste as datas antes de agendar",
+          description: e.message,
+          variant: "destructive",
+        });
+        await carregar();
+        setAjustandoDatas(true);
+      } else {
+        toast({
+          title: "Não foi possível agendar",
+          description: (e as Error).message,
+          variant: "destructive",
+        });
+        await carregar();
+      }
     } finally {
       setAgendando(false);
     }
   };
 
+  const reenviar = async (passoId: number) => {
+    if (!execucaoDoStatus || gruposParaReenvio.size === 0) return;
+    setReenviando(passoId);
+    try {
+      await reenviarPasso(execucaoDoStatus.id, passoId, [...gruposParaReenvio]);
+      toast({ title: "Reenvio na fila" });
+      setGruposParaReenvio(new Set());
+      setExpandido(null);
+      await carregar();
+    } catch (e) {
+      toast({
+        title: "Não foi possível reenviar",
+        description: (e as Error).message,
+        variant: "destructive",
+      });
+    } finally {
+      setReenviando(null);
+    }
+  };
+
   const passoEmEdicao = editando != null ? passos[editando] : undefined;
-  const gruposSelecionados = useMemo(
-    () => new Set(passoEmEdicao?.grupos_alvo_ids ?? []),
-    [passoEmEdicao],
-  );
+  // Sem useMemo: `noPassado` já é derivado de `roteiro` a cada render, então
+  // memoizar aqui só criaria uma lista de dependências que mente.
+  const podeAgendar = !execucao && passos.length > 0 && noPassado.size === 0;
 
   if (carregando) {
     return (
@@ -439,10 +479,9 @@ const RoteiroEditor = () => {
   return (
     <DashboardLayout title={roteiro.nome}>
       <div className="mx-auto w-full max-w-[1100px] pb-28">
-        {/* min-w-0 nas duas colunas: a trilha `auto` do grid adota o min-content
-            do conteúdo e, sem isso, estoura a largura da tela no celular. */}
         <div className="grid gap-6 lg:grid-cols-[62fr_38fr]">
-          {/* ── Passos ── */}
+          {/* min-w-0 nas duas colunas: a trilha `auto` do grid adota o
+              min-content do conteúdo e, sem isso, estoura a tela no celular. */}
           <div className="min-w-0 space-y-3">
             {passos.length === 0 ? (
               <Card>
@@ -452,8 +491,8 @@ const RoteiroEditor = () => {
                   </span>
                   <p className="text-sm font-medium text-foreground">Nenhum passo ainda</p>
                   <p className="max-w-sm text-sm text-muted-foreground">
-                    O primeiro passo precisa ter hora fixa — os seguintes podem sair alguns
-                    minutos depois dele.
+                    O primeiro passo tem data e hora próprias — os seguintes podem
+                    sair alguns minutos depois dele.
                   </p>
                   <Button onClick={adicionar}>
                     <Plus className="mr-2 h-4 w-4" /> Adicionar passo
@@ -464,83 +503,198 @@ const RoteiroEditor = () => {
               <>
                 <div className="overflow-hidden rounded-xl border border-border">
                   {passos.map((p, i) => {
-                    const conteudo = CONTEUDOS.find((c) => c.valor === p.tipo_conteudo);
-                    const Icone = conteudo?.Icone ?? FileText;
+                    const Icone = ICONES[p.tipo_conteudo] ?? FileText;
                     const IconeTempo = p.tipo_tempo === "ancora" ? Clock : Timer;
+                    const atrasado = noPassado.has(i + 1);
+                    const aberto = expandido === p.id;
                     return (
                       <div
                         key={p.chave}
                         className={cn(
-                          "flex items-center gap-2 px-2 py-2 sm:gap-3 sm:px-3",
                           i > 0 && "border-t border-border",
+                          atrasado && "bg-destructive/5",
                         )}
                       >
-                        <button
-                          type="button"
-                          onClick={() => setEditando(i)}
-                          className="flex min-w-0 flex-1 items-center gap-3 rounded-lg px-1 py-1.5 text-left transition-colors hover:bg-accent/40"
-                          aria-label={`Editar passo ${i + 1}`}
-                        >
-                          <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-primary/15 text-xs font-bold tabular-nums text-primary">
-                            {i + 1}
-                          </span>
-                          {/* min-w-0 em CADA nível: sem ele o `truncate` (white-space:
-                              nowrap) vira largura mínima e estoura a coluna no celular. */}
-                          <span className="flex min-w-0 flex-1 flex-col">
-                            <span className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
-                              <IconeTempo className="h-3.5 w-3.5 flex-shrink-0" />
-                              {quandoDoPasso(p)}
+                        <div className="flex items-center gap-2 px-2 py-2 sm:gap-3 sm:px-3">
+                          <button
+                            type="button"
+                            onClick={() => !p.travado && setEditando(i)}
+                            disabled={p.travado}
+                            className={cn(
+                              "flex min-w-0 flex-1 items-center gap-3 rounded-lg px-1 py-1.5 text-left transition-colors",
+                              p.travado ? "cursor-default" : "hover:bg-accent/40",
+                            )}
+                            aria-label={`Editar passo ${i + 1}`}
+                          >
+                            <span
+                              className={cn(
+                                "flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-xs font-bold tabular-nums",
+                                atrasado
+                                  ? "bg-destructive/20 text-destructive"
+                                  : "bg-primary/15 text-primary",
+                              )}
+                            >
+                              {i + 1}
                             </span>
-                            <span className="mt-0.5 flex min-w-0 items-center gap-1.5 text-sm text-foreground">
-                              <Icone className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground" />
-                              <span className="min-w-0 flex-1 truncate">
-                                {resumoDoPasso(p, templates)}
+                            {/* min-w-0 em CADA nível: sem ele o `truncate`
+                                vira largura mínima e estoura no celular. */}
+                            <span className="flex min-w-0 flex-1 flex-col">
+                              <span
+                                className={cn(
+                                  "flex min-w-0 items-center gap-1.5 text-xs",
+                                  atrasado ? "text-destructive" : "text-muted-foreground",
+                                )}
+                              >
+                                <IconeTempo className="h-3.5 w-3.5 flex-shrink-0" />
+                                <span className="truncate">{quandoDoPasso(p)}</span>
+                                {p.travado && <Lock className="h-3 w-3 flex-shrink-0" />}
+                              </span>
+                              <span className="mt-0.5 flex min-w-0 items-center gap-1.5 text-sm text-foreground">
+                                <Icone className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground" />
+                                <span className="min-w-0 flex-1 truncate">
+                                  {resumoDoPasso(p, templates)}
+                                </span>
                               </span>
                             </span>
-                          </span>
-                        </button>
-                        <span className="flex flex-shrink-0 items-center">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            disabled={i === 0}
-                            onClick={() => mover(i, -1)}
-                            aria-label={`Mover passo ${i + 1} para cima`}
-                          >
-                            <ArrowUp className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            disabled={i === passos.length - 1}
-                            onClick={() => mover(i, 1)}
-                            aria-label={`Mover passo ${i + 1} para baixo`}
-                          >
-                            <ArrowDown className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => remover(i)}
-                            aria-label={`Remover passo ${i + 1}`}
-                          >
-                            <X className="h-4 w-4 text-muted-foreground" />
-                          </Button>
-                        </span>
+                          </button>
+
+                          {p.status && (
+                            <button
+                              type="button"
+                              onClick={() => setExpandido(aberto ? null : p.id ?? null)}
+                              disabled={p.status.falhas.length === 0}
+                              // `rounded-full` + focus-visible próprios: um
+                              // <button> nu herda o contorno padrão do
+                              // Chromium, que num chip pequeno vira um halo
+                              // azul quadrado por cima da cor do status.
+                              className="flex-shrink-0 rounded-full outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                              aria-label={`Status do passo ${i + 1}`}
+                            >
+                              <Badge
+                                className={cn(
+                                  "gap-1 whitespace-nowrap",
+                                  CORES_DO_STATUS[p.status.status],
+                                )}
+                              >
+                                {ROTULO_DO_STATUS[p.status.status]}
+                                {p.status.falhas.length > 0 && (
+                                  <ChevronDown
+                                    className={cn(
+                                      "h-3 w-3 transition-transform",
+                                      aberto && "rotate-180",
+                                    )}
+                                  />
+                                )}
+                              </Badge>
+                            </button>
+                          )}
+
+                          {!p.travado && (
+                            <span className="flex flex-shrink-0 items-center">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                disabled={i === 0 || salvando}
+                                onClick={() => void mover(i, -1)}
+                                aria-label={`Mover passo ${i + 1} para cima`}
+                              >
+                                <ArrowUp className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                disabled={i === passos.length - 1 || salvando}
+                                onClick={() => void mover(i, 1)}
+                                aria-label={`Mover passo ${i + 1} para baixo`}
+                              >
+                                <ArrowDown className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                disabled={salvando}
+                                onClick={() => void remover(i)}
+                                aria-label={`Remover passo ${i + 1}`}
+                              >
+                                <X className="h-4 w-4 text-muted-foreground" />
+                              </Button>
+                            </span>
+                          )}
+                        </div>
+
+                        {aberto && p.status && p.status.falhas.length > 0 && (
+                          <div className="space-y-2 border-t border-border bg-muted/30 px-3 py-3">
+                            {p.status.falhas.map((f) => (
+                              <label
+                                key={f.grupo_id}
+                                className="flex min-h-[40px] cursor-pointer items-center gap-3 rounded-lg px-1 transition-colors hover:bg-accent/40"
+                              >
+                                <CheckboxQuadrado
+                                  checked={gruposParaReenvio.has(f.grupo_id)}
+                                  onCheckedChange={() => {
+                                    const proximo = new Set(gruposParaReenvio);
+                                    if (proximo.has(f.grupo_id)) proximo.delete(f.grupo_id);
+                                    else proximo.add(f.grupo_id);
+                                    setGruposParaReenvio(proximo);
+                                  }}
+                                  aria-label={`Selecionar ${f.nome} para reenvio`}
+                                />
+                                <span className="min-w-0 flex-1 truncate text-sm text-foreground">
+                                  {f.nome}
+                                </span>
+                                <span className="flex-shrink-0 text-xs text-muted-foreground">
+                                  {f.motivo}
+                                </span>
+                              </label>
+                            ))}
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={
+                                gruposParaReenvio.size === 0 || reenviando === p.id
+                              }
+                              onClick={() => void reenviar(p.id!)}
+                            >
+                              {reenviando === p.id ? (
+                                <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                <RotateCcw className="mr-2 h-3.5 w-3.5" />
+                              )}
+                              Reenviar aos selecionados
+                            </Button>
+                          </div>
+                        )}
                       </div>
                     );
                   })}
                 </div>
-                {passos[0]?.tipo_tempo === "relativo" && (
-                  <p className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-500">
-                    <AlertTriangle className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" />
-                    O primeiro passo precisa ter hora fixa — sem ele não há de onde contar os
-                    minutos dos demais.
-                  </p>
+
+                {roteiro.avisos.length > 0 && (
+                  <div className="space-y-1.5 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3">
+                    <p className="flex items-center gap-2 text-xs font-semibold text-amber-500">
+                      <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0" />
+                      {roteiro.avisos.length === 1
+                        ? "1 aviso"
+                        : `${roteiro.avisos.length} avisos`}
+                    </p>
+                    <ul className="list-disc space-y-1 pl-5 text-xs text-amber-500">
+                      {roteiro.avisos.map((a) => (
+                        <li key={a}>{a}</li>
+                      ))}
+                    </ul>
+                  </div>
                 )}
-                <Button variant="outline" onClick={adicionar} className="w-full sm:w-auto">
-                  <Plus className="mr-2 h-4 w-4" /> Adicionar passo
-                </Button>
+
+                <div className="flex flex-wrap gap-2">
+                  <Button variant="outline" onClick={adicionar} disabled={salvando}>
+                    <Plus className="mr-2 h-4 w-4" /> Adicionar passo
+                  </Button>
+                  {passos.some((p) => p.tipo_tempo === "ancora") && (
+                    <Button variant="outline" onClick={() => setAjustandoDatas(true)}>
+                      <CalendarClock className="mr-2 h-4 w-4" /> Ajustar datas
+                    </Button>
+                  )}
+                </div>
               </>
             )}
           </div>
@@ -549,57 +703,45 @@ const RoteiroEditor = () => {
           <div className="min-w-0 lg:sticky lg:top-4 lg:self-start">
             <Card>
               <CardContent className="space-y-4 p-4">
-                <div className="space-y-2">
-                  <Label>Data-âncora</Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className={cn(
-                          "w-full justify-start text-left font-normal",
-                          !dataAncora && "text-muted-foreground",
-                        )}
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {dataAncora
-                          ? format(dataAncora, "dd 'de' MMMM", { locale: ptBR })
-                          : "Selecionar data"}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar
-                        mode="single"
-                        selected={dataAncora}
-                        onSelect={setDataAncora}
-                        initialFocus
-                        locale={ptBR}
-                      />
-                    </PopoverContent>
-                  </Popover>
-                </div>
-
-                {passos.length === 0 ? (
+                {execucao ? (
+                  <div className="space-y-3">
+                    <p className="flex items-center gap-2 text-sm font-medium text-foreground">
+                      <Check className="h-4 w-4 text-emerald-500" />
+                      {execucao.status === "enviando" ? "Enviando" : "Agendado"}
+                    </p>
+                    <div className="space-y-1.5 text-sm">
+                      {[
+                        ["Enviadas", execucao.enviados],
+                        ["Na fila", Math.max(
+                          execucao.total - execucao.enviados - execucao.erros - execucao.pulados,
+                          0,
+                        )],
+                        ["Falhas", execucao.erros + execucao.pulados],
+                      ].map(([rotulo, valor]) => (
+                        <div key={rotulo} className="flex items-center justify-between gap-3">
+                          <span className="text-muted-foreground">{rotulo}</span>
+                          <span className="font-semibold tabular-nums text-foreground">
+                            {valor}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Passos que ainda não saíram podem ser editados — o resto do
+                      roteiro reagenda sozinho.
+                    </p>
+                  </div>
+                ) : passos.length === 0 ? (
                   <p className="text-sm text-muted-foreground">
                     Adicione ao menos um passo para ver a prévia.
                   </p>
-                ) : sujo ? (
-                  <p className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-500">
+                ) : noPassado.size > 0 ? (
+                  <p className="flex items-start gap-2 rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-xs text-destructive">
                     <AlertTriangle className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" />
-                    Salve os passos para a prévia refletir o que vai ser agendado.
-                  </p>
-                ) : !dataAncora ? (
-                  <p className="text-sm text-muted-foreground">
-                    Escolha a data-âncora para ver a prévia.
-                  </p>
-                ) : previewCarregando ? (
-                  <div className="space-y-2">
-                    {[0, 1, 2].map((i) => (
-                      <Skeleton key={i} className="h-8 w-full rounded-lg" />
-                    ))}
-                  </div>
-                ) : previewErro ? (
-                  <p className="rounded-lg border border-destructive/40 p-3 text-sm text-destructive">
-                    {previewErro}
+                    {noPassado.size === 1
+                      ? `O passo ${[...noPassado][0]} já passou.`
+                      : `Os passos ${[...noPassado].join(", ")} já passaram.`}{" "}
+                    Ajuste as datas para agendar.
                   </p>
                 ) : preview ? (
                   <div className="space-y-3">
@@ -624,7 +766,6 @@ const RoteiroEditor = () => {
                         </div>
                       ))}
                     </div>
-
                     <div className="flex items-center justify-between gap-3 text-sm">
                       <span className="text-muted-foreground">Mensagens</span>
                       <span className="font-semibold tabular-nums text-foreground">
@@ -637,437 +778,88 @@ const RoteiroEditor = () => {
                         {formatarDuracao(preview.duracao_estimada_s)}
                       </span>
                     </div>
-
-                    {preview.avisos.length > 0 && (
-                      <div className="space-y-1.5 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3">
-                        <p className="flex items-center gap-2 text-xs font-semibold text-amber-500">
-                          <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0" />
-                          {preview.avisos.length === 1 ? "1 aviso" : `${preview.avisos.length} avisos`}
-                        </p>
-                        <ul className="list-disc space-y-1 pl-5 text-xs text-amber-500">
-                          {preview.avisos.map((aviso) => (
-                            <li key={aviso}>{aviso}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
                   </div>
                 ) : null}
-
-                <Button
-                  className="w-full"
-                  disabled={!preview || agendando || salvando}
-                  onClick={() => void executarAgendamento(false)}
-                >
-                  {agendando && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Agendar
-                </Button>
               </CardContent>
             </Card>
           </div>
         </div>
       </div>
 
-      {/* Barra fixa de ações. `md:pl-72` acompanha a largura da sidebar; no
-          celular ela sobe acima do bottom nav (z-40, 58px) — no bottom-0 o
-          "Salvar passos" ficava escondido atrás da navegação. */}
+      {/* Barra fixa. `md:pl-72` acompanha a sidebar; no celular ela sobe acima
+          do bottom nav (z-40, 58px) — no bottom-0 o botão ficava escondido. */}
       <div className="fixed inset-x-0 bottom-[calc(58px+env(safe-area-inset-bottom))] z-30 border-t border-border bg-background/95 backdrop-blur md:bottom-0 md:pl-72">
         <div className="mx-auto flex max-w-[1100px] items-center gap-2 p-3">
-          {sujo && (
-            <span className="hidden text-xs text-amber-500 sm:mr-auto sm:inline">
-              Alterações não salvas
+          {salvando && (
+            <span className="mr-auto hidden items-center gap-2 text-xs text-muted-foreground sm:flex">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" /> Salvando…
             </span>
           )}
-          <Button asChild variant="outline" className="flex-1 sm:flex-none">
+          <Button asChild variant="outline" className="flex-1 sm:ml-auto sm:flex-none">
             <Link to={voltar}>Voltar</Link>
           </Button>
           <Button
-            onClick={() => void salvar()}
-            disabled={!sujo || salvando}
             className="flex-1 sm:flex-none"
+            disabled={!podeAgendar || agendando || salvando}
+            onClick={() => void executarAgendamento(false)}
           >
-            {salvando && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Salvar passos
+            {agendando && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {execucao ? "Já agendado" : "Agendar"}
           </Button>
         </div>
       </div>
 
-      {/* ── Edição de um passo ── */}
-      <ResponsiveModal
-        open={editando != null}
-        onOpenChange={(o) => !o && setEditando(null)}
-        title={editando != null ? `Passo ${editando + 1}` : "Passo"}
-        contentClassName="sm:max-w-xl"
-      >
-        {passoEmEdicao && editando != null && (
-          <div className="space-y-5 pb-2">
-            <Bloco titulo="Quando">
-              <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Quando">
-                <Radio
-                  rotulo="Hora fixa"
-                  ativo={passoEmEdicao.tipo_tempo === "ancora"}
-                  onClick={() =>
-                    alterarPasso(editando, {
-                      tipo_tempo: "ancora",
-                      hora_fixa: passoEmEdicao.hora_fixa || "08:00",
-                      offset_minutos: null,
-                    })
-                  }
-                />
-                <Radio
-                  rotulo="Depois do anterior"
-                  disabled={editando === 0}
-                  ativo={passoEmEdicao.tipo_tempo === "relativo"}
-                  onClick={() =>
-                    alterarPasso(editando, {
-                      tipo_tempo: "relativo",
-                      offset_minutos: passoEmEdicao.offset_minutos ?? 10,
-                      hora_fixa: null,
-                      data_fixa: null,
-                    })
-                  }
-                />
-              </div>
+      {passoEmEdicao && editando != null && (
+        <PassoEditor
+          passo={passoEmEdicao}
+          indice={editando}
+          primeiro={editando === 0}
+          grupos={grupos}
+          templates={templates}
+          prefixo={assinatura.prefixo}
+          sufixo={assinatura.sufixo}
+          onMudar={(patch) =>
+            setPassos((atual) =>
+              atual.map((p, i) => (i === editando ? { ...p, ...patch } : p)),
+            )
+          }
+          onConcluir={() => void concluirPasso()}
+        />
+      )}
 
-              {passoEmEdicao.tipo_tempo === "ancora" ? (
-                <div className="flex flex-wrap items-end gap-3">
-                  <div className="space-y-1.5">
-                    <Label htmlFor="passo-hora" className="text-xs text-muted-foreground">
-                      Horário
-                    </Label>
-                    <Input
-                      id="passo-hora"
-                      type="time"
-                      className="w-32"
-                      value={passoEmEdicao.hora_fixa ?? ""}
-                      onChange={(e) =>
-                        alterarPasso(editando, { hora_fixa: e.target.value || null })
-                      }
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="passo-data" className="text-xs text-muted-foreground">
-                      Data própria (opcional)
-                    </Label>
-                    <div className="flex items-center gap-1">
-                      <Input
-                        id="passo-data"
-                        type="date"
-                        className="w-40"
-                        value={passoEmEdicao.data_fixa ?? ""}
-                        onChange={(e) =>
-                          alterarPasso(editando, { data_fixa: e.target.value || null })
-                        }
-                      />
-                      {passoEmEdicao.data_fixa && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => alterarPasso(editando, { data_fixa: null })}
-                          aria-label="Limpar data própria"
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <Input
-                      type="number"
-                      min={0}
-                      max={10080}
-                      className="w-28"
-                      value={passoEmEdicao.offset_minutos ?? 0}
-                      onChange={(e) =>
-                        alterarPasso(editando, {
-                          offset_minutos: Math.max(
-                            0,
-                            Math.min(10080, Number(e.target.value) || 0),
-                          ),
-                        })
-                      }
-                      aria-label="Minutos depois do passo anterior"
-                    />
-                    <span className="text-sm text-muted-foreground">
-                      minutos depois do passo anterior
-                    </span>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {ATALHOS_OFFSET.map((m) => (
-                      <button
-                        key={m}
-                        type="button"
-                        onClick={() => alterarPasso(editando, { offset_minutos: m })}
-                        className="min-h-[32px] rounded-full border border-border px-3 text-xs text-muted-foreground transition-colors hover:bg-accent/40 hover:text-foreground"
-                      >
-                        +{m} min
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </Bloco>
-
-            <Bloco titulo="O quê">
-              <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="O quê">
-                {CONTEUDOS.map((c) => (
-                  <Radio
-                    key={c.valor}
-                    rotulo={c.rotulo}
-                    ativo={passoEmEdicao.tipo_conteudo === c.valor}
-                    onClick={() =>
-                      alterarPasso(editando, {
-                        tipo_conteudo: c.valor,
-                        acao: c.valor === "acao_grupo" ? passoEmEdicao.acao ?? "abrir_entrada" : null,
-                      })
-                    }
-                  />
-                ))}
-              </div>
-
-              {passoEmEdicao.tipo_conteudo === "texto" && (
-                <div className="space-y-1.5">
-                  <Textarea
-                    value={passoEmEdicao.texto ?? ""}
-                    onChange={(e) => alterarPasso(editando, { texto: e.target.value })}
-                    maxLength={4000}
-                    rows={5}
-                    placeholder="Mensagem para os grupos…"
-                    aria-label="Texto do passo"
-                  />
-                  <p className="text-right text-xs tabular-nums text-muted-foreground">
-                    {(passoEmEdicao.texto ?? "").length}/4000
-                  </p>
-                </div>
-              )}
-
-              {passoEmEdicao.tipo_conteudo === "midia" && (
-                <div className="space-y-3">
-                  <div className="flex items-center gap-3">
-                    {passoEmEdicao.midia_url && (
-                      <div className="group relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-xl border border-border bg-muted">
-                        <img
-                          src={passoEmEdicao.midia_url}
-                          alt="Imagem do passo"
-                          className="h-full w-full object-cover"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => alterarPasso(editando, { midia_url: null })}
-                          aria-label="Remover imagem"
-                          className="absolute inset-0 flex items-center justify-center bg-black/60 text-white opacity-0 transition-opacity focus-visible:opacity-100 group-hover:opacity-100"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
-                    )}
-                    <input
-                      ref={inputImagemRef}
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={(e) => void aoEscolherImagem(e, editando)}
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      disabled={uploadLoading}
-                      onClick={() => inputImagemRef.current?.click()}
-                    >
-                      {uploadLoading ? (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      ) : (
-                        <Upload className="mr-2 h-4 w-4" />
-                      )}
-                      {passoEmEdicao.midia_url ? "Trocar imagem" : "Adicionar imagem"}
-                    </Button>
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="passo-legenda">Legenda (opcional)</Label>
-                    <Textarea
-                      id="passo-legenda"
-                      value={passoEmEdicao.texto ?? ""}
-                      onChange={(e) => alterarPasso(editando, { texto: e.target.value })}
-                      maxLength={4000}
-                      rows={3}
-                    />
-                  </div>
-                </div>
-              )}
-
-              {passoEmEdicao.tipo_conteudo === "oferta" && (
-                <div className="space-y-3">
-                  <div className="space-y-1.5">
-                    <Label htmlFor="passo-oferta">Link da oferta</Label>
-                    <Input
-                      id="passo-oferta"
-                      type="url"
-                      inputMode="url"
-                      placeholder="https://…"
-                      value={passoEmEdicao.oferta_url ?? ""}
-                      onChange={(e) =>
-                        alterarPasso(editando, { oferta_url: e.target.value || null })
-                      }
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label>Template (opcional)</Label>
-                    <Select
-                      value={
-                        passoEmEdicao.template_id ? String(passoEmEdicao.template_id) : "nenhum"
-                      }
-                      onValueChange={(v) =>
-                        alterarPasso(editando, {
-                          template_id: v === "nenhum" ? null : Number(v),
-                        })
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="nenhum">Sem template</SelectItem>
-                        {templates.map((t) => (
-                          <SelectItem key={t.id} value={String(t.id)}>
-                            {t.nome}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="passo-texto-oferta">Texto (opcional)</Label>
-                    <Textarea
-                      id="passo-texto-oferta"
-                      value={passoEmEdicao.texto ?? ""}
-                      onChange={(e) => alterarPasso(editando, { texto: e.target.value })}
-                      maxLength={4000}
-                      rows={4}
-                      placeholder="Use {link} para posicionar o link da oferta."
-                    />
-                  </div>
-                </div>
-              )}
-
-              {passoEmEdicao.tipo_conteudo === "acao_grupo" && (
-                <div className="space-y-3">
-                  <div className="space-y-1.5">
-                    <Label>Ação</Label>
-                    <Select
-                      value={passoEmEdicao.acao ?? "abrir_entrada"}
-                      onValueChange={(v) => alterarPasso(editando, { acao: v as AcaoGrupo })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {ACOES.map((a) => (
-                          <SelectItem key={a.valor} value={a.valor}>
-                            {a.rotulo}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  {passoEmEdicao.acao === "renomear_grupo" && (
-                    <div className="space-y-1.5">
-                      <Label htmlFor="passo-novo-nome">Novo nome do grupo</Label>
-                      <Input
-                        id="passo-novo-nome"
-                        value={passoEmEdicao.acao_parametro ?? ""}
-                        onChange={(e) =>
-                          alterarPasso(editando, { acao_parametro: e.target.value || null })
-                        }
-                        maxLength={100}
-                      />
-                    </div>
-                  )}
-                </div>
-              )}
-            </Bloco>
-
-            <Bloco titulo="Para quem">
-              <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Para quem">
-                <Radio
-                  rotulo="Todos os grupos"
-                  ativo={passoEmEdicao.grupos_alvo === "todos"}
-                  onClick={() =>
-                    alterarPasso(editando, { grupos_alvo: "todos", grupos_alvo_ids: null })
-                  }
-                />
-                <Radio
-                  rotulo="Escolher grupos"
-                  ativo={passoEmEdicao.grupos_alvo === "selecao"}
-                  onClick={() => alterarPasso(editando, { grupos_alvo: "selecao" })}
-                />
-              </div>
-
-              {passoEmEdicao.grupos_alvo === "selecao" &&
-                (grupos.length === 0 ? (
-                  <div className="space-y-3 rounded-xl border border-border py-6 text-center">
-                    <p className="px-4 text-sm text-muted-foreground">
-                      Esta campanha ainda não tem grupos.
-                    </p>
-                    <Button asChild variant="outline">
-                      <Link to={`/dashboard/grupos/${campanhaId}?tab=grupos`}>
-                        Adicionar grupos
-                      </Link>
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="max-h-56 space-y-1 overflow-y-auto rounded-xl border border-border p-1">
-                    {grupos.map((g) => (
-                      <label
-                        key={g.grupo_id}
-                        className="flex min-h-[44px] cursor-pointer items-center gap-3 rounded-lg px-2 py-2.5 transition-colors hover:bg-accent/40"
-                      >
-                        <Checkbox
-                          checked={gruposSelecionados.has(g.grupo_id)}
-                          onCheckedChange={() => {
-                            const proximo = new Set(gruposSelecionados);
-                            if (proximo.has(g.grupo_id)) proximo.delete(g.grupo_id);
-                            else proximo.add(g.grupo_id);
-                            alterarPasso(editando, { grupos_alvo_ids: [...proximo] });
-                          }}
-                          aria-label={`Selecionar ${g.nome ?? "grupo"}`}
-                        />
-                        <span className="min-w-0 flex-1 truncate text-sm text-foreground">
-                          {g.nome ?? "(grupo sem nome)"}
-                        </span>
-                        <span className="flex-shrink-0 text-xs tabular-nums text-muted-foreground">
-                          {g.participantes}
-                        </span>
-                      </label>
-                    ))}
-                  </div>
-                ))}
-
-              <div className="flex items-center justify-between gap-3 pt-1">
-                <Label htmlFor="passo-marcar-todos">Marcar todos do grupo</Label>
-                <Switch
-                  id="passo-marcar-todos"
-                  checked={passoEmEdicao.marcar_todos === "sempre"}
-                  onCheckedChange={(v) =>
-                    alterarPasso(editando, { marcar_todos: v ? "sempre" : "nunca" })
-                  }
-                />
-              </div>
-              {passoEmEdicao.marcar_todos === "sempre" && (
-                <p className="text-xs text-muted-foreground">
-                  Todo mundo do grupo recebe notificação desta mensagem.
-                </p>
-              )}
-            </Bloco>
-
-            <Button className="w-full" onClick={() => setEditando(null)}>
-              Concluir
-            </Button>
-          </div>
-        )}
-      </ResponsiveModal>
+      {ajustandoDatas && (
+        <AjusteDeDatas
+          passos={roteiro.passos}
+          salvando={salvando}
+          onFechar={() => {
+            setAjustandoDatas(false);
+            if (parametros.has("datas")) {
+              parametros.delete("datas");
+              setParametros(parametros, { replace: true });
+            }
+          }}
+          onSalvar={async (datas) => {
+            setSalvando(true);
+            try {
+              aplicar(await ajustarDatas(roteiroId, datas));
+              setAjustandoDatas(false);
+              if (parametros.has("datas")) {
+                parametros.delete("datas");
+                setParametros(parametros, { replace: true });
+              }
+              toast({ title: "Datas atualizadas" });
+            } catch (e) {
+              toast({
+                title: "Não foi possível ajustar as datas",
+                description: (e as Error).message,
+                variant: "destructive",
+              });
+            } finally {
+              setSalvando(false);
+            }
+          }}
+        />
+      )}
 
       <AlertDialog
         open={avisosParaConfirmar != null}

@@ -110,27 +110,63 @@ export async function salvarConfigEnvio(config: ConfigEnvio): Promise<ConfigEnvi
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Roteiros (F4): editor de passos, prévia e agendamento.
+// Roteiros: editor de passos, prévia, agendamento e status por passo.
 // ─────────────────────────────────────────────────────────────────────────────
 
 export type TipoTempo = "ancora" | "relativo";
-export type TipoConteudo = "texto" | "midia" | "oferta" | "acao_grupo";
-export type AcaoGrupo = "renomear_grupo" | "abrir_entrada" | "fechar_entrada";
+/** O passo é container de MENSAGEM (N blocos), uma OFERTA, ou uma AÇÃO. */
+export type TipoConteudo = "mensagem" | "oferta" | "acao_grupo";
+export type TipoBloco = "texto" | "imagem" | "audio" | "video" | "oferta";
+export type AcaoGrupo = "renomear_grupo" | "alterar_descricao" | "alterar_imagem";
+export type UnidadeOffset = "segundos" | "minutos" | "horas";
 export type GruposAlvo = "todos" | "selecao";
 export type MarcarTodos = "nunca" | "sempre";
 export type StatusRoteiro = "rascunho" | "pronto";
+export type StatusPasso = "concluido" | "concluido_com_falhas" | "falhou";
 
-/** Passo como o backend aceita no PUT — a tela manda a lista COMPLETA na ordem. */
+export const ACOES_DO_GRUPO: { valor: AcaoGrupo; rotulo: string }[] = [
+  { valor: "renomear_grupo", rotulo: "Renomear o grupo" },
+  { valor: "alterar_descricao", rotulo: "Alterar a descrição" },
+  { valor: "alterar_imagem", rotulo: "Alterar a imagem" },
+];
+
+export const UNIDADES: { valor: UnidadeOffset; rotulo: string; curto: string }[] = [
+  { valor: "segundos", rotulo: "segundos", curto: "s" },
+  { valor: "minutos", rotulo: "minutos", curto: "min" },
+  { valor: "horas", rotulo: "horas", curto: "h" },
+];
+
+export type BlocoIn = {
+  tipo: TipoBloco;
+  /** Texto do bloco, ou URL da mídia. */
+  conteudo?: string | null;
+  /** Legenda que acompanha a mídia. */
+  legenda?: string | null;
+  template_id?: number | null;
+};
+
+export type BlocoOut = BlocoIn & { id: number; ordem: number };
+
+/**
+ * Passo como o backend aceita no PUT — a tela manda a lista COMPLETA na ordem.
+ *
+ * **O `id` é o que mantém a fila viva.** Sem ele o backend não tem como saber
+ * que aquele passo é o mesmo de antes: salvar virava apagar e recriar, e o
+ * CASCADE de `roteiro_mensagens.passo_id` levava junto tudo que ainda não
+ * tinha saído. Passo novo vai sem `id`.
+ */
 export type PassoIn = {
-  id?: number;
+  id?: number | null;
   ordem: number;
   tipo_tempo: TipoTempo;
   /** "HH:MM" — obrigatório quando `tipo_tempo` é "ancora". */
   hora_fixa?: string | null;
-  /** "YYYY-MM-DD" — âncora em data própria, em vez da data-âncora do agendamento. */
+  /** "YYYY-MM-DD" — obrigatório quando `tipo_tempo` é "ancora". */
   data_fixa?: string | null;
-  offset_minutos?: number | null;
+  offset_valor?: number | null;
+  offset_unidade?: UnidadeOffset | null;
   tipo_conteudo: TipoConteudo;
+  blocos: BlocoIn[];
   texto?: string | null;
   midia_url?: string | null;
   oferta_url?: string | null;
@@ -142,7 +178,37 @@ export type PassoIn = {
   marcar_todos: MarcarTodos;
 };
 
-export type PassoOut = PassoIn & { id: number };
+export type GrupoComFalha = { grupo_id: number; nome: string; motivo: string | null };
+
+export type StatusDoPasso = {
+  status: StatusPasso;
+  enviados: number;
+  pendentes: number;
+  falhas: GrupoComFalha[];
+};
+
+export type PassoOut = Omit<PassoIn, "blocos"> & {
+  id: number;
+  blocos: BlocoOut[];
+  acao_descontinuada: boolean;
+  /** Horário resolvido (ISO com fuso de Brasília). */
+  quando: string | null;
+  no_passado: boolean;
+  /** Já saiu ou está saindo: não dá para editar, mover nem excluir. */
+  travado: boolean;
+  status: StatusDoPasso | null;
+};
+
+export type ExecucaoResumo = {
+  id: number;
+  status: StatusExecucao;
+  total: number;
+  enviados: number;
+  erros: number;
+  pulados: number;
+  proxima_execucao_em: string | null;
+  concluido_em: string | null;
+};
 
 export type Roteiro = {
   id: number;
@@ -152,16 +218,26 @@ export type Roteiro = {
   origem: string;
   total_passos: number;
   criado_em: string;
+  /** Enquanto existir, o chip não é "Rascunho" e não dá para agendar de novo. */
+  execucao_ativa: ExecucaoResumo | null;
+  ultima_execucao: ExecucaoResumo | null;
 };
 
-export type RoteiroDetalhe = Roteiro & { passos: PassoOut[] };
+export type RoteiroDetalhe = Roteiro & {
+  passos: PassoOut[];
+  avisos: string[];
+  passos_no_passado: number[];
+};
 
 export type PreviewPasso = {
+  passo_id: number;
   ordem: number;
   tipo_conteudo: TipoConteudo;
   /** ISO com fuso de Brasília. */
   quando: string;
   grupos: number;
+  blocos: number;
+  no_passado: boolean;
 };
 
 export type PreviewRoteiro = {
@@ -169,6 +245,7 @@ export type PreviewRoteiro = {
   total_mensagens: number;
   duracao_estimada_s: number;
   avisos: string[];
+  passos_no_passado: number[];
 };
 
 /** Agendou, ou parou nos avisos e espera confirmação da usuária. */
@@ -176,15 +253,47 @@ export type ResultadoAgendamento =
   | { agendada: true; execucao: ExecucaoEnvio }
   | { agendada: false; avisos: string[] };
 
+/**
+ * Erro que a tela precisa DESTRINCHAR, não só exibir: "algum passo está no
+ * passado" num roteiro de 22 não diz onde clicar.
+ */
+export class ErroDeRoteiro extends Error {
+  constructor(
+    message: string,
+    readonly codigo: "passos_no_passado" | "passo_ja_enviado" | "execucao_ja_ativa" | null,
+    readonly passos: number[] = [],
+  ) {
+    super(message);
+    this.name = "ErroDeRoteiro";
+  }
+}
+
+const lancarErroDeRoteiro = async (res: Response, fallback: string): Promise<never> => {
+  try {
+    const corpo = await res.clone().json();
+    const d = corpo?.detail;
+    if (d && typeof d === "object" && typeof d.erro === "string") {
+      throw new ErroDeRoteiro(d.mensagem || fallback, d.erro, d.passos ?? []);
+    }
+  } catch (e) {
+    if (e instanceof ErroDeRoteiro) throw e;
+    /* não era o corpo estruturado — cai no erro comum */
+  }
+  throw await erroDaResposta(res, fallback);
+};
+
 /** O backend serializa `time` como "HH:MM:SS" — a tela trabalha com "HH:MM". */
 const normalizarPasso = (p: PassoOut): PassoOut => ({
   ...p,
   hora_fixa: p.hora_fixa ? p.hora_fixa.slice(0, 5) : p.hora_fixa,
+  blocos: p.blocos ?? [],
 });
 
 const normalizarDetalhe = (r: RoteiroDetalhe): RoteiroDetalhe => ({
   ...r,
   passos: (r.passos ?? []).map(normalizarPasso),
+  avisos: r.avisos ?? [],
+  passos_no_passado: r.passos_no_passado ?? [],
 });
 
 export async function listarRoteiros(campanhaId?: number): Promise<Roteiro[]> {
@@ -203,7 +312,8 @@ export async function criarRoteiro(payload: {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ passos: [], ...payload }),
   });
-  return normalizarDetalhe(await json<RoteiroDetalhe>(res, "Não foi possível criar o roteiro."));
+  if (!res.ok) await lancarErroDeRoteiro(res, "Não foi possível criar o roteiro.");
+  return normalizarDetalhe((await res.json()) as RoteiroDetalhe);
 }
 
 export async function obterRoteiro(id: number): Promise<RoteiroDetalhe> {
@@ -211,14 +321,29 @@ export async function obterRoteiro(id: number): Promise<RoteiroDetalhe> {
   return normalizarDetalhe(await json<RoteiroDetalhe>(res, "Não foi possível carregar o roteiro."));
 }
 
-/** Substitui os passos do roteiro (lista completa, na ordem final). */
+/** Substitui os passos do roteiro (lista completa, na ordem final, COM os ids). */
 export async function definirPassos(id: number, passos: PassoIn[]): Promise<RoteiroDetalhe> {
   const res = await fetchWithAuth(`${baseRoteiros()}/${id}/passos`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(passos),
   });
-  return normalizarDetalhe(await json<RoteiroDetalhe>(res, "Não foi possível salvar os passos."));
+  if (!res.ok) await lancarErroDeRoteiro(res, "Não foi possível salvar os passos.");
+  return normalizarDetalhe((await res.json()) as RoteiroDetalhe);
+}
+
+/** Troca as datas de vários passos de hora fixa de uma vez (pós-duplicar). */
+export async function ajustarDatas(
+  id: number,
+  datas: { passo_id: number; data_fixa: string; hora_fixa?: string | null }[],
+): Promise<RoteiroDetalhe> {
+  const res = await fetchWithAuth(`${baseRoteiros()}/${id}/datas`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ datas }),
+  });
+  if (!res.ok) await lancarErroDeRoteiro(res, "Não foi possível ajustar as datas.");
+  return normalizarDetalhe((await res.json()) as RoteiroDetalhe);
 }
 
 export async function duplicarRoteiro(id: number): Promise<Roteiro> {
@@ -226,24 +351,24 @@ export async function duplicarRoteiro(id: number): Promise<Roteiro> {
   return json(res, "Não foi possível duplicar o roteiro.");
 }
 
-export async function previewRoteiro(id: number, dataAncora: string): Promise<PreviewRoteiro> {
+export async function previewRoteiro(id: number): Promise<PreviewRoteiro> {
   const res = await fetchWithAuth(`${baseRoteiros()}/${id}/preview`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ data_ancora: dataAncora }),
+    body: JSON.stringify({}),
   });
-  return json(res, "Não foi possível gerar a prévia do roteiro.");
+  if (!res.ok) await lancarErroDeRoteiro(res, "Não foi possível gerar a prévia do roteiro.");
+  return (await res.json()) as PreviewRoteiro;
 }
 
 export async function agendarRoteiro(
   id: number,
-  dataAncora: string,
   ignorarAvisos = false,
 ): Promise<ResultadoAgendamento> {
   const res = await fetchWithAuth(`${baseRoteiros()}/${id}/agendar`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ data_ancora: dataAncora, ignorar_avisos: ignorarAvisos }),
+    body: JSON.stringify({ ignorar_avisos: ignorarAvisos }),
   });
   if (!res.ok) {
     // 422 com `detail.avisos` não é erro: é o backend pedindo confirmação.
@@ -256,7 +381,25 @@ export async function agendarRoteiro(
         /* não era JSON — cai no erro comum */
       }
     }
-    throw await erroDaResposta(res, "Não foi possível agendar o roteiro.");
+    await lancarErroDeRoteiro(res, "Não foi possível agendar o roteiro.");
   }
   return { agendada: true, execucao: (await res.json()) as ExecucaoEnvio };
+}
+
+/**
+ * Reenvia um passo aos grupos escolhidos. Sempre MANUAL: retry automático
+ * mandaria a mesma mensagem duas vezes no grupo.
+ */
+export async function reenviarPasso(
+  execucaoId: number,
+  passoId: number,
+  grupoIds: number[],
+): Promise<ExecucaoEnvio> {
+  const res = await fetchWithAuth(`${baseRoteiros()}/execucoes/${execucaoId}/reenviar`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ passo_id: passoId, grupo_ids: grupoIds }),
+  });
+  if (!res.ok) await lancarErroDeRoteiro(res, "Não foi possível reenviar.");
+  return (await res.json()) as ExecucaoEnvio;
 }

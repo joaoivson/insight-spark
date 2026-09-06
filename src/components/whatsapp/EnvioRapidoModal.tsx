@@ -26,7 +26,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
-import { Checkbox } from "@/components/ui/checkbox";
+import { CheckboxQuadrado } from "@/components/shared/CheckboxQuadrado";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -503,7 +503,7 @@ export function EnvioRapidoModal({
                                 : "cursor-pointer transition-colors hover:bg-accent/40",
                             )}
                           >
-                            <Checkbox
+                            <CheckboxQuadrado
                               checked={selecionados.has(g.id)}
                               disabled={semPermissao}
                               onCheckedChange={() => alternarGrupo(g.id)}

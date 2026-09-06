@@ -18,16 +18,67 @@ import {
   duplicarRoteiro,
   listarRoteiros,
   type Roteiro,
+  type StatusExecucao,
 } from "@/services/roteiros.service";
+import { cn } from "@/shared/lib/utils";
 
 const rotuloPassos = (n: number) => (n === 1 ? "1 passo" : `${n} passos`);
 
-const StatusRoteiroBadge = ({ status }: { status: string }) =>
-  status === "pronto" ? (
-    <Badge className="border-emerald-500/25 bg-emerald-500/10 text-emerald-500">Pronto</Badge>
-  ) : (
-    <Badge variant="secondary">Rascunho</Badge>
+/**
+ * O chip reflete a EXECUÇÃO, não o campo `status` do roteiro.
+ *
+ * Antes ele dizia "Rascunho" mesmo depois de agendar e de a mensagem sair — e o
+ * botão "Agendar" continuava na linha. Em 06/09 o mesmo roteiro foi agendado
+ * três vezes em 16 segundos; se as mensagens não tivessem sido apagadas por
+ * outro bug no mesmo minuto, cada grupo teria recebido tudo em triplicado.
+ */
+//  O `hover:bg-*` de cada linha é obrigatório: o `Badge` do shadcn traz
+//  `hover:bg-primary/80` na variante default, e sem um `hover:bg-*` aqui o
+//  tailwind-merge não tem o que substituir — o chip vira azul no hover.
+const CHIP_DA_EXECUCAO: Record<StatusExecucao, { rotulo: string; classe: string }> = {
+  agendada: {
+    rotulo: "Agendado",
+    classe: "border-sky-500/25 bg-sky-500/10 text-sky-500 hover:bg-sky-500/10",
+  },
+  enviando: {
+    rotulo: "Enviando",
+    classe: "border-primary/25 bg-primary/10 text-primary hover:bg-primary/10",
+  },
+  pausada: {
+    rotulo: "Pausado",
+    classe: "border-amber-500/25 bg-amber-500/10 text-amber-500 hover:bg-amber-500/10",
+  },
+  concluida: {
+    rotulo: "Concluído",
+    classe: "border-emerald-500/25 bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/10",
+  },
+  cancelada: {
+    rotulo: "Cancelado",
+    classe: "border-border bg-muted text-muted-foreground hover:bg-muted",
+  },
+  falhou: {
+    rotulo: "Falhou",
+    classe: "border-destructive/25 bg-destructive/10 text-destructive hover:bg-destructive/10",
+  },
+};
+
+const StatusRoteiroBadge = ({ roteiro }: { roteiro: Roteiro }) => {
+  const execucao = roteiro.execucao_ativa ?? roteiro.ultima_execucao;
+  if (!execucao) return <Badge variant="secondary">Rascunho</Badge>;
+  const chip = CHIP_DA_EXECUCAO[execucao.status];
+  const comFalha = execucao.status === "concluida" && execucao.erros + execucao.pulados > 0;
+  return (
+    <Badge
+      className={cn(
+        comFalha
+          ? "border-orange-500/25 bg-orange-500/10 text-orange-500 hover:bg-orange-500/10"
+          : chip.classe,
+      )}
+    >
+      {comFalha ? "Concluído com falhas" : chip.rotulo}
+    </Badge>
   );
+};
 
 /** Aba "Roteiros" da campanha: sequência de passos que a campanha dispara. */
 export const RoteirosDaCampanha = ({
@@ -67,8 +118,11 @@ export const RoteirosDaCampanha = ({
     void carregar();
   }, [carregar]);
 
-  const abrirEditor = (roteiroId: number) =>
-    navigate(`/dashboard/grupos/${campanhaId}/roteiros/${roteiroId}`);
+  const abrirEditor = (roteiroId: number, ajustarDatas = false) =>
+    navigate(
+      `/dashboard/grupos/${campanhaId}/roteiros/${roteiroId}` +
+        (ajustarDatas ? "?datas=1" : ""),
+    );
 
   const confirmarCriacao = async () => {
     const nomeLimpo = nome.trim();
@@ -95,7 +149,15 @@ export const RoteirosDaCampanha = ({
     try {
       const copia = await duplicarRoteiro(roteiro.id);
       setRoteiros((atual) => [copia, ...atual]);
-      toast({ title: "Roteiro duplicado" });
+      toast({
+        title: "Roteiro duplicado",
+        description: "Ajuste as datas do novo lançamento.",
+      });
+      // A cópia carrega as datas do lançamento PASSADO — nasce em vermelho e
+      // sem poder agendar. Abrir o ajuste em bloco é o passo seguinte
+      // obrigatório, e é onde a duplicação fica barata: 4 ou 5 datas em vez de
+      // 22 mensagens reagendadas.
+      abrirEditor(copia.id, true);
     } catch (e) {
       toast({
         title: "Não foi possível duplicar",
@@ -175,7 +237,7 @@ export const RoteirosDaCampanha = ({
                     >
                       {r.nome}
                     </button>
-                    <StatusRoteiroBadge status={r.status} />
+                    <StatusRoteiroBadge roteiro={r} />
                   </div>
                   <p className="flex flex-wrap items-center gap-x-3 text-xs text-muted-foreground">
                     <span className="tabular-nums">{rotuloPassos(r.total_passos)}</span>
@@ -197,9 +259,14 @@ export const RoteirosDaCampanha = ({
                   >
                     <Copy className="mr-2 h-3.5 w-3.5" /> Duplicar
                   </Button>
-                  <Button size="sm" onClick={() => abrirEditor(r.id)}>
-                    <CalendarClock className="mr-2 h-3.5 w-3.5" /> Agendar
-                  </Button>
+                  {/* "Agendar" sai da linha enquanto houver execução ativa —
+                      clicar de novo criaria uma segunda e o grupo receberia
+                      tudo duplicado. Volta se ela cancelar o agendamento. */}
+                  {!r.execucao_ativa && (
+                    <Button size="sm" onClick={() => abrirEditor(r.id)}>
+                      <CalendarClock className="mr-2 h-3.5 w-3.5" /> Agendar
+                    </Button>
+                  )}
                 </div>
               </CardContent>
             </Card>

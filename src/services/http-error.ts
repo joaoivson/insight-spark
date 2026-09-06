@@ -35,6 +35,22 @@ export const erroDaResposta = async (res: Response, fallback: string): Promise<E
       erro.amigavel = true;
       return erro;
     }
+    // 422 de validação do Pydantic: `detail` é um ARRAY de
+    // `{type, loc, msg, ...}`. Sem este ramo, as mensagens em português
+    // escritas nos validators chegavam à tela como JSON cru — ou seja, nunca
+    // chegavam. `loc` traz o índice do item quando o corpo é uma lista.
+    if (Array.isArray(detail) && detail.length) {
+      const primeiro = detail[0];
+      const msg = String(primeiro?.msg ?? "").replace(/^Value error,\s*/, "");
+      if (msg) {
+        const indice = (primeiro?.loc ?? []).find((x: unknown) => typeof x === "number");
+        const erro: ErroDeApi = new Error(
+          typeof indice === "number" ? `Passo ${indice + 1}: ${msg}` : msg,
+        );
+        erro.amigavel = true;
+        return erro;
+      }
+    }
   } catch {
     /* não era JSON — cai no texto cru */
   }
