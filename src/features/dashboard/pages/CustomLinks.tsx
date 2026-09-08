@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useToast } from "@/hooks/use-toast";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { usePlanStore } from "@/stores/planStore";
@@ -9,10 +9,14 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import {
     Plus, ArrowLeft, Copy, Pencil, Trash2, ExternalLink,
-    Link2, MousePointerClick, Loader2, Check, AlertCircle,
-    CalendarIcon, X, BarChart3
+    Link2, Loader2, Check, AlertCircle,
+    CalendarIcon, X, BarChart3, Search, ArrowUpDown
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+    Select, SelectContent, SelectItem, SelectTrigger, SelectValue
+} from "@/components/ui/select";
+import { Paginacao, paginar, totalDePaginas } from "@/components/shared/Paginacao";
 import ConverterTab from "@/features/dashboard/components/ConverterTab";
 import LinkInsightModal from "@/features/dashboard/components/LinkInsightModal";
 import { Calendar } from "@/components/ui/calendar";
@@ -39,6 +43,62 @@ import {
 
 type ViewMode = "list" | "editor";
 
+/** Um link está "parado" quando teve clique, mas o último passou de 48h. */
+const LAST_CLICK_STALE_MS = 48 * 60 * 60 * 1000;
+const isStale = (lastClickAt: string | null) => {
+    if (!lastClickAt) return false;
+    const t = new Date(lastClickAt).getTime();
+    return !Number.isNaN(t) && Date.now() - t > LAST_CLICK_STALE_MS;
+};
+
+type FiltroLinks = "todos" | "ativos" | "inativos" | "parados";
+
+const FILTROS: { key: FiltroLinks; label: string }[] = [
+    { key: "todos", label: "Todos" },
+    { key: "ativos", label: "Ativos" },
+    { key: "inativos", label: "Inativos" },
+    { key: "parados", label: "Parados" },
+];
+
+type OrdemLinks =
+    | "recentes" | "antigos"
+    | "cliques" | "menos-cliques"
+    | "ultimo-clique" | "nome";
+
+const ORDENS: { key: OrdemLinks; label: string }[] = [
+    { key: "recentes", label: "Mais recentes" },
+    { key: "antigos", label: "Mais antigos" },
+    { key: "cliques", label: "Mais cliques" },
+    { key: "menos-cliques", label: "Menos cliques" },
+    { key: "ultimo-clique", label: "Último clique" },
+    { key: "nome", label: "Nome (A-Z)" },
+];
+
+const ts = (iso: string | null) => {
+    if (!iso) return null;
+    const t = new Date(iso).getTime();
+    return Number.isNaN(t) ? null : t;
+};
+
+/** Link sem clique nenhum vai para o fim de "Último clique", não para o topo. */
+const porUltimoClique = (a: CustomLink, b: CustomLink) => {
+    const ta = ts(a.last_click_at);
+    const tb = ts(b.last_click_at);
+    if (ta === null && tb === null) return 0;
+    if (ta === null) return 1;
+    if (tb === null) return -1;
+    return tb - ta;
+};
+
+const COMPARADORES: Record<OrdemLinks, (a: CustomLink, b: CustomLink) => number> = {
+    recentes: (a, b) => (ts(b.created_at) ?? 0) - (ts(a.created_at) ?? 0),
+    antigos: (a, b) => (ts(a.created_at) ?? 0) - (ts(b.created_at) ?? 0),
+    cliques: (a, b) => b.click_count - a.click_count,
+    "menos-cliques": (a, b) => a.click_count - b.click_count,
+    "ultimo-clique": porUltimoClique,
+    nome: (a, b) => a.name.localeCompare(b.name, "pt-BR"),
+};
+
 const getLinkBaseUrl = () => {
     const host = window.location.hostname;
     if (host.includes("hml")) return "hml.marketdash.com.br/l/";
@@ -59,6 +119,13 @@ const CustomLinks = () => {
     const [linkToDelete, setLinkToDelete] = useState<CustomLink | null>(null);
     const [activeTab, setActiveTab] = useState<"converter" | "links">("links");
     const [insightLink, setInsightLink] = useState<CustomLink | null>(null);
+
+    // Busca / ordenação / filtro da lista
+    const [busca, setBusca] = useState("");
+    const [ordem, setOrdem] = useState<OrdemLinks>("recentes");
+    const [filtro, setFiltro] = useState<FiltroLinks>("todos");
+    const [pagina, setPagina] = useState(1);
+    const [porPagina, setPorPagina] = useState(25);
 
     // Form state
     const [formName, setFormName] = useState("");
@@ -226,12 +293,37 @@ const CustomLinks = () => {
         });
     };
 
-    const LAST_CLICK_STALE_MS = 48 * 60 * 60 * 1000;
-    const isStale = (lastClickAt: string | null) => {
-        if (!lastClickAt) return false;
-        const t = new Date(lastClickAt).getTime();
-        return !Number.isNaN(t) && Date.now() - t > LAST_CLICK_STALE_MS;
-    };
+    const filtrados = useMemo(() => {
+        const termo = busca.trim().toLowerCase();
+        const resultado = links.filter((l) => {
+            if (termo && !l.name.toLowerCase().includes(termo) && !l.slug.toLowerCase().includes(termo)) {
+                return false;
+            }
+            if (filtro === "ativos") return l.is_active;
+            if (filtro === "inativos") return !l.is_active;
+            if (filtro === "parados") return isStale(l.last_click_at);
+            return true;
+        });
+        // Cópia antes de ordenar: `filter` já devolve array novo, mas deixar
+        // explícito evita que uma refatoração futura ordene `links` no lugar.
+        return [...resultado].sort(COMPARADORES[ordem]);
+    }, [links, busca, filtro, ordem]);
+
+    // Qualquer mudança de recorte volta para a página 1 — senão a afiliada
+    // filtra e cai numa página que não existe mais no novo conjunto.
+    useEffect(() => {
+        setPagina(1);
+    }, [busca, filtro, ordem, porPagina]);
+
+    // Excluir o último link de uma página deixaria a tela vazia com "Anterior"
+    // disponível; recua sozinho para a última página que ainda tem conteúdo.
+    useEffect(() => {
+        const ultima = totalDePaginas(filtrados.length, porPagina);
+        if (pagina > ultima) setPagina(ultima);
+    }, [filtrados.length, porPagina, pagina]);
+
+    const daPagina = paginar(filtrados, pagina, porPagina);
+    const filtroAtivo = busca.trim() !== "" || filtro !== "todos";
 
     const renderList = () => (
         <div className="space-y-6">
@@ -251,32 +343,61 @@ const CustomLinks = () => {
                 </Button>
             </div>
 
+            {/* Barra de controle: busca, ordenação e filtros rápidos.
+                Com o MAX liberando links ilimitados, achar um link na rolagem
+                deixou de ser viável — a busca é o caminho principal. */}
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                <div className="relative flex-1 sm:min-w-[240px]">
+                    <Search
+                        className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+                        aria-hidden
+                    />
+                    <Input
+                        value={busca}
+                        onChange={(e) => setBusca(e.target.value)}
+                        placeholder="Buscar por nome ou slug"
+                        className="pl-9"
+                        aria-label="Buscar link por nome ou slug"
+                    />
+                </div>
+                <Select value={ordem} onValueChange={(v) => setOrdem(v as OrdemLinks)}>
+                    <SelectTrigger className="w-full sm:w-[180px]" aria-label="Ordenar links">
+                        <ArrowUpDown className="mr-2 h-4 w-4 flex-shrink-0 text-muted-foreground" aria-hidden />
+                        <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                        {ORDENS.map((o) => (
+                            <SelectItem key={o.key} value={o.key}>{o.label}</SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+            </div>
+
+            <div className="flex flex-wrap gap-1">
+                {FILTROS.map((f) => (
+                    <Button
+                        key={f.key}
+                        size="sm"
+                        variant={filtro === f.key ? "default" : "outline"}
+                        onClick={() => setFiltro(f.key)}
+                    >
+                        {f.label}
+                    </Button>
+                ))}
+            </div>
+
             {loading ? (
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                    {[1, 2, 3].map((i) => (
-                        <div key={i} className="bg-card border border-border rounded-lg p-4 space-y-3">
-                            <div className="flex items-start justify-between">
-                                <div className="space-y-1.5 flex-1">
-                                    <Skeleton className="h-5 w-32" />
-                                    <Skeleton className="h-3 w-48" />
-                                </div>
-                                <Skeleton className="h-5 w-9 rounded-full ml-2" />
+                <div className="divide-y divide-border overflow-hidden rounded-xl border border-border">
+                    {[1, 2, 3, 4, 5, 6].map((i) => (
+                        <div key={i} className="flex items-center gap-3 px-3 py-3 lg:px-4">
+                            <Skeleton className="h-6 w-11 flex-shrink-0 rounded-full" />
+                            <div className="min-w-0 flex-1 space-y-1.5">
+                                <Skeleton className="h-4 w-40" />
+                                <Skeleton className="h-3 w-56" />
                             </div>
-                            <div className="flex items-center gap-1.5">
-                                <Skeleton className="h-3.5 w-3.5 rounded-full" />
-                                <Skeleton className="h-3.5 w-40" />
-                            </div>
-                            <div className="flex items-center gap-3">
-                                <Skeleton className="h-3 w-20" />
-                                <Skeleton className="h-3 w-16" />
-                                <Skeleton className="h-4 w-12 rounded-full" />
-                            </div>
-                            <div className="flex items-center gap-1 pt-1 border-t border-border">
-                                <Skeleton className="h-8 w-8 rounded-md" />
-                                <Skeleton className="h-8 w-8 rounded-md" />
-                                <Skeleton className="h-8 w-8 rounded-md" />
-                                <Skeleton className="h-8 w-8 rounded-md ml-auto" />
-                            </div>
+                            <Skeleton className="hidden h-8 w-14 lg:block" />
+                            <Skeleton className="hidden h-8 w-24 lg:block" />
+                            <Skeleton className="hidden h-9 w-40 lg:block" />
                         </div>
                     ))}
                 </div>
@@ -293,111 +414,181 @@ const CustomLinks = () => {
                     </Button>
                 </div>
             ) : (
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                    {links.map((link) => (
-                        <div
-                            key={link.id}
-                            className="min-w-0 bg-card border border-border rounded-lg p-4 space-y-3 hover:border-primary/30 transition-colors"
-                        >
-                            <div className="flex items-start justify-between">
-                                <div className="min-w-0 flex-1">
-                                    <h3 className="font-semibold truncate">{link.name}</h3>
-                                    <p className="text-xs text-muted-foreground mt-0.5 truncate">
-                                        {link.original_url}
-                                    </p>
-                                </div>
-                                <Switch
-                                    checked={link.is_active}
-                                    onCheckedChange={() => handleToggleActive(link)}
-                                    className="ml-2 flex-shrink-0"
-                                />
-                            </div>
+                <div className="space-y-3">
+                    <p className="text-xs text-muted-foreground">
+                        {filtrados.length} {filtrados.length === 1 ? "link" : "links"}
+                        {filtroAtivo && ` de ${links.length}`}
+                    </p>
 
-                            <button
-                                type="button"
-                                className="flex w-full items-center gap-1.5 text-sm text-primary text-left rounded-md py-1.5 -my-0.5 hover:bg-primary/5 active:bg-primary/10 transition-colors duration-150"
-                                onClick={() => handleCopy(link.slug)}
+                    {filtrados.length === 0 ? (
+                        <div className="rounded-xl border border-dashed border-border py-12 text-center">
+                            <p className="text-sm text-muted-foreground">Nenhum link encontrado.</p>
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                className="mt-2"
+                                onClick={() => { setBusca(""); setFiltro("todos"); }}
                             >
-                                <Link2 className="w-3.5 h-3.5 flex-shrink-0" />
-                                <span className="truncate">{LINK_BASE_URL}{link.slug}</span>
-                                <Copy className="w-3.5 h-3.5 flex-shrink-0 ml-auto opacity-60" />
-                            </button>
-
-                            <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                                <span className="flex items-center gap-1">
-                                    <MousePointerClick className="w-3.5 h-3.5" />
-                                    {link.click_count} cliques
-                                </span>
-                                <span>criado {formatDate(link.created_at)}</span>
-                                {link.tag && <Badge variant="secondary" className="text-[10px]">{link.tag}</Badge>}
-                            </div>
-
-                            <div className="flex items-center gap-2 text-xs text-muted-foreground border-t border-border pt-2">
-                                <span>
-                                    Último clique:{" "}
-                                    <span className={cn(isStale(link.last_click_at) && "text-yellow-500")}>
-                                        {link.last_click_at ? formatDate(link.last_click_at) : "nunca"}
-                                    </span>
-                                </span>
-                                {isStale(link.last_click_at) && (
-                                    <span className="text-[10px] font-bold text-yellow-500 bg-yellow-500/10 border border-yellow-500/30 rounded-md px-1.5 py-0.5">
-                                        parado
-                                    </span>
-                                )}
-                            </div>
-
-                            {!link.is_active && (
-                                <div className="flex items-center gap-1 text-xs text-yellow-500">
-                                    <AlertCircle className="w-3 h-3" />
-                                    Desativado
-                                </div>
-                            )}
-
-                            <div className="flex items-center gap-1 pt-2 border-t border-border">
-                                <Button
-                                    variant="ghost" size="sm"
-                                    onClick={() => handleCopy(link.slug)}
-                                    className="h-9 w-9 px-0"
-                                    aria-label="Copiar link"
-                                >
-                                    <Copy className="w-4 h-4" />
-                                </Button>
-                                <Button
-                                    variant="ghost" size="sm"
-                                    onClick={() => handleEdit(link)}
-                                    className="h-9 w-9 px-0"
-                                    aria-label="Editar link"
-                                >
-                                    <Pencil className="w-4 h-4" />
-                                </Button>
-                                <a
-                                    href={`https://${LINK_BASE_URL}${link.slug}`}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    aria-label="Abrir link"
-                                    className="inline-flex items-center justify-center h-9 w-9 rounded-md text-sm font-medium hover:bg-accent hover:text-accent-foreground transition-colors duration-150"
-                                >
-                                    <ExternalLink className="w-4 h-4" />
-                                </a>
-                                <Button
-                                    variant="ghost" size="sm"
-                                    onClick={() => setInsightLink(link)}
-                                    className="h-9 w-9 px-0"
-                                    aria-label="Ver insights do link"
-                                >
-                                    <BarChart3 className="w-4 h-4" />
-                                </Button>
-                                <Button
-                                    variant="ghost" size="sm"
-                                    onClick={() => { setLinkToDelete(link); setDeleteDialogOpen(true); }}
-                                    className="h-9 w-9 px-0 ml-auto text-destructive hover:text-destructive"
-                                    aria-label="Deletar link"
-                                >
-                                    <Trash2 className="w-4 h-4" />
-                                </Button>
-                            </div>
+                                Limpar busca e filtros
+                            </Button>
                         </div>
-                    ))}
+                    ) : (
+                        <>
+                            <div className="divide-y divide-border overflow-hidden rounded-xl border border-border">
+                                {daPagina.map((link) => {
+                                    const parado = isStale(link.last_click_at);
+                                    return (
+                                        <div
+                                            key={link.id}
+                                            className="px-3 py-2.5 transition-colors hover:bg-accent/40 lg:px-4 lg:py-3"
+                                        >
+                                            <div className="flex flex-col gap-1.5 lg:flex-row lg:items-center lg:gap-4">
+                                                {/* Identidade. O checkbox das ações em massa entra
+                                                    aqui, antes do toggle, quando for a hora. */}
+                                                <div className="flex min-w-0 flex-1 items-center gap-2.5 lg:gap-3">
+                                                    <Switch
+                                                        checked={link.is_active}
+                                                        onCheckedChange={() => handleToggleActive(link)}
+                                                        className="flex-shrink-0"
+                                                        aria-label={link.is_active ? `Desativar ${link.name}` : `Ativar ${link.name}`}
+                                                    />
+                                                    <div className="min-w-0 flex-1">
+                                                        <p
+                                                            className={cn(
+                                                                "truncate text-sm font-semibold",
+                                                                !link.is_active && "text-muted-foreground",
+                                                            )}
+                                                            title={link.original_url}
+                                                        >
+                                                            {link.name}
+                                                        </p>
+                                                        <div className="flex min-w-0 items-center gap-2 overflow-hidden text-xs text-muted-foreground">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => handleCopy(link.slug)}
+                                                                className="flex min-w-0 items-center gap-1 text-primary hover:underline"
+                                                            >
+                                                                <Link2 className="h-3 w-3 flex-shrink-0" aria-hidden />
+                                                                <span className="truncate">{LINK_BASE_URL}{link.slug}</span>
+                                                            </button>
+                                                            {/* "criado" e tag saem no celular: são o que menos
+                                                                pesa na decisão e o que mais empurra a linha. */}
+                                                            <span className="hidden flex-shrink-0 whitespace-nowrap lg:inline">
+                                                                criado {formatDate(link.created_at)}
+                                                            </span>
+                                                            {link.tag && (
+                                                                <Badge variant="secondary" className="hidden flex-shrink-0 text-[10px] lg:inline-flex">
+                                                                    {link.tag}
+                                                                </Badge>
+                                                            )}
+                                                            {parado && (
+                                                                <span className="flex-shrink-0 whitespace-nowrap rounded-md border border-amber-500/30 bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-bold text-amber-500">
+                                                                    parado
+                                                                </span>
+                                                            )}
+                                                            {/* No celular o toggle desligado já diz isso, e um
+                                                                ícone solto ao lado do "parado" só confunde. */}
+                                                            {!link.is_active && (
+                                                                <span className="hidden flex-shrink-0 items-center gap-1 whitespace-nowrap text-amber-500 lg:flex">
+                                                                    <AlertCircle className="h-3 w-3" aria-hidden />
+                                                                    desativado
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                {/* Números e ações. No celular viram uma linha só, com os
+                                                    dois números inline; `flex-wrap` é a rede de segurança
+                                                    para o aparelho mais estreito — as ações descem em vez
+                                                    de a linha estourar a largura da página. */}
+                                                <div className="flex flex-wrap items-center gap-x-2 gap-y-1 lg:flex-nowrap lg:gap-4">
+                                                    <div className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground lg:hidden">
+                                                        <span className="whitespace-nowrap tabular-nums">
+                                                            <span className="font-semibold text-foreground">
+                                                                {link.click_count.toLocaleString("pt-BR")}
+                                                            </span>{" "}
+                                                            cliques
+                                                        </span>
+                                                        <span aria-hidden>·</span>
+                                                        <span className={cn("whitespace-nowrap tabular-nums", parado && "text-amber-500")}>
+                                                            {link.last_click_at ? `último ${formatDate(link.last_click_at)}` : "nunca clicado"}
+                                                        </span>
+                                                    </div>
+
+                                                    <div className="hidden w-20 flex-shrink-0 text-right lg:block">
+                                                        <div className="text-sm font-semibold tabular-nums">
+                                                            {link.click_count.toLocaleString("pt-BR")}
+                                                        </div>
+                                                        <div className="text-[10px] text-muted-foreground">cliques</div>
+                                                    </div>
+                                                    <div className="hidden w-[104px] flex-shrink-0 text-right lg:block">
+                                                        <div className="text-[10px] text-muted-foreground">último clique</div>
+                                                        <div className={cn("text-xs tabular-nums", parado && "text-amber-500")}>
+                                                            {link.last_click_at ? formatDate(link.last_click_at) : "nunca"}
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="ml-auto flex flex-shrink-0 items-center gap-0.5">
+                                                        <Button
+                                                            variant="ghost" size="sm"
+                                                            onClick={() => handleCopy(link.slug)}
+                                                            className="h-8 w-8 px-0 lg:h-9 lg:w-9"
+                                                            aria-label={`Copiar link ${link.name}`}
+                                                        >
+                                                            <Copy className="w-4 h-4" />
+                                                        </Button>
+                                                        <Button
+                                                            variant="ghost" size="sm"
+                                                            onClick={() => handleEdit(link)}
+                                                            className="h-8 w-8 px-0 lg:h-9 lg:w-9"
+                                                            aria-label={`Editar ${link.name}`}
+                                                        >
+                                                            <Pencil className="w-4 h-4" />
+                                                        </Button>
+                                                        <a
+                                                            href={`https://${LINK_BASE_URL}${link.slug}`}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            aria-label={`Abrir ${link.name}`}
+                                                            className="inline-flex h-8 w-8 items-center justify-center rounded-md text-sm font-medium transition-colors duration-150 hover:bg-accent hover:text-accent-foreground lg:h-9 lg:w-9"
+                                                        >
+                                                            <ExternalLink className="w-4 h-4" />
+                                                        </a>
+                                                        <Button
+                                                            variant="ghost" size="sm"
+                                                            onClick={() => setInsightLink(link)}
+                                                            className="h-8 w-8 px-0 lg:h-9 lg:w-9"
+                                                            aria-label={`Ver insights de ${link.name}`}
+                                                        >
+                                                            <BarChart3 className="w-4 h-4" />
+                                                        </Button>
+                                                        <Button
+                                                            variant="ghost" size="sm"
+                                                            onClick={() => { setLinkToDelete(link); setDeleteDialogOpen(true); }}
+                                                            className="h-8 w-8 px-0 text-destructive hover:text-destructive lg:h-9 lg:w-9"
+                                                            aria-label={`Deletar ${link.name}`}
+                                                        >
+                                                            <Trash2 className="w-4 h-4" />
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+
+                            <Paginacao
+                                pagina={pagina}
+                                total={filtrados.length}
+                                onChange={setPagina}
+                                porPagina={porPagina}
+                                onPorPaginaChange={setPorPagina}
+                                formato="intervalo"
+                            />
+                        </>
+                    )}
                 </div>
             )}
         </div>
