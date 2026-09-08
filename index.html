@@ -1,8 +1,24 @@
 <!doctype html>
-<html lang="en">
+<!--
+  ATENÇÃO ao editar comentários neste arquivo: nada de escrever nomes de tag
+  entre sinais de menor/maior. O Vite injeta os scripts procurando a marca de
+  abertura de head por texto, e um comentário que a contenha faz os scripts
+  do dev server caírem DENTRO do comentário — HMR morre em silêncio.
+
+  lang="pt-BR" + translate="no" + class="notranslate": o Chrome oferecia
+  tradução automática porque o idioma declarado era "en", e traduzir QUEBRA o
+  app. O tradutor substitui os nós de texto do DOM por elementos "font"; o
+  React continua com referência aos nós antigos e, na primeira
+  re-renderização, chama removeChild num nó que já não é filho daquele pai —
+  NotFoundError. Como o projeto não tem ErrorBoundary, o throw derruba a
+  árvore inteira: tela preta e volta pro login. Ver o guard de runtime logo
+  abaixo e o reforço em src/main.tsx (applyBranding).
+-->
+<html lang="pt-BR" translate="no" class="notranslate">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="google" content="notranslate" />
     <title>MarketDash - Análises inteligentes para vendedores digitais</title>
     <meta name="description" content="MarketDash - plataforma de dashboards e insights para vendedores digitais." />
     <meta name="author" content="MarketDash" />
@@ -11,6 +27,54 @@
     <meta property="og:description" content="Transforme CSVs em dashboards e decisões com o MarketDash." />
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />
+
+    <!--
+      Terceira camada, e a única que cobre o caso real: as declarações acima só
+      valem para o tradutor nativo do Chrome. Extensão de tradução, o webview
+      do Instagram/Facebook e o "traduzir" do Android ignoram notranslate e
+      mexem no DOM do mesmo jeito.
+
+      O guard torna removeChild/insertBefore tolerantes quando o nó já foi
+      movido por outro agente: em vez de lançar NotFoundError e derrubar o
+      React, viram no-op. O React se recupera na renderização seguinte.
+
+      Precisa rodar ANTES do bundle — por isso inline aqui, e não num módulo
+      importado pelo main.tsx.
+    -->
+    <script>
+      (function () {
+        if (typeof Node !== "function" || !Node.prototype) return;
+
+        var avisou = false;
+        var avisar = function (metodo) {
+          if (avisou) return;
+          avisou = true;
+          console.warn(
+            "[MarketDash] DOM alterado por um tradutor externo; " +
+              metodo +
+              " neutralizado para não derrubar a aplicação."
+          );
+        };
+
+        var removeChildOriginal = Node.prototype.removeChild;
+        Node.prototype.removeChild = function (child) {
+          if (child && child.parentNode !== this) {
+            avisar("removeChild");
+            return child;
+          }
+          return removeChildOriginal.apply(this, arguments);
+        };
+
+        var insertBeforeOriginal = Node.prototype.insertBefore;
+        Node.prototype.insertBefore = function (newNode, referenceNode) {
+          if (referenceNode && referenceNode.parentNode !== this) {
+            avisar("insertBefore");
+            return newNode;
+          }
+          return insertBeforeOriginal.apply(this, arguments);
+        };
+      })();
+    </script>
   </head>
 
   <body>

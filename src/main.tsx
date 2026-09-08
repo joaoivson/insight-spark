@@ -11,6 +11,14 @@ const applyBranding = () => {
   const description =
     "MarketDash - plataforma de dashboards e insights para vendedores digitais.";
 
+  // Reforço do que o index.html já declara. O idioma errado ("en") era o que
+  // fazia o Chrome oferecer tradução, e traduzir derruba o React (ver o
+  // comentário e o guard de removeChild/insertBefore no index.html).
+  const html = document.documentElement;
+  if (html.lang !== "pt-BR") html.lang = "pt-BR";
+  html.setAttribute("translate", "no");
+  html.classList.add("notranslate");
+
   const upsertMeta = (selector: string, attributes: Record<string, string>) => {
     const element =
       (document.querySelector(selector) as HTMLMetaElement | null) ?? document.createElement("meta");
@@ -37,6 +45,7 @@ const applyBranding = () => {
     document.head.appendChild(existingFavicon);
   }
 
+  upsertMeta("meta[name='google']", { name: "google", content: "notranslate" });
   upsertMeta("meta[name='description']", { name: "description", content: description });
   upsertMeta("meta[property='og:title']", { property: "og:title", content: title });
   upsertMeta("meta[property='og:description']", { property: "og:description", content: description });
