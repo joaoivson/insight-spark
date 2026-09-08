@@ -9,6 +9,12 @@
 
 | Data | Decisão | Por quê |
 |---|---|---|
+| 2026-09-08 | **Antes de concluir que o Docker está fora, confira o PATH** | O `docker` mora em `/usr/local/bin` (symlink para dentro do `Docker.app`) e **não está no PATH do shell do agente**: `command not found` sai como 127 e vira "engine parada". Perdi 10 min esperando um Docker que estava de pé há 2 dias, com o `marketdash_app` saudável na :8000 |
+| 2026-09-08 | **O app declara `lang="pt-BR"` e bloqueia tradução em três camadas — incluindo um guard de runtime em `removeChild`/`insertBefore`** | Traduzir a página **derruba o React**: o tradutor troca os nós de texto por elementos `font`, o React chama `removeChild` num nó que já não é filho e lança `NotFoundError`; sem ErrorBoundary, a árvore inteira cai (tela preta, parece "deslogou"). `notranslate` só vale para o tradutor nativo do Chrome — extensão, webview do Instagram e o "traduzir" do Android ignoram, e só o guard cobre esses |
+| 2026-09-08 | **Comentário no `index.html` não escreve nome de tag entre `<` e `>`** | O Vite injeta os scripts procurando a abertura de `head` por texto: um comentário que a contenha faz os scripts do dev server caírem **dentro** dele — HMR morre em silêncio e o build de produção passa normal |
+| 2026-09-08 | **Layout de colunas em página com sidebar começa em `lg:`, não em `sm:`** | A viewport do tablet passa de 640 px, mas a sidebar aberta come ~300 px: sobram ~500 px de container, as colunas fixas não cabem e o bloco flexível é espremido a quase zero, com o texto vazando por cima dos números. Breakpoint tem que corresponder ao **container**, não à viewport |
+| 2026-09-08 | **Lista longa pagina (25, seletor 25/50/100) em vez de renderizar tudo** | Meus Links ficou ilimitado no plano MAX; centenas de linhas de uma vez é custo garantido para um ganho que a busca já entrega |
+| 2026-09-08 | **Link sem clique nenhum vai para o FIM da ordenação por "último clique"** | `null` no topo enterraria justamente os links que a afiliada está caçando — os que pararam de receber clique |
 | 2026-09-05b | **Select de "cheio" com TRÊS estados — nada limpa o override sozinho** | Revoga o comportamento de 04/09b, que causou o bug relatado como "o sync apaga minha marcação": marcar "Sim" num grupo já cheio pela ocupação gravava `null`, a assinatura não mudava, o botão não acendia e nenhum PUT saía. Da tela é indistinguível de sobrescrita pelo sync. "Automático" passa a ser a porta de volta explícita |
 | 2026-09-05b | **O Select mostra a INTENÇÃO; o resultado fica na coluna Ocupação** | São duas perguntas diferentes ("o que eu mandei" x "como está agora") e juntá-las no mesmo controle foi o que tornou o override invisível |
 | 2026-09-05b | **Laranja de ocupação a partir de 90%, não a partir de `cheio`** | 767/900 (85%) já aparecia alaranjado: cor de alerta em situação normal treina a usuária a ignorar a cor |
@@ -80,6 +86,9 @@
 
 | Prioridade | Item | Contexto | Status |
 |---|---|---|---|
+| Alta | **Projeto sem ErrorBoundary** | Qualquer throw em render derruba a árvore inteira e vira tela preta — foi o que amplificou o bug da tradução (08/09). O guard trata *aquela* causa, não a classe | Pendente — avaliar um boundary no `AppProviders` |
+| Baixa | **Ações em massa em Meus Links** (checkbox por linha para desativar/excluir em lote) | Pedido no documento como "não entra agora"; a linha já tem o lugar reservado, com comentário | Pendente |
+| ~~Baixa~~ | ~~**Meus Links validado só com API mockada**~~ | — | **Resolvido em 08/09** — passada com login real (`relacionamento@`) contra o `marketdash_app` local (banco hml): 200 em `/links` e `/links/1/insight`, busca/ordem/filtro/paginação e modal de insight OK nos 3 tamanhos. A conta de hml só tem **1 link**, então o comportamento com muitas linhas continua coberto pela passada mockada de 30 |
 | Média | **Botão "Atualizar" do header é dead code** — os stores revalidam sozinhos desde a migração para SWR | Botão que não faz nada ensina o usuário a desconfiar da tela | Pendente — remover ou dar função |
 | Média | **Badge de desconto do plano Pro** na página de vendas | Rodada da landing (11 seções em `features/landing/sales`) | Pendente |
 | Baixa | **`CLAUDE.md` diz proxy → 8081; o `vite.config.ts` aponta para 8000** | Quem segue o doc não conecta no backend | Pendente — corrigir o doc |

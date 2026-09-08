@@ -11,6 +11,74 @@
 
 ---
 
+## 2026-09-08 — O tradutor do navegador matava o React; Meus Links vira lista
+
+**O que mudou.** `index.html` passa a declarar `lang="pt-BR"` + `translate="no"`
++ `class="notranslate"` + `meta name="google" content="notranslate"`, e ganha um
+guard inline no `head`, antes do bundle, que torna `removeChild`/`insertBefore`
+tolerantes a nó já movido. `main.tsx` reforça as declarações em runtime.
+`CustomLinks.tsx` troca o grid de cards por lista com busca, ordenação, chips de
+filtro, contador, estado vazio e paginação de 25.
+
+**Por quê (tradução).** O sintoma que chegou foi "tela preta e volta pro login",
+que parece bug de sessão. Não é: o `lang="en"` fazia o Chrome oferecer tradução;
+o tradutor substitui os nós de texto por elementos `font`; o React ainda aponta
+para os nós antigos e chama `removeChild` num nó que já não é filho daquele pai.
+`NotFoundError`. **Sem ErrorBoundary no projeto, o throw leva a árvore inteira** —
+por isso some até a sidebar, e por isso parece "deslogou".
+
+As três camadas não são redundância: `notranslate` só vale para o tradutor
+nativo do Chrome. Extensão de tradução, webview do Instagram/Facebook e o
+"traduzir" do Android ignoram a declaração e mexem no DOM do mesmo jeito — só o
+guard cobre esses. É o caso mais provável no público real, que chega por link de
+Instagram.
+
+**A prova.** Fiz o experimento de controle, porque "não quebrou" sozinho não
+distingue fix de sorte: com o guard ativo, substituir 137 nós de texto por
+`font` e forçar re-render deixa a tela intacta (8 linhas → 8, zero erro); com o
+guard desfeito (métodos nativos restaurados de um iframe), a mesma simulação
+produz quatro `NotFoundError` e `#root` vazio. A tela preta reproduzida em
+laboratório.
+
+**Armadilha nova, e cara.** Comentário no `index.html` **não pode** conter nome
+de tag entre `<` e `>`. O Vite injeta os scripts procurando a abertura de `head`
+por texto: minha primeira versão do comentário explicava o bug citando `<head>`,
+e os scripts do dev server foram parar **dentro** do comentário — HMR morto, em
+silêncio, e o build de produção passando normal. Só apareceu porque fui olhar o
+HTML servido pelo dev server. Está anotado no topo do próprio arquivo.
+
+**Por quê (lista).** O MAX liberou links ilimitados; card não escala. O ganho é
+medido, não estimado: linha de 61 px contra ~200 px do card.
+
+**O erro que a validação visual pegou.** Eu tinha posto o switch de layout em
+`sm:` (640 px). No tablet a viewport passa de 640, mas a **sidebar aberta come
+~300 px** — sobram ~500 px de container, as colunas fixas não cabem e o bloco de
+identidade era espremido a quase zero, com o nome vazando por cima dos números.
+`tsc` e `eslint` verdes; só o screenshot mostrou. Lição repetida: **o breakpoint
+tem que corresponder ao container, não à viewport** — em página com sidebar,
+`lg:` é o primeiro ponto seguro para layout de colunas.
+
+**Validação com backend real (mesmo dia, depois).** O Docker **nunca esteve
+fora** — o `docker` não está no PATH do shell do agente, `command not found`
+volta 127 e eu li isso como "engine parada". O `marketdash_app` estava saudável
+na :8000 havia 2 dias. Com o Vite subido em `:5174` usando as envs de hml por
+fora (receita do `reference_admin_login_playwright`), o login real passou e a
+tela renderizou com dado do banco: 200 em `/links` e `/links/1/insight`,
+paginação, busca, chips e o modal de insight OK nos 3 tamanhos.
+
+E a simulação do tradutor, agora no app real logado, fechou o caso: **com** o
+guard, `#root` com 3 filhos e 327 caracteres de texto, zero erro; **sem** o
+guard, `#root` com **0 filhos e 0 caracteres** — a sidebar desaparece junto e o
+screenshot é uma tela preta lisa. É literalmente o print da Anne.
+
+**Pendente.** (1) Ações em massa (checkbox por linha) ficaram fora — a linha já
+tem o lugar reservado, com comentário. (2) A conta de hml só tem **1 link**: o
+comportamento com muitas linhas está coberto pela passada mockada de 30 itens em
+7 larguras, não por dado real. (3) O projeto continua sem ErrorBoundary — o
+guard trata *esta* causa, não a classe do problema.
+
+---
+
 ## 2026-09-05b — Medição de grupos: um bug meu de ontem, com cara de bug do sync
 
 Frontend do terceiro documento delta. Backend: `97f7f5d`.
